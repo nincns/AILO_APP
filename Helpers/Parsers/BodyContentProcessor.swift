@@ -28,10 +28,13 @@ public class BodyContentProcessor {
         // Schritt 3: Entferne rohe MIME-Boundaries aus HTML
         content = removeMIMEBoundariesFromHTML(content)
         
-        // Schritt 4: Normalisiere Sonderzeichen
+        // ✅ Schritt 4: Decode HTML-Entities (nutzt HTMLEntityDecoder)
+        content = HTMLEntityDecoder.decodeForHTML(content)
+        
+        // Schritt 5: Normalisiere Sonderzeichen (Legacy, falls HTMLEntityDecoder was übersieht)
         content = normalizeSonderzeichen(content)
         
-        // Schritt 5: Sichere minimale HTML-Struktur
+        // Schritt 6: Sichere minimale HTML-Struktur
         content = ensureMinimalHTMLStructure(content)
         
         return content
@@ -49,13 +52,16 @@ public class BodyContentProcessor {
         // Schritt 2: Normalisiere Zeilenumbrüche
         content = normalizeLineBreaks(content)
         
-        // Schritt 3: Normalisiere Sonderzeichen
+        // ✅ Schritt 3: Decode HTML-Entities für Plain-Text
+        content = HTMLEntityDecoder.decodeForPlainText(content)
+        
+        // Schritt 4: Normalisiere Sonderzeichen (Legacy)
         content = normalizeSonderzeichen(content)
         
-        // Schritt 4: Entferne übermäßige Leerzeilen
+        // Schritt 5: Entferne übermäßige Leerzeilen
         content = removeExcessiveWhitespace(content)
         
-        // ✨ Schritt 5: Entferne einzelne Sonderzeichen am Ende
+        // ✨ Schritt 6: Entferne einzelne Sonderzeichen am Ende
         content = removeTrailingOrphans(content)
         
         return content
@@ -290,46 +296,14 @@ public class BodyContentProcessor {
         return content
     }
     
-    /// Normalisiert Sonderzeichen und HTML-Entities
+    /// Legacy: Normalisiert nicht-druckbare Zeichen (HTML-Entities werden von HTMLEntityDecoder behandelt)
     private static func normalizeSonderzeichen(_ content: String) -> String {
-        var normalized = content
-        
-        // Häufige HTML-Entities
-        let entities: [String: String] = [
-            "&nbsp;": " ",
-            "&lt;": "<",
-            "&gt;": ">",
-            "&amp;": "&",
-            "&quot;": "\"",
-            "&apos;": "'",
-            "&#8211;": "–",
-            "&#8212;": "—",
-            "&#8220;": "\u{201C}",  // " (left double quotation mark)
-            "&#8221;": "\u{201D}",  // " (right double quotation mark)
-            "&#8216;": "\u{2018}",  // ' (left single quotation mark)
-            "&#8217;": "\u{2019}",  // ' (right single quotation mark),
-            "&auml;": "ä",
-            "&ouml;": "ö",
-            "&uuml;": "ü",
-            "&Auml;": "Ä",
-            "&Ouml;": "Ö",
-            "&Uuml;": "Ü",
-            "&szlig;": "ß",
-            "&euro;": "€"
-        ]
-        
-        for (entity, replacement) in entities {
-            normalized = normalized.replacingOccurrences(of: entity, with: replacement)
-        }
-        
-        // Normalisiere nicht-druckbare Zeichen
-        normalized = normalized.replacingOccurrences(
+        // Nur noch nicht-druckbare Zeichen entfernen
+        return content.replacingOccurrences(
             of: "[\u{0000}-\u{0008}\u{000B}\u{000C}\u{000E}-\u{001F}]",
             with: "",
             options: .regularExpression
         )
-        
-        return normalized
     }
     
     /// Normalisiert Zeilenumbrüche
