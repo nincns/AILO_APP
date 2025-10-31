@@ -221,6 +221,14 @@
 		C9FB88432EB2ACDD002359BA /* MailContentRenderer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MailContentRenderer.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
+/* Begin PBXFileSystemSynchronizedRootGroup section */
+		C981572A2EB52CB30016F2DC /* LogsList */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = LogsList;
+			sourceTree = "<group>";
+		};
+/* End PBXFileSystemSynchronizedRootGroup section */
+
 /* Begin PBXFrameworksBuildPhase section */
 		C9F2CC262E8873D300D5D965 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
@@ -566,6 +574,7 @@
 		C9DEDFEF2EAECC4D00C40B92 /* Views */ = {
 			isa = PBXGroup;
 			children = (
+				C981572A2EB52CB30016F2DC /* LogsList */,
 				C9DEDFDA2EAECC4D00C40B92 /* Configuration */,
 				C9DEDFDC2EAECC4D00C40B92 /* Dashboard */,
 				C9DEDFDF2EAECC4D00C40B92 /* Logs */,
@@ -615,6 +624,9 @@
 			buildRules = (
 			);
 			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				C981572A2EB52CB30016F2DC /* LogsList */,
 			);
 			name = AILO_APP;
 			packageProductDependencies = (

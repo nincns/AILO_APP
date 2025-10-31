@@ -1,4 +1,4 @@
-// AILO_APPApp.swift â€“ App entry point
+// AILO_APPApp.swift – App entry point
 import SwiftUI
 import AVFoundation
 import UIKit
@@ -41,28 +41,22 @@ struct MainView: View {
                     Text("app.tab.dashboard")
                 }
 
-            NavigationStack { MailView() }  // â† NEU
+            NavigationStack { MailView() }
                 .tabItem {
-                    Image(systemName: "envelope")  // â† Mail-Icon
-                    Text("app.tab.mail")           // â† Lokalisierung
-                }
-
-            NavigationStack { SchreibenView() }
-                .tabItem {
-                    Image(systemName: "square.and.pencil")
-                    Text("app.tab.write")
-                }
-
-            NavigationStack { SprechenView() }
-                .tabItem {
-                    Image(systemName: "mic")
-                    Text("app.tab.speak")
+                    Image(systemName: "envelope")
+                    Text("app.tab.mail")
                 }
 
             NavigationStack { LogsView() }
                 .tabItem {
-                    Image(systemName: "clock")
+                    Image(systemName: "plus.rectangle.on.folder")
                     Text("app.tab.logs")
+                }
+
+            NavigationStack { ConfigView() }
+                .tabItem {
+                    Image(systemName: "gearshape")
+                    Text("app.tab.settings")
                 }
         }
     }
@@ -73,7 +67,7 @@ private enum StartupWarmups {
     static func run() {
         warmAudioSession()
         warmTextKit()
-        initializeDAOs()  // â† UPDATED
+        initializeDAOs()
     }
 
     private static func warmAudioSession() {
@@ -95,15 +89,15 @@ private enum StartupWarmups {
     
     private static func initializeDAOs() {
         let docsDir = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
-        let dbURL = docsDir.appendingPathComponent("mail_v3.db")  // âœ… v3 fÃ¼r frische DB
+        let dbURL = docsDir.appendingPathComponent("mail_v3.db")
 
-        print("ðŸ’¾ DEBUG: Using DB at: \(dbURL.path)")
+        print("💾 DEBUG: Using DB at: \(dbURL.path)")
 
-        // âœ… TEMPORÃ„R: Cleanup alter DBs fÃ¼r frischen Start
+        // ✅ TEMPORÄR: Cleanup alter DBs für frischen Start
         let oldURLs = [
             docsDir.appendingPathComponent("mail.db"),
             docsDir.appendingPathComponent("mail_v2.db"),
-            dbURL  // auch v3 cleanen fÃ¼r ganz frisch
+            dbURL  // auch v3 cleanen für ganz frisch
         ]
         for oldURL in oldURLs {
             let walURL = oldURL.deletingPathExtension().appendingPathExtension("db-wal")
@@ -112,53 +106,53 @@ private enum StartupWarmups {
             try? FileManager.default.removeItem(at: walURL)
             try? FileManager.default.removeItem(at: shmURL)
         }
-        print("ðŸ§¹ DEBUG: Cleaned up all old database files")
+        print("🧹 DEBUG: Cleaned up all old database files")
 
         do {
             let daoFactory = DAOFactory(dbPath: dbURL.path)
-            print("ðŸ”§ DEBUG: Attempting to initialize database at: \(dbURL.path)")
+            print("🔧 DEBUG: Attempting to initialize database at: \(dbURL.path)")
             
             try daoFactory.initializeDatabase()
-            print("ðŸ”§ DEBUG: Database initialization successful")
+            print("🔧 DEBUG: Database initialization successful")
             
             // Test the schema
             let schemaInfo = try daoFactory.validateSchema()
-            print("ðŸ”§ DEBUG: Database user version: \(schemaInfo.userVersion)")
-            print("ðŸ”§ DEBUG: Folders table exists: \(schemaInfo.foldersTableExists)")
+            print("🔧 DEBUG: Database user version: \(schemaInfo.userVersion)")
+            print("🔧 DEBUG: Folders table exists: \(schemaInfo.foldersTableExists)")
             
             // WICHTIG: Store the factory in MailRepository to prevent deallocation
             MailRepository.shared.factory = daoFactory
             // Use the combined DAO that provides both read and write capabilities
             MailRepository.shared.dao = daoFactory.mailFullAccessDAO
-            MailRepository.shared.writeDAO = daoFactory.mailFullAccessDAO  // ← FEHLT!
-            print("âœ… DEBUG: DAO Factory initialized successfully with fresh DB!")
+            MailRepository.shared.writeDAO = daoFactory.mailFullAccessDAO
+            print("✅ DEBUG: DAO Factory initialized successfully with fresh DB!")
             
-            // ðŸš€ NEU: Starte initiale Mail-Synchronisation im Hintergrund
+            // 🚀 NEU: Starte initiale Mail-Synchronisation im Hintergrund
             Task {
                 await startInitialMailSync()
             }
         } catch {
-            print("âŒ DEBUG: DAO initialization failed: \(error)")
-            print("âŒ DEBUG: Error type: \(type(of: error))")
+            print("❌ DEBUG: DAO initialization failed: \(error)")
+            print("❌ DEBUG: Error type: \(type(of: error))")
             if let daoError = error as? DAOError {
-                print("âŒ DEBUG: DAO Error details: \(daoError.localizedDescription)")
+                print("❌ DEBUG: DAO Error details: \(daoError.localizedDescription)")
             }
             // Print the full error details
-            print("âŒ DEBUG: Full error: \(String(describing: error))")
+            print("❌ DEBUG: Full error: \(String(describing: error))")
             
             // Fallback: Continue without DAO (app should still work in limited mode)
             MailRepository.shared.dao = nil
         }
     }
     
-    /// Startet die initiale Mail-Synchronisation fÃ¼r alle aktiven Accounts
+    /// Startet die initiale Mail-Synchronisation für alle aktiven Accounts
     private static func startInitialMailSync() async {
-        print("ðŸš€ Starting initial mail sync on app startup...")
+        print("🚀 Starting initial mail sync on app startup...")
         
         // Lade aktive Accounts
         guard let data = UserDefaults.standard.data(forKey: "mail.accounts"),
               let accounts = try? JSONDecoder().decode([MailAccountConfig].self, from: data) else {
-            print("ðŸ“§ No mail accounts found for initial sync")
+            print("🔧 No mail accounts found for initial sync")
             return
         }
         
@@ -174,27 +168,27 @@ private enum StartupWarmups {
         let activeAccounts = accounts.filter { activeIDs.contains($0.id) }
         
         if activeAccounts.isEmpty {
-            print("ðŸ“§ No active mail accounts found for initial sync")
+            print("🔧 No active mail accounts found for initial sync")
             return
         }
         
-        print("ðŸ”„ Starting background sync for \(activeAccounts.count) active accounts...")
+        print("🔄 Starting background sync for \(activeAccounts.count) active accounts...")
         
-        // Starte inkrementelle Sync fÃ¼r alle aktiven Accounts parallel
+        // Starte inkrementelle Sync für alle aktiven Accounts parallel
         await withTaskGroup(of: Void.self) { group in
             for account in activeAccounts {
                 group.addTask {
-                    print("ðŸ“ˆ Starting incremental sync for account: \(account.accountName)")
+                    print("📈 Starting incremental sync for account: \(account.accountName)")
                     await MailRepository.shared.incrementalSync(accountId: account.id, folders: nil)
                     
-                    // Kurze Wartezeit fÃ¼r Sync-Initiation
+                    // Kurze Wartezeit für Sync-Initiation
                     try? await Task.sleep(nanoseconds: 2_000_000_000) // 2 Sekunden
                     
-                    print("âœ… Initial sync completed for account: \(account.accountName)")
+                    print("✅ Initial sync completed for account: \(account.accountName)")
                 }
             }
         }
         
-        print("ðŸŽ‰ Initial mail sync startup completed for all accounts!")
+        print("🎉 Initial mail sync startup completed for all accounts!")
     }
 }
