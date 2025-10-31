@@ -1,25 +1,77 @@
+# macOS system files
 .DS_Store
-AILO/.DS_Store
-AILO_APP/.DS_Store
-AILO_APP/Assets.xcassets/.DS_Store
-AILO_APP/Assets.xcassets/.DS_Store
-AILO_APP.xcodeproj/project.xcworkspace/xcuserdata/shentsch.xcuserdatad/UserInterfaceState.xcuserstate
-AILO_APP.xcodeproj/project.xcworkspace/xcuserdata/shentsch.xcuserdatad/UserInterfaceState.xcuserstate
+.AppleDouble
+.LSOverride
+Icon?
+._*
+
+# Xcode
 *.xcuserstate
+*.xcworkspace/xcuserdata/
+*.xcuserdata/
+*.moved-aside
+DerivedData/
+build/
+*.xccheckout
+*.xcodeproj/xcuserdata/
+*.xcodeproj/project.xcworkspace/xcuserdata/
+xcuserdata/
+
+# Swift Package Manager
+/.build/
+.swiftpm/
+Package.resolved
+
+# CocoaPods (falls genutzt)
+Pods/
+Podfile.lock
+
+# Carthage (falls genutzt)
+Carthage/Build/
+
+# Fastlane (CI/CD)
+fastlane/report.xml
+fastlane/Preview.html
+fastlane/screenshots/**/*.png
+fastlane/test_output
+
+# Archives / Derived artifacts
+*.ipa
+*.dSYM.zip
+*.dSYM
+*.xcarchive
+
+# User-specific files
+*.swp
+*.swo
+*.tmp
+*.orig
+*.bak
+
+# Logs
+*.log
+
+# Asset cache (optional, falls Xcode regenerieren darf)
+*.xcassets/**/*.json
+*.xcassets/**/*.png
+
+# IDEs
+.idea/
+.vscode/
+*.code-workspace
+
+# Local environment / experimental files
+.env
+local_settings.json
+*.local.*
+
+# Ignore generated metadata from Playground or SwiftUI Previews
+timeline.xctimeline
+playground.xcworkspace
+
+# Optional: Ignore preview canvas state
 *.xcuserstate
-*.xcuserstate
-*.xcuserstate
-/AILO_APP.xcodeproj/project.xcworkspace/xcuserdata/shentsch.xcuserdatad
-/AILO_APP.xcodeproj/project.xcworkspace/xcuserdata/shentsch.xcuserdatad
-/AILO_APP.xcodeproj/project.xcworkspace/xcuserdata/shentsch.xcuserdatad
-/AILO_APP.xcodeproj/project.xcworkspace/xcuserdata/shentsch.xcuserdatad
-/AILO_APP.xcodeproj/project.xcworkspace/xcuserdata/shentsch.xcuserdatad
-/AILO_APP.xcodeproj
-/AILO_APP.xcodeproj
-*.xcuserstate
-AILO_APP.xcodeproj/project.xcworkspace/xcuserdata/shentsch.xcuserdatad/UserInterfaceState.xcuserstate
-AILO_APP.xcodeproj/project.xcworkspace/xcuserdata/shentsch.xcuserdatad/UserInterfaceState.xcuserstate
-AILO_APP.xcodeproj/project.xcworkspace/xcuserdata/shentsch.xcuserdatad/UserInterfaceState.xcuserstate
-/AILO_APP.xcodeproj/project.xcworkspace/xcuserdata/shentsch.xcuserdatad
-AILO_APP.xcodeproj/project.xcworkspace/xcuserdata/shentsch.xcuserdatad/UserInterfaceState.xcuserstate
-AILO_APP.xcodeproj/project.xcworkspace/xcuserdata/shentsch.xcuserdatad/UserInterfaceState.xcuserstate
+
+# Explicitly keep project definitions
+!*.xcodeproj/project.pbxproj
+!*.xcscheme
