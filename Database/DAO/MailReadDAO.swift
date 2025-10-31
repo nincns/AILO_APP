@@ -156,7 +156,7 @@ public class MailReadDAOImpl: BaseDAO, MailReadDAO {
                 try ensureOpen()
                 
                 let sql = """
-                    SELECT text_body, html_body, has_attachments, content_type, charset, 
+                    SELECT text_body, html_body, has_attachments, raw_body, content_type, charset, 
                            transfer_encoding, is_multipart, raw_size, processed_at
                     FROM \(MailSchema.tMsgBody) 
                     WHERE account_id = ? AND folder = ? AND uid = ?
@@ -176,12 +176,23 @@ public class MailReadDAOImpl: BaseDAO, MailReadDAO {
                 let text = stmt.columnText(0)
                 let html = stmt.columnText(1)
                 let hasAttachments = sqlite3_column_int(stmt, 2) != 0
-                let contentType = stmt.columnText(3)
-                let charset = stmt.columnText(4)
-                let transferEncoding = stmt.columnText(5)
-                let isMultipart = sqlite3_column_int(stmt, 6) != 0
-                let rawSize = stmt.columnIsNull(7) ? nil : stmt.columnInt(7)
-                let processedAt = stmt.columnDate(8)
+                let rawBody = stmt.columnText(3)  // ✅ NEU
+                let contentType = stmt.columnText(4)
+                let charset = stmt.columnText(5)
+                let transferEncoding = stmt.columnText(6)
+                let isMultipart = sqlite3_column_int(stmt, 7) != 0
+                let rawSize = stmt.columnIsNull(8) ? nil : stmt.columnInt(8)
+                let processedAt = stmt.columnDate(9)
+                
+                // 🔍 DEBUG: Check raw_body content
+                print("🔍 [MailReadDAO.DEBUG] bodyEntity loaded:")
+                print("   - UID: \(uid)")
+                print("   - text length: \(text?.count ?? 0)")
+                print("   - html length: \(html?.count ?? 0)")
+                print("   - rawBody length: \(rawBody?.count ?? 0)")
+                print("   - rawBody preview: \(rawBody?.prefix(200) ?? "nil")")
+                print("   - contentType: \(contentType ?? "nil")")
+                print("   - charset: \(charset ?? "nil")")
                 
                 return MessageBodyEntity(
                     accountId: accountId,
@@ -190,6 +201,7 @@ public class MailReadDAOImpl: BaseDAO, MailReadDAO {
                     text: text,
                     html: html,
                     hasAttachments: hasAttachments,
+                    rawBody: rawBody,  // ✅ NEU
                     contentType: contentType,
                     charset: charset,
                     transferEncoding: transferEncoding,
