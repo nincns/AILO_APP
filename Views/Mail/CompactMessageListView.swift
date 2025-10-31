@@ -34,34 +34,7 @@ struct CompactMessageListView: View {
             }
             ForEach(filtered, id: \.uid) { mail in
                 NavigationLink(value: mail.uid) {
-                    VStack(alignment: .leading, spacing: 4) {
-                        HStack(alignment: .firstTextBaseline) {
-                            // Unread indicator
-                            if !mail.flags.contains("\\Seen") {
-                                Circle()
-                                    .fill(Color.accentColor)
-                                    .frame(width: 6, height: 6)
-                            }
-                            Text(mail.from)
-                                .font(.subheadline)
-                                .lineLimit(1)
-                                .foregroundStyle(.primary)
-                            if mail.flags.contains("\\Flagged") {
-                                Image(systemName: "flag.fill").foregroundStyle(.orange)
-                            }
-                            Spacer()
-                            if let d = mail.date {
-                                Text(d, style: .date)
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                            }
-                        }
-                        Text(mail.subject.isEmpty ? String(localized: "app.mail.no_subject") : mail.subject)
-                            .font(.footnote)
-                            .foregroundStyle(.primary)
-                            .lineLimit(2)
-                            .fontWeight(mail.flags.contains("\\Seen") ? .regular : .semibold)
-                    }
+                    EnhancedMailRowView(mail: mail)
                 }
                 .swipeActions(edge: .trailing, allowsFullSwipe: true) {
                     Button(role: .destructive) { onDelete(mail) } label: { Label("app.common.delete", systemImage: "trash") }
@@ -109,10 +82,129 @@ struct CompactMessageListView: View {
 
 #Preview {
     let mails: [MessageHeaderEntity] = [
-        MessageHeaderEntity(accountId: UUID(), folder: "INBOX", uid: "1", from: "alice@example.com", subject: "Hello Alice", date: Date(), flags: []),
+        MessageHeaderEntity(accountId: UUID(), folder: "INBOX", uid: "1", from: "Montgomery Scott <scotty@beam-me-up.net>", subject: "Anfrage Beta Test", date: Date(), flags: []),
         MessageHeaderEntity(accountId: UUID(), folder: "INBOX", uid: "2", from: "bob@example.com", subject: "Meeting", date: Date().addingTimeInterval(-3600), flags: ["\\Seen"]) 
     ]
     return NavigationStack {
         CompactMessageListView(mails: mails, onDelete: { _ in }, onToggleFlag: { _ in }, onToggleRead: { _ in }, searchText: .constant(""), onRefresh: {})
+    }
+}
+
+// MARK: - Enhanced Mail Row View
+
+struct EnhancedMailRowView: View {
+    let mail: MessageHeaderEntity
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            // Zeile 1: Status + Sender Name + Datum  
+            HStack(alignment: .firstTextBaseline) {
+                // Unread indicator + Status flags
+                HStack(spacing: 4) {
+                    if !mail.flags.contains("\\Seen") {
+                        Circle()
+                            .fill(Color.accentColor)
+                            .frame(width: 8, height: 8)
+                    } else {
+                        // Spacer für gleiche Einrückung
+                        Circle()
+                            .fill(Color.clear)
+                            .frame(width: 8, height: 8)
+                    }
+                    
+                    if mail.flags.contains("\\Flagged") {
+                        Image(systemName: "flag.fill")
+                            .foregroundStyle(.orange)
+                            .font(.caption)
+                    }
+                }
+                
+                // Sender Name (extract display name if available)
+                Text(extractSenderName(from: mail.from))
+                    .font(.subheadline)
+                    .fontWeight(mail.flags.contains("\\Seen") ? .medium : .semibold)
+                    .lineLimit(1)
+                    .foregroundStyle(.primary)
+                
+                Spacer()
+                
+                // Datum
+                if let date = mail.date {
+                    Text(date, style: .date)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+            
+            // Zeile 2: E-Mail-Adresse (falls verfügbar und anders als Display Name)
+            if let emailAddress = extractEmailAddress(from: mail.from),
+               emailAddress != extractSenderName(from: mail.from) {
+                HStack {
+                    Spacer()
+                        .frame(width: 12) // Einrückung für Alignment
+                    
+                    Text(emailAddress)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                    
+                    Spacer()
+                }
+            }
+            
+            // Zeile 3: Betreff
+            HStack {
+                Spacer()
+                    .frame(width: 12) // Einrückung für Alignment
+                
+                Text(mail.subject.isEmpty ? String(localized: "app.mail.no_subject") : mail.subject)
+                    .font(.footnote)
+                    .foregroundStyle(.primary)
+                    .lineLimit(2)
+                    .fontWeight(mail.flags.contains("\\Seen") ? .regular : .medium)
+                
+                Spacer()
+            }
+        }
+        .padding(.vertical, 2)
+    }
+    
+    // MARK: - Helper Methods
+    
+    /// Extrahiert den Display-Namen aus "Montgomery Scott <scotty@example.com>" oder gibt die gesamte Adresse zurück
+    private func extractSenderName(from fromString: String) -> String {
+        let trimmed = fromString.trimmingCharacters(in: .whitespacesAndNewlines)
+        
+        // Check for "Display Name <email@domain.com>" format
+        if let angleIndex = trimmed.firstIndex(of: "<") {
+            let displayName = String(trimmed[..<angleIndex]).trimmingCharacters(in: .whitespacesAndNewlines)
+            if !displayName.isEmpty {
+                // Remove quotes if present
+                let cleaned = displayName.trimmingCharacters(in: CharacterSet(charactersIn: "\""))
+                return cleaned.isEmpty ? trimmed : cleaned
+            }
+        }
+        
+        // Fallback: return the entire string
+        return trimmed
+    }
+    
+    /// Extrahiert nur die E-Mail-Adresse aus "Montgomery Scott <scotty@example.com>"
+    private func extractEmailAddress(from fromString: String) -> String? {
+        let trimmed = fromString.trimmingCharacters(in: .whitespacesAndNewlines)
+        
+        // Check for "Display Name <email@domain.com>" format
+        if let startIndex = trimmed.firstIndex(of: "<"),
+           let endIndex = trimmed.firstIndex(of: ">") {
+            let email = String(trimmed[trimmed.index(after: startIndex)..<endIndex])
+            return email.isEmpty ? nil : email
+        }
+        
+        // If it's just an email address, return it only if it contains @
+        if trimmed.contains("@") && !trimmed.contains(" ") {
+            return trimmed
+        }
+        
+        return nil
     }
 }
