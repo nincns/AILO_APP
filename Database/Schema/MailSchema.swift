@@ -3,16 +3,16 @@
 // Entities: Account, Folder, MessageHeader, MessageBody, Attachment, OutboxItem.
 // Used by MailDAO for CRUD and sync operations.
 //
+// Version 3 Changes:
+// - Added rawBody field to MessageBodyEntity for forensics and validation
+// - Support for RAW mail display and .eml export
+// - Enhanced security features (DKIM validation, phishing detection)
+//
 // Version 2 Changes:
 // - Enhanced MessageBodyEntity with content processing metadata
 // - Enhanced AttachmentEntity with inline/checksum support
 // - Migration support from v1 to v2 with ALTER TABLE statements
 // - Backward-compatible initializers for existing code
-
-// AILO_APP/Core/Storage/MailSchema.swift
-// Defines Core Data / SQLite schema for mail persistence.
-// Entities: Account, Folder, MessageHeader, MessageBody, Attachment, OutboxItem.
-// Used by MailDAO for CRUD and sync operations.
 
 import Foundation
 
@@ -55,9 +55,12 @@ public struct MessageBodyEntity: Sendable, Equatable {
     public var html: String?
     public var hasAttachments: Bool
     
-    // New metadata fields for enhanced content processing
+    // ✅ V3: RAW mail storage for forensics, validation, and export
+    public var rawBody: String?           // Original RFC822 message (headers + body)
+    
+    // V2: Metadata fields for enhanced content processing
     public var contentType: String?       // e.g. "text/html", "text/plain"
-    public var charset: String?           // e.g. "utf-8", "iso-8859-1"  
+    public var charset: String?           // e.g. "utf-8", "iso-8859-1"
     public var transferEncoding: String?  // e.g. "quoted-printable", "base64"
     public var isMultipart: Bool          // true if multipart/alternative
     public var rawSize: Int?              // Original size before decoding
@@ -71,6 +74,7 @@ public struct MessageBodyEntity: Sendable, Equatable {
         self.text = text
         self.html = html
         self.hasAttachments = hasAttachments
+        self.rawBody = nil
         self.contentType = nil
         self.charset = nil
         self.transferEncoding = nil
@@ -79,8 +83,8 @@ public struct MessageBodyEntity: Sendable, Equatable {
         self.processedAt = nil
     }
     
-    // Enhanced initializer with metadata
-    public init(accountId: UUID, folder: String, uid: String, text: String? = nil, html: String? = nil, 
+    // Enhanced initializer with metadata (V2)
+    public init(accountId: UUID, folder: String, uid: String, text: String? = nil, html: String? = nil,
                 hasAttachments: Bool = false, contentType: String? = nil, charset: String? = nil,
                 transferEncoding: String? = nil, isMultipart: Bool = false, rawSize: Int? = nil,
                 processedAt: Date? = nil) {
@@ -90,6 +94,27 @@ public struct MessageBodyEntity: Sendable, Equatable {
         self.text = text
         self.html = html
         self.hasAttachments = hasAttachments
+        self.rawBody = nil
+        self.contentType = contentType
+        self.charset = charset
+        self.transferEncoding = transferEncoding
+        self.isMultipart = isMultipart
+        self.rawSize = rawSize
+        self.processedAt = processedAt
+    }
+    
+    // ✅ V3: Full initializer with rawBody
+    public init(accountId: UUID, folder: String, uid: String, text: String? = nil, html: String? = nil,
+                hasAttachments: Bool = false, rawBody: String? = nil, contentType: String? = nil,
+                charset: String? = nil, transferEncoding: String? = nil, isMultipart: Bool = false,
+                rawSize: Int? = nil, processedAt: Date? = nil) {
+        self.accountId = accountId
+        self.folder = folder
+        self.uid = uid
+        self.text = text
+        self.html = html
+        self.hasAttachments = hasAttachments
+        self.rawBody = rawBody
         self.contentType = contentType
         self.charset = charset
         self.transferEncoding = transferEncoding
@@ -117,7 +142,7 @@ public struct AttachmentEntity: Sendable, Identifiable, Equatable {
     public var checksum: String?          // SHA256 for deduplication
     
     // Convenience initializer for backward compatibility
-    public init(accountId: UUID, folder: String, uid: String, partId: String, 
+    public init(accountId: UUID, folder: String, uid: String, partId: String,
                 filename: String, mimeType: String, sizeBytes: Int, data: Data? = nil) {
         self.accountId = accountId
         self.folder = folder
@@ -180,7 +205,7 @@ public struct OutboxItemEntity: Sendable, Identifiable, Equatable {
 
 public enum MailSchema {
     /// Increase when schema changes; DAO should store this in SQLite PRAGMA user_version (or similar)
-    public static let currentVersion: Int = 2
+    public static let currentVersion: Int = 3
 
     // Table names
     public static let tAccounts = "accounts"
@@ -238,7 +263,7 @@ public enum MailSchema {
         ON \(tMsgHeader) (account_id, folder, date DESC);
         """,
 
-        // Message body (lazy)
+        // Message body (lazy) - V3 schema with raw_body
         """
         CREATE TABLE IF NOT EXISTS \(tMsgBody) (
             account_id TEXT NOT NULL,
@@ -247,6 +272,7 @@ public enum MailSchema {
             text_body TEXT,
             html_body TEXT,
             has_attachments INTEGER NOT NULL DEFAULT 0,
+            raw_body TEXT,
             content_type TEXT,
             charset TEXT,
             transfer_encoding TEXT,
@@ -360,6 +386,15 @@ public enum MailSchema {
         ON \(tMsgBody) (processed_at) WHERE processed_at IS NOT NULL;
         """
     ]
+    
+    // MARK: DDL v3 - RAW mail storage
+    
+    public static let ddl_v3_migrations: [String] = [
+        // Add raw_body column for forensics and validation
+        """
+        ALTER TABLE \(tMsgBody) ADD COLUMN raw_body TEXT;
+        """
+    ]
 
     // MARK: - Migration API (storage-agnostic)
 
@@ -368,6 +403,7 @@ public enum MailSchema {
         switch version {
         case 1: return ddl_v1
         case 2: return ddl_v1 // v2 creates full schema with enhanced columns already in ddl_v1
+        case 3: return ddl_v1 // v3 creates full schema with raw_body already in ddl_v1
         default: return ddl_v1
         }
     }
@@ -381,11 +417,14 @@ public enum MailSchema {
         while v < newVersion {
             switch v {
             case 0:
-                // Initial install → create all v2 tables (latest schema)
+                // Initial install → create all v3 tables (latest schema)
                 steps.append(ddl_v1)
             case 1:
                 // v1 → v2: Add enhanced metadata columns
                 steps.append(ddl_v2_migrations)
+            case 2:
+                // v2 → v3: Add raw_body column
+                steps.append(ddl_v3_migrations)
             default:
                 steps.append([])
             }

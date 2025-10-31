@@ -121,6 +121,7 @@ public actor MailSyncEngine {
             text: nil,  // Will be processed in Phase 3
             html: nil,  // Will be processed in Phase 3
             hasAttachments: detectAttachments(in: rawBody),
+            rawBody: rawBody,  // ✅ NEU: Speichere RAW body
             contentType: extractContentType(from: rawBody),
             charset: extractCharset(from: rawBody),
             transferEncoding: extractTransferEncoding(from: rawBody),
@@ -170,6 +171,7 @@ public actor MailSyncEngine {
                 text: nil,
                 html: nil,
                 hasAttachments: detectAttachments(in: rawBody),
+                rawBody: rawBody,  // ✅ NEU: Speichere RAW body
                 contentType: extractContentType(from: rawBody),
                 charset: extractCharset(from: rawBody),
                 transferEncoding: extractTransferEncoding(from: rawBody),
@@ -215,6 +217,7 @@ public actor MailSyncEngine {
                 text: processed.text,
                 html: processed.html,
                 hasAttachments: !processed.attachments.isEmpty,
+                rawBody: rawData,  // ✅ NEU: RAW body aus Parameter verwenden
                 contentType: processed.contentType,
                 charset: processed.charset,
                 transferEncoding: processed.transferEncoding,
@@ -242,6 +245,7 @@ public actor MailSyncEngine {
                 text: "Processing failed: \(error.localizedDescription)",
                 html: nil,
                 hasAttachments: body.hasAttachments,
+                rawBody: rawData,  // ✅ NEU: RAW body auch im Fehlerfall speichern
                 contentType: body.contentType,
                 charset: body.charset,
                 transferEncoding: body.transferEncoding,
