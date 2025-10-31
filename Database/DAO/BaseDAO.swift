@@ -213,7 +213,9 @@ public class BaseDAO {
         print("🔍 [BIND-TEXT] Index: \(index), Value: '\(value ?? "NULL")' (count: \(value?.count ?? 0))")
         
         if let value = value {
-            let result = sqlite3_bind_text(statement, index, value, -1, nil)
+            // CRITICAL FIX: Use SQLITE_TRANSIENT to force SQLite to copy the string
+            let SQLITE_TRANSIENT = unsafeBitCast(-1, to: sqlite3_destructor_type.self)
+            let result = sqlite3_bind_text(statement, index, value, -1, SQLITE_TRANSIENT)
             print("🔍 [BIND-TEXT] SQLite bind result: \(result) (SQLITE_OK = \(SQLITE_OK))")
         } else {
             sqlite3_bind_null(statement, index)
@@ -247,8 +249,10 @@ public class BaseDAO {
     
     internal func bindBlob(_ statement: OpaquePointer, _ index: Int32, _ data: Data?) {
         if let data = data {
+            // CRITICAL FIX: Use SQLITE_TRANSIENT to force SQLite to copy the blob data
+            let SQLITE_TRANSIENT = unsafeBitCast(-1, to: sqlite3_destructor_type.self)
             data.withUnsafeBytes { bytes in
-                sqlite3_bind_blob(statement, index, bytes.baseAddress, Int32(data.count), nil)
+                sqlite3_bind_blob(statement, index, bytes.baseAddress, Int32(data.count), SQLITE_TRANSIENT)
             }
         } else {
             sqlite3_bind_null(statement, index)
