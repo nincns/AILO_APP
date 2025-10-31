@@ -272,9 +272,52 @@ public class BodyContentProcessor {
         return line.hasPrefix(" ") || line.hasPrefix("\t")
     }
     
-    /// Prüft ob eine Zeile eine MIME-Boundary ist
+    /// Prüft ob eine Zeile eine MIME-Boundary ist (UNIVERSELL für alle Mail-Clients)
     private static func isMIMEBoundary(_ line: String) -> Bool {
-        return line.hasPrefix("--") && !line.hasPrefix("---")
+        let trimmed = line.trimmingCharacters(in: .whitespaces)
+        
+        // Muss mit "--" beginnen
+        guard trimmed.hasPrefix("--") else {
+            return false
+        }
+        
+        // "---" ist kein Boundary (oft in Signaturen)
+        if trimmed.hasPrefix("---") {
+            return false
+        }
+        
+        // Nur "--" alleine ist auch kein Boundary
+        if trimmed == "--" {
+            return false
+        }
+        
+        // Apple Mail Pattern: --Apple-Mail=...
+        if trimmed.contains("Apple-Mail") {
+            return true
+        }
+        
+        // Gmail/Standard Pattern: --00000000000085ab2806427bec51--
+        // Closing boundary endet mit "--"
+        if trimmed.hasSuffix("--") && trimmed.count > 4 {
+            let middle = String(trimmed.dropFirst(2).dropLast(2))
+            let isAlphanumeric = middle.allSatisfy { $0.isLetter || $0.isNumber || $0 == "_" || $0 == "-" || $0 == "=" }
+            if isAlphanumeric && middle.count >= 10 {
+                return true
+            }
+        }
+        
+        // Standard MIME Boundary Pattern: --{boundary_string}
+        // Typisch: mindestens 10 Zeichen, alphanumerisch + Sonderzeichen
+        let boundary = String(trimmed.dropFirst(2))
+        if boundary.count >= 10 {
+            let validBoundaryChars = CharacterSet.alphanumerics.union(CharacterSet(charactersIn: "_-="))
+            let validCount = boundary.unicodeScalars.filter { validBoundaryChars.contains($0) }.count
+            if Double(validCount) / Double(boundary.count) >= 0.7 {
+                return true
+            }
+        }
+        
+        return false
     }
     
     /// Entfernt/Normalisiert HTML-Meta-Tags
@@ -421,23 +464,33 @@ public class BodyContentProcessor {
         return content
     }
     
-    /// Entfernt MIME-Boundaries vom Ende des Contents
+    /// Entfernt MIME-Boundaries vom Ende des Contents (UNIVERSELL)
     private static func removeMIMEBoundariesFromEnd(_ content: String) -> String {
         let lines = content.components(separatedBy: .newlines)
         var endIndex = lines.count
+        var foundBoundary = false
         
         // Suche rückwärts nach MIME-Boundaries
         for (index, line) in lines.enumerated().reversed() {
             let trimmed = line.trimmingCharacters(in: .whitespaces)
             
-            // MIME-Boundary am Ende
-            if isMIMEBoundary(trimmed) || trimmed.isEmpty && index > lines.count - 5 {
+            // MIME-Boundary erkannt
+            if isMIMEBoundary(trimmed) {
+                endIndex = index
+                foundBoundary = true
+                continue
+            }
+            
+            // Leere Zeilen nur entfernen wenn sie NACH einer erkannten Boundary kommen
+            if foundBoundary && trimmed.isEmpty {
                 endIndex = index
                 continue
             }
             
-            // Erste Nicht-Boundary-Zeile gefunden
-            break
+            // Erste Nicht-Boundary-Zeile gefunden - stoppe
+            if !trimmed.isEmpty {
+                break
+            }
         }
         
         // Entferne alle Boundary-Zeilen vom Ende

@@ -465,6 +465,7 @@ public final class MailRepository: ObservableObject {
                     text: textBody.isEmpty ? nil : textBody,
                     html: htmlBody.isEmpty ? nil : htmlBody,
                     hasAttachments: false,
+                    rawBody: fullMessage.rawBody,  // ✅ NEU
                     contentType: htmlBody.isEmpty ? "text/plain" : "text/html",
                     charset: "UTF-8",
                     transferEncoding: nil,

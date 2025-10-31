@@ -26,6 +26,7 @@ final class MailSendReceive {
         let header: MailHeader
         let textBody: String?
         let htmlBody: String?
+        let rawBody: String?  // ✅ NEU
     }
 
     enum ServiceError: LocalizedError {
@@ -342,7 +343,7 @@ final class MailSendReceive {
             // Need a header stub for subject/from
             if let head = try? dao.headers(accountId: account.id, folder: folder, limit: 1, offset: 0).first(where: { $0.id == uid }) {
                 let hdr = MailHeader(id: uid, from: head.from, subject: head.subject, date: head.date ?? Date(), unread: !head.flags.contains("\\Seen"))
-                return .success(FullMessage(header: hdr, textBody: body.text, htmlBody: body.html))
+                return .success(FullMessage(header: hdr, textBody: body.text, htmlBody: body.html, rawBody: body.rawBody))
             }
         }
         // Network load
@@ -402,7 +403,12 @@ final class MailSendReceive {
             // ✅ BodyContentProcessor für Anzeige-Verarbeitung
             let header = MailHeader(id: uid, from: from, subject: subj, date: date, unread: false)
             let displayContent = BodyContentProcessor.selectDisplayContent(html: mime.html, text: mime.text)
-            return .success(FullMessage(header: header, textBody: displayContent.isHTML ? nil : displayContent.content, htmlBody: displayContent.isHTML ? displayContent.content : nil))
+            return .success(FullMessage(
+                header: header, 
+                textBody: displayContent.isHTML ? nil : displayContent.content, 
+                htmlBody: displayContent.isHTML ? displayContent.content : nil,
+                rawBody: bodyOnly  // ✅ NEU: RAW body speichern
+            ))
         } catch {
             return .failure(error)
         }
