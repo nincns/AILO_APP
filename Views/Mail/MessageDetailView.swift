@@ -538,6 +538,35 @@ struct MessageDetailView: View {
         print("🗑️ Delete mail: \(mail.subject)")
         dismiss()
     }
+    
+    // MARK: - Helper Functions
+
+    /// Parse "Display Name <email@domain.com>" format into components
+    private func parseFromAddress(_ from: String) -> (name: String?, email: String?) {
+        // Pattern: "Name <email>" or just "email"
+        let trimmed = from.trimmingCharacters(in: .whitespaces)
+        
+        // Check for "Name <email>" format
+        if let openBracket = trimmed.lastIndex(of: "<"),
+           let closeBracket = trimmed.lastIndex(of: ">"),
+           openBracket < closeBracket {
+            
+            let name = String(trimmed[..<openBracket])
+                .trimmingCharacters(in: .whitespaces)
+            let email = String(trimmed[trimmed.index(after: openBracket)..<closeBracket])
+                .trimmingCharacters(in: .whitespaces)
+            
+            return (name.isEmpty ? nil : name, email)
+        }
+        
+        // If no brackets, check if it's just an email
+        if trimmed.contains("@") {
+            return (nil, trimmed)
+        }
+        
+        // Fallback: treat entire string as name
+        return (trimmed, nil)
+    }
 }
 
 // MARK: - Supporting Views
