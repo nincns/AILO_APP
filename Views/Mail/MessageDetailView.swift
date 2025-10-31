@@ -19,6 +19,7 @@ struct MessageDetailView: View {
     @State private var attachments: [AttachmentEntity] = []
     @State private var tempFiles: [URL] = []
     @State private var errorMessage: String? = nil
+    @State private var showTechnicalHeaders: Bool = false
     
     @Environment(\.dismiss) private var dismiss
     
@@ -116,6 +117,13 @@ struct MessageDetailView: View {
                             systemImage: mail.flags.contains("\\Seen") ? "envelope.badge" : "envelope.open"
                         )
                     }
+                    Divider()
+                    Button(action: { showTechnicalHeaders.toggle() }) {
+                        Label(
+                            showTechnicalHeaders ? "Technische Details ausblenden" : "Technische Details anzeigen",
+                            systemImage: "info.circle"
+                        )
+                    }
                     Button(role: .destructive, action: deleteAction) {
                         Label("Löschen", systemImage: "trash")
                     }
@@ -141,103 +149,99 @@ struct MessageDetailView: View {
                 .fontWeight(.semibold)
                 .foregroundStyle(.primary)
             
-            // From, Date, and Flags
+            // From, Date, and Flags - Optimiertes Grid-Layout
             VStack(alignment: .leading, spacing: 8) {
-                // Unsichtbare Tabelle: 3 Zeilen, 2 Spalten
-                VStack(spacing: 4) {
-                    // Parse name and email from "Name <email@domain.com>" format
-                    let parsedFrom = parseFromAddress(mail.from)
+                let parsedFrom = parseFromAddress(mail.from)
+                
+                // Von (Absender) - Zeile
+                HStack(alignment: .firstTextBaseline, spacing: 12) {
+                    // Icon + Label
+                    HStack(spacing: 6) {
+                        Image(systemName: "person.circle.fill")
+                            .foregroundStyle(.secondary)
+                            .font(.subheadline)
+                        Text("Von:")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                            .frame(width: 60, alignment: .leading)
+                    }
                     
-                    // Zeile 1: Icon/Von | Name
-                    HStack(alignment: .top) {
-                        // Spalte 1: Icon und "Von:"
-                        HStack {
-                            Image(systemName: "person.circle.fill")
-                                .foregroundStyle(.secondary)
-                            Text("Von:")
-                                .font(.subheadline)
-                                .foregroundStyle(.secondary)
-                        }
-                        .frame(minWidth: 80, alignment: .leading)
-                        
-                        // Spalte 2: Name (oder E-Mail als Fallback)
+                    // Wert (Name)
+                    VStack(alignment: .leading, spacing: 2) {
                         if let displayName = parsedFrom.name, !displayName.isEmpty {
                             Text(displayName)
                                 .font(.subheadline)
                                 .fontWeight(.semibold)
-                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .foregroundStyle(.primary)
                         } else if let email = parsedFrom.email {
                             Text(email)
                                 .font(.subheadline)
                                 .fontWeight(.semibold)
-                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .foregroundStyle(.primary)
                         } else {
                             Text(mail.from)
                                 .font(.subheadline)
                                 .fontWeight(.semibold)
-                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .foregroundStyle(.primary)
                         }
-                    }
-                    
-                    // Zeile 2: Leer | E-Mail (nur wenn Name vorhanden)
-                    if let displayName = parsedFrom.name, !displayName.isEmpty,
-                       let email = parsedFrom.email {
-                        HStack(alignment: .top) {
-                            // Spalte 1: Leer
-                            Spacer()
-                                .frame(minWidth: 80)
-                            
-                            // Spalte 2: E-Mail
+                        
+                        // E-Mail-Adresse (nur wenn Name vorhanden)
+                        if let displayName = parsedFrom.name, !displayName.isEmpty,
+                           let email = parsedFrom.email {
                             Text(email)
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
-                                .frame(maxWidth: .infinity, alignment: .leading)
                         }
                     }
                     
-                    // Zeile 3: Datum Icon/Label | Datum Wert
-                    if let date = mail.date {
-                        HStack(alignment: .top) {
-                            // Spalte 1: Datum Icon und Label
-                            HStack {
-                                Image(systemName: "calendar")
-                                    .foregroundStyle(.secondary)
-                                Text("Datum:")
-                                    .font(.subheadline)
-                                    .foregroundStyle(.secondary)
-                            }
-                            .frame(minWidth: 80, alignment: .leading)
-                            
-                            // Spalte 2: Datum Wert
-                            Text(date.formatted(date: .abbreviated, time: .shortened))
+                    Spacer()
+                }
+                
+                // Datum - Zeile
+                if let date = mail.date {
+                    HStack(alignment: .firstTextBaseline, spacing: 12) {
+                        // Icon + Label
+                        HStack(spacing: 6) {
+                            Image(systemName: "calendar")
+                                .foregroundStyle(.secondary)
                                 .font(.subheadline)
-                                .fontWeight(.medium)
-                                .frame(maxWidth: .infinity, alignment: .leading)
+                            Text("Datum:")
+                                .font(.subheadline)
+                                .foregroundStyle(.secondary)
+                                .frame(width: 60, alignment: .leading)
                         }
+                        
+                        // Wert
+                        Text(date.formatted(date: .abbreviated, time: .shortened))
+                            .font(.subheadline)
+                            .fontWeight(.medium)
+                            .foregroundStyle(.primary)
+                        
+                        Spacer()
+                    }
+                }
+            }
+            
+            // Mail status indicators
+            HStack(spacing: 16) {
+                if !mail.flags.contains("\\Seen") {
+                    HStack(spacing: 4) {
+                        Circle()
+                            .fill(Color.accentColor)
+                            .frame(width: 8, height: 8)
+                        Text("Ungelesen")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
                     }
                 }
                 
-                // Mail status indicators
-                HStack(spacing: 16) {
-                    if !mail.flags.contains("\\Seen") {
-                        HStack(spacing: 4) {
-                            Circle()
-                                .fill(Color.accentColor)
-                                .frame(width: 8, height: 8)
-                            Text("Ungelesen")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        }
-                    }
-                    
-                    if mail.flags.contains("\\Flagged") {
-                        HStack(spacing: 4) {
-                            Image(systemName: "flag.fill")
-                                .foregroundStyle(.orange)
-                            Text("Markiert")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        }
+                if mail.flags.contains("\\Flagged") {
+                    HStack(spacing: 4) {
+                        Image(systemName: "flag.fill")
+                            .foregroundStyle(.orange)
+                        Text("Markiert")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
                     }
                 }
             }
@@ -247,11 +251,14 @@ struct MessageDetailView: View {
     @ViewBuilder
     private var mailBodySection: some View {
         VStack(alignment: .leading, spacing: 0) {
+            // Filter technical headers from body text
+            let cleanedBody = showTechnicalHeaders ? bodyText : filterTechnicalHeaders(bodyText)
+            
             if isHTML {
-                MailHTMLWebView(html: bodyText)
+                MailHTMLWebView(html: cleanedBody)
                     .frame(minHeight: 200)
             } else {
-                Text(bodyText)
+                Text(cleanedBody)
                     .font(.body)
                     .lineSpacing(2)
                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -597,6 +604,76 @@ struct MessageDetailView: View {
         
         // Fallback: treat entire string as name
         return (trimmed, nil)
+    }
+    
+    /// Filter technical mail headers from body text
+    /// Removes headers like: Return-Path, Delivered-To, Received, Message-Id, X-*, etc.
+    private func filterTechnicalHeaders(_ text: String) -> String {
+        // Patterns for technical headers
+        let headerPatterns = [
+            "Return-Path:",
+            "X-Original-To:",
+            "Delivered-To:",
+            "Received:",
+            "Message-Id:",
+            "Message-ID:",
+            "X-Mailer:",
+            "X-",
+            "MIME-Version:",
+            "Content-Type:",
+            "Content-Transfer-Encoding:",
+            "Authentication-Results:",
+            "DKIM-Signature:",
+            "DomainKey-Signature:",
+            "SPF:",
+            "ARC-"
+        ]
+        
+        var lines = text.components(separatedBy: .newlines)
+        var filteredLines: [String] = []
+        var skipMode = false
+        var headerSectionEnded = false
+        
+        for (index, line) in lines.enumerated() {
+            let trimmedLine = line.trimmingCharacters(in: .whitespaces)
+            
+            // Check if we've reached the actual message content
+            // Usually indicated by an empty line after headers
+            if trimmedLine.isEmpty && index < 50 && !headerSectionEnded {
+                headerSectionEnded = true
+                continue
+            }
+            
+            // If we're past the header section, include all lines
+            if headerSectionEnded {
+                filteredLines.append(line)
+                continue
+            }
+            
+            // Check if line starts with a technical header
+            let isTechnicalHeader = headerPatterns.contains { pattern in
+                trimmedLine.hasPrefix(pattern)
+            }
+            
+            // Check if line is a continuation of previous header (starts with whitespace)
+            let isContinuation = line.hasPrefix(" ") || line.hasPrefix("\t")
+            
+            if isTechnicalHeader {
+                skipMode = true
+                continue
+            } else if isContinuation && skipMode {
+                // Skip continuation lines of technical headers
+                continue
+            } else {
+                skipMode = false
+                // Only include non-empty lines or if we're clearly past headers
+                if !trimmedLine.isEmpty || headerSectionEnded {
+                    filteredLines.append(line)
+                }
+            }
+        }
+        
+        return filteredLines.joined(separator: "\n").trimmingCharacters(in: .whitespacesAndNewlines)
     }
 }
 
