@@ -499,10 +499,6 @@ public class MIMEParser {
             attachments.append(attachment)
         }
     }
-        }
-        
-        return MIMEContent(text: textPart, html: htmlPart, attachments: attachments)
-    }
     
     /// ✨ ERWEITERT: Quoted-Printable Dekodierung mit Charset-Awareness
     private func decodeQuotedPrintableWithCharset(_ text: String, charset: String?) -> String {
