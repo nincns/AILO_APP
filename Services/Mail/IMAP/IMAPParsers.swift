@@ -494,29 +494,88 @@ private func extractEnvelopeSubject(from line: String) -> String? {
 }
 
 private func extractEnvelopeFrom(from line: String) -> String? {
-    // Try to find the address list after ENVELOPE (... "from" (("Name" NIL "mailbox" "host") ... ) ...)
-    // We keep this pragmatic: find the first occurrence of "@" or return the display name if available.
-    if let atRange = line.range(of: "@") {
-        // Extract token around @
-        let prefix = line[..<atRange.lowerBound]
-        let suffix = line[atRange.upperBound...]
-        let mailbox = lastToken(from: prefix)
-        let host = firstToken(from: suffix)
-        if let m = mailbox, let h = host {
-            return "\(m)@\(trimTrailingParens(h))"
+    // ENVELOPE structure: (date subject from sender reply-to to cc bcc in-reply-to message-id)
+    // FROM is the THIRD field: (("Name" NIL "mailbox" "host"))
+    
+    guard let envStart = line.range(of: "ENVELOPE (") else { return nil }
+    let afterEnv = line[envStart.upperBound...]
+    
+    // Skip first field (date) - quoted string
+    guard let firstQuote = afterEnv.firstIndex(of: "\"") else { return nil }
+    let afterFirstQuote = afterEnv[afterEnv.index(after: firstQuote)...]
+    guard let firstClose = afterFirstQuote.firstIndex(of: "\"") else { return nil }
+    
+    // Skip second field (subject) - quoted string
+    let afterSubject = afterFirstQuote[afterFirstQuote.index(after: firstClose)...]
+    guard let secondQuote = afterSubject.firstIndex(of: "\"") else { return nil }
+    let afterSecondQuote = afterSubject[afterSubject.index(after: secondQuote)...]
+    guard let secondClose = afterSecondQuote.firstIndex(of: "\"") else { return nil }
+    
+    // Now we're at the FROM field - should start with ((
+    let afterFromStart = afterSecondQuote[afterSecondQuote.index(after: secondClose)...]
+    guard let fromListStart = afterFromStart.range(of: "((") else { return nil }
+    let fromContent = afterFromStart[fromListStart.upperBound...]
+    
+    // Parse: ("Display Name" NIL "mailbox" "host")
+    // Extract all quoted strings from this address structure
+    var quotedStrings: [String] = []
+    var searchRange = fromContent.startIndex
+    
+    while searchRange < fromContent.endIndex {
+        guard let quoteStart = fromContent[searchRange...].firstIndex(of: "\"") else { break }
+        let afterQuote = fromContent.index(after: quoteStart)
+        guard afterQuote < fromContent.endIndex else { break }
+        
+        // Find the closing quote (handle escaped quotes)
+        var quoteEnd = afterQuote
+        var escaped = false
+        while quoteEnd < fromContent.endIndex {
+            let char = fromContent[quoteEnd]
+            if escaped {
+                escaped = false
+            } else if char == "\\" {
+                escaped = true
+            } else if char == "\"" {
+                break
+            }
+            quoteEnd = fromContent.index(after: quoteEnd)
         }
-    }
-    // Fallback: first quoted string after address list start
-    if let r = line.range(of: "ENVELOPE ("),
-       let names = line[r.upperBound...].range(of: "(("),
-       let q1 = line[names.upperBound...].firstIndex(of: "\"") {
-        let rest = line[line.index(after: q1)...]
-        if let q2 = rest.firstIndex(of: "\"") {
-            let name = String(rest[..<q2])
-            if !name.isEmpty { return name }
+        
+        if quoteEnd < fromContent.endIndex {
+            let content = String(fromContent[afterQuote..<quoteEnd])
+            if content.uppercased() != "NIL" && !content.isEmpty {
+                quotedStrings.append(content)
+            }
+            searchRange = fromContent.index(after: quoteEnd)
+        } else {
+            break
         }
+        
+        // Stop after we have enough (name, mailbox, host)
+        if quotedStrings.count >= 3 { break }
     }
-    return nil
+    
+    // Build the FROM string based on what we found
+    switch quotedStrings.count {
+    case 0:
+        return nil
+    case 1:
+        // Only name or only email
+        return quotedStrings[0]
+    case 2:
+        // mailbox@host (no display name)
+        return "\(quotedStrings[0])@\(quotedStrings[1])"
+    case 3...:
+        // Display Name + mailbox@host
+        let name = quotedStrings[0]
+        let mailbox = quotedStrings[1]
+        let host = quotedStrings[2]
+        
+        // Format: "Display Name <mailbox@host>"
+        return "\(name) <\(mailbox)@\(host)>"
+    default:
+        return nil
+    }
 }
 
 private func lastToken(from slice: Substring) -> String? {
