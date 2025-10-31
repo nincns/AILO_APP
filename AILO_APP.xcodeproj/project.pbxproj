@@ -1,0 +1,1020 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		C93D2CB12EB16CFD00AA4072 /* MailViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = C93D2CB02EB16CFC00AA4072 /* MailViewModel.swift */; };
+		C93D2CB32EB16D7700AA4072 /* MailViewComponents.swift in Sources */ = {isa = PBXBuildFile; fileRef = C93D2CB22EB16D7700AA4072 /* MailViewComponents.swift */; };
+		C93D2CB52EB16DC300AA4072 /* MailViewSheets.swift in Sources */ = {isa = PBXBuildFile; fileRef = C93D2CB42EB16DC300AA4072 /* MailViewSheets.swift */; };
+		C93D2CB72EB16E2400AA4072 /* MailboxNavigationPanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = C93D2CB62EB16E2400AA4072 /* MailboxNavigationPanel.swift */; };
+		C947A0F12EAED321006E661B /* ContentExtractor.swift in Sources */ = {isa = PBXBuildFile; fileRef = C947A0F02EAED321006E661B /* ContentExtractor.swift */; };
+		C947E8FE2EB411E5007634FC /* BaseDAO.swift in Sources */ = {isa = PBXBuildFile; fileRef = C947E8FD2EB411E5007634FC /* BaseDAO.swift */; };
+		C947E9002EB411FE007634FC /* DAOHelpers.swift in Sources */ = {isa = PBXBuildFile; fileRef = C947E8FF2EB411FE007634FC /* DAOHelpers.swift */; };
+		C947E9022EB4123D007634FC /* MailReadDAO.swift in Sources */ = {isa = PBXBuildFile; fileRef = C947E9012EB4123D007634FC /* MailReadDAO.swift */; };
+		C947E9042EB41267007634FC /* MailWriteDAO.swift in Sources */ = {isa = PBXBuildFile; fileRef = C947E9032EB41267007634FC /* MailWriteDAO.swift */; };
+		C947E9062EB412FB007634FC /* AttachmentDAO.swift in Sources */ = {isa = PBXBuildFile; fileRef = C947E9052EB412FB007634FC /* AttachmentDAO.swift */; };
+		C947E9082EB4131F007634FC /* OutboxDAO.swift in Sources */ = {isa = PBXBuildFile; fileRef = C947E9072EB4131F007634FC /* OutboxDAO.swift */; };
+		C947E90A2EB41349007634FC /* FolderDAO.swift in Sources */ = {isa = PBXBuildFile; fileRef = C947E9092EB41349007634FC /* FolderDAO.swift */; };
+		C947E90C2EB41367007634FC /* AccountDAO.swift in Sources */ = {isa = PBXBuildFile; fileRef = C947E90B2EB41367007634FC /* AccountDAO.swift */; };
+		C947E90E2EB414A6007634FC /* DAOFactory.swift in Sources */ = {isa = PBXBuildFile; fileRef = C947E90D2EB414A6007634FC /* DAOFactory.swift */; };
+		C947E9122EB414F3007634FC /* MigrationGuide.swift in Sources */ = {isa = PBXBuildFile; fileRef = C947E9112EB414F3007634FC /* MigrationGuide.swift */; };
+		C949C3E52EB3F36200CB9D27 /* MailSyncEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = C949C3E42EB3F36200CB9D27 /* MailSyncEngine.swift */; };
+		C949C3E72EB3F52B00CB9D27 /* StructuredMailStorage.swift in Sources */ = {isa = PBXBuildFile; fileRef = C949C3E62EB3F52B00CB9D27 /* StructuredMailStorage.swift */; };
+		C96E33A92EAED61F0058CB0A /* EmailContentParser.swift in Sources */ = {isa = PBXBuildFile; fileRef = C96E33A82EAED61F0058CB0A /* EmailContentParser.swift */; };
+		C96E33AD2EB14D230058CB0A /* ContentDecoder.swift in Sources */ = {isa = PBXBuildFile; fileRef = C96E33AC2EB14D230058CB0A /* ContentDecoder.swift */; };
+		C96E33AF2EB156E90058CB0A /* QuotedPrintableDecoder.swift in Sources */ = {isa = PBXBuildFile; fileRef = C96E33AE2EB156E90058CB0A /* QuotedPrintableDecoder.swift */; };
+		C96E33B12EB157550058CB0A /* MIMEMultipartParser.swift in Sources */ = {isa = PBXBuildFile; fileRef = C96E33B02EB157550058CB0A /* MIMEMultipartParser.swift */; };
+		C96E33B32EB157C40058CB0A /* HTMLEntityDecoder.swift in Sources */ = {isa = PBXBuildFile; fileRef = C96E33B22EB157C40058CB0A /* HTMLEntityDecoder.swift */; };
+		C96E33B52EB158590058CB0A /* CharsetConverter.swift in Sources */ = {isa = PBXBuildFile; fileRef = C96E33B42EB158590058CB0A /* CharsetConverter.swift */; };
+		C96E33B92EB1597D0058CB0A /* RFC2047EncodedWordsParser.swift in Sources */ = {isa = PBXBuildFile; fileRef = C96E33B82EB1597D0058CB0A /* RFC2047EncodedWordsParser.swift */; };
+		C96E33C12EB15C6B0058CB0A /* InlineContentResolver.swift in Sources */ = {isa = PBXBuildFile; fileRef = C96E33C02EB15C6B0058CB0A /* InlineContentResolver.swift */; };
+		C96E33C72EB15DDE0058CB0A /* TextEnrichedDecoder.swift in Sources */ = {isa = PBXBuildFile; fileRef = C96E33C62EB15DDE0058CB0A /* TextEnrichedDecoder.swift */; };
+		C96E33D12EB1603E0058CB0A /* EmailMultipartHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = C96E33D02EB1603E0058CB0A /* EmailMultipartHandler.swift */; };
+		C96E33D32EB160520058CB0A /* EmailFormatFlowedHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = C96E33D22EB160520058CB0A /* EmailFormatFlowedHandler.swift */; };
+		C96E33D52EB160790058CB0A /* EmailParserComponents.swift in Sources */ = {isa = PBXBuildFile; fileRef = C96E33D42EB160790058CB0A /* EmailParserComponents.swift */; };
+		C9AE83AB2EB3FFA000BD2C4E /* MailProcessor.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9AE83AA2EB3FFA000BD2C4E /* MailProcessor.swift */; };
+		C9C33C352EB2C0E4006390C7 /* ContentAnalyzer.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9C33C342EB2C0E4006390C7 /* ContentAnalyzer.swift */; };
+		C9C33C372EB2C341006390C7 /* TransferEncodingDecoder.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9C33C362EB2C341006390C7 /* TransferEncodingDecoder.swift */; };
+		C9C33C392EB2C35A006390C7 /* HeaderCharsetDetector.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9C33C382EB2C35A006390C7 /* HeaderCharsetDetector.swift */; };
+		C9CF88562EB2BAF1006CC028 /* PlatformImage.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9CF88552EB2BAF1006CC028 /* PlatformImage.swift */; };
+		C9CFFAB32EB2A71500B01A49 /* MailProcessorAdapter.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9CFFAB22EB2A71500B01A49 /* MailProcessorAdapter.swift */; };
+		C9D8E4BE2EB16263007F3DD1 /* String+HTMLEscaping.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9D8E4BD2EB16263007F3DD1 /* String+HTMLEscaping.swift */; };
+		C9D8E4C02EB1630E007F3DD1 /* FormatFlowedHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9D8E4BF2EB1630E007F3DD1 /* FormatFlowedHandler.swift */; };
+		C9DEDFF02EAECC4D00C40B92 /* AILO-APP-Info.plist in Resources */ = {isa = PBXBuildFile; fileRef = C9DEDF782EAECC4D00C40B92 /* AILO-APP-Info.plist */; };
+		C9DEDFF12EAECC4D00C40B92 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = C9DEDF762EAECC4D00C40B92 /* Assets.xcassets */; };
+		C9DEDFF52EAECC4D00C40B92 /* Localizable.strings in Resources */ = {isa = PBXBuildFile; fileRef = C9DEDF822EAECC4D00C40B92 /* Localizable.strings */; };
+		C9DEDFF62EAECC4D00C40B92 /* MailTransportStubs.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9DEDFB12EAECC4D00C40B92 /* MailTransportStubs.swift */; };
+		C9DEDFF72EAECC4D00C40B92 /* CircuitBreaker.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9DEDFB02EAECC4D00C40B92 /* CircuitBreaker.swift */; };
+		C9DEDFF82EAECC4D00C40B92 /* MailDomainModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9DEDF952EAECC4D00C40B92 /* MailDomainModels.swift */; };
+		C9DEDFF92EAECC4D00C40B92 /* SettingsKeys.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9DEDF892EAECC4D00C40B92 /* SettingsKeys.swift */; };
+		C9DEDFFB2EAECC4D00C40B92 /* SchreibenView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9DEDFE82EAECC4D00C40B92 /* SchreibenView.swift */; };
+		C9DEDFFC2EAECC4D00C40B92 /* LogsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9DEDFDD2EAECC4D00C40B92 /* LogsView.swift */; };
+		C9DEDFFD2EAECC4D00C40B92 /* LogEntry.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9DEDF942EAECC4D00C40B92 /* LogEntry.swift */; };
+		C9DEDFFE2EAECC4D00C40B92 /* MailMetrics.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9DEDFC12EAECC4D00C40B92 /* MailMetrics.swift */; };
+		C9DEDFFF2EAECC4D00C40B92 /* ConfigView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9DEDFD82EAECC4D00C40B92 /* ConfigView.swift */; };
+		C9DEE0002EAECC4D00C40B92 /* SchreibenMailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9DEDFE72EAECC4D00C40B92 /* SchreibenMailView.swift */; };
+		C9DEE0012EAECC4D00C40B92 /* MailModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9DEDF972EAECC4D00C40B92 /* MailModels.swift */; };
+		C9DEE0022EAECC4D00C40B92 /* NIOSMTPClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9DEDFC82EAECC4D00C40B92 /* NIOSMTPClient.swift */; };
+		C9DEE0032EAECC4D00C40B92 /* SMTPClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9DEDFCA2EAECC4D00C40B92 /* SMTPClient.swift */; };
+		C9DEE0042EAECC4D00C40B92 /* MailSchema.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9DEDF992EAECC4D00C40B92 /* MailSchema.swift */; };
+		C9DEE0052EAECC4D00C40B92 /* MailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9DEDFE32EAECC4D00C40B92 /* MailView.swift */; };
+		C9DEE0062EAECC4D00C40B92 /* PrePromptManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9DEDFB22EAECC4D00C40B92 /* PrePromptManager.swift */; };
+		C9DEE0072EAECC4D00C40B92 /* IMAPConnectionPool.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9DEDFC52EAECC4D00C40B92 /* IMAPConnectionPool.swift */; };
+		C9DEE0082EAECC4D00C40B92 /* FolderDiscoveryService_Control.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9DEDFCE2EAECC4D00C40B92 /* FolderDiscoveryService_Control.swift */; };
+		C9DEE0092EAECC4D00C40B92 /* KeychainService.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9DEDFAA2EAECC4D00C40B92 /* KeychainService.swift */; };
+		C9DEE00B2EAECC4D00C40B92 /* DataStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9DEDF9B2EAECC4D00C40B92 /* DataStore.swift */; };
+		C9DEE00D2EAECC4D00C40B92 /* MailManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9DEDFD42EAECC4D00C40B92 /* MailManager.swift */; };
+		C9DEE00E2EAECC4D00C40B92 /* MailRepository.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9DEDFCF2EAECC4D00C40B92 /* MailRepository.swift */; };
+		C9DEE00F2EAECC4D00C40B92 /* AIClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9DEDFBA2EAECC4D00C40B92 /* AIClient.swift */; };
+		C9DEE0112EAECC4D00C40B92 /* AIManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9DEDFBB2EAECC4D00C40B92 /* AIManager.swift */; };
+		C9DEE0122EAECC4D00C40B92 /* MarkdownHelper.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9DEDFAC2EAECC4D00C40B92 /* MarkdownHelper.swift */; };
+		C9DEE0132EAECC4D00C40B92 /* SprechenView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9DEDFEC2EAECC4D00C40B92 /* SprechenView.swift */; };
+		C9DEE0152EAECC4D00C40B92 /* CancellationToken.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9DEDFAE2EAECC4D00C40B92 /* CancellationToken.swift */; };
+		C9DEE0162EAECC4D00C40B92 /* Categories.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9DEDFAF2EAECC4D00C40B92 /* Categories.swift */; };
+		C9DEE0172EAECC4D00C40B92 /* SMTPAbstractions.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9DEDFC92EAECC4D00C40B92 /* SMTPAbstractions.swift */; };
+		C9DEE0182EAECC4D00C40B92 /* MessageDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9DEDFE42EAECC4D00C40B92 /* MessageDetailView.swift */; };
+		C9DEE0192EAECC4D00C40B92 /* AILO_APPApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9DEDF792EAECC4D00C40B92 /* AILO_APPApp.swift */; };
+		C9DEE01A2EAECC4D00C40B92 /* AIPrePromptPreset.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9DEDF932EAECC4D00C40B92 /* AIPrePromptPreset.swift */; };
+		C9DEE01B2EAECC4D00C40B92 /* MailHealthMonitor.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9DEDFBF2EAECC4D00C40B92 /* MailHealthMonitor.swift */; };
+		C9DEE01C2EAECC4D00C40B92 /* PrePromptEditor.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9DEDFD92EAECC4D00C40B92 /* PrePromptEditor.swift */; };
+		C9DEE01E2EAECC4D00C40B92 /* IMAPParsers.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9DEDFC62EAECC4D00C40B92 /* IMAPParsers.swift */; };
+		C9DEE01F2EAECC4D00C40B92 /* AIEditor.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9DEDFD72EAECC4D00C40B92 /* AIEditor.swift */; };
+		C9DEE0202EAECC4D00C40B92 /* TextLogDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9DEDFDE2EAECC4D00C40B92 /* TextLogDetailView.swift */; };
+		C9DEE0212EAECC4D00C40B92 /* IMAPCommands.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9DEDFC32EAECC4D00C40B92 /* IMAPCommands.swift */; };
+		C9DEE0222EAECC4D00C40B92 /* MailSendService.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9DEDFD02EAECC4D00C40B92 /* MailSendService.swift */; };
+		C9DEE0232EAECC4D00C40B92 /* ComposeMailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9DEDFE12EAECC4D00C40B92 /* ComposeMailView.swift */; };
+		C9DEE0252EAECC4D00C40B92 /* MailLogger.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9DEDFC02EAECC4D00C40B92 /* MailLogger.swift */; };
+		C9DEE0282EAECC4D00C40B92 /* FolderDiscoveryService.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9DEDFCD2EAECC4D00C40B92 /* FolderDiscoveryService.swift */; };
+		C9DEE0292EAECC4D00C40B92 /* AudioPlayer.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9DEDFBD2EAECC4D00C40B92 /* AudioPlayer.swift */; };
+		C9DEE02A2EAECC4D00C40B92 /* IMAPConnection.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9DEDFC42EAECC4D00C40B92 /* IMAPConnection.swift */; };
+		C9DEE02B2EAECC4D00C40B92 /* MailComposer.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9DEDFEA2EAECC4D00C40B92 /* MailComposer.swift */; };
+		C9DEE02D2EAECC4D00C40B92 /* RegularSplitView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9DEDFE52EAECC4D00C40B92 /* RegularSplitView.swift */; };
+		C9DEE02E2EAECC4D00C40B92 /* MIMEParser.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9DEDFA82EAECC4D00C40B92 /* MIMEParser.swift */; };
+		C9DEE0302EAECC4D00C40B92 /* RetryPolicy.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9DEDFB32EAECC4D00C40B92 /* RetryPolicy.swift */; };
+		C9DEE0312EAECC4D00C40B92 /* MailEntities.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9DEDF962EAECC4D00C40B92 /* MailEntities.swift */; };
+		C9DEE0332EAECC4D00C40B92 /* DashboardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9DEDFDB2EAECC4D00C40B92 /* DashboardView.swift */; };
+		C9DEE0342EAECC4D00C40B92 /* MailEditor.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9DEDFE22EAECC4D00C40B92 /* MailEditor.swift */; };
+		C9DEE0352EAECC4D00C40B92 /* CompactMessageListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9DEDFE02EAECC4D00C40B92 /* CompactMessageListView.swift */; };
+		C9FB883A2EB2AB0D002359BA /* AttachmentManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9FB88392EB2AB0D002359BA /* AttachmentManager.swift */; };
+		C9FB883C2EB2ABB3002359BA /* AttachmentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9FB883B2EB2ABB3002359BA /* AttachmentView.swift */; };
+		C9FB88402EB2AC76002359BA /* EnhancedMessageDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9FB883F2EB2AC76002359BA /* EnhancedMessageDetailView.swift */; };
+		C9FB88422EB2ACA6002359BA /* AttachmentDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9FB88412EB2ACA6002359BA /* AttachmentDetailView.swift */; };
+		C9FB88442EB2ACDD002359BA /* MailContentRenderer.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9FB88432EB2ACDD002359BA /* MailContentRenderer.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		C952E2662E9305270034B9C5 /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+			);
+			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
+
+/* Begin PBXFileReference section */
+		C93D2CB02EB16CFC00AA4072 /* MailViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MailViewModel.swift; sourceTree = "<group>"; };
+		C93D2CB22EB16D7700AA4072 /* MailViewComponents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MailViewComponents.swift; sourceTree = "<group>"; };
+		C93D2CB42EB16DC300AA4072 /* MailViewSheets.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MailViewSheets.swift; sourceTree = "<group>"; };
+		C93D2CB62EB16E2400AA4072 /* MailboxNavigationPanel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MailboxNavigationPanel.swift; sourceTree = "<group>"; };
+		C947A0F02EAED321006E661B /* ContentExtractor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentExtractor.swift; sourceTree = "<group>"; };
+		C947E8FD2EB411E5007634FC /* BaseDAO.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BaseDAO.swift; sourceTree = "<group>"; };
+		C947E8FF2EB411FE007634FC /* DAOHelpers.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DAOHelpers.swift; sourceTree = "<group>"; };
+		C947E9012EB4123D007634FC /* MailReadDAO.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MailReadDAO.swift; sourceTree = "<group>"; };
+		C947E9032EB41267007634FC /* MailWriteDAO.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MailWriteDAO.swift; sourceTree = "<group>"; };
+		C947E9052EB412FB007634FC /* AttachmentDAO.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AttachmentDAO.swift; sourceTree = "<group>"; };
+		C947E9072EB4131F007634FC /* OutboxDAO.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OutboxDAO.swift; sourceTree = "<group>"; };
+		C947E9092EB41349007634FC /* FolderDAO.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FolderDAO.swift; sourceTree = "<group>"; };
+		C947E90B2EB41367007634FC /* AccountDAO.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AccountDAO.swift; sourceTree = "<group>"; };
+		C947E90D2EB414A6007634FC /* DAOFactory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DAOFactory.swift; sourceTree = "<group>"; };
+		C947E9112EB414F3007634FC /* MigrationGuide.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MigrationGuide.swift; sourceTree = "<group>"; };
+		C949C3E42EB3F36200CB9D27 /* MailSyncEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MailSyncEngine.swift; sourceTree = "<group>"; };
+		C949C3E62EB3F52B00CB9D27 /* StructuredMailStorage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StructuredMailStorage.swift; sourceTree = "<group>"; };
+		C96E33A82EAED61F0058CB0A /* EmailContentParser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EmailContentParser.swift; sourceTree = "<group>"; };
+		C96E33AC2EB14D230058CB0A /* ContentDecoder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentDecoder.swift; sourceTree = "<group>"; };
+		C96E33AE2EB156E90058CB0A /* QuotedPrintableDecoder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuotedPrintableDecoder.swift; sourceTree = "<group>"; };
+		C96E33B02EB157550058CB0A /* MIMEMultipartParser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MIMEMultipartParser.swift; sourceTree = "<group>"; };
+		C96E33B22EB157C40058CB0A /* HTMLEntityDecoder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HTMLEntityDecoder.swift; sourceTree = "<group>"; };
+		C96E33B42EB158590058CB0A /* CharsetConverter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CharsetConverter.swift; sourceTree = "<group>"; };
+		C96E33B82EB1597D0058CB0A /* RFC2047EncodedWordsParser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RFC2047EncodedWordsParser.swift; sourceTree = "<group>"; };
+		C96E33C02EB15C6B0058CB0A /* InlineContentResolver.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InlineContentResolver.swift; sourceTree = "<group>"; };
+		C96E33C62EB15DDE0058CB0A /* TextEnrichedDecoder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TextEnrichedDecoder.swift; sourceTree = "<group>"; };
+		C96E33D02EB1603E0058CB0A /* EmailMultipartHandler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EmailMultipartHandler.swift; sourceTree = "<group>"; };
+		C96E33D22EB160520058CB0A /* EmailFormatFlowedHandler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EmailFormatFlowedHandler.swift; sourceTree = "<group>"; };
+		C96E33D42EB160790058CB0A /* EmailParserComponents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EmailParserComponents.swift; sourceTree = "<group>"; };
+		C9AE83AA2EB3FFA000BD2C4E /* MailProcessor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MailProcessor.swift; sourceTree = "<group>"; };
+		C9C33C342EB2C0E4006390C7 /* ContentAnalyzer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentAnalyzer.swift; sourceTree = "<group>"; };
+		C9C33C362EB2C341006390C7 /* TransferEncodingDecoder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TransferEncodingDecoder.swift; sourceTree = "<group>"; };
+		C9C33C382EB2C35A006390C7 /* HeaderCharsetDetector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HeaderCharsetDetector.swift; sourceTree = "<group>"; };
+		C9CF88552EB2BAF1006CC028 /* PlatformImage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlatformImage.swift; sourceTree = "<group>"; };
+		C9CFFAB22EB2A71500B01A49 /* MailProcessorAdapter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MailProcessorAdapter.swift; sourceTree = "<group>"; };
+		C9D8E4BD2EB16263007F3DD1 /* String+HTMLEscaping.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "String+HTMLEscaping.swift"; sourceTree = "<group>"; };
+		C9D8E4BF2EB1630E007F3DD1 /* FormatFlowedHandler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FormatFlowedHandler.swift; sourceTree = "<group>"; };
+		C9DEDF762EAECC4D00C40B92 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		C9DEDF782EAECC4D00C40B92 /* AILO-APP-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "AILO-APP-Info.plist"; sourceTree = "<group>"; };
+		C9DEDF792EAECC4D00C40B92 /* AILO_APPApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AILO_APPApp.swift; sourceTree = "<group>"; };
+		C9DEDF802EAECC4D00C40B92 /* en */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = en; path = en.lproj/Localizable.strings; sourceTree = "<group>"; };
+		C9DEDF812EAECC4D00C40B92 /* de */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = de; path = de.lproj/Localizable.strings; sourceTree = "<group>"; };
+		C9DEDF892EAECC4D00C40B92 /* SettingsKeys.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsKeys.swift; sourceTree = "<group>"; };
+		C9DEDF932EAECC4D00C40B92 /* AIPrePromptPreset.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIPrePromptPreset.swift; sourceTree = "<group>"; };
+		C9DEDF942EAECC4D00C40B92 /* LogEntry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LogEntry.swift; sourceTree = "<group>"; };
+		C9DEDF952EAECC4D00C40B92 /* MailDomainModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MailDomainModels.swift; sourceTree = "<group>"; };
+		C9DEDF962EAECC4D00C40B92 /* MailEntities.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MailEntities.swift; sourceTree = "<group>"; };
+		C9DEDF972EAECC4D00C40B92 /* MailModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MailModels.swift; sourceTree = "<group>"; };
+		C9DEDF992EAECC4D00C40B92 /* MailSchema.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MailSchema.swift; sourceTree = "<group>"; };
+		C9DEDF9B2EAECC4D00C40B92 /* DataStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DataStore.swift; sourceTree = "<group>"; };
+		C9DEDFA82EAECC4D00C40B92 /* MIMEParser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MIMEParser.swift; sourceTree = "<group>"; };
+		C9DEDFAA2EAECC4D00C40B92 /* KeychainService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeychainService.swift; sourceTree = "<group>"; };
+		C9DEDFAC2EAECC4D00C40B92 /* MarkdownHelper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MarkdownHelper.swift; sourceTree = "<group>"; };
+		C9DEDFAE2EAECC4D00C40B92 /* CancellationToken.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CancellationToken.swift; sourceTree = "<group>"; };
+		C9DEDFAF2EAECC4D00C40B92 /* Categories.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Categories.swift; sourceTree = "<group>"; };
+		C9DEDFB02EAECC4D00C40B92 /* CircuitBreaker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CircuitBreaker.swift; sourceTree = "<group>"; };
+		C9DEDFB12EAECC4D00C40B92 /* MailTransportStubs.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MailTransportStubs.swift; sourceTree = "<group>"; };
+		C9DEDFB22EAECC4D00C40B92 /* PrePromptManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PrePromptManager.swift; sourceTree = "<group>"; };
+		C9DEDFB32EAECC4D00C40B92 /* RetryPolicy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RetryPolicy.swift; sourceTree = "<group>"; };
+		C9DEDFBA2EAECC4D00C40B92 /* AIClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIClient.swift; sourceTree = "<group>"; };
+		C9DEDFBB2EAECC4D00C40B92 /* AIManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIManager.swift; sourceTree = "<group>"; };
+		C9DEDFBD2EAECC4D00C40B92 /* AudioPlayer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioPlayer.swift; sourceTree = "<group>"; };
+		C9DEDFBF2EAECC4D00C40B92 /* MailHealthMonitor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MailHealthMonitor.swift; sourceTree = "<group>"; };
+		C9DEDFC02EAECC4D00C40B92 /* MailLogger.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MailLogger.swift; sourceTree = "<group>"; };
+		C9DEDFC12EAECC4D00C40B92 /* MailMetrics.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MailMetrics.swift; sourceTree = "<group>"; };
+		C9DEDFC32EAECC4D00C40B92 /* IMAPCommands.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IMAPCommands.swift; sourceTree = "<group>"; };
+		C9DEDFC42EAECC4D00C40B92 /* IMAPConnection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IMAPConnection.swift; sourceTree = "<group>"; };
+		C9DEDFC52EAECC4D00C40B92 /* IMAPConnectionPool.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IMAPConnectionPool.swift; sourceTree = "<group>"; };
+		C9DEDFC62EAECC4D00C40B92 /* IMAPParsers.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IMAPParsers.swift; sourceTree = "<group>"; };
+		C9DEDFC82EAECC4D00C40B92 /* NIOSMTPClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NIOSMTPClient.swift; sourceTree = "<group>"; };
+		C9DEDFC92EAECC4D00C40B92 /* SMTPAbstractions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SMTPAbstractions.swift; sourceTree = "<group>"; };
+		C9DEDFCA2EAECC4D00C40B92 /* SMTPClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SMTPClient.swift; sourceTree = "<group>"; };
+		C9DEDFCD2EAECC4D00C40B92 /* FolderDiscoveryService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FolderDiscoveryService.swift; sourceTree = "<group>"; };
+		C9DEDFCE2EAECC4D00C40B92 /* FolderDiscoveryService_Control.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FolderDiscoveryService_Control.swift; sourceTree = "<group>"; };
+		C9DEDFCF2EAECC4D00C40B92 /* MailRepository.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MailRepository.swift; sourceTree = "<group>"; };
+		C9DEDFD02EAECC4D00C40B92 /* MailSendService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MailSendService.swift; sourceTree = "<group>"; };
+		C9DEDFD42EAECC4D00C40B92 /* MailManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MailManager.swift; sourceTree = "<group>"; };
+		C9DEDFD72EAECC4D00C40B92 /* AIEditor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIEditor.swift; sourceTree = "<group>"; };
+		C9DEDFD82EAECC4D00C40B92 /* ConfigView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConfigView.swift; sourceTree = "<group>"; };
+		C9DEDFD92EAECC4D00C40B92 /* PrePromptEditor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PrePromptEditor.swift; sourceTree = "<group>"; };
+		C9DEDFDB2EAECC4D00C40B92 /* DashboardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DashboardView.swift; sourceTree = "<group>"; };
+		C9DEDFDD2EAECC4D00C40B92 /* LogsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LogsView.swift; sourceTree = "<group>"; };
+		C9DEDFDE2EAECC4D00C40B92 /* TextLogDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TextLogDetailView.swift; sourceTree = "<group>"; };
+		C9DEDFE02EAECC4D00C40B92 /* CompactMessageListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CompactMessageListView.swift; sourceTree = "<group>"; };
+		C9DEDFE12EAECC4D00C40B92 /* ComposeMailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ComposeMailView.swift; sourceTree = "<group>"; };
+		C9DEDFE22EAECC4D00C40B92 /* MailEditor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MailEditor.swift; sourceTree = "<group>"; };
+		C9DEDFE32EAECC4D00C40B92 /* MailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MailView.swift; sourceTree = "<group>"; };
+		C9DEDFE42EAECC4D00C40B92 /* MessageDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MessageDetailView.swift; sourceTree = "<group>"; };
+		C9DEDFE52EAECC4D00C40B92 /* RegularSplitView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RegularSplitView.swift; sourceTree = "<group>"; };
+		C9DEDFE72EAECC4D00C40B92 /* SchreibenMailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SchreibenMailView.swift; sourceTree = "<group>"; };
+		C9DEDFE82EAECC4D00C40B92 /* SchreibenView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SchreibenView.swift; sourceTree = "<group>"; };
+		C9DEDFEA2EAECC4D00C40B92 /* MailComposer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MailComposer.swift; sourceTree = "<group>"; };
+		C9DEDFEC2EAECC4D00C40B92 /* SprechenView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SprechenView.swift; sourceTree = "<group>"; };
+		C9F2CC292E8873D300D5D965 /* AILO_APP.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = AILO_APP.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		C9FB88392EB2AB0D002359BA /* AttachmentManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AttachmentManager.swift; sourceTree = "<group>"; };
+		C9FB883B2EB2ABB3002359BA /* AttachmentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AttachmentView.swift; sourceTree = "<group>"; };
+		C9FB883F2EB2AC76002359BA /* EnhancedMessageDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EnhancedMessageDetailView.swift; sourceTree = "<group>"; };
+		C9FB88412EB2ACA6002359BA /* AttachmentDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AttachmentDetailView.swift; sourceTree = "<group>"; };
+		C9FB88432EB2ACDD002359BA /* MailContentRenderer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MailContentRenderer.swift; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		C9F2CC262E8873D300D5D965 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		C9DEDF772EAECC4D00C40B92 /* AILO_APP */ = {
+			isa = PBXGroup;
+			children = (
+				C9DEDF762EAECC4D00C40B92 /* Assets.xcassets */,
+			);
+			path = AILO_APP;
+			sourceTree = "<group>";
+		};
+		C9DEDF7C2EAECC4D00C40B92 /* App */ = {
+			isa = PBXGroup;
+			children = (
+				C9DEDF792EAECC4D00C40B92 /* AILO_APPApp.swift */,
+			);
+			path = App;
+			sourceTree = "<group>";
+		};
+		C9DEDF832EAECC4D00C40B92 /* Language */ = {
+			isa = PBXGroup;
+			children = (
+				C9DEDF822EAECC4D00C40B92 /* Localizable.strings */,
+			);
+			path = Language;
+			sourceTree = "<group>";
+		};
+		C9DEDF842EAECC4D00C40B92 /* Localization */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			path = Localization;
+			sourceTree = "<group>";
+		};
+		C9DEDF8A2EAECC4D00C40B92 /* Settings */ = {
+			isa = PBXGroup;
+			children = (
+				C9DEDF892EAECC4D00C40B92 /* SettingsKeys.swift */,
+			);
+			path = Settings;
+			sourceTree = "<group>";
+		};
+		C9DEDF8B2EAECC4D00C40B92 /* Configuration */ = {
+			isa = PBXGroup;
+			children = (
+				C9DEDF832EAECC4D00C40B92 /* Language */,
+				C9DEDF842EAECC4D00C40B92 /* Localization */,
+				C9DEDF8A2EAECC4D00C40B92 /* Settings */,
+			);
+			path = Configuration;
+			sourceTree = "<group>";
+		};
+		C9DEDF922EAECC4D00C40B92 /* DAO */ = {
+			isa = PBXGroup;
+			children = (
+				C947E8FD2EB411E5007634FC /* BaseDAO.swift */,
+				C947E8FF2EB411FE007634FC /* DAOHelpers.swift */,
+				C947E9012EB4123D007634FC /* MailReadDAO.swift */,
+				C947E9032EB41267007634FC /* MailWriteDAO.swift */,
+				C947E9052EB412FB007634FC /* AttachmentDAO.swift */,
+				C947E9072EB4131F007634FC /* OutboxDAO.swift */,
+				C947E9092EB41349007634FC /* FolderDAO.swift */,
+				C947E90B2EB41367007634FC /* AccountDAO.swift */,
+				C947E90D2EB414A6007634FC /* DAOFactory.swift */,
+				C947E9112EB414F3007634FC /* MigrationGuide.swift */,
+			);
+			path = DAO;
+			sourceTree = "<group>";
+		};
+		C9DEDF982EAECC4D00C40B92 /* Models */ = {
+			isa = PBXGroup;
+			children = (
+				C9DEDF932EAECC4D00C40B92 /* AIPrePromptPreset.swift */,
+				C9DEDF942EAECC4D00C40B92 /* LogEntry.swift */,
+				C9DEDF952EAECC4D00C40B92 /* MailDomainModels.swift */,
+				C9DEDF962EAECC4D00C40B92 /* MailEntities.swift */,
+				C9DEDF972EAECC4D00C40B92 /* MailModels.swift */,
+			);
+			path = Models;
+			sourceTree = "<group>";
+		};
+		C9DEDF9A2EAECC4D00C40B92 /* Schema */ = {
+			isa = PBXGroup;
+			children = (
+				C9DEDF992EAECC4D00C40B92 /* MailSchema.swift */,
+			);
+			path = Schema;
+			sourceTree = "<group>";
+		};
+		C9DEDF9C2EAECC4D00C40B92 /* Store */ = {
+			isa = PBXGroup;
+			children = (
+				C9DEDF9B2EAECC4D00C40B92 /* DataStore.swift */,
+			);
+			path = Store;
+			sourceTree = "<group>";
+		};
+		C9DEDF9D2EAECC4D00C40B92 /* Database */ = {
+			isa = PBXGroup;
+			children = (
+				C9DEDF922EAECC4D00C40B92 /* DAO */,
+				C9DEDF982EAECC4D00C40B92 /* Models */,
+				C9DEDF9A2EAECC4D00C40B92 /* Schema */,
+				C9DEDF9C2EAECC4D00C40B92 /* Store */,
+			);
+			path = Database;
+			sourceTree = "<group>";
+		};
+		C9DEDFA92EAECC4D00C40B92 /* Parsers */ = {
+			isa = PBXGroup;
+			children = (
+				C9DEDFA82EAECC4D00C40B92 /* MIMEParser.swift */,
+				C9C33C342EB2C0E4006390C7 /* ContentAnalyzer.swift */,
+				C947A0F02EAED321006E661B /* ContentExtractor.swift */,
+				C96E33A82EAED61F0058CB0A /* EmailContentParser.swift */,
+				C96E33AC2EB14D230058CB0A /* ContentDecoder.swift */,
+				C96E33AE2EB156E90058CB0A /* QuotedPrintableDecoder.swift */,
+				C96E33B02EB157550058CB0A /* MIMEMultipartParser.swift */,
+				C96E33B22EB157C40058CB0A /* HTMLEntityDecoder.swift */,
+				C96E33B42EB158590058CB0A /* CharsetConverter.swift */,
+				C96E33B82EB1597D0058CB0A /* RFC2047EncodedWordsParser.swift */,
+				C96E33C02EB15C6B0058CB0A /* InlineContentResolver.swift */,
+				C96E33C62EB15DDE0058CB0A /* TextEnrichedDecoder.swift */,
+				C96E33D02EB1603E0058CB0A /* EmailMultipartHandler.swift */,
+				C96E33D22EB160520058CB0A /* EmailFormatFlowedHandler.swift */,
+				C96E33D42EB160790058CB0A /* EmailParserComponents.swift */,
+				C9D8E4BD2EB16263007F3DD1 /* String+HTMLEscaping.swift */,
+				C9D8E4BF2EB1630E007F3DD1 /* FormatFlowedHandler.swift */,
+				C9C33C362EB2C341006390C7 /* TransferEncodingDecoder.swift */,
+				C9C33C382EB2C35A006390C7 /* HeaderCharsetDetector.swift */,
+				C9FB88432EB2ACDD002359BA /* MailContentRenderer.swift */,
+			);
+			path = Parsers;
+			sourceTree = "<group>";
+		};
+		C9DEDFAB2EAECC4D00C40B92 /* Security */ = {
+			isa = PBXGroup;
+			children = (
+				C9DEDFAA2EAECC4D00C40B92 /* KeychainService.swift */,
+			);
+			path = Security;
+			sourceTree = "<group>";
+		};
+		C9DEDFAD2EAECC4D00C40B92 /* UI */ = {
+			isa = PBXGroup;
+			children = (
+				C9DEDFAC2EAECC4D00C40B92 /* MarkdownHelper.swift */,
+			);
+			path = UI;
+			sourceTree = "<group>";
+		};
+		C9DEDFB42EAECC4D00C40B92 /* Utilities */ = {
+			isa = PBXGroup;
+			children = (
+				C9DEDFAE2EAECC4D00C40B92 /* CancellationToken.swift */,
+				C9DEDFAF2EAECC4D00C40B92 /* Categories.swift */,
+				C9DEDFB02EAECC4D00C40B92 /* CircuitBreaker.swift */,
+				C9DEDFB12EAECC4D00C40B92 /* MailTransportStubs.swift */,
+				C9DEDFB22EAECC4D00C40B92 /* PrePromptManager.swift */,
+				C9DEDFB32EAECC4D00C40B92 /* RetryPolicy.swift */,
+			);
+			path = Utilities;
+			sourceTree = "<group>";
+		};
+		C9DEDFB52EAECC4D00C40B92 /* Helpers */ = {
+			isa = PBXGroup;
+			children = (
+				C9DEDFA92EAECC4D00C40B92 /* Parsers */,
+				C9DEDFAB2EAECC4D00C40B92 /* Security */,
+				C9DEDFAD2EAECC4D00C40B92 /* UI */,
+				C9DEDFB42EAECC4D00C40B92 /* Utilities */,
+			);
+			path = Helpers;
+			sourceTree = "<group>";
+		};
+		C9DEDFBC2EAECC4D00C40B92 /* AI */ = {
+			isa = PBXGroup;
+			children = (
+				C9DEDFBA2EAECC4D00C40B92 /* AIClient.swift */,
+				C9DEDFBB2EAECC4D00C40B92 /* AIManager.swift */,
+			);
+			path = AI;
+			sourceTree = "<group>";
+		};
+		C9DEDFBE2EAECC4D00C40B92 /* Audio */ = {
+			isa = PBXGroup;
+			children = (
+				C9DEDFBD2EAECC4D00C40B92 /* AudioPlayer.swift */,
+			);
+			path = Audio;
+			sourceTree = "<group>";
+		};
+		C9DEDFC22EAECC4D00C40B92 /* Diagnostics */ = {
+			isa = PBXGroup;
+			children = (
+				C9DEDFBF2EAECC4D00C40B92 /* MailHealthMonitor.swift */,
+				C9DEDFC02EAECC4D00C40B92 /* MailLogger.swift */,
+				C9DEDFC12EAECC4D00C40B92 /* MailMetrics.swift */,
+			);
+			path = Diagnostics;
+			sourceTree = "<group>";
+		};
+		C9DEDFC72EAECC4D00C40B92 /* IMAP */ = {
+			isa = PBXGroup;
+			children = (
+				C9DEDFC32EAECC4D00C40B92 /* IMAPCommands.swift */,
+				C9DEDFC42EAECC4D00C40B92 /* IMAPConnection.swift */,
+				C9DEDFC52EAECC4D00C40B92 /* IMAPConnectionPool.swift */,
+				C9DEDFC62EAECC4D00C40B92 /* IMAPParsers.swift */,
+			);
+			path = IMAP;
+			sourceTree = "<group>";
+		};
+		C9DEDFCC2EAECC4D00C40B92 /* SMTP */ = {
+			isa = PBXGroup;
+			children = (
+				C9DEDFC82EAECC4D00C40B92 /* NIOSMTPClient.swift */,
+				C9DEDFC92EAECC4D00C40B92 /* SMTPAbstractions.swift */,
+				C9DEDFCA2EAECC4D00C40B92 /* SMTPClient.swift */,
+			);
+			path = SMTP;
+			sourceTree = "<group>";
+		};
+		C9DEDFD32EAECC4D00C40B92 /* Sync */ = {
+			isa = PBXGroup;
+			children = (
+				C9DEDFCD2EAECC4D00C40B92 /* FolderDiscoveryService.swift */,
+				C9DEDFCE2EAECC4D00C40B92 /* FolderDiscoveryService_Control.swift */,
+				C9DEDFCF2EAECC4D00C40B92 /* MailRepository.swift */,
+				C949C3E42EB3F36200CB9D27 /* MailSyncEngine.swift */,
+				C9DEDFD02EAECC4D00C40B92 /* MailSendService.swift */,
+				C9CFFAB22EB2A71500B01A49 /* MailProcessorAdapter.swift */,
+				C9AE83AA2EB3FFA000BD2C4E /* MailProcessor.swift */,
+			);
+			path = Sync;
+			sourceTree = "<group>";
+		};
+		C9DEDFD52EAECC4D00C40B92 /* Mail */ = {
+			isa = PBXGroup;
+			children = (
+				C9DEDFC22EAECC4D00C40B92 /* Diagnostics */,
+				C9DEDFC72EAECC4D00C40B92 /* IMAP */,
+				C9DEDFCC2EAECC4D00C40B92 /* SMTP */,
+				C9DEDFD32EAECC4D00C40B92 /* Sync */,
+				C9DEDFD42EAECC4D00C40B92 /* MailManager.swift */,
+			);
+			path = Mail;
+			sourceTree = "<group>";
+		};
+		C9DEDFD62EAECC4D00C40B92 /* Services */ = {
+			isa = PBXGroup;
+			children = (
+				C9DEDFBC2EAECC4D00C40B92 /* AI */,
+				C9DEDFBE2EAECC4D00C40B92 /* Audio */,
+				C9DEDFD52EAECC4D00C40B92 /* Mail */,
+			);
+			path = Services;
+			sourceTree = "<group>";
+		};
+		C9DEDFDA2EAECC4D00C40B92 /* Configuration */ = {
+			isa = PBXGroup;
+			children = (
+				C9DEDFD72EAECC4D00C40B92 /* AIEditor.swift */,
+				C9DEDFD82EAECC4D00C40B92 /* ConfigView.swift */,
+				C9DEDFD92EAECC4D00C40B92 /* PrePromptEditor.swift */,
+			);
+			path = Configuration;
+			sourceTree = "<group>";
+		};
+		C9DEDFDC2EAECC4D00C40B92 /* Dashboard */ = {
+			isa = PBXGroup;
+			children = (
+				C9DEDFDB2EAECC4D00C40B92 /* DashboardView.swift */,
+			);
+			path = Dashboard;
+			sourceTree = "<group>";
+		};
+		C9DEDFDF2EAECC4D00C40B92 /* Logs */ = {
+			isa = PBXGroup;
+			children = (
+				C9DEDFDD2EAECC4D00C40B92 /* LogsView.swift */,
+				C9DEDFDE2EAECC4D00C40B92 /* TextLogDetailView.swift */,
+			);
+			path = Logs;
+			sourceTree = "<group>";
+		};
+		C9DEDFE62EAECC4D00C40B92 /* Mail */ = {
+			isa = PBXGroup;
+			children = (
+				C9DEDFE02EAECC4D00C40B92 /* CompactMessageListView.swift */,
+				C9FB883F2EB2AC76002359BA /* EnhancedMessageDetailView.swift */,
+				C9FB88412EB2ACA6002359BA /* AttachmentDetailView.swift */,
+				C9DEDFE12EAECC4D00C40B92 /* ComposeMailView.swift */,
+				C9DEDFE22EAECC4D00C40B92 /* MailEditor.swift */,
+				C9DEDFE32EAECC4D00C40B92 /* MailView.swift */,
+				C9DEDFE42EAECC4D00C40B92 /* MessageDetailView.swift */,
+				C9DEDFE52EAECC4D00C40B92 /* RegularSplitView.swift */,
+				C93D2CB02EB16CFC00AA4072 /* MailViewModel.swift */,
+				C93D2CB22EB16D7700AA4072 /* MailViewComponents.swift */,
+				C93D2CB42EB16DC300AA4072 /* MailViewSheets.swift */,
+				C93D2CB62EB16E2400AA4072 /* MailboxNavigationPanel.swift */,
+				C9FB88392EB2AB0D002359BA /* AttachmentManager.swift */,
+				C9FB883B2EB2ABB3002359BA /* AttachmentView.swift */,
+				C9CF88552EB2BAF1006CC028 /* PlatformImage.swift */,
+				C949C3E62EB3F52B00CB9D27 /* StructuredMailStorage.swift */,
+			);
+			path = Mail;
+			sourceTree = "<group>";
+		};
+		C9DEDFE92EAECC4D00C40B92 /* Schreiben */ = {
+			isa = PBXGroup;
+			children = (
+				C9DEDFE72EAECC4D00C40B92 /* SchreibenMailView.swift */,
+				C9DEDFE82EAECC4D00C40B92 /* SchreibenView.swift */,
+			);
+			path = Schreiben;
+			sourceTree = "<group>";
+		};
+		C9DEDFEB2EAECC4D00C40B92 /* Shared */ = {
+			isa = PBXGroup;
+			children = (
+				C9DEDFEA2EAECC4D00C40B92 /* MailComposer.swift */,
+			);
+			path = Shared;
+			sourceTree = "<group>";
+		};
+		C9DEDFEE2EAECC4D00C40B92 /* Sprechen */ = {
+			isa = PBXGroup;
+			children = (
+				C9DEDFEC2EAECC4D00C40B92 /* SprechenView.swift */,
+			);
+			path = Sprechen;
+			sourceTree = "<group>";
+		};
+		C9DEDFEF2EAECC4D00C40B92 /* Views */ = {
+			isa = PBXGroup;
+			children = (
+				C9DEDFDA2EAECC4D00C40B92 /* Configuration */,
+				C9DEDFDC2EAECC4D00C40B92 /* Dashboard */,
+				C9DEDFDF2EAECC4D00C40B92 /* Logs */,
+				C9DEDFE62EAECC4D00C40B92 /* Mail */,
+				C9DEDFE92EAECC4D00C40B92 /* Schreiben */,
+				C9DEDFEB2EAECC4D00C40B92 /* Shared */,
+				C9DEDFEE2EAECC4D00C40B92 /* Sprechen */,
+			);
+			path = Views;
+			sourceTree = "<group>";
+		};
+		C9F2CC202E8873D300D5D965 = {
+			isa = PBXGroup;
+			children = (
+				C9DEDF772EAECC4D00C40B92 /* AILO_APP */,
+				C9DEDF782EAECC4D00C40B92 /* AILO-APP-Info.plist */,
+				C9DEDF7C2EAECC4D00C40B92 /* App */,
+				C9DEDF8B2EAECC4D00C40B92 /* Configuration */,
+				C9DEDF9D2EAECC4D00C40B92 /* Database */,
+				C9DEDFB52EAECC4D00C40B92 /* Helpers */,
+				C9DEDFD62EAECC4D00C40B92 /* Services */,
+				C9DEDFEF2EAECC4D00C40B92 /* Views */,
+				C9F2CC2A2E8873D300D5D965 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		C9F2CC2A2E8873D300D5D965 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				C9F2CC292E8873D300D5D965 /* AILO_APP.app */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		C9F2CC282E8873D300D5D965 /* AILO_APP */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = C9F2CC342E8873D400D5D965 /* Build configuration list for PBXNativeTarget "AILO_APP" */;
+			buildPhases = (
+				C9F2CC252E8873D300D5D965 /* Sources */,
+				C9F2CC262E8873D300D5D965 /* Frameworks */,
+				C9F2CC272E8873D300D5D965 /* Resources */,
+				C952E2662E9305270034B9C5 /* Embed Foundation Extensions */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = AILO_APP;
+			packageProductDependencies = (
+			);
+			productName = AILO_APP;
+			productReference = C9F2CC292E8873D300D5D965 /* AILO_APP.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		C9F2CC212E8873D300D5D965 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = 1;
+				LastSwiftUpdateCheck = 2600;
+				LastUpgradeCheck = 2600;
+				TargetAttributes = {
+					C9F2CC282E8873D300D5D965 = {
+						CreatedOnToolsVersion = 26.0.1;
+					};
+				};
+			};
+			buildConfigurationList = C9F2CC242E8873D300D5D965 /* Build configuration list for PBXProject "AILO_APP" */;
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+				de,
+			);
+			mainGroup = C9F2CC202E8873D300D5D965;
+			minimizedProjectReferenceProxies = 1;
+			preferredProjectObjectVersion = 77;
+			productRefGroup = C9F2CC2A2E8873D300D5D965 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				C9F2CC282E8873D300D5D965 /* AILO_APP */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		C9F2CC272E8873D300D5D965 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				C9DEDFF02EAECC4D00C40B92 /* AILO-APP-Info.plist in Resources */,
+				C9DEDFF12EAECC4D00C40B92 /* Assets.xcassets in Resources */,
+				C9DEDFF52EAECC4D00C40B92 /* Localizable.strings in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		C9F2CC252E8873D300D5D965 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				C9DEDFF62EAECC4D00C40B92 /* MailTransportStubs.swift in Sources */,
+				C9DEDFF72EAECC4D00C40B92 /* CircuitBreaker.swift in Sources */,
+				C9DEDFF82EAECC4D00C40B92 /* MailDomainModels.swift in Sources */,
+				C96E33D32EB160520058CB0A /* EmailFormatFlowedHandler.swift in Sources */,
+				C96E33B52EB158590058CB0A /* CharsetConverter.swift in Sources */,
+				C9DEDFF92EAECC4D00C40B92 /* SettingsKeys.swift in Sources */,
+				C9C33C392EB2C35A006390C7 /* HeaderCharsetDetector.swift in Sources */,
+				C9FB88442EB2ACDD002359BA /* MailContentRenderer.swift in Sources */,
+				C9DEDFFB2EAECC4D00C40B92 /* SchreibenView.swift in Sources */,
+				C949C3E52EB3F36200CB9D27 /* MailSyncEngine.swift in Sources */,
+				C9D8E4C02EB1630E007F3DD1 /* FormatFlowedHandler.swift in Sources */,
+				C9DEDFFC2EAECC4D00C40B92 /* LogsView.swift in Sources */,
+				C9DEDFFD2EAECC4D00C40B92 /* LogEntry.swift in Sources */,
+				C947E8FE2EB411E5007634FC /* BaseDAO.swift in Sources */,
+				C9DEDFFE2EAECC4D00C40B92 /* MailMetrics.swift in Sources */,
+				C9DEDFFF2EAECC4D00C40B92 /* ConfigView.swift in Sources */,
+				C9FB88402EB2AC76002359BA /* EnhancedMessageDetailView.swift in Sources */,
+				C9CF88562EB2BAF1006CC028 /* PlatformImage.swift in Sources */,
+				C947E9002EB411FE007634FC /* DAOHelpers.swift in Sources */,
+				C9FB88422EB2ACA6002359BA /* AttachmentDetailView.swift in Sources */,
+				C9DEE0002EAECC4D00C40B92 /* SchreibenMailView.swift in Sources */,
+				C9DEE0012EAECC4D00C40B92 /* MailModels.swift in Sources */,
+				C96E33AF2EB156E90058CB0A /* QuotedPrintableDecoder.swift in Sources */,
+				C9DEE0022EAECC4D00C40B92 /* NIOSMTPClient.swift in Sources */,
+				C9DEE0032EAECC4D00C40B92 /* SMTPClient.swift in Sources */,
+				C9DEE0042EAECC4D00C40B92 /* MailSchema.swift in Sources */,
+				C9DEE0052EAECC4D00C40B92 /* MailView.swift in Sources */,
+				C9DEE0062EAECC4D00C40B92 /* PrePromptManager.swift in Sources */,
+				C96E33D12EB1603E0058CB0A /* EmailMultipartHandler.swift in Sources */,
+				C949C3E72EB3F52B00CB9D27 /* StructuredMailStorage.swift in Sources */,
+				C9DEE0072EAECC4D00C40B92 /* IMAPConnectionPool.swift in Sources */,
+				C9DEE0082EAECC4D00C40B92 /* FolderDiscoveryService_Control.swift in Sources */,
+				C9DEE0092EAECC4D00C40B92 /* KeychainService.swift in Sources */,
+				C9DEE00B2EAECC4D00C40B92 /* DataStore.swift in Sources */,
+				C9AE83AB2EB3FFA000BD2C4E /* MailProcessor.swift in Sources */,
+				C9DEE00D2EAECC4D00C40B92 /* MailManager.swift in Sources */,
+				C9DEE00E2EAECC4D00C40B92 /* MailRepository.swift in Sources */,
+				C9DEE00F2EAECC4D00C40B92 /* AIClient.swift in Sources */,
+				C947E9022EB4123D007634FC /* MailReadDAO.swift in Sources */,
+				C9DEE0112EAECC4D00C40B92 /* AIManager.swift in Sources */,
+				C9CFFAB32EB2A71500B01A49 /* MailProcessorAdapter.swift in Sources */,
+				C9DEE0122EAECC4D00C40B92 /* MarkdownHelper.swift in Sources */,
+				C9DEE0132EAECC4D00C40B92 /* SprechenView.swift in Sources */,
+				C947A0F12EAED321006E661B /* ContentExtractor.swift in Sources */,
+				C96E33AD2EB14D230058CB0A /* ContentDecoder.swift in Sources */,
+				C96E33A92EAED61F0058CB0A /* EmailContentParser.swift in Sources */,
+				C9DEE0152EAECC4D00C40B92 /* CancellationToken.swift in Sources */,
+				C947E9122EB414F3007634FC /* MigrationGuide.swift in Sources */,
+				C96E33D52EB160790058CB0A /* EmailParserComponents.swift in Sources */,
+				C9DEE0162EAECC4D00C40B92 /* Categories.swift in Sources */,
+				C9DEE0172EAECC4D00C40B92 /* SMTPAbstractions.swift in Sources */,
+				C9DEE0182EAECC4D00C40B92 /* MessageDetailView.swift in Sources */,
+				C9DEE0192EAECC4D00C40B92 /* AILO_APPApp.swift in Sources */,
+				C9DEE01A2EAECC4D00C40B92 /* AIPrePromptPreset.swift in Sources */,
+				C9FB883A2EB2AB0D002359BA /* AttachmentManager.swift in Sources */,
+				C9DEE01B2EAECC4D00C40B92 /* MailHealthMonitor.swift in Sources */,
+				C93D2CB12EB16CFD00AA4072 /* MailViewModel.swift in Sources */,
+				C9FB883C2EB2ABB3002359BA /* AttachmentView.swift in Sources */,
+				C9DEE01C2EAECC4D00C40B92 /* PrePromptEditor.swift in Sources */,
+				C947E9042EB41267007634FC /* MailWriteDAO.swift in Sources */,
+				C9DEE01E2EAECC4D00C40B92 /* IMAPParsers.swift in Sources */,
+				C9DEE01F2EAECC4D00C40B92 /* AIEditor.swift in Sources */,
+				C9DEE0202EAECC4D00C40B92 /* TextLogDetailView.swift in Sources */,
+				C9DEE0212EAECC4D00C40B92 /* IMAPCommands.swift in Sources */,
+				C9DEE0222EAECC4D00C40B92 /* MailSendService.swift in Sources */,
+				C96E33C12EB15C6B0058CB0A /* InlineContentResolver.swift in Sources */,
+				C9DEE0232EAECC4D00C40B92 /* ComposeMailView.swift in Sources */,
+				C9DEE0252EAECC4D00C40B92 /* MailLogger.swift in Sources */,
+				C93D2CB32EB16D7700AA4072 /* MailViewComponents.swift in Sources */,
+				C9DEE0282EAECC4D00C40B92 /* FolderDiscoveryService.swift in Sources */,
+				C96E33B92EB1597D0058CB0A /* RFC2047EncodedWordsParser.swift in Sources */,
+				C9DEE0292EAECC4D00C40B92 /* AudioPlayer.swift in Sources */,
+				C96E33C72EB15DDE0058CB0A /* TextEnrichedDecoder.swift in Sources */,
+				C9C33C352EB2C0E4006390C7 /* ContentAnalyzer.swift in Sources */,
+				C9DEE02A2EAECC4D00C40B92 /* IMAPConnection.swift in Sources */,
+				C947E90C2EB41367007634FC /* AccountDAO.swift in Sources */,
+				C93D2CB72EB16E2400AA4072 /* MailboxNavigationPanel.swift in Sources */,
+				C9DEE02B2EAECC4D00C40B92 /* MailComposer.swift in Sources */,
+				C9C33C372EB2C341006390C7 /* TransferEncodingDecoder.swift in Sources */,
+				C9DEE02D2EAECC4D00C40B92 /* RegularSplitView.swift in Sources */,
+				C9D8E4BE2EB16263007F3DD1 /* String+HTMLEscaping.swift in Sources */,
+				C947E90A2EB41349007634FC /* FolderDAO.swift in Sources */,
+				C9DEE02E2EAECC4D00C40B92 /* MIMEParser.swift in Sources */,
+				C9DEE0302EAECC4D00C40B92 /* RetryPolicy.swift in Sources */,
+				C96E33B32EB157C40058CB0A /* HTMLEntityDecoder.swift in Sources */,
+				C9DEE0312EAECC4D00C40B92 /* MailEntities.swift in Sources */,
+				C9DEE0332EAECC4D00C40B92 /* DashboardView.swift in Sources */,
+				C9DEE0342EAECC4D00C40B92 /* MailEditor.swift in Sources */,
+				C93D2CB52EB16DC300AA4072 /* MailViewSheets.swift in Sources */,
+				C9DEE0352EAECC4D00C40B92 /* CompactMessageListView.swift in Sources */,
+				C96E33B12EB157550058CB0A /* MIMEMultipartParser.swift in Sources */,
+				C947E9062EB412FB007634FC /* AttachmentDAO.swift in Sources */,
+				C947E90E2EB414A6007634FC /* DAOFactory.swift in Sources */,
+				C947E9082EB4131F007634FC /* OutboxDAO.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXVariantGroup section */
+		C9DEDF822EAECC4D00C40B92 /* Localizable.strings */ = {
+			isa = PBXVariantGroup;
+			children = (
+				C9DEDF802EAECC4D00C40B92 /* en */,
+				C9DEDF812EAECC4D00C40B92 /* de */,
+			);
+			name = Localizable.strings;
+			sourceTree = "<group>";
+		};
+/* End PBXVariantGroup section */
+
+/* Begin XCBuildConfiguration section */
+		C9F2CC322E8873D300D5D965 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				SDKROOT = iphoneos;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+			};
+			name = Debug;
+		};
+		C9F2CC332E8873D300D5D965 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				SDKROOT = iphoneos;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				VALIDATE_PRODUCT = YES;
+			};
+			name = Release;
+		};
+		C9F2CC352E8873D400D5D965 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 9;
+				DEVELOPMENT_TEAM = RD349ZH34F;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "AILO-APP-Info.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = AILO;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.business";
+				INFOPLIST_KEY_LSSupportsOpeningDocumentsInPlace = YES;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Mikrofon wird für Sprachaufnahmen in Sprechen benötigt";
+				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "Spracherkennung für Transkripte nach der Aufnahme.";
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown";
+				IPHONEOS_DEPLOYMENT_TARGET = 18.6;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "ailo.network.AILO-APP";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = NO;
+				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
+				SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD = NO;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Debug;
+		};
+		C9F2CC362E8873D400D5D965 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 9;
+				DEVELOPMENT_TEAM = RD349ZH34F;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "AILO-APP-Info.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = AILO;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.business";
+				INFOPLIST_KEY_LSSupportsOpeningDocumentsInPlace = YES;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Mikrofon wird für Sprachaufnahmen in Sprechen benötigt";
+				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "Spracherkennung für Transkripte nach der Aufnahme.";
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown";
+				IPHONEOS_DEPLOYMENT_TARGET = 18.6;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "ailo.network.AILO-APP";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = NO;
+				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
+				SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD = NO;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		C9F2CC242E8873D300D5D965 /* Build configuration list for PBXProject "AILO_APP" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				C9F2CC322E8873D300D5D965 /* Debug */,
+				C9F2CC332E8873D300D5D965 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		C9F2CC342E8873D400D5D965 /* Build configuration list for PBXNativeTarget "AILO_APP" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				C9F2CC352E8873D400D5D965 /* Debug */,
+				C9F2CC362E8873D400D5D965 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = C9F2CC212E8873D300D5D965 /* Project object */;
+}

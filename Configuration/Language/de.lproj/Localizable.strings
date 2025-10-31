@@ -1,0 +1,481 @@
+/* ============================================================================
+   AILO – Base Localization (Fallback: English)
+   Key style: <feature>.<view>.<element>[.<state|action|hint>]
+   Notes:
+   - Keep sentences complete (no concatenation).
+   - Prefer plural/parameters in String Catalog (.xcstrings) later.
+   ========================================================================== */
+
+/* MARK: - Common / Global */
+"common.app.name" = "AILO";
+"common.ok" = "OK";
+"common.cancel" = "Abbrechen";
+"common.save" = "Sichern";
+"common.edit" = "Bearbeiten";
+"common.done" = "Fertig";
+"common.delete" = "Löschen";
+"common.close" = "Schließen";
+"common.back" = "Zurück";
+"common.yes" = "Ja";
+"common.no" = "Nein";
+"common.error" = "Fehler";
+"common.success" = "Erfolg";
+"common.loading" = "Laden…";
+"common.search" = "Suchen";
+"common.retry" = "Erneut versuchen";
+"common.share" = "Teilen";
+"common.settings" = "Einstellungen";
+"common.placeholder" = "Text eingeben…";
+"common.test" = "Testen";
+
+/* MARK: - Common States / Messages */
+"state.empty" = "Hier ist noch nichts";
+"state.offline" = "Keine Verbindung";
+"state.pending" = "Ausstehend";
+"state.synced" = "Synchronisiert";
+"msg.saved" = "Erfolgreich gespeichert";
+"msg.deleted" = "Gelöscht";
+
+/* MARK: - Date / Format (prefer Swift FormatStyle in code; keep fallback labels minimal) */
+"date.today" = "Heute";
+"date.yesterday" = "Gestern";
+
+/* App Entry */
+/* Files: AILO_APP/AILO_APPApp.swift, App/ContentView.swift, App/NativeApp.swift */
+/* MARK: - App Shell / Navigation */
+"app.tab.dashboard" = "Dashboard";
+"app.tab.mail" = "Mail";
+"app.tab.logs" = "Logs";
+"app.tab.write" = "Notiz";
+"app.tab.speak" = "Sprechen";
+"app.tab.settings" = "Einstellungen";
+
+/* Feature: Dashboard */
+/* File: Features/Dashboard/DashboardView.swift */
+"dashboard.title" = "Dashboard";
+"dashboard.subtitle" = "Willkommen zurück!";
+"dashboard.section.recent" = "Zuletzt hinzugefügt";
+"dashboard.section.upcoming" = "Anstehend";
+"dashboard.empty" = "Noch keine Einträge";
+"dashboard.action.newNote" = "Neue Notiz";
+"dashboard.banner.alt" = "App-Banner";
+"dashboard.item.type.audio" = "Audio";
+"dashboard.item.type.text" = "Text";
+"dashboard.item.audioRecording" = "Audioaufnahme";
+
+/* Feature: Logs (List & Detail) */
+/* Files: Features/Logs/LogsView.swift, TextLogDetailView.swift */
+/* MARK: - Logs List */
+"logs.title" = "Logs";
+"logs.search.placeholder" = "Logs durchsuchen";
+"logs.empty" = "Noch keine Einträge";
+"logs.item.category" = "Kategorie";
+"logs.item.reminder" = "Erinnerung";
+"logs.item.created" = "Erstellt";
+"logs.action.new" = "Log hinzufügen";
+"logs.action.deleteAll.confirm" = "Alle Logs löschen?";
+"logs.action.export" = "Exportieren";
+"logs.header.title" = "📓 Logs";
+"logs.header.subtitle" = "Gespeicherte Texte und Aufnahmen.";
+"logs.action.config" = "Konfiguration";
+"logs.action.mail" = "Mail";
+"logs.action.play" = "Abspielen";
+"logs.item.fallback.text" = "Transkript";
+"logs.item.fallback.audio" = "Audio";
+"logs.alert.audioTitle" = "Audio";
+"logs.alert.fileMissing" = "Datei nicht gefunden.";
+"logs.mail.body.titlePrefix" = "Titel:";
+"logs.mail.body.datePrefix" = "Datum:";
+"logs.mail.body.filePrefix" = "Datei:";
+"logs.mail.body.audioNote" = "(Hinweis: Audio ist in der App gespeichert.)";
+"logs.mail.fallback.untitledAudio" = "Unbenannt.m4a";
+"logs.mail.fallback.log" = "Log";
+
+/* MARK: - Log Detail */
+"logDetail.title" = "Details";
+"logDetail.nav.title" = "Text-Log";
+"logDetail.field.title" = "Titel";
+"logDetail.field.title.placeholder" = "Titel";
+"logDetail.field.body" = "Text";
+"logDetail.field.body.placeholder" = "Text eingeben…";
+"logDetail.field.category" = "Kategorie";
+"logDetail.field.date" = "Datum";
+"logDetail.field.reminder" = "Erinnerung";
+"logDetail.label.originalText" = "Originaltext";
+"logDetail.label.aiText" = "KI-Text";
+"logDetail.preset.label" = "Voreinstellung";
+"logDetail.ai.empty" = "KI-Überarbeitung noch nicht ausgeführt.";
+"logDetail.action.edit" = "Bearbeiten";
+"logDetail.action.save" = "Änderungen speichern";
+"logDetail.action.delete" = "Eintrag löschen";
+"logDetail.action.aiRewrite" = "KI-Überarbeitung starten";
+"logDetail.action.refreshAI" = "KI-Text aktualisieren";
+"logDetail.action.copy" = "Kopieren";
+"logDetail.delete.confirm" = "Diesen Eintrag löschen?";
+"logDetail.toast.saved" = "Eintrag aktualisiert";
+"logDetail.toast.deleted" = "Eintrag gelöscht";
+"logDetail.toast.copied" = "In Zwischenablage kopiert";
+"logDetail.a11y.saveChanges" = "Änderungen speichern";
+"logDetail.a11y.enableEditMode" = "Bearbeitungsmodus aktivieren";
+"logDetail.a11y.hideKeyboard" = "Tastatur ausblenden";
+"logDetail.a11y.reminderActive" = "Erinnerung aktiv";
+"logDetail.alert.unsavedChanges" = "Es gibt ungespeicherte Änderungen.";
+"logDetail.alert.saveQuestion" = "Änderungen speichern?";
+"logDetail.error.invalidServer" = "Ungültige Serveradresse.";
+"logDetail.error.emptyResponse" = "Leere Antwort.";
+"logDetail.error.aiFailed" = "KI-Antwort fehlgeschlagen.";
+"logDetail.error.openaiParsing" = "OpenAI-Parsing fehlgeschlagen (keine nutzbare Antwort).";
+"logDetail.error.ollamaParsing" = "Ollama-Parsing fehlgeschlagen.";
+"logDetail.error.invalidURL" = "Ungültige URL (Ollama).";
+
+/* Feature: Schreiben (Write) */
+/* File: Features/Schreiben/SchreibenView.swift */
+"write.title" = "Schreiben";
+"write.header.newEntry" = "📝 Neuer Log-Eintrag";
+"write.section.title" = "1. Titel & Kategorie";
+"write.section.tags" = "2. Tags (optional)";
+"write.section.reminder" = "3. Erinnerung (optional)";
+"write.section.content" = "4. Inhalt schreiben";
+"write.placeholder.title" = "Kurzer Titel…";
+"write.placeholder.newTag" = "Neuer Tag…";
+"write.picker.category" = "Kategorie";
+"write.action.add" = "Hinzufügen";
+"write.action.next" = "Weiter";
+"write.action.insert" = "Einfügen";
+"write.action.save" = "Speichern";
+"write.dialog.insertContent" = "Inhalt einfügen";
+"write.dialog.fromClipboard" = "Aus Zwischenablage einfügen";
+"write.dialog.fromEmail" = "Aus E-Mail importieren…";
+"write.dialog.cancel" = "Abbrechen";
+"write.datepicker.label" = "Datum…";
+"write.alert.saved" = "Gespeichert";
+"write.access.manageCategories" = "Kategorien verwalten";
+"write.access.hideKeyboard" = "Tastatur ausblenden";
+"write.sheet.emailImport.title" = "Inhalt aus E-Mail importieren";
+"write.sheet.emailImport.tip" = "Tipp: Markiere den relevanten Teil deiner E-Mail (z. B. Nachrichtentext ohne Signatur) und füge ihn hier ein.";
+"write.sheet.emailImport.navTitle" = "E-Mail-Import";
+"write.category.default" = "Allgemein";
+"write.category.defaults.network" = "Netzwerk";
+"write.category.defaults.docs" = "Dokumentation";
+
+/* Feature: Schreiben (Write) - Mail Inbox */
+/* File: Features/Schreiben/SchreibenMailView.swift */
+"mail.inbox.title" = "Posteingang";
+"mail.inbox.account" = "Konto";
+"mail.inbox.folder" = "Ordner";
+"mail.inbox.loading" = "Lade E-Mails…";
+"mail.inbox.empty" = "Keine E-Mails gefunden.";
+"mail.inbox.retry" = "Erneut versuchen";
+"mail.inbox.refresh" = "Aktualisieren";
+
+/* MARK: - Mail Folder Names (localized) */
+"mail.folder.inbox" = "Posteingang";
+"mail.folder.sent" = "Gesendet";
+"mail.folder.drafts" = "Entwürfe";
+"mail.folder.trash" = "Papierkorb";
+"mail.folder.spam" = "Spam";
+
+/* Feature: Sprechen (Speak) */
+/* Files: Features/Sprechen/SprechenView.swift, SprechenView+Helper.swift */
+"speak.header.newEntry" = "🎙️ Neuer Audio-Log";
+"speak.status.recording" = "Aufnahme läuft…";
+"speak.status.ready" = "Bereit zur Aufnahme";
+"speak.status.transcribing" = "Transkribiere…";
+"speak.placeholder.titleOptional" = "Titel (optional)";
+"speak.action.start" = "Start";
+"speak.action.stop" = "Stopp";
+"speak.action.pause" = "Pause";
+"speak.action.resume" = "Fortsetzen";
+"speak.label.transcript" = "Transkript";
+"speak.error.recording" = "Aufnahmefehler";
+"speak.error.unusable" = "Aufnahme unbrauchbar — bitte erneut versuchen.";
+"speak.access.hideKeyboard" = "Tastatur ausblenden";
+"speak.entry.title" = "Transkript";
+"speak.entry.titleWithName" = "Transkript: %@";
+
+/* Feature: Configuration (Settings) */
+/* Files: Configuration/ConfigView.swift */
+/* MARK: - Titles / Navigation */
+"config.title" = "Einstellungen";
+"config.nav.title" = "Konfiguration";
+"config.toolbar.done" = "Fertig";
+
+/* MARK: - Sections */
+"config.section.categories" = "Kategorien";
+"config.section.mic" = "Mikrofon / Aufnahme";
+"config.section.language" = "Sprache";
+"config.section.ai" = "KI";
+"config.section.privacy" = "Datenschutz";
+"config.section.mail" = "E-Mail";
+"config.section.mailAccounts" = "E-Mail-Konten";
+
+/* MARK: - Rows / Controls */
+"config.categories.manage" = "Kategorien verwalten";
+"config.mic.sensitivity" = "Empfindlichkeit";
+"config.mic.silenceThreshold" = "Stille-Schwelle (dB)";
+"config.mic.chunkLength" = "Segmentlänge (s)";
+"config.language.speechRecognition" = "Spracherkennung";
+"config.nav.aiManager" = "KI-Provider verwalten";
+"config.nav.prePrompts" = "Pre-Prompts";
+"config.nav.mailManager" = "E-Mail-Konten";
+"config.mail.settingsName" = "E-Mail-Konfiguration";
+"config.mail.settingsName.placeholder" = "Name der Konfiguration";
+"config.mail.add" = "Konto hinzufügen";
+
+/* MARK: - Actions & Feedback */
+"config.action.save" = "Einstellungen speichern";
+"config.action.resetDefaults" = "Auf Standard zurücksetzen";
+"config.toast.saved" = "Einstellungen gespeichert";
+
+/* Configuration - AI Manager & Editor */
+/* Files: Configuration/AIManager.swift, AIEditor.swift, Services/AIClient.swift */
+/* MARK: - AI Manager (titles & nav) */
+"aiManager.title" = "KI-Provider";
+"aiManager.list.empty" = "Noch keine Provider";
+"aiManager.action.add" = "Provider hinzufügen";
+"aiManager.action.edit" = "Bearbeiten";
+"aiManager.action.setActive" = "Als aktiv setzen";
+"aiManager.action.delete" = "Löschen";
+"aiManager.cell.default" = "Standard";
+"aiManager.placeholder.newProvider" = "Neuer Provider";
+
+/* MARK: - AI Editor (sections & nav) */
+"aiEditor.title" = "KI-Provider";
+"aiEditor.section.general" = "Allgemein";
+"aiEditor.section.connection" = "Verbindung";
+"aiEditor.section.model" = "Modell";
+
+/* MARK: - AI Editor (fields & labels) */
+"aiEditor.field.displayName" = "Anzeigename";
+"aiEditor.field.type" = "Typ";
+"aiEditor.field.baseURL" = "Serveradresse";
+"aiEditor.field.port" = "Port";
+"aiEditor.field.apiKey" = "API-Schlüssel";
+"aiEditor.field.model" = "Modell";
+"aiEditor.field.temperature" = "Temperatur";
+"aiEditor.placeholder.displayName" = "Anzeigename (z. B. „OpenAI Prod“)";
+"aiEditor.a11y.reloadModels" = "Modelle neu laden";
+"aiEditor.temperature.value" = "Temperatur: %.1f";
+"aiEditor.action.save" = "Speichern";
+
+/* MARK: - AI Editor (provider type names) */
+"aiEditor.type.openAI" = "OpenAI";
+"aiEditor.type.ollama" = "Ollama";
+"aiEditor.type.custom" = "Benutzerdefiniert";
+
+/* MARK: - AI Errors (runtime) */
+"ai.error.invalidBaseURL" = "Ungültige Serveradresse.";
+"ai.error.invalidHTTPResponse" = "Ungültige Serverantwort.";
+"ai.error.httpStatus" = "HTTP-Fehler %d.";
+"ai.error.emptyResponse" = "Leere Antwort.";
+"ai.error.decoding" = "Antwort konnte nicht gelesen werden.";
+"ai.error.endpointNotFound" = "Endpunkt nicht gefunden.";
+"ai.error.other" = "Unerwarteter Fehler.";
+
+/* Configuration - Pre-Prompt Manager */
+/* Files: Configuration/PrePromptManager.swift, PrePromptEditor.swift, Core/Models/AIPrePromptPreset.swift */
+/* MARK: - Pre-Prompt Manager (titles & navigation) */
+"preprompts.title" = "Pre-Prompts";
+"preprompts.section.existing" = "Vorhandene Pre-Prompts";
+"preprompts.section.new" = "Neu hinzufügen";
+"preprompts.editor.title" = "Pre-Prompt bearbeiten";
+"preprompts.list.empty" = "Noch keine Pre-Prompts";
+"preprompts.hint.tapToEdit" = "Zum Bearbeiten tippen";
+"preprompts.action.delete" = "Pre-Prompt löschen";
+
+/* MARK: - Pre-Prompt Manager (fields & placeholders) */
+"preprompts.field.name" = "Name";
+"preprompts.field.name.placeholder" = "Kurzes Label (z. B. Korrektur)";
+"preprompts.field.content" = "Inhalt";
+"preprompts.field.content.placeholder" = "Pre-Prompt-Inhalt hier eingeben…";
+
+/* MARK: - Pre-Prompt Manager (actions & toolbar) */
+"preprompts.action.add" = "Pre-Prompt hinzufügen";
+"preprompts.action.save" = "Speichern";
+"preprompts.toolbar.done" = "Fertig";
+
+/* MARK: - Pre-Prompt Manager (defaults) */
+"preprompts.default.name" = "Protokoll";
+"preprompts.default.text" = "Du bist ein Protokoll-Assistent, der meine Texte kategorisiert und strukturiert. Keine Einleitung, kein Schluss, kein Formatieren, kein Markdown.";
+
+/* MARK: - Pre-Prompt Manager (feedback) */
+"preprompts.toast.saved" = "Pre-Prompt gespeichert";
+"preprompts.editor.footer" = "Hier kannst du einen systemweiten Pre-Prompt definieren, der dem Modell vorangestellt wird.";
+
+/* Configuration - Categories */
+/* Files: Configuration/Categories.swift */
+"categories.title" = "Kategorien";
+"categories.list.empty" = "Noch keine Kategorien";
+"categories.field.placeholder" = "Neue Kategorie (z. B. Ideen)";
+"categories.action.add" = "Kategorie hinzufügen";
+"categories.action.edit" = "Kategorie bearbeiten";
+"categories.action.delete" = "Kategorie löschen";
+"categories.hint.tapToEdit" = "Zum Bearbeiten tippen";
+
+/* Configuration - Mail Manager */
+/* Files: Configuration/MailManager.swift */
+"mail.account.active" = "Aktiv";
+"mail.account.inactive" = "Inaktiv";
+"mail.account.list.empty" = "Noch keine E-Mail-Konten";
+"mail.account.delete.confirm" = "E-Mail-Konto löschen?";
+
+/* Configuration - Mail Editor */
+/* Files: Configuration/MailEditor.swift */
+"mail.editor.title" = "E-Mail-Konto";
+"mail.editor.test.title" = "Verbindungstest";
+"mail.editor.test.success" = "Verbindung erfolgreich!";
+"mail.editor.action.testConnection" = "Verbindung testen";
+
+/* MARK: - Mail Editor (sections) */
+"mail.editor.section.account" = "Konto";
+"mail.editor.section.incoming" = "Eingehend";
+"mail.editor.section.outgoing" = "Ausgehend (SMTP)";
+"mail.editor.section.behavior" = "Verhalten";
+"mail.editor.section.advanced" = "Erweitert";
+"mail.editor.section.folders" = "Ordner";
+
+/* MARK: - Mail Editor (fields) */
+"mail.editor.field.accountName" = "Kontoname";
+"mail.editor.field.protocol" = "Protokoll";
+"mail.editor.field.host" = "Server";
+"mail.editor.field.port" = "Port";
+"mail.editor.field.encryption" = "Verschlüsselung";
+"mail.editor.field.username" = "Benutzername";
+"mail.editor.field.password" = "Passwort";
+"mail.editor.field.smtpHost" = "SMTP-Server";
+"mail.editor.field.enableCheck" = "Automatische Prüfung aktivieren";
+"mail.editor.field.checkInterval" = "Prüfintervall";
+"mail.editor.field.displayName" = "Anzeigename";
+"mail.editor.field.replyTo" = "Antwort an";
+"mail.editor.field.authMethod" = "Authentifizierung";
+"mail.editor.field.timeout" = "Timeout";
+"mail.editor.field.logging" = "Verbindungsprotokoll";
+
+/* MARK: - Mail Editor (folder fields) */
+"mail.editor.folder.inbox" = "Posteingang";
+"mail.editor.folder.sent" = "Gesendet";
+"mail.editor.folder.drafts" = "Entwürfe";
+"mail.editor.folder.trash" = "Papierkorb";
+"mail.editor.folder.spam" = "Spam";
+
+/* MARK: - Mail Editor (actions) */
+"mail.editor.action.fetchFolders" = "Ordner abrufen";
+"mail.editor.showAdvanced" = "Erweitert anzeigen";
+"mail.editor.hideAdvanced" = "Erweitert ausblenden";
+
+/* MARK: - Mail Editor (hints & feedback) */
+"mail.editor.hint.interval" = "Prüft bei aktiver App regelmäßig neue Nachrichten.";
+"mail.editor.fetch.onlyImap" = "Ordnerabruf nur für IMAP verfügbar.";
+"mail.editor.fetch.success" = "Ordner erfolgreich abgerufen.";
+
+/* MARK: - Mail Service Errors */
+"mail.service.error.invalidConfig" = "Ungültige Konfiguration";
+"mail.service.error.networkUnreachable" = "Netzwerk nicht erreichbar";
+"mail.service.error.authFailed" = "Authentifizierung fehlgeschlagen";
+"mail.service.error.sendFailed" = "Senden fehlgeschlagen";
+"mail.service.error.receiveFailed" = "Empfangen fehlgeschlagen";
+"mail.service.error.notImplemented" = "Nicht implementiert";
+
+/* Shared Components */
+/* Files: Features/Shared/MailComposer.swift, MarkdownHelper.swift */
+/* MARK: - Mail Composer */
+"mail.title" = "E-Mail verfassen";
+"mail.field.to" = "An";
+"mail.field.subject" = "Betreff";
+"mail.field.body" = "Nachricht";
+"mail.action.send" = "Senden";
+"mail.result.sent" = "E-Mail gesendet";
+"mail.result.failed" = "E-Mail fehlgeschlagen";
+
+/* MARK: - Markdown Helper */
+"markdown.preview.title" = "Vorschau";
+"markdown.action.copy" = "Markdown kopieren";
+"markdown.toast.copied" = "In Zwischenablage kopiert";
+
+/* Core / Storage (messages used in generic flows) */
+/* Files: Core/Storage/DataStore.swift, Core/Models/LogEntry.swift */
+"store.error.load" = "Daten konnten nicht geladen werden";
+"store.error.save" = "Daten konnten nicht gespeichert werden";
+"store.error.delete" = "Element konnte nicht gelöscht werden";
+
+/* System Permissions / Info.plist texts (keep short & clear) */
+/* (Actual Info.plist localization lives in InfoPlist.strings per .lproj; */
+/* keys here are for in-app prompts/tooltips if any.) */
+"perm.microphone.tooltip" = "Mikrofon aktivieren, um Sprache aufzuzeichnen";
+"perm.speech.tooltip" = "Spracherkennung für Transkription aktivieren";
+"perm.photos.tooltip" = "Fotos-Zugriff erlauben, um Bilder zu teilen";
+
+
+/* MARK: - Mail Editor (updated field labels used in UI) */
+"mail.editor.accountName" = "Kontoname";
+"mail.editor.displayName" = "Anzeigename";
+"mail.editor.replyTo" = "Antwort an";
+
+/* Incoming (IMAP/POP3) */
+"mail.editor.recv.protocol" = "Protokoll";
+"mail.editor.recv.encryption" = "Verschlüsselung";
+"mail.editor.recv.host" = "Server";
+"mail.editor.recv.port" = "Port";
+"mail.editor.recv.user" = "Benutzername";
+"mail.editor.recv.password" = "Passwort";
+
+/* Outgoing (SMTP) */
+"mail.editor.smtp.encryption" = "Verschlüsselung";
+"mail.editor.smtp.host" = "SMTP-Server";
+"mail.editor.smtp.port" = "Port";
+"mail.editor.smtp.user" = "Benutzername";
+"mail.editor.smtp.password" = "Passwort";
+
+/* Advanced */
+"mail.editor.authMethod" = "Authentifizierung";
+"mail.editor.timeout" = "Timeout";
+"mail.editor.logging" = "Verbindungsprotokoll";
+"mail.editor.interval.enabled" = "Automatische Prüfung aktivieren";
+"mail.editor.interval.min" = "Prüfintervall";
+"mail.editor.folders" = "Ordner";
+
+/* Fetch folders feedback */
+"mail.editor.fetch.missingCredentials" = "Fehlende Zugangsdaten: Bitte Server, Port und Benutzername eingeben.";
+
+/* Feature: Mail (Global list & controls used in MailView) */
+/* Files: Features/Mail/MailView.swift */
+"app.common.done" = "Fertig";
+
+"app.mail.title" = "Mail";
+"app.mail.accounts" = "Konten";
+"app.mail.account_settings" = "Kontoeinstellungen";
+"app.mail.mailboxes" = "Ordner";
+
+/* Mailboxes */
+"app.mail.inbox" = "Posteingang";
+"app.mail.sent" = "Gesendet";
+"app.mail.drafts" = "Entwürfe";
+"app.mail.trash" = "Papierkorb";
+"app.mail.spam" = "Spam";
+"app.mail.outbox" = "Postausgang";
+
+/* Toolbar & actions */
+"app.mail.refresh" = "Aktualisieren";
+"app.mail.import" = "Importieren";
+"app.mail.sync" = "Synchronisieren";
+"app.mail.mark_read" = "Als gelesen markieren";
+"app.mail.mark_unread" = "Als ungelesen markieren";
+"app.mail.flag" = "Markieren";
+"app.mail.delete" = "Löschen";
+
+/* Search */
+"app.mail.search_placeholder" = "Betreff oder Absender suchen";
+
+/* Empty & selection states */
+"app.mail.select_message" = "Keine E-Mail ausgewählt";
+"app.mail.select_message_description" = "Wähle links eine E-Mail aus, um die Vorschau zu sehen.";
+"app.mail.no_messages" = "Keine E-Mails";
+"app.mail.no_messages_description" = "Dieser Ordner enthält keine Nachrichten.";
+
+/* Quick filter */
+"app.mail.filter.all" = "Alle";
+"app.mail.filter.unread" = "Ungelesen";
+"app.mail.filter.flagged" = "Markiert";
+
+/* Preview */
+"app.mail.body.preview.placeholder" = "E-Mail-Vorschau erscheint hier…";

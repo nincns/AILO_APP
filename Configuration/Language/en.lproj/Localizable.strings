@@ -1,0 +1,471 @@
+//AILO_APP/Configuration/Language/Base.lproj/Localizable.strings
+/* ============================================================================
+   AILO – Base Localization (Fallback: English)
+   Key style: <feature>.<view>.<element>[.<state|action|hint>]
+   Notes:
+   - Keep sentences complete (no concatenation).
+   - Prefer plural/parameters in String Catalog (.xcstrings) later.
+   ========================================================================== */
+
+/* MARK: - Common / Global */
+"common.app.name" = "AILO";
+"common.ok" = "OK";
+"common.cancel" = "Cancel";
+"common.save" = "Save";
+"common.edit" = "Edit";
+"common.done" = "Done";
+"common.delete" = "Delete";
+"common.close" = "Close";
+"common.back" = "Back";
+"common.yes" = "Yes";
+"common.no" = "No";
+"common.error" = "Error";
+"common.success" = "Success";
+"common.loading" = "Loading…";
+"common.search" = "Search";
+"common.retry" = "Retry";
+"common.share" = "Share";
+"common.settings" = "Settings";
+"common.placeholder" = "Enter text…";
+
+/* MARK: - Common States / Messages */
+"state.empty" = "Nothing here yet";
+"state.offline" = "No connection";
+"state.pending" = "Pending";
+"state.synced" = "Synced";
+"msg.saved" = "Saved successfully";
+"msg.deleted" = "Deleted";
+
+/* MARK: - Date / Format (prefer Swift FormatStyle in code; keep fallback labels minimal) */
+"date.today" = "Today";
+"date.yesterday" = "Yesterday";
+
+/* ============================================================================
+   App Entry
+   Files: AILO_APP/AILO_APPApp.swift, App/ContentView.swift, App/NativeApp.swift
+   ========================================================================== */
+/* MARK: - App Shell / Navigation */
+"app.tab.dashboard" = "Dashboard";
+"app.tab.logs" = "Logs";
+"app.tab.write" = "Write";
+"app.tab.speak" = "Speak";
+"app.tab.settings" = "Settings";
+
+/* ============================================================================
+   Feature: Dashboard
+   File: Features/Dashboard/DashboardView.swift
+   ========================================================================== */
+"dashboard.title" = "Dashboard";
+"dashboard.subtitle" = "Welcome back!";
+"dashboard.section.recent" = "Recently added";
+"dashboard.section.upcoming" = "Upcoming";
+"dashboard.empty" = "No entries yet";
+"dashboard.action.newNote" = "New note";
+"dashboard.banner.alt" = "App banner";
+
+/* ============================================================================
+   Feature: Logs (List & Detail)
+   Files: Features/Logs/LogsView.swift, TextLogDetailView.swift
+   ========================================================================== */
+/* MARK: - Logs List */
+"logs.title" = "Logs";
+"logs.search.placeholder" = "Search logs";
+"logs.empty" = "No entries yet";
+"logs.item.category" = "Category";
+"logs.item.reminder" = "Reminder";
+"logs.item.created" = "Created";
+"logs.action.new" = "Add log";
+"logs.action.deleteAll.confirm" = "Delete all logs?";
+"logs.action.export" = "Export";
+
+/* MARK: - LogsView (header & subtitle) */
+"logs.header.title" = "Logs";
+"logs.header.subtitle" = "Saved texts and recordings.";
+
+/* MARK: - LogsView (fallback titles) */
+"logs.item.fallback.text" = "Transcript";
+"logs.item.fallback.audio" = "Audio";
+
+/* MARK: - LogsView (alert title) */
+"logs.alert.audioTitle" = "Audio";
+
+/* MARK: - LogsView (mail fallback) */
+"logs.mail.fallback.log" = "Log";
+
+/* MARK: - LogsView (header & controls) */
+"logs.header.title" = "📓 Logs";
+"logs.header.subtitle" = "Saved texts and recordings.";
+"logs.action.config" = "Configuration";
+"logs.action.mail" = "Mail";
+"logs.action.play" = "Play";
+
+/* MARK: - LogsView (fallback titles) */
+"logs.item.fallback.text" = "Transcript";
+"logs.item.fallback.audio" = "Audio";
+
+/* MARK: - LogsView (alerts & messages) */
+"logs.alert.audioTitle" = "Audio";
+"logs.alert.fileMissing" = "File not found.";
+
+/* MARK: - LogsView (mail compose text) */
+"logs.mail.body.titlePrefix" = "Title:";
+"logs.mail.body.datePrefix" = "Date:";
+"logs.mail.body.filePrefix" = "File:";
+"logs.mail.body.audioNote" = "(Note: Audio is stored in the app.)";
+"logs.mail.fallback.untitledAudio" = "Untitled.m4a";
+"logs.mail.fallback.log" = "Log";
+
+/* MARK: - Log Detail */
+"logDetail.title" = "Details";
+"logDetail.field.title" = "Title";
+"logDetail.field.body" = "Text";
+"logDetail.field.category" = "Category";
+"logDetail.field.date" = "Date";
+"logDetail.field.reminder" = "Reminder";
+"logDetail.action.edit" = "Edit";
+"logDetail.action.save" = "Save changes";
+"logDetail.action.delete" = "Delete entry";
+"logDetail.delete.confirm" = "Delete this entry?";
+"logDetail.toast.saved" = "Entry updated";
+"logDetail.toast.deleted" = "Entry deleted";
+
+/* MARK: - Log Detail (additional labels & placeholders) */
+"logDetail.nav.title" = "Text log";
+"logDetail.field.title.placeholder" = "Title";
+"logDetail.field.body.placeholder" = "Write your text…";
+"logDetail.label.originalText" = "Original text";
+"logDetail.label.aiText" = "AI text";
+"logDetail.preset.label" = "Preset";
+"logDetail.ai.empty" = "AI rewrite not executed yet.";
+
+/* MARK: - Log Detail (actions & a11y) */
+"logDetail.action.aiRewrite" = "Start AI rewrite";
+"logDetail.action.refreshAI" = "Refresh AI text";
+"logDetail.action.copy" = "Copy";
+"logDetail.toast.copied" = "Copied to clipboard";
+"logDetail.a11y.saveChanges" = "Save changes";
+"logDetail.a11y.enableEditMode" = "Enable edit mode";
+"logDetail.a11y.hideKeyboard" = "Hide keyboard";
+"logDetail.a11y.reminderActive" = "Reminder active";
+
+/* MARK: - Log Detail (alerts) */
+"logDetail.alert.unsavedChanges" = "You have unsaved changes.";
+"logDetail.alert.saveQuestion" = "Save changes?";
+
+/* MARK: - Log Detail (errors) */
+"logDetail.error.invalidServer" = "Invalid server address.";
+"logDetail.error.emptyResponse" = "Empty response.";
+"logDetail.error.aiFailed" = "AI response failed.";
+"logDetail.error.openaiParsing" = "OpenAI parsing failed (no usable response).";
+"logDetail.error.ollamaParsing" = "Ollama parsing failed.";
+"logDetail.error.invalidURL" = "Invalid URL (Ollama).";
+
+/* ============================================================================
+   Feature: Schreiben (Write)
+   File: Features/Schreiben/SchreibenView.swift
+   ========================================================================== */
+"write.title" = "Write";
+"write.header.newEntry" = "📝 New log entry";
+"write.section.title" = "1. Title & Category";
+"write.section.tags" = "2. Tags (optional)";
+"write.section.reminder" = "3. Reminder (optional)";
+"write.section.content" = "4. Write content";
+"write.placeholder.title" = "Short title…";
+"write.placeholder.newTag" = "New tag…";
+"write.picker.category" = "Category";
+"write.action.add" = "Add";
+"write.action.next" = "Next";
+"write.action.insert" = "Insert";
+"write.action.save" = "Save";
+"write.dialog.insertContent" = "Insert content";
+"write.dialog.fromClipboard" = "Paste from clipboard";
+"write.dialog.fromEmail" = "Import from email…";
+"write.dialog.cancel" = "Cancel";
+"write.datepicker.label" = "Date…";
+"write.alert.saved" = "Saved";
+"write.access.manageCategories" = "Manage categories";
+"write.access.hideKeyboard" = "Hide keyboard";
+"write.sheet.emailImport.title" = "Import content from email";
+"write.sheet.emailImport.tip" = "Tip: Select the relevant part of your email (e.g., message text without signature) and paste it here.";
+"write.sheet.emailImport.navTitle" = "Email import";
+"write.category.default" = "General";
+"write.category.defaults.network" = "Network";
+"write.category.defaults.docs" = "Documentation";
+
+/* ============================================================================
+   Feature: Schreiben (Write)
+   File: Features/Schreiben/SchreibenMailView.swift
+   ========================================================================== */
+"mail.inbox.title"   = "Inbox";
+"mail.inbox.account" = "Account";
+"mail.inbox.loading" = "Loading…";
+"mail.inbox.retry"   = "Retry";
+"mail.inbox.empty"   = "No messages";
+"mail.inbox.refresh" = "Refresh";
+
+/* ============================================================================
+   Feature: Sprechen (Speak)
+   Files: Features/Sprechen/SprechenView.swift, SprechenView+Helper.swift
+   ========================================================================== */
+"speak.header.newEntry" = "🎙️ New audio log";
+"speak.status.recording" = "Recording…";
+"speak.status.ready" = "Ready to record";
+"speak.placeholder.titleOptional" = "Title (optional)";
+"speak.action.start" = "Start";
+"speak.action.stop" = "Stop";
+"speak.action.pause" = "Pause";
+"speak.action.resume" = "Resume";
+"speak.label.transcript" = "Transcript";
+"speak.error.recording" = "Recording error";
+"speak.error.unusable" = "Recording unusable — please try again.";
+"speak.access.hideKeyboard" = "Hide keyboard";
+"speak.entry.title" = "Transcript";
+"speak.entry.titleWithName" = "Transcript: %@";
+
+/* ============================================================================
+   Feature: Configuration (Settings)
+   Files: Configuration/ConfigView.swift
+   ========================================================================== */
+
+/* MARK: - Titles / Navigation */
+"config.title" = "Settings";
+"config.nav.title" = "Configuration";
+"config.toolbar.done" = "Done";
+
+/* MARK: - Sections */
+"config.section.categories" = "Categories";
+"config.section.mic" = "Microphone / Recording";
+"config.section.language" = "Language";
+"config.section.ai" = "AI";
+"config.section.privacy" = "Privacy";
+
+/* MARK: - Rows / Controls */
+"config.categories.manage" = "Manage categories";
+"config.mic.sensitivity" = "Sensitivity";
+"config.mic.silenceThreshold" = "Silence threshold (dB)";
+"config.mic.chunkLength" = "Chunk length (s)";
+"config.language.speechRecognition" = "Speech recognition";
+"config.section.mail" = "Mail Configuration";
+"config.nav.aiManager" = "Manage AI providers";
+"config.nav.prePrompts" = "Pre-prompts";
+
+/* MARK: - Actions & Feedback */
+"config.action.save" = "Save settings";
+"config.action.resetDefaults" = "Reset to defaults";
+"config.toast.saved" = "Settings saved";
+
+/* ============================================================================
+   Configuration – AI Manager & Editor
+   Files: Configuration/AIManager.swift, AIEditor.swift, Services/AIClient.swift
+   ========================================================================== */
+
+/* MARK: - AI Manager (titles & nav) */
+"aiManager.title" = "AI providers";
+
+/* MARK: - AI Manager (list & empty) */
+"aiManager.list.empty" = "No providers yet";
+
+/* MARK: - AI Manager (actions) */
+"aiManager.action.add" = "Add provider";
+"aiManager.action.edit" = "Edit";
+"aiManager.action.setActive" = "Set as active";
+"aiManager.action.delete" = "Delete";
+
+/* MARK: - AI Manager (labels & placeholders) */
+"aiManager.cell.default" = "Default";
+"aiManager.placeholder.newProvider" = "New provider";
+
+/* MARK: - AI Editor (sections & nav) */
+"aiEditor.title" = "AI provider";
+"aiEditor.section.general" = "General";
+"aiEditor.section.connection" = "Connection";
+"aiEditor.section.model" = "Model";
+
+/* MARK: - AI Editor (fields & labels) */
+"aiEditor.field.displayName" = "Display name";
+"aiEditor.field.type" = "Type";
+"aiEditor.field.baseURL" = "Server address";
+"aiEditor.field.port" = "Port";
+"aiEditor.field.apiKey" = "API Key";
+"aiEditor.field.model" = "Model";
+"aiEditor.field.temperature" = "Temperature";
+
+/* MARK: - AI Editor (placeholders & helpers) */
+"aiEditor.placeholder.displayName" = "Display name (e.g. “OpenAI Prod”)";
+"aiEditor.a11y.reloadModels" = "Reload models";
+
+/* MARK: - AI Editor (value readouts) */
+"aiEditor.temperature.value" = "Temperature: %.1f";
+
+/* MARK: - AI Editor (actions) */
+"aiEditor.action.save" = "Save";
+
+/* MARK: - AI Editor (provider type names, optional) */
+"aiEditor.type.openAI" = "OpenAI";
+"aiEditor.type.ollama" = "Ollama";
+"aiEditor.type.custom" = "Custom";
+
+/* MARK: - AI Errors (runtime) */
+"ai.error.invalidBaseURL" = "Invalid server address.";
+"ai.error.invalidHTTPResponse" = "Invalid server response.";
+"ai.error.httpStatus" = "HTTP error %d.";
+"ai.error.emptyResponse" = "Empty response.";
+"ai.error.decoding" = "Response could not be read.";
+"ai.error.endpointNotFound" = "Endpoint not found.";
+"ai.error.other" = "An unexpected error occurred.";
+
+/* ============================================================================
+   Configuration – Pre-Prompt Manager
+   Files: Configuration/PrePromptManager.swift, PrePromptEditor.swift,
+          Core/Models/AIPrePromptPreset.swift
+   ========================================================================== */
+
+/* MARK: - Pre-Prompt Manager (titles & navigation) */
+"preprompts.title" = "Pre-prompts";
+"preprompts.section.existing" = "Existing pre-prompts";
+"preprompts.section.new" = "Add new";
+"preprompts.editor.title" = "Edit pre-prompt";
+
+/* MARK: - Pre-Prompt Manager (list & empty) */
+"preprompts.list.empty" = "No pre-prompts yet";
+"preprompts.hint.tapToEdit" = "Tap to edit";
+"preprompts.action.delete" = "Delete pre-prompt";
+
+/* MARK: - Pre-Prompt Manager (fields & placeholders) */
+"preprompts.field.name" = "Name";
+"preprompts.field.name.placeholder" = "Short label (e.g. Correction)";
+"preprompts.field.content" = "Content";
+"preprompts.field.content.placeholder" = "Write the pre-prompt content here…";
+
+/* MARK: - Pre-Prompt Manager (actions & toolbar) */
+"preprompts.action.add" = "Add pre-prompt";
+"preprompts.action.save" = "Save";
+"preprompts.toolbar.done" = "Done";
+
+/* MARK: - Pre-Prompt Manager (defaults) */
+"preprompts.default.name" = "Protocol";
+"preprompts.default.text" = "You are a protocol assistant who categorizes and structures my texts. No introduction, no conclusion, no formatting, no markdown.";
+
+/* MARK: - Pre-Prompt Manager (feedback) */
+"preprompts.toast.saved" = "Pre-prompt saved";
+
+/* MARK: - Pre-Prompt Editor */
+"preprompts.editor.footer" = "Here you can define a system-wide pre-prompt that is prepended to the model.";
+"preprompts.editor.title" = "Pre-prompt";
+"preprompts.toolbar.done" = "Done";
+
+/* ============================================================================
+   Configuration – Categories
+   Files: Configuration/Categories.swift
+   ========================================================================== */
+"categories.title" = "Categories";
+"categories.list.empty" = "No categories yet";
+"categories.field.placeholder" = "New category (e.g. Ideas)";
+"categories.action.add" = "Add category";
+"categories.action.edit" = "Edit category";
+"categories.action.delete" = "Delete category";
+"categories.hint.tapToEdit" = "Tap to edit";
+
+/* ============================================================================
+   Configuration – Mail Manager
+   Files: Configuration/MailManager.swift
+   ========================================================================== */
+"config.section.mailAccounts" = "Mail Accounts";
+"config.nav.mailManager" = "Manage mail accounts";
+"config.mail.add" = "Add mail configuration";
+
+/* Optional for accessibility or future UX improvements */
+"mail.account.active" = "Active";
+"mail.account.inactive" = "Inactive";
+"mail.account.list.empty" = "No mail accounts yet";
+"mail.account.delete.confirm" = "Delete mail account?";
+
+/* ============================================================================
+   Configuration – Mail Editor
+   Files: Configuration/MailEditor.swift
+   ========================================================================== */
+"mail.editor.title" = "Mail configuration";
+"mail.editor.test.title" = "Test connection";
+"mail.editor.test.success" = "Connection success";
+
+"mail.editor.action.testConnection" = "Connection test";
+
+"mail.editor.section.account"   = "Account";
+"mail.editor.field.accountName" = "Name";
+
+"mail.editor.section.incoming"  = "Incoming (IMAP/POP3)";
+"mail.editor.field.protocol"    = "Protocol";
+"mail.editor.field.host"        = "Host";
+"mail.editor.field.port"        = "Port";
+"mail.editor.field.encryption"  = "Encryption";
+"mail.editor.field.username"    = "Username";
+"mail.editor.field.password"    = "Password";
+
+"mail.editor.section.outgoing"  = "Outgoing (SMTP)";
+"mail.editor.field.smtpHost"    = "SMTP host";
+
+"mail.editor.section.behavior"     = "Behavior";
+"mail.editor.hint.interval"        = "Applies only while the app is active.";
+"mail.editor.field.enableCheck"    = "Enable interval check";
+"mail.editor.field.checkInterval"  = "Check interval";
+
+"mail.editor.section.advanced"   = "Advanced";
+"mail.editor.field.displayName"  = "Display name";
+"mail.editor.field.replyTo"      = "Reply-To address";
+"mail.editor.field.authMethod"   = "Authentication method";
+"mail.editor.field.timeout"      = "Connection timeout";
+"mail.editor.field.logging"      = "Enable connection logging";
+"mail.editor.showAdvanced"       = "Show advanced settings";
+"mail.editor.hideAdvanced"       = "Hide advanced settings";
+
+"mail.editor.section.folders" = "System folders";
+"mail.editor.folder.inbox"    = "Inbox folder";
+"mail.editor.folder.sent"     = "Sent folder";
+"mail.editor.folder.drafts"   = "Drafts folder";
+"mail.editor.folder.trash"    = "Trash folder";
+"mail.editor.folder.spam"     = "Spam folder";
+
+"mail.editor.action.fetchFolders" = "Fetch folders";
+"mail.editor.fetch.success"       = "Special folders detected and filled.";
+"mail.editor.fetch.onlyImap"      = "Folder discovery is only available for IMAP.";
+
+/* Common actions reused in the editor */
+"common.save"   = "Save";
+"common.cancel" = "Cancel";
+"common.test"   = "Test";
+"common.ok"     = "OK";
+
+/* ============================================================================
+   Shared Components
+   Files: Features/Shared/MailComposer.swift, MarkdownHelper.swift
+   ========================================================================== */
+/* MARK: - Mail Composer */
+"mail.title" = "Compose Email";
+"mail.field.to" = "To";
+"mail.field.subject" = "Subject";
+"mail.field.body" = "Message";
+"mail.action.send" = "Send";
+"mail.result.sent" = "Email sent";
+"mail.result.failed" = "Email failed";
+
+/* MARK: - Markdown Helper */
+"markdown.preview.title" = "Preview";
+"markdown.action.copy" = "Copy Markdown";
+"markdown.toast.copied" = "Copied to clipboard";
+
+/* ============================================================================
+   Core / Storage (messages used in generic flows)
+   Files: Core/Storage/DataStore.swift, Core/Models/LogEntry.swift
+   ========================================================================== */
+"store.error.load" = "Could not load data";
+"store.error.save" = "Could not save data";
+"store.error.delete" = "Could not delete item";
+
+/* ============================================================================
+   System Permissions / Info.plist texts (keep short & clear)
+   (Actual Info.plist localization lives in InfoPlist.strings per .lproj;
+    keys here are for in-app prompts/tooltips if any.)
+   ========================================================================== */
+"perm.microphone.tooltip" = "Enable microphone to record speech";
+"perm.speech.tooltip" = "Enable speech recognition for transcription";
+"perm.photos.tooltip" = "Allow photos access to share images";
