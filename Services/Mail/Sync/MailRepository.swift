@@ -182,6 +182,10 @@ public final class MailRepository: ObservableObject {
                             print("✅ Saved \(domainHeaders.count) headers to database for folder: \(folder)")
                         }
                         
+                        // 🆕 Fetch bodies for all messages
+                        let uidsToFetch = domainHeaders.map { $0.id }
+                        await fetchBodiesInBatch(accountId: accountId, folder: folder, uids: uidsToFetch, account: account)
+                        
                     case .failure(let error):
                         print("❌ Failed to fetch headers from folder \(folder): \(error)")
                     }
@@ -314,6 +318,10 @@ public final class MailRepository: ObservableObject {
                             print("✅ Saved \(domainHeaders.count) headers to database for folder: \(folder)")
                         }
                         
+                        // 🆕 Fetch bodies for all new messages
+                        let uidsToFetch = domainHeaders.map { $0.id }
+                        await fetchBodiesInBatch(accountId: accountId, folder: folder, uids: uidsToFetch, account: account)
+                        
                     case .failure(let error):
                         print("❌ Failed to fetch headers from folder \(folder): \(error)")
                     }
@@ -425,6 +433,91 @@ public final class MailRepository: ObservableObject {
         }
     }
 
+    // MARK: - Body Fetching
+
+    /// Fetch and store body for a specific message
+    private func fetchAndStoreBody(accountId: UUID, folder: String, uid: String, account: MailAccountConfig) async {
+        print("📥 Fetching body for UID: \(uid) in folder: \(folder)")
+        
+        do {
+            let transport = MailSendReceive()
+            
+            // Fetch full message (includes body)
+            let result = await transport.fetchMessageUID(uid, folder: folder, using: account)
+            
+            switch result {
+            case .success(let fullMessage):
+                let textBody = fullMessage.textBody ?? ""
+                let htmlBody = fullMessage.htmlBody ?? ""
+                
+                guard !textBody.isEmpty || !htmlBody.isEmpty else {
+                    print("⚠️ Fetched body is empty for UID: \(uid)")
+                    return
+                }
+                
+                print("✅ Fetched body for UID: \(uid) - text: \(textBody.count) bytes, html: \(htmlBody.count) bytes")
+                
+                // Create body entity
+                let bodyEntity = MessageBodyEntity(
+                    accountId: accountId,
+                    folder: folder,
+                    uid: uid,
+                    text: textBody.isEmpty ? nil : textBody,
+                    html: htmlBody.isEmpty ? nil : htmlBody,
+                    hasAttachments: false,
+                    contentType: htmlBody.isEmpty ? "text/plain" : "text/html",
+                    charset: "UTF-8",
+                    transferEncoding: nil,
+                    isMultipart: false,
+                    rawSize: max(textBody.count, htmlBody.count),
+                    processedAt: Date()
+                )
+                
+                // Store in database
+                if let writeDAO = self.writeDAO {
+                    try writeDAO.storeBody(accountId: accountId, folder: folder, uid: uid, body: bodyEntity)
+                    print("✅ Stored body for UID: \(uid) in database")
+                }
+                
+            case .failure(let error):
+                print("❌ Failed to fetch body for UID: \(uid): \(error)")
+            }
+            
+        } catch {
+            print("❌ Error fetching/storing body for UID: \(uid): \(error)")
+        }
+    }
+
+    /// Fetch bodies for multiple messages in parallel (with rate limiting)
+    private func fetchBodiesInBatch(accountId: UUID, folder: String, uids: [String], account: MailAccountConfig) async {
+        print("📥 Fetching bodies for \(uids.count) messages in batches...")
+        
+        // Process in batches of 5 to avoid overwhelming the server
+        let batchSize = 5
+        for batchIndex in stride(from: 0, to: uids.count, by: batchSize) {
+            let batchEnd = min(batchIndex + batchSize, uids.count)
+            let batch = Array(uids[batchIndex..<batchEnd])
+            
+            print("📦 Processing batch \(batchIndex/batchSize + 1) (\(batch.count) messages)...")
+            
+            // Fetch bodies in parallel within batch
+            await withTaskGroup(of: Void.self) { group in
+                for uid in batch {
+                    group.addTask {
+                        await self.fetchAndStoreBody(accountId: accountId, folder: folder, uid: uid, account: account)
+                    }
+                }
+            }
+            
+            // Small delay between batches to be nice to the server
+            if batchEnd < uids.count {
+                try? await Task.sleep(nanoseconds: 500_000_000) // 0.5 seconds
+            }
+        }
+        
+        print("✅ All bodies fetched and stored for folder: \(folder)")
+    }
+
 
     /// Load cached headers immediately from local storage without any network operations
     public func loadCachedHeaders(accountId: UUID, folder: String, limit: Int = 100, offset: Int = 0) throws -> [MailHeader] {
@@ -438,6 +531,14 @@ public final class MailRepository: ObservableObject {
         guard let dao = dao else { return nil }
         print("📱 Loading cached mail body from local storage...")
         return try dao.body(accountId: accountId, folder: folder, uid: uid)
+    }
+
+    /// Fetch body for a single message on-demand
+    public func fetchBodyOnDemand(accountId: UUID, folder: String, uid: String) async throws {
+        print("📥 On-demand body fetch for UID: \(uid)")
+        
+        let account = try loadAccountConfig(accountId: accountId)
+        await fetchAndStoreBody(accountId: accountId, folder: folder, uid: uid, account: account)
     }
 
     public func startBackgroundSync(accountId: UUID) {
