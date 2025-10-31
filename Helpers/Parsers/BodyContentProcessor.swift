@@ -25,10 +25,13 @@ public class BodyContentProcessor {
         // Schritt 2: Entferne/Normalisiere HTML-Meta-Tags
         content = cleanHTMLMetaTags(content)
         
-        // Schritt 3: Normalisiere Sonderzeichen
+        // Schritt 3: Entferne rohe MIME-Boundaries aus HTML
+        content = removeMIMEBoundariesFromHTML(content)
+        
+        // Schritt 4: Normalisiere Sonderzeichen
         content = normalizeSonderzeichen(content)
         
-        // Schritt 4: Sichere minimale HTML-Struktur
+        // Schritt 5: Sichere minimale HTML-Struktur
         content = ensureMinimalHTMLStructure(content)
         
         return content
@@ -98,8 +101,9 @@ public class BodyContentProcessor {
         var lines = content.components(separatedBy: .newlines)
         var inHeaderSection = false
         var headerEndIndex = 0
+        var cleanedLines: [String] = []
         
-        // Erkenne Header-Section am Anfang
+        // Phase 1: Erkenne und entferne Header-Section am Anfang
         for (index, line) in lines.enumerated() {
             let trimmed = line.trimmingCharacters(in: .whitespaces)
             
@@ -119,12 +123,35 @@ public class BodyContentProcessor {
             }
         }
         
-        // Entferne Header-Zeilen
+        // Entferne Header-Zeilen vom Anfang
         if headerEndIndex > 0 && headerEndIndex < lines.count {
             lines.removeFirst(headerEndIndex)
         }
         
-        return lines.joined(separator: "\n")
+        // Phase 2: Entferne MIME-Boundaries und technische Zeilen im Content
+        for line in lines {
+            let trimmed = line.trimmingCharacters(in: .whitespaces)
+            
+            // Überspringe MIME-Boundaries
+            if isMIMEBoundary(trimmed) {
+                continue
+            }
+            
+            // Überspringe technische MIME-Zeilen im Body
+            if isTechnicalMIMELine(trimmed) {
+                continue
+            }
+            
+            // Überspringe Apple-Mail technische Zeilen
+            if trimmed.hasPrefix("--Apple-Mail=") || trimmed.contains("Apple-Mail=_") {
+                continue
+            }
+            
+            // Behalte alles andere
+            cleanedLines.append(line)
+        }
+        
+        return cleanedLines.joined(separator: "\n").trimmingCharacters(in: .whitespacesAndNewlines)
     }
     
     // MARK: - Private Helper Methods
@@ -134,7 +161,7 @@ public class BodyContentProcessor {
         let headerPrefixes = [
             "From:", "To:", "Cc:", "Bcc:", "Subject:", "Date:",
             "Return-Path:", "Received:", "Message-ID:", "Message-Id:",
-            "In-Reply-To:", "References:", "MIME-Version:",
+            "In-Reply-To:", "References:", "MIME-Version:", "Mime-Version:",
             "Content-Type:", "Content-Transfer-Encoding:",
             "X-", "Delivered-To:", "Reply-To:", "Sender:",
             "List-", "Precedence:", "Priority:", "Importance:"
@@ -152,6 +179,59 @@ public class BodyContentProcessor {
     /// Erkennt Header-Fortsetzungszeilen (beginnen mit Whitespace)
     private static func isHeaderContinuation(_ line: String) -> Bool {
         return line.hasPrefix(" ") || line.hasPrefix("\t")
+    }
+    
+    /// ✨ NEUE METHODE: Erkennt MIME-Boundary-Zeilen
+    private static func isMIMEBoundary(_ line: String) -> Bool {
+        // MIME Boundaries beginnen mit "--" und enthalten oft "boundary" oder lange IDs
+        if line.hasPrefix("--") {
+            // Typische Boundary-Muster
+            if line.contains("boundary") ||
+               line.contains("Apple-Mail") ||
+               line.contains("_") && line.count > 20 {
+                return true
+            }
+            
+            // Ende-Boundary (endet mit "--")
+            if line.hasSuffix("--") && line.count > 4 {
+                return true
+            }
+        }
+        
+        return false
+    }
+    
+    /// ✨ NEUE METHODE: Erkennt technische MIME-Zeilen im Body
+    private static func isTechnicalMIMELine(_ line: String) -> Bool {
+        let technicalPatterns = [
+            "Content-Type:",
+            "Content-Transfer-Encoding:",
+            "Content-Disposition:",
+            "Content-ID:",
+            "MIME-Version:",
+            "Mime-Version:",
+            "charset=",
+            "boundary=",
+            "name=",
+            "filename="
+        ]
+        
+        for pattern in technicalPatterns {
+            if line.hasPrefix(pattern) || line.contains(pattern) && line.count < 200 {
+                return true
+            }
+        }
+        
+        // Quoted-Printable kodierte Zeilen (z.B. =E2=80=93)
+        if line.contains("=") && line.range(of: "=[0-9A-F]{2}", options: .regularExpression) != nil {
+            // Aber nur wenn die Zeile hauptsächlich aus Codes besteht
+            let codeMatches = line.components(separatedBy: "=").count - 1
+            if codeMatches > 5 && line.count < 100 {
+                return true
+            }
+        }
+        
+        return false
     }
     
     /// Bereinigt HTML-Meta-Tags und DOCTYPE
@@ -253,6 +333,34 @@ public class BodyContentProcessor {
         cleaned = cleaned.trimmingCharacters(in: .whitespacesAndNewlines)
         
         return cleaned
+    }
+    
+    /// ✨ NEUE METHODE: Entfernt MIME-Boundaries die versehentlich im HTML gelandet sind
+    private static func removeMIMEBoundariesFromHTML(_ html: String) -> String {
+        var lines = html.components(separatedBy: .newlines)
+        var cleanedLines: [String] = []
+        
+        for line in lines {
+            let trimmed = line.trimmingCharacters(in: .whitespaces)
+            
+            // Überspringe MIME-Boundaries
+            if isMIMEBoundary(trimmed) {
+                continue
+            }
+            
+            // Überspringe Zeilen die hauptsächlich aus Quoted-Printable Codes bestehen
+            if trimmed.contains("=") && trimmed.range(of: "=[0-9A-Fa-f]{2}", options: .regularExpression) != nil {
+                let equals = trimmed.components(separatedBy: "=").count - 1
+                // Wenn mehr als 50% der Zeile aus "=XX" Codes besteht, überspringe sie
+                if equals > 5 && Double(equals) / Double(trimmed.count) * 3 > 0.3 {
+                    continue
+                }
+            }
+            
+            cleanedLines.append(line)
+        }
+        
+        return cleanedLines.joined(separator: "\n")
     }
     
     /// Stellt sicher, dass HTML minimale Struktur hat
