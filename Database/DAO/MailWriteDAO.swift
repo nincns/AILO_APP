@@ -72,16 +72,45 @@ public class MailWriteDAOImpl: BaseDAO, MailWriteDAO {
                 for header in headers {
                     sqlite3_reset(stmt)
                     
-                    bindUUID(stmt, 1, accountId)
-                    bindText(stmt, 2, folder)
-                    bindText(stmt, 3, header.id)
-                    bindText(stmt, 4, header.from)
-                    bindText(stmt, 5, header.subject)
-                    bindDate(stmt, 6, header.date)
-                    bindStringArray(stmt, 7, header.flags)
+                    // PRE-BIND DEBUG: Show what we're trying to bind
+                    print("🔍 [PRE-BIND] Header data before binding:")
+                    print("   - header.id: '\(header.id)' (type: \(type(of: header.id)), count: \(header.id.count))")
+                    print("   - header.from: '\(header.from)' (type: \(type(of: header.from)), count: \(header.from.count))")
+                    print("   - header.subject: '\(header.subject)' (type: \(type(of: header.subject)), count: \(header.subject.count))")
+                    print("   - header.date: \(header.date)")
+                    print("   - header.flags: \(header.flags)")
                     
-                    guard sqlite3_step(stmt) == SQLITE_DONE else {
-                        throw DAOError.sqlError("Failed to insert header for uid: \(header.id)")
+                    bindUUID(stmt, 1, accountId)
+                    print("   🔗 Bound accountId: '\(accountId.uuidString)'")
+                    
+                    bindText(stmt, 2, folder)
+                    print("   🔗 Bound folder: '\(folder)'")
+                    
+                    bindText(stmt, 3, header.id)
+                    print("   🔗 Bound uid: '\(header.id)'")
+                    
+                    bindText(stmt, 4, header.from)
+                    print("   🔗 Bound from: '\(header.from)'")
+                    
+                    bindText(stmt, 5, header.subject)
+                    print("   🔗 Bound subject: '\(header.subject)'")
+                    
+                    bindDate(stmt, 6, header.date)
+                    print("   🔗 Bound date: \(header.date)")
+                    
+                    bindStringArray(stmt, 7, header.flags)
+                    print("   🔗 Bound flags: \(header.flags)")
+                    
+                    // Check SQLite statement after binding
+                    print("🔍 [POST-BIND] SQLite statement parameter count: \(sqlite3_bind_parameter_count(stmt))")
+                    
+                    let stepResult = sqlite3_step(stmt)
+                    print("🔍 [STEP] SQLite step result: \(stepResult) (SQLITE_DONE = \(SQLITE_DONE))")
+                    
+                    guard stepResult == SQLITE_DONE else {
+                        let errorMsg = String(cString: sqlite3_errmsg(db))
+                        print("❌ [SQL-ERROR] \(errorMsg)")
+                        throw DAOError.sqlError("Failed to insert header for uid: \(header.id), SQLite error: \(errorMsg)")
                     }
                     print("   ✅ Inserted UID: \(header.id)")
                 }
@@ -144,16 +173,45 @@ public class MailWriteDAOImpl: BaseDAO, MailWriteDAO {
                 for header in headers {
                     sqlite3_reset(stmt)
                     
-                    bindUUID(stmt, 1, accountId)
-                    bindText(stmt, 2, folder)
-                    bindText(stmt, 3, header.id)
-                    bindText(stmt, 4, header.from)
-                    bindText(stmt, 5, header.subject)
-                    bindDate(stmt, 6, header.date)
-                    bindStringArray(stmt, 7, header.flags)
+                    // PRE-BIND DEBUG: Show what we're trying to bind
+                    print("🔍 [PRE-BIND-UPSERT] Header data before binding:")
+                    print("   - header.id: '\(header.id)' (type: \(type(of: header.id)), count: \(header.id.count))")
+                    print("   - header.from: '\(header.from)' (type: \(type(of: header.from)), count: \(header.from.count))")
+                    print("   - header.subject: '\(header.subject)' (type: \(type(of: header.subject)), count: \(header.subject.count))")
+                    print("   - header.date: \(header.date)")
+                    print("   - header.flags: \(header.flags)")
                     
-                    guard sqlite3_step(stmt) == SQLITE_DONE else {
-                        throw DAOError.sqlError("Failed to upsert header for uid: \(header.id)")
+                    bindUUID(stmt, 1, accountId)
+                    print("   🔗 Bound accountId: '\(accountId.uuidString)'")
+                    
+                    bindText(stmt, 2, folder)
+                    print("   🔗 Bound folder: '\(folder)'")
+                    
+                    bindText(stmt, 3, header.id)
+                    print("   🔗 Bound uid: '\(header.id)'")
+                    
+                    bindText(stmt, 4, header.from)
+                    print("   🔗 Bound from: '\(header.from)'")
+                    
+                    bindText(stmt, 5, header.subject)
+                    print("   🔗 Bound subject: '\(header.subject)'")
+                    
+                    bindDate(stmt, 6, header.date)
+                    print("   🔗 Bound date: \(header.date)")
+                    
+                    bindStringArray(stmt, 7, header.flags)
+                    print("   🔗 Bound flags: \(header.flags)")
+                    
+                    // Check SQLite statement after binding
+                    print("🔍 [POST-BIND-UPSERT] SQLite statement parameter count: \(sqlite3_bind_parameter_count(stmt))")
+                    
+                    let stepResult = sqlite3_step(stmt)
+                    print("🔍 [STEP-UPSERT] SQLite step result: \(stepResult) (SQLITE_DONE = \(SQLITE_DONE))")
+                    
+                    guard stepResult == SQLITE_DONE else {
+                        let errorMsg = String(cString: sqlite3_errmsg(db))
+                        print("❌ [SQL-ERROR-UPSERT] \(errorMsg)")
+                        throw DAOError.sqlError("Failed to upsert header for uid: \(header.id), SQLite error: \(errorMsg)")
                     }
                     print("   ✅ Upserted UID: \(header.id)")
                 }
