@@ -290,10 +290,10 @@ public class MailWriteDAOImpl: BaseDAO, MailWriteDAO {
             
             let sql = """
                 INSERT OR REPLACE INTO \(MailSchema.tMsgBody)
-                (account_id, folder, uid, text_body, html_body, has_attachments, 
+                (account_id, folder, uid, text_body, html_body, has_attachments, raw_body,
                  content_type, charset, transfer_encoding, is_multipart, 
                  raw_size, processed_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """
             
             let stmt = try prepare(sql)
@@ -305,12 +305,13 @@ public class MailWriteDAOImpl: BaseDAO, MailWriteDAO {
             bindText(stmt, 4, body.text)
             bindText(stmt, 5, body.html)
             sqlite3_bind_int(stmt, 6, body.hasAttachments ? 1 : 0)
-            bindText(stmt, 7, body.contentType)
-            bindText(stmt, 8, body.charset)
-            bindText(stmt, 9, body.transferEncoding)
-            sqlite3_bind_int(stmt, 10, body.isMultipart ? 1 : 0)
-            bindInt(stmt, 11, body.rawSize)
-            bindDate(stmt, 12, body.processedAt)
+            bindText(stmt, 7, body.rawBody)  // ✅ NEU
+            bindText(stmt, 8, body.contentType)
+            bindText(stmt, 9, body.charset)
+            bindText(stmt, 10, body.transferEncoding)
+            sqlite3_bind_int(stmt, 11, body.isMultipart ? 1 : 0)
+            bindInt(stmt, 12, body.rawSize)
+            bindDate(stmt, 13, body.processedAt)
             
             guard sqlite3_step(stmt) == SQLITE_DONE else {
                 throw DAOError.sqlError("Failed to store body for uid: \(uid)")
