@@ -256,11 +256,14 @@ struct MessageDetailView: View {
             // ✨ HYBRID: Optional UI-Filter für technische Headers (User-Toggle)
             let cleanedBody = showTechnicalHeaders ? bodyText : filterTechnicalHeaders(bodyText)
             
-            if isHTML {
-                MailHTMLWebView(html: cleanedBody)
+            // BodyContentProcessor entscheidet über finale Darstellung
+            let displayContent = prepareDisplayContent(cleanedBody)
+            
+            if displayContent.isHTML {
+                MailHTMLWebView(html: displayContent.content)
                     .frame(minHeight: 200)
             } else {
-                Text(cleanedBody)
+                Text(displayContent.content)
                     .font(.body)
                     .lineSpacing(2)
                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -389,6 +392,22 @@ struct MessageDetailView: View {
         
         print("🧹 BodyContentProcessor: HTML=\(detectedIsHTML), Original=\(rawContent.count) → Clean=\(cleanedContent.count)")
         return (content: cleanedContent, isHTML: detectedIsHTML)
+    }
+    
+    /// Entscheidet über finale Darstellung basierend auf bereits bereinigtem Content
+    /// Verwendet für die UI-Darstellung nach der technischen Header-Filterung
+    private func prepareDisplayContent(_ cleanedBody: String) -> (content: String, isHTML: Bool) {
+        // BodyContentProcessor entscheidet über Content-Typ und finale Bereinigung
+        let detectedIsHTML = BodyContentProcessor.isHTMLContent(cleanedBody)
+        
+        let finalContent: String
+        if detectedIsHTML {
+            finalContent = BodyContentProcessor.cleanHTMLForDisplay(cleanedBody)
+        } else {
+            finalContent = BodyContentProcessor.cleanPlainTextForDisplay(cleanedBody)
+        }
+        
+        return (content: finalContent, isHTML: detectedIsHTML)
     }
     
     /// Load mail body after full sync
