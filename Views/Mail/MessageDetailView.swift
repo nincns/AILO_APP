@@ -143,46 +143,77 @@ struct MessageDetailView: View {
             
             // From, Date, and Flags
             VStack(alignment: .leading, spacing: 8) {
-                VStack(alignment: .leading, spacing: 4) {
-                    HStack {
-                        Image(systemName: "person.circle.fill")
-                            .foregroundStyle(.secondary)
-                        Text("Von:")
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
-                    }
-                    
+                // Unsichtbare Tabelle: 3 Zeilen, 2 Spalten
+                VStack(spacing: 4) {
                     // Parse name and email from "Name <email@domain.com>" format
                     let parsedFrom = parseFromAddress(mail.from)
                     
-                    if let displayName = parsedFrom.name, !displayName.isEmpty {
-                        Text(displayName)
-                            .font(.subheadline)
-                            .fontWeight(.semibold)
+                    // Zeile 1: Icon/Von | Name
+                    HStack(alignment: .top) {
+                        // Spalte 1: Icon und "Von:"
+                        HStack {
+                            Image(systemName: "person.circle.fill")
+                                .foregroundStyle(.secondary)
+                            Text("Von:")
+                                .font(.subheadline)
+                                .foregroundStyle(.secondary)
+                        }
+                        .frame(minWidth: 80, alignment: .leading)
+                        
+                        // Spalte 2: Name (oder E-Mail als Fallback)
+                        if let displayName = parsedFrom.name, !displayName.isEmpty {
+                            Text(displayName)
+                                .font(.subheadline)
+                                .fontWeight(.semibold)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                        } else if let email = parsedFrom.email {
+                            Text(email)
+                                .font(.subheadline)
+                                .fontWeight(.semibold)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                        } else {
+                            Text(mail.from)
+                                .font(.subheadline)
+                                .fontWeight(.semibold)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                        }
                     }
                     
-                    if let email = parsedFrom.email {
-                        Text(email)
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    } else {
-                        // Fallback: show raw from if parsing failed
-                        Text(mail.from)
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
+                    // Zeile 2: Leer | E-Mail (nur wenn Name vorhanden)
+                    if let displayName = parsedFrom.name, !displayName.isEmpty,
+                       let email = parsedFrom.email {
+                        HStack(alignment: .top) {
+                            // Spalte 1: Leer
+                            Spacer()
+                                .frame(minWidth: 80)
+                            
+                            // Spalte 2: E-Mail
+                            Text(email)
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                        }
                     }
-                }
-                
-                if let date = mail.date {
-                    HStack {
-                        Image(systemName: "calendar")
-                            .foregroundStyle(.secondary)
-                        Text("Datum:")
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
-                        Text(date.formatted(date: .abbreviated, time: .shortened))
-                            .font(.subheadline)
-                            .fontWeight(.medium)
+                    
+                    // Zeile 3: Datum Icon/Label | Datum Wert
+                    if let date = mail.date {
+                        HStack(alignment: .top) {
+                            // Spalte 1: Datum Icon und Label
+                            HStack {
+                                Image(systemName: "calendar")
+                                    .foregroundStyle(.secondary)
+                                Text("Datum:")
+                                    .font(.subheadline)
+                                    .foregroundStyle(.secondary)
+                            }
+                            .frame(minWidth: 80, alignment: .leading)
+                            
+                            // Spalte 2: Datum Wert
+                            Text(date.formatted(date: .abbreviated, time: .shortened))
+                                .font(.subheadline)
+                                .fontWeight(.medium)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                        }
                     }
                 }
                 
