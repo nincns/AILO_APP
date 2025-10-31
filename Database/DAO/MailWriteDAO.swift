@@ -101,6 +101,8 @@ public class MailWriteDAOImpl: BaseDAO, MailWriteDAO {
                 }
                 
                 for header in headers {
+                    // CRITICAL FIX: Clear bindings and reset BEFORE binding new values
+                    sqlite3_clear_bindings(stmt)
                     sqlite3_reset(stmt)
                     
                     // PRE-BIND DEBUG: Show what we're trying to bind
@@ -206,6 +208,8 @@ public class MailWriteDAOImpl: BaseDAO, MailWriteDAO {
                 }
                 
                 for header in headers {
+                    // CRITICAL FIX: Clear bindings and reset BEFORE binding new values  
+                    sqlite3_clear_bindings(stmt)
                     sqlite3_reset(stmt)
                     
                     // PRE-BIND DEBUG: Show what we're trying to bind
