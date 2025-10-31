@@ -47,11 +47,42 @@ public class MailWriteDAOImpl: BaseDAO, MailWriteDAO {
             try withTransaction {
                 try ensureOpen()
                 
+                // CRITICAL DEBUG: Check if table exists and schema
+                let checkTableSQL = """
+                    SELECT name FROM sqlite_master WHERE type='table' AND name='\(MailSchema.tMsgHeader)';
+                """
+                let checkStmt = try prepare(checkTableSQL)
+                defer { finalize(checkStmt) }
+                
+                if sqlite3_step(checkStmt) == SQLITE_ROW {
+                    print("🔍 [TABLE-CHECK] Table '\(MailSchema.tMsgHeader)' exists")
+                } else {
+                    print("❌ [TABLE-CHECK] Table '\(MailSchema.tMsgHeader)' does NOT exist!")
+                }
+                
+                // Check schema
+                let schemaSQL = "PRAGMA table_info(\(MailSchema.tMsgHeader));"
+                let schemaStmt = try prepare(schemaSQL)
+                defer { finalize(schemaStmt) }
+                
+                print("🔍 [SCHEMA-CHECK] Table schema for '\(MailSchema.tMsgHeader)':")
+                while sqlite3_step(schemaStmt) == SQLITE_ROW {
+                    let cid = sqlite3_column_int(schemaStmt, 0)
+                    let name = String(cString: sqlite3_column_text(schemaStmt, 1))
+                    let type = String(cString: sqlite3_column_text(schemaStmt, 2))
+                    let notNull = sqlite3_column_int(schemaStmt, 3)
+                    let pk = sqlite3_column_int(schemaStmt, 5)
+                    print("   [\(cid)] \(name): \(type) (NOT NULL: \(notNull), PK: \(pk))")
+                }
+                
                 let sql = """
                     INSERT OR IGNORE INTO \(MailSchema.tMsgHeader)
                     (account_id, folder, uid, from_addr, subject, date, flags)
                     VALUES (?, ?, ?, ?, ?, ?, ?)
                 """
+                
+                print("🔍 [SQL-DEBUG-INSERT] Executing SQL:")
+                print("   \(sql)")
                 
                 let stmt = try prepare(sql)
                 defer { finalize(stmt) }
@@ -103,6 +134,7 @@ public class MailWriteDAOImpl: BaseDAO, MailWriteDAO {
                     
                     // Check SQLite statement after binding
                     print("🔍 [POST-BIND] SQLite statement parameter count: \(sqlite3_bind_parameter_count(stmt))")
+                    debugBoundValues(stmt)
                     
                     let stepResult = sqlite3_step(stmt)
                     print("🔍 [STEP] SQLite step result: \(stepResult) (SQLITE_DONE = \(SQLITE_DONE))")
@@ -154,6 +186,9 @@ public class MailWriteDAOImpl: BaseDAO, MailWriteDAO {
                     VALUES (?, ?, ?, ?, ?, ?, ?)
                 """
                 
+                print("🔍 [SQL-DEBUG-UPSERT] Executing SQL:")
+                print("   \(sql)")
+                
                 let stmt = try prepare(sql)
                 defer { finalize(stmt) }
                 
@@ -204,6 +239,7 @@ public class MailWriteDAOImpl: BaseDAO, MailWriteDAO {
                     
                     // Check SQLite statement after binding
                     print("🔍 [POST-BIND-UPSERT] SQLite statement parameter count: \(sqlite3_bind_parameter_count(stmt))")
+                    debugBoundValues(stmt)
                     
                     let stepResult = sqlite3_step(stmt)
                     print("🔍 [STEP-UPSERT] SQLite step result: \(stepResult) (SQLITE_DONE = \(SQLITE_DONE))")

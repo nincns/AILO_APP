@@ -150,6 +150,38 @@ public class BaseDAO {
         }
     }
     
+    // MARK: - Debug Helper Methods
+    
+    internal func debugBoundValues(_ statement: OpaquePointer) {
+        let paramCount = sqlite3_bind_parameter_count(statement)
+        print("🔍 [DEBUG-BOUND-VALUES] Parameter count: \(paramCount)")
+        
+        for i in 1...paramCount {
+            let paramType = sqlite3_column_type(statement, i - 1)
+            switch paramType {
+            case SQLITE_INTEGER:
+                let value = sqlite3_column_int64(statement, i - 1)
+                print("   [\(i)] INTEGER: \(value)")
+            case SQLITE_FLOAT:
+                let value = sqlite3_column_double(statement, i - 1)
+                print("   [\(i)] FLOAT: \(value)")
+            case SQLITE_TEXT:
+                if let cString = sqlite3_column_text(statement, i - 1) {
+                    let value = String(cString: cString)
+                    print("   [\(i)] TEXT: '\(value)'")
+                } else {
+                    print("   [\(i)] TEXT: NULL")
+                }
+            case SQLITE_BLOB:
+                print("   [\(i)] BLOB: [binary data]")
+            case SQLITE_NULL:
+                print("   [\(i)] NULL")
+            default:
+                print("   [\(i)] UNKNOWN TYPE: \(paramType)")
+            }
+        }
+    }
+    
     // MARK: - Helper Methods
     
     internal func ensureOpen() throws {
@@ -178,10 +210,14 @@ public class BaseDAO {
     }
     
     internal func bindText(_ statement: OpaquePointer, _ index: Int32, _ value: String?) {
+        print("🔍 [BIND-TEXT] Index: \(index), Value: '\(value ?? "NULL")' (count: \(value?.count ?? 0))")
+        
         if let value = value {
-            sqlite3_bind_text(statement, index, value, -1, nil)
+            let result = sqlite3_bind_text(statement, index, value, -1, nil)
+            print("🔍 [BIND-TEXT] SQLite bind result: \(result) (SQLITE_OK = \(SQLITE_OK))")
         } else {
             sqlite3_bind_null(statement, index)
+            print("🔍 [BIND-TEXT] Bound NULL value")
         }
     }
     
@@ -220,16 +256,22 @@ public class BaseDAO {
     }
     
     internal func bindUUID(_ statement: OpaquePointer, _ index: Int32, _ uuid: UUID?) {
-        bindText(statement, index, uuid?.uuidString)
+        let uuidString = uuid?.uuidString
+        print("🔍 [BIND-UUID] Index: \(index), UUID: '\(uuidString ?? "NULL")' (count: \(uuidString?.count ?? 0))")
+        bindText(statement, index, uuidString)
     }
     
     internal func bindDate(_ statement: OpaquePointer, _ index: Int32, _ date: Date?) {
-        bindDouble(statement, index, date?.timeIntervalSince1970)
+        let timestamp = date?.timeIntervalSince1970
+        print("🔍 [BIND-DATE] Index: \(index), Date: \(date?.description ?? "NULL"), Timestamp: \(timestamp ?? 0)")
+        bindDouble(statement, index, timestamp)
     }
     
     internal func bindStringArray(_ statement: OpaquePointer, _ index: Int32, _ array: [String]) {
         let joined = array.joined(separator: ",")
-        bindText(statement, index, joined.isEmpty ? nil : joined)
+        let finalValue = joined.isEmpty ? nil : joined
+        print("🔍 [BIND-STRINGARRAY] Index: \(index), Array: \(array), Joined: '\(finalValue ?? "NULL")'")
+        bindText(statement, index, finalValue)
     }
 }
 
