@@ -318,94 +318,187 @@ public class MIMEParser {
         var textPart: String?
         var attachments: [MIMEAttachment] = []
         
-        let parts = body.components(separatedBy: "--\(boundary)")
+        // ✅ PHASE 3: Robuste Boundary-Verarbeitung
+        let parts = parseMultipartParts(body, boundary: boundary)
+        print("🔍 PHASE 3: Found \(parts.count) multipart parts with boundary '\(boundary)'")
         
-        for part in parts {
-            let trimmed = part.trimmingCharacters(in: .whitespacesAndNewlines)
-            if trimmed.isEmpty || trimmed == "--" { continue }
+        for (index, part) in parts.enumerated() {
+            print("🔍 PHASE 3: Processing part \(index + 1), length: \(part.count)")
             
             // Split headers and body
-            let split = trimmed.components(separatedBy: "\r\n\r\n")
-            guard split.count >= 2 else { continue }
-            
-            let headerBlock = split[0]
-            let bodyBlock = split.dropFirst().joined(separator: "\r\n\r\n")
-            let headers = parseHeaders(headerBlock)
-            let disp = headers["content-disposition"]
-            let ctypeRaw = headers["content-type"] ?? "text/plain"
-            let (ctype, cparams) = parseContentType(ctypeRaw)
-            let cte = headers["content-transfer-encoding"]?.lowercased()
-            let cid = headers["content-id"]?.trimmingCharacters(in: CharacterSet(charactersIn: "<> "))
-
-            // Multipart nesting
-            if ctype.type.lowercased().hasPrefix("multipart/") {
-                let nested = parseMultipart(bodyBlock, contentType: ctype.full, params: cparams)
-                // Merge nested results (prefer html/text if not set yet)
-                if htmlPart == nil, let h = nested.html { htmlPart = h }
-                if textPart == nil, let t = nested.text { textPart = t }
-                attachments.append(contentsOf: nested.attachments)
-                continue
-            }
-
-            // ✨ ERWEITERT: Dekodiere Body mit verbessertem Charset-Handling
-            let partCharset = normalizeCharsetName(cparams["charset"])
-            let decodedData: Data
-            
-            if let enc = cte {
-                switch enc {
-                case "base64":
-                    decodedData = decodeBase64Data(bodyBlock)
-                case "quoted-printable":
-                    // ✨ ERWEITERT: Dekodiere QP mit Charset-Awareness
-                    let qpDecoded = decodeQuotedPrintableWithCharset(bodyBlock, charset: partCharset)
-                    decodedData = Data(qpDecoded.utf8)
-                default:
-                    decodedData = Data(bodyBlock.utf8)
+            let split = part.components(separatedBy: "\r\n\r\n")
+            if split.count < 2 {
+                // Try alternative separator
+                let altSplit = part.components(separatedBy: "\n\n")
+                guard altSplit.count >= 2 else { 
+                    print("⚠️ PHASE 3: Part \(index + 1) has invalid structure, skipping")
+                    continue 
                 }
+                let headerBlock = altSplit[0]
+                let bodyBlock = altSplit.dropFirst().joined(separator: "\n\n")
+                processMultipartPart(headerBlock: headerBlock, bodyBlock: bodyBlock, 
+                                   htmlPart: &htmlPart, textPart: &textPart, attachments: &attachments)
             } else {
-                decodedData = Data(bodyBlock.utf8)
+                let headerBlock = split[0]
+                let bodyBlock = split.dropFirst().joined(separator: "\r\n\r\n")
+                processMultipartPart(headerBlock: headerBlock, bodyBlock: bodyBlock, 
+                                   htmlPart: &htmlPart, textPart: &textPart, attachments: &attachments)
             }
-
-            // Handle text parts mit verbessertem Charset-Handling
-            if ctype.type.lowercased() == "text/plain" {
-                if let s = decodeDataWithCharset(decodedData, charset: partCharset) {
-                    if textPart == nil { textPart = s }
-                }
-                continue
-            }
-            if ctype.type.lowercased() == "text/html" {
-                if let s = decodeDataWithCharset(decodedData, charset: partCharset) {
-                    if htmlPart == nil { htmlPart = s }
-                }
-                continue
-            }
-            if ctype.type.lowercased() == "text/enriched" {
-                if let s = decodeDataWithCharset(decodedData, charset: partCharset) {
-                    // Convert text/enriched to HTML and store as HTML part
-                    let htmlContent = TextEnrichedDecoder.decodeToHTML(s)
-                    if htmlPart == nil { htmlPart = htmlContent }
-                    // Also store as text part if we don't have one yet
-                    if textPart == nil {
-                        textPart = TextEnrichedDecoder.decodeToPlainText(s)
+        }
+        
+        print("✅ PHASE 3: Multipart parsing complete - text: \(textPart?.count ?? 0), html: \(htmlPart?.count ?? 0), attachments: \(attachments.count)")
+        
+        return MIMEContent(text: textPart, html: htmlPart, attachments: attachments)
+    }
+    
+    /// ✅ PHASE 3: Robuste Boundary-basierte Part-Extraktion
+    private func parseMultipartParts(_ body: String, boundary: String) -> [String] {
+        var parts: [String] = []
+        
+        // Standardisiere Zeilenumbrüche für konsistentes Parsing
+        let normalizedBody = body.replacingOccurrences(of: "\r\n", with: "\n")
+                                  .replacingOccurrences(of: "\r", with: "\n")
+        
+        let boundaryMarker = "--\(boundary)"
+        let closingBoundary = "--\(boundary)--"
+        
+        let lines = normalizedBody.components(separatedBy: "\n")
+        var currentPart: [String] = []
+        var inPart = false
+        
+        for line in lines {
+            let trimmedLine = line.trimmingCharacters(in: .whitespaces)
+            
+            // Check for boundary markers
+            if trimmedLine == boundaryMarker || trimmedLine.hasPrefix(boundaryMarker + " ") {
+                // Start of new part or end of previous part
+                if inPart && !currentPart.isEmpty {
+                    // Save previous part (without boundaries)
+                    let partContent = currentPart.joined(separator: "\n").trimmingCharacters(in: .whitespacesAndNewlines)
+                    if !partContent.isEmpty {
+                        parts.append(partContent)
                     }
                 }
+                
+                // Start new part
+                currentPart = []
+                inPart = true
                 continue
+                
+            } else if trimmedLine == closingBoundary || trimmedLine.hasPrefix(closingBoundary + " ") {
+                // End of multipart
+                if inPart && !currentPart.isEmpty {
+                    let partContent = currentPart.joined(separator: "\n").trimmingCharacters(in: .whitespacesAndNewlines)
+                    if !partContent.isEmpty {
+                        parts.append(partContent)
+                    }
+                }
+                break
+                
+            } else if inPart {
+                // Content line of current part
+                currentPart.append(line)
             }
+            // else: we're before the first boundary, ignore
+        }
+        
+        // Handle case where there's no closing boundary
+        if inPart && !currentPart.isEmpty {
+            let partContent = currentPart.joined(separator: "\n").trimmingCharacters(in: .whitespacesAndNewlines)
+            if !partContent.isEmpty {
+                parts.append(partContent)
+            }
+        }
+        
+        return parts
+    }
+    
+    /// ✅ PHASE 3: Verarbeite einzelnen Multipart-Teil (extrahiert für bessere Lesbarkeit)
+    private func processMultipartPart(
+        headerBlock: String,
+        bodyBlock: String,
+        htmlPart: inout String?,
+        textPart: inout String?,
+        attachments: inout [MIMEAttachment]
+    ) {
+        let headers = parseHeaders(headerBlock)
+        let disp = headers["content-disposition"]
+        let ctypeRaw = headers["content-type"] ?? "text/plain"
+        let (ctype, cparams) = parseContentType(ctypeRaw)
+        let cte = headers["content-transfer-encoding"]?.lowercased()
+        let cid = headers["content-id"]?.trimmingCharacters(in: CharacterSet(charactersIn: "<> "))
 
-            // Handle attachments (including inline images)
-            let isAttachment = (disp?.lowercased().contains("attachment") == true)
-            let isInline = (disp?.lowercased().contains("inline") == true) || (cid != nil)
-            if isAttachment || isInline || !ctype.type.lowercased().hasPrefix("text/") {
-                let filename = extractFilename(from: disp) ?? "attachment"
-                let att = MIMEAttachment(
-                    filename: filename,
-                    mimeType: ctype.type,
-                    data: decodedData,
-                    contentId: cid,
-                    isInline: isInline
-                )
-                attachments.append(att)
+        // Multipart nesting
+        if ctype.type.lowercased().hasPrefix("multipart/") {
+            let nested = parseMultipart(bodyBlock, contentType: ctype.full, params: cparams)
+            // Merge nested results (prefer html/text if not set yet)
+            if htmlPart == nil, let h = nested.html { htmlPart = h }
+            if textPart == nil, let t = nested.text { textPart = t }
+            attachments.append(contentsOf: nested.attachments)
+            return
+        }
+
+        // ✅ PHASE 3: Dekodiere Body mit verbessertem Content-Handling
+        let partCharset = normalizeCharsetName(cparams["charset"])
+        let decodedData: Data
+        
+        if let enc = cte {
+            switch enc {
+            case "base64":
+                decodedData = decodeBase64Data(bodyBlock)
+            case "quoted-printable":
+                // ✅ Dekodiere QP mit Charset-Awareness
+                let qpDecoded = decodeQuotedPrintableWithCharset(bodyBlock, charset: partCharset)
+                decodedData = Data(qpDecoded.utf8)
+            default:
+                decodedData = Data(bodyBlock.utf8)
             }
+        } else {
+            decodedData = Data(bodyBlock.utf8)
+        }
+
+        // Handle text parts mit verbessertem Charset-Handling
+        if ctype.type.lowercased() == "text/plain" {
+            if let s = decodeDataWithCharset(decodedData, charset: partCharset) {
+                if textPart == nil { textPart = s }
+            }
+            return
+        }
+        if ctype.type.lowercased() == "text/html" {
+            if let s = decodeDataWithCharset(decodedData, charset: partCharset) {
+                if htmlPart == nil { htmlPart = s }
+            }
+            return
+        }
+        if ctype.type.lowercased() == "text/enriched" {
+            if let s = decodeDataWithCharset(decodedData, charset: partCharset) {
+                // Convert text/enriched to HTML and store as HTML part
+                let htmlContent = TextEnrichedDecoder.decodeToHTML(s)
+                if htmlPart == nil { htmlPart = htmlContent }
+                // Also store as text part if we don't have one yet
+                if textPart == nil {
+                    textPart = TextEnrichedDecoder.decodeToPlainText(s)
+                }
+            }
+            return
+        }
+
+        // Handle attachments (including inline images)
+        let isAttachment = (disp?.lowercased().contains("attachment") == true)
+        let isInline = (disp?.lowercased().contains("inline") == true) || (cid != nil)
+        if isAttachment || isInline || !ctype.type.lowercased().hasPrefix("text/") {
+            let filename = extractFilename(from: disp) ?? "attachment"
+            
+            let attachment = MIMEAttachment(
+                filename: filename,
+                mimeType: ctype.type,
+                data: decodedData,
+                contentId: cid,
+                isInline: isInline
+            )
+            attachments.append(attachment)
+        }
+    }
         }
         
         return MIMEContent(text: textPart, html: htmlPart, attachments: attachments)

@@ -447,37 +447,39 @@ public final class MailRepository: ObservableObject {
             
             switch result {
             case .success(let fullMessage):
+                // ✅ PHASE 1: Transport gibt bereits verarbeitete Daten zurück
                 let textBody = fullMessage.textBody ?? ""
                 let htmlBody = fullMessage.htmlBody ?? ""
+                let rawBody = fullMessage.rawBody ?? ""
                 
-                guard !textBody.isEmpty || !htmlBody.isEmpty else {
-                    print("⚠️ Fetched body is empty for UID: \(uid)")
+                guard !textBody.isEmpty || !htmlBody.isEmpty || !rawBody.isEmpty else {
+                    print("⚠️ Fetched body is completely empty for UID: \(uid)")
                     return
                 }
                 
-                print("✅ Fetched body for UID: \(uid) - text: \(textBody.count) bytes, html: \(htmlBody.count) bytes")
+                print("✅ Fetched body for UID: \(uid) - text: \(textBody.count) bytes, html: \(htmlBody.count) bytes, raw: \(rawBody.count) bytes")
                 
-                // Create body entity
+                // ✅ Speichere verarbeitete Daten direkt - KEIN erneutes Processing!
                 let bodyEntity = MessageBodyEntity(
                     accountId: accountId,
                     folder: folder,
                     uid: uid,
-                    text: textBody.isEmpty ? nil : textBody,
-                    html: htmlBody.isEmpty ? nil : htmlBody,
-                    hasAttachments: false,
-                    rawBody: fullMessage.rawBody,  // ✅ NEU
+                    text: textBody.isEmpty ? nil : textBody,      // ✅ Bereits verarbeitet
+                    html: htmlBody.isEmpty ? nil : htmlBody,      // ✅ Bereits verarbeitet
+                    hasAttachments: rawBody.contains("Content-Disposition: attachment"),
+                    rawBody: rawBody,                             // ✅ RAW für technische Ansicht
                     contentType: htmlBody.isEmpty ? "text/plain" : "text/html",
                     charset: "UTF-8",
                     transferEncoding: nil,
-                    isMultipart: false,
-                    rawSize: max(textBody.count, htmlBody.count),
+                    isMultipart: rawBody.contains("boundary="),
+                    rawSize: rawBody.count,
                     processedAt: Date()
                 )
                 
                 // Store in database
                 if let writeDAO = self.writeDAO {
                     try writeDAO.storeBody(accountId: accountId, folder: folder, uid: uid, body: bodyEntity)
-                    print("✅ Stored body for UID: \(uid) in database")
+                    print("✅ Stored processed body for UID: \(uid) in database")
                 }
                 
             case .failure(let error):

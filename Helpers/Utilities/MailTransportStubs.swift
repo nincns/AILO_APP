@@ -375,21 +375,52 @@ final class MailSendReceive {
             let (extractedHeaders, bodyOnly) = separateHeadersFromBody(raw)
             print("📧 Extracted \(extractedHeaders.count) header lines, body: \(bodyOnly.prefix(200))...")
             
-            // ✅ Speichere NUR RAW Content in DB - keine Verarbeitung mehr hier!
+            // ✅ PHASE 3: Einmaliges MIME-Parsing und korrekte Speicherung  
+            print("🔍 PHASE 3: Starting MIME parsing for UID: \(uid)")
+            let mime = MIMEParser().parse(rawBodyBytes: nil, rawBodyString: bodyOnly, contentType: nil, charset: nil)
+            print("🔍 PHASE 3: MIME parsing complete - text: \(mime.text?.count ?? 0), html: \(mime.html?.count ?? 0)")
+            
+            // Debug: Check for boundaries in parsed content
+            if let text = mime.text, text.contains("--") {
+                let boundaryLines = text.components(separatedBy: .newlines).filter { $0.contains("--") && $0.count > 10 }
+                if !boundaryLines.isEmpty {
+                    print("⚠️ PHASE 3: Found potential boundaries in TEXT: \(boundaryLines.count)")
+                    boundaryLines.prefix(3).forEach { print("  - \($0)") }
+                }
+            }
+            if let html = mime.html, html.contains("--") {
+                let boundaryLines = html.components(separatedBy: .newlines).filter { $0.contains("--") && $0.count > 10 }
+                if !boundaryLines.isEmpty {
+                    print("⚠️ PHASE 3: Found potential boundaries in HTML: \(boundaryLines.count)")
+                    boundaryLines.prefix(3).forEach { print("  - \($0)") }
+                }
+            }
+            
+            // ✅ Finale Display-Verarbeitung durch BodyContentProcessor
+            let displayContent = BodyContentProcessor.selectDisplayContent(html: mime.html, text: mime.text)
+            let finalText = displayContent.isHTML ? nil : displayContent.content
+            let finalHTML = displayContent.isHTML ? displayContent.content : nil
+            
+            // ✅ Speichere sowohl RAW als auch verarbeitete Daten
             if let writeDAO = MailRepository.shared.writeDAO {
                 let entity = MessageBodyEntity(
                     accountId: account.id,
                     folder: folder,
                     uid: uid,
-                    text: bodyOnly,              // ✅ RAW speichern
-                    html: nil,                   // ✅ Kein HTML mehr hier
-                    hasAttachments: bodyOnly.contains("Content-Disposition: attachment")
+                    text: finalText,             // ✅ Verarbeiteter Text
+                    html: finalHTML,             // ✅ Verarbeitetes HTML  
+                    hasAttachments: bodyOnly.contains("Content-Disposition: attachment"),
+                    rawBody: bodyOnly,           // ✅ RAW RFC822 body für technische Ansicht
+                    contentType: displayContent.isHTML ? "text/html" : "text/plain",
+                    charset: "utf-8",
+                    transferEncoding: nil,
+                    isMultipart: bodyOnly.contains("boundary="),
+                    rawSize: bodyOnly.count,
+                    processedAt: Date()
                 )
                 try? writeDAO.storeBody(accountId: account.id, folder: folder, uid: uid, body: entity)
+                print("✅ Stored processed body + rawBody for UID: \(uid)")
             }
-            
-            // ✅ Für die Rückgabe JETZT verarbeiten (nur für API-Response)
-            let mime = MIMEParser().parse(rawBodyBytes: nil, rawBodyString: bodyOnly, contentType: nil, charset: nil)
 
             // Build header from cache or placeholder
             var from = "unknown@example.com"
@@ -400,14 +431,13 @@ final class MailSendReceive {
                 from = head.from; subj = head.subject; date = head.date ?? Date()
             }
             
-            // ✅ BodyContentProcessor für Anzeige-Verarbeitung
+            // ✅ Rückgabe der verarbeiteten Daten (für API-Consumer)
             let header = MailHeader(id: uid, from: from, subject: subj, date: date, unread: false)
-            let displayContent = BodyContentProcessor.selectDisplayContent(html: mime.html, text: mime.text)
             return .success(FullMessage(
                 header: header, 
-                textBody: displayContent.isHTML ? nil : displayContent.content, 
-                htmlBody: displayContent.isHTML ? displayContent.content : nil,
-                rawBody: bodyOnly  // ✅ NEU: RAW body speichern
+                textBody: finalText, 
+                htmlBody: finalHTML,
+                rawBody: bodyOnly  // ✅ RAW body für technische Ansicht
             ))
         } catch {
             return .failure(error)

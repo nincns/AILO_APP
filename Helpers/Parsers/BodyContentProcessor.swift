@@ -18,6 +18,8 @@ public class BodyContentProcessor {
     /// Bereitet HTML-Content für WebView-Anzeige auf
     /// - Parameter html: Bereits dekodierter HTML-String
     /// - Returns: Bereinigter HTML-Content
+    /// 
+    /// ✅ PHASE 3: Reduzierte Filterung da MIME-Parser jetzt korrekt arbeitet
     public static func cleanHTMLForDisplay(_ html: String) -> String {
         var content = html
         
@@ -33,11 +35,8 @@ public class BodyContentProcessor {
         // Schritt 2: Entferne/Normalisiere HTML-Meta-Tags
         content = cleanHTMLMetaTags(content)
         
-        // Schritt 3: Entferne rohe MIME-Boundaries aus HTML
-        content = removeMIMEBoundariesFromHTML(content)
-        
-        // ✅ Schritt 3.5: Entferne MIME-Boundaries am Ende
-        content = removeMIMEBoundariesFromEnd(content)
+        // ✅ PHASE 3: Leichtere MIME-Boundary-Filterung (MIME-Parser sollte das jetzt richtig machen)
+        content = removeStragglerMIMEBoundaries(content)
         
         // ✅ Schritt 4: Decode HTML-Entities
         content = HTMLEntityDecoder.decodeForHTML(content)
@@ -83,23 +82,34 @@ public class BodyContentProcessor {
     
     /// Entscheidet welcher Content-Typ bevorzugt wird und liefert finalen Display-Content
     /// - Parameters:
-    ///   - html: HTML-Content (optional)
-    ///   - text: Plain-Text-Content (optional)
+    ///   - html: HTML-Content (optional, bereits durch MIME-Parsing verarbeitet)
+    ///   - text: Plain-Text-Content (optional, bereits durch MIME-Parsing verarbeitet)
     /// - Returns: Tuple mit finalem Content und isHTML-Flag
+    /// 
+    /// ✅ PHASE 2: Optimiert für bereits verarbeitete Daten aus bodyEntity
     public static func selectDisplayContent(html: String?, text: String?) -> (content: String, isHTML: Bool) {
-        // Priorität 1: HTML-Content
+        // Debug-Info für Performance-Monitoring
+        let htmlLength = html?.count ?? 0
+        let textLength = text?.count ?? 0
+        
+        // Priorität 1: HTML-Content (bereits verarbeitet)
         if let htmlContent = html, !htmlContent.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-            let cleaned = cleanHTMLForDisplay(htmlContent)
+            // ✅ PHASE 2: Minimale Nachbearbeitung für bereits verarbeitete HTML-Daten
+            let cleaned = finalizeHTMLForDisplay(htmlContent)
+            print("✅ PHASE 2: selectDisplayContent - HTML finalized (\(htmlLength) → \(cleaned.count) chars)")
             return (content: cleaned, isHTML: true)
         }
         
-        // Priorität 2: Plain-Text
+        // Priorität 2: Plain-Text (bereits verarbeitet)
         if let textContent = text, !textContent.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-            let cleaned = cleanPlainTextForDisplay(textContent)
+            // ✅ PHASE 2: Minimale Nachbearbeitung für bereits verarbeitete Text-Daten
+            let cleaned = finalizePlainTextForDisplay(textContent)
+            print("✅ PHASE 2: selectDisplayContent - Text finalized (\(textLength) → \(cleaned.count) chars)")
             return (content: cleaned, isHTML: false)
         }
         
         // Kein Content
+        print("⚠️ PHASE 2: selectDisplayContent - No content available (html: \(htmlLength), text: \(textLength))")
         return (content: "", isHTML: false)
     }
     
@@ -137,6 +147,42 @@ public class BodyContentProcessor {
         }
         
         return false
+    }
+    
+    // MARK: - PHASE 2: Optimierte Finalize-Methoden für bereits verarbeitete Daten
+    
+    /// Finale Bereinigung für bereits verarbeitetes HTML (minimaler Overhead)
+    /// - Parameter html: Bereits durch MIME-Parsing und cleanHTMLForDisplay verarbeitetes HTML
+    /// - Returns: Final bereinigter HTML-Content für Anzeige
+    private static func finalizeHTMLForDisplay(_ html: String) -> String {
+        var content = html
+        
+        // Nur noch finale kosmetische Korrekturen
+        // Schritt 1: Sichere minimale HTML-Struktur (falls noch nicht vorhanden)
+        content = ensureMinimalHTMLStructure(content)
+        
+        // Schritt 2: Letzte Cleanup-Phase für Anzeige
+        content = content.trimmingCharacters(in: .whitespacesAndNewlines)
+        
+        return content
+    }
+    
+    /// Finale Bereinigung für bereits verarbeiteten Plain-Text (minimaler Overhead)
+    /// - Parameter text: Bereits durch MIME-Parsing und cleanPlainTextForDisplay verarbeiteter Text
+    /// - Returns: Final bereinigter Plain-Text-Content für Anzeige
+    private static func finalizePlainTextForDisplay(_ text: String) -> String {
+        var content = text
+        
+        // Nur noch finale kosmetische Korrekturen
+        // Schritt 1: Finale Whitespace-Bereinigung
+        content = content.trimmingCharacters(in: .whitespacesAndNewlines)
+        
+        // Schritt 2: Stelle sicher dass nicht komplett leer
+        if content.isEmpty {
+            return "(Kein Textinhalt verfügbar)"
+        }
+        
+        return content
     }
     
     // MARK: - Transfer Encoding Decoding
@@ -318,6 +364,26 @@ public class BodyContentProcessor {
         }
         
         return false
+    }
+    
+    /// ✅ PHASE 3: Leichte MIME-Boundary-Filterung für Straggler (MIME-Parser macht das Meiste)
+    private static func removeStragglerMIMEBoundaries(_ content: String) -> String {
+        var lines = content.components(separatedBy: .newlines)
+        var cleanedLines: [String] = []
+        
+        for line in lines {
+            let trimmed = line.trimmingCharacters(in: .whitespaces)
+            
+            // Nur offensichtliche Boundaries entfernen, die durchgerutscht sind
+            if isMIMEBoundary(trimmed) {
+                print("🧹 PHASE 3: Removing straggler boundary: \(trimmed)")
+                continue
+            }
+            
+            cleanedLines.append(line)
+        }
+        
+        return cleanedLines.joined(separator: "\n")
     }
     
     /// Entfernt/Normalisiert HTML-Meta-Tags
