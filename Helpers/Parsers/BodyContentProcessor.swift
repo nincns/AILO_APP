@@ -5,6 +5,8 @@ import Foundation
 /// Prozessiert bereits dekodierten E-Mail-Body-Content für optimale Anzeige
 ///
 /// Diese Klasse übernimmt die finale Aufbereitung von bereits dekodiertem Content:
+/// - Dekodiert Quoted-Printable Encoding
+/// - Dekodiert HTML-Entities
 /// - Entfernt technische E-Mail-Header aus Body
 /// - Filtert HTML-Meta-Tags und DOCTYPE
 /// - Normalisiert Sonderzeichen
@@ -19,6 +21,12 @@ public class BodyContentProcessor {
     public static func cleanHTMLForDisplay(_ html: String) -> String {
         var content = html
         
+        // ✅ Schritt 0: KRITISCH - Quoted-Printable Decoding ZUERST!
+        content = decodeQuotedPrintableIfNeeded(content)
+        
+        // ✅ Schritt 0.5: Entferne MIME-Header am Anfang (charset=, boundary=, etc.)
+        content = removeMIMEHeadersFromStart(content)
+        
         // Schritt 1: Entferne E-Mail-Header aus Body (falls vorhanden)
         content = removeEmailHeaders(content)
         
@@ -28,10 +36,13 @@ public class BodyContentProcessor {
         // Schritt 3: Entferne rohe MIME-Boundaries aus HTML
         content = removeMIMEBoundariesFromHTML(content)
         
-        // ✅ Schritt 4: Decode HTML-Entities (nutzt HTMLEntityDecoder)
+        // ✅ Schritt 3.5: Entferne MIME-Boundaries am Ende
+        content = removeMIMEBoundariesFromEnd(content)
+        
+        // ✅ Schritt 4: Decode HTML-Entities
         content = HTMLEntityDecoder.decodeForHTML(content)
         
-        // Schritt 5: Normalisiere Sonderzeichen (Legacy, falls HTMLEntityDecoder was übersieht)
+        // Schritt 5: Normalisiere Sonderzeichen (Legacy, für Sonderfälle)
         content = normalizeSonderzeichen(content)
         
         // Schritt 6: Sichere minimale HTML-Struktur
@@ -45,6 +56,9 @@ public class BodyContentProcessor {
     /// - Returns: Bereinigter Plain-Text-Content
     public static func cleanPlainTextForDisplay(_ text: String) -> String {
         var content = text
+        
+        // ✅ Schritt 0: KRITISCH - Quoted-Printable Decoding ZUERST!
+        content = decodeQuotedPrintableIfNeeded(content)
         
         // Schritt 1: Entferne E-Mail-Header aus Body
         content = removeEmailHeaders(content)
@@ -61,7 +75,7 @@ public class BodyContentProcessor {
         // Schritt 5: Entferne übermäßige Leerzeilen
         content = removeExcessiveWhitespace(content)
         
-        // ✨ Schritt 6: Entferne einzelne Sonderzeichen am Ende
+        // Schritt 6: Entferne einzelne Sonderzeichen am Ende
         content = removeTrailingOrphans(content)
         
         return content
@@ -125,6 +139,34 @@ public class BodyContentProcessor {
         return false
     }
     
+    // MARK: - Transfer Encoding Decoding
+    
+    /// Dekodiert Quoted-Printable encoding falls vorhanden
+    /// - Parameter content: Der zu dekodierende Content
+    /// - Returns: Dekodierter Content
+    private static func decodeQuotedPrintableIfNeeded(_ content: String) -> String {
+        // Prüfe ob Content Quoted-Printable encoded ist
+        // Typische Muster: =XX (hex) oder =\n (soft line break)
+        let hasQuotedPrintable = content.contains("=3D") ||
+                                 content.contains("=C3=") ||
+                                 content.range(of: "=[0-9A-F]{2}", options: .regularExpression) != nil
+        
+        guard hasQuotedPrintable else {
+            return content
+        }
+        
+        print("🔄 BodyContentProcessor: Quoted-Printable detected, decoding...")
+        
+        // Nutze QuotedPrintableDecoder (bereits vorhanden im Projekt)
+        let decoded = QuotedPrintableDecoder.decode(content, charset: "utf-8")
+        
+        print("✅ BodyContentProcessor: Decoded \(content.count) → \(decoded.count) chars")
+        
+        return decoded
+    }
+    
+    // MARK: - Private Helper Methods
+    
     /// Entfernt technische E-Mail-Header aus Body-Content
     /// - Parameter content: Der zu bereinigende Content
     /// - Returns: Content ohne technische Header
@@ -159,117 +201,87 @@ public class BodyContentProcessor {
             lines.removeFirst(headerEndIndex)
         }
         
-        // Phase 2: Entferne MIME-Boundaries und technische Zeilen im Content
+        // Phase 2: Entferne einzelne technische Header-Zeilen aus dem Body
+        var skipMode = false
+        var headerSectionEnded = headerEndIndex > 0
+        
+        let headerPatterns = [
+            "Content-Type:", "Content-Transfer-Encoding:", "Content-Disposition:",
+            "MIME-Version:", "X-", "Date:", "From:", "To:", "Subject:", "Message-ID:",
+            "Return-Path:", "Received:", "Authentication-Results:", "DKIM-Signature:"
+        ]
+        
         for line in lines {
-            let trimmed = line.trimmingCharacters(in: .whitespaces)
+            let trimmedLine = line.trimmingCharacters(in: .whitespaces)
             
-            // Überspringe MIME-Boundaries
-            if isMIMEBoundary(trimmed) {
+            // Wenn leere Zeile, dann sind wir definitiv nach den Headern
+            if trimmedLine.isEmpty {
+                headerSectionEnded = true
+                cleanedLines.append(line)
+                skipMode = false
                 continue
             }
             
-            // Überspringe technische MIME-Zeilen im Body
-            if isTechnicalMIMELine(trimmed) {
+            // If we're past the header section, include all lines
+            if headerSectionEnded {
+                cleanedLines.append(line)
                 continue
             }
             
-            // Überspringe Apple-Mail technische Zeilen
-            if trimmed.hasPrefix("--Apple-Mail=") || trimmed.contains("Apple-Mail=_") {
-                continue
+            // Check if line starts with a technical header
+            let isTechnicalHeader = headerPatterns.contains { pattern in
+                trimmedLine.hasPrefix(pattern)
             }
             
-            // Behalte alles andere
-            cleanedLines.append(line)
+            // Check if line is a continuation of previous header (starts with whitespace)
+            let isContinuation = line.hasPrefix(" ") || line.hasPrefix("\t")
+            
+            if isTechnicalHeader {
+                skipMode = true
+                continue
+            } else if isContinuation && skipMode {
+                // Skip continuation lines of technical headers
+                continue
+            } else {
+                skipMode = false
+                // Only include non-empty lines or if we're clearly past headers
+                if !trimmedLine.isEmpty || headerSectionEnded {
+                    cleanedLines.append(line)
+                }
+            }
         }
         
         return cleanedLines.joined(separator: "\n").trimmingCharacters(in: .whitespacesAndNewlines)
     }
     
-    // MARK: - Private Helper Methods
-    
-    /// Erkennt E-Mail-Header-Zeilen
+    /// Prüft ob eine Zeile ein E-Mail-Header ist
     private static func isEmailHeaderLine(_ line: String) -> Bool {
-        let headerPrefixes = [
-            "From:", "To:", "Cc:", "Bcc:", "Subject:", "Date:",
-            "Return-Path:", "Received:", "Message-ID:", "Message-Id:",
-            "In-Reply-To:", "References:", "MIME-Version:", "Mime-Version:",
-            "Content-Type:", "Content-Transfer-Encoding:",
-            "X-", "Delivered-To:", "Reply-To:", "Sender:",
-            "List-", "Precedence:", "Priority:", "Importance:"
+        let headerPatterns = [
+            "Content-Type:", "Content-Transfer-Encoding:", "Content-Disposition:",
+            "MIME-Version:", "Date:", "From:", "To:", "Subject:", "Message-ID:",
+            "Return-Path:", "Received:", "X-"
         ]
         
-        for prefix in headerPrefixes {
-            if line.hasPrefix(prefix) || line.lowercased().hasPrefix(prefix.lowercased()) {
-                return true
-            }
+        return headerPatterns.contains { pattern in
+            line.hasPrefix(pattern)
         }
-        
-        return false
     }
     
-    /// Erkennt Header-Fortsetzungszeilen (beginnen mit Whitespace)
+    /// Prüft ob eine Zeile eine Fortsetzung eines Headers ist
     private static func isHeaderContinuation(_ line: String) -> Bool {
         return line.hasPrefix(" ") || line.hasPrefix("\t")
     }
     
-    /// ✨ NEUE METHODE: Erkennt MIME-Boundary-Zeilen
+    /// Prüft ob eine Zeile eine MIME-Boundary ist
     private static func isMIMEBoundary(_ line: String) -> Bool {
-        // MIME Boundaries beginnen mit "--" und enthalten oft "boundary" oder lange IDs
-        if line.hasPrefix("--") {
-            // Typische Boundary-Muster
-            if line.contains("boundary") ||
-               line.contains("Apple-Mail") ||
-               line.contains("_") && line.count > 20 {
-                return true
-            }
-            
-            // Ende-Boundary (endet mit "--")
-            if line.hasSuffix("--") && line.count > 4 {
-                return true
-            }
-        }
-        
-        return false
+        return line.hasPrefix("--") && !line.hasPrefix("---")
     }
     
-    /// ✨ NEUE METHODE: Erkennt technische MIME-Zeilen im Body
-    private static func isTechnicalMIMELine(_ line: String) -> Bool {
-        let technicalPatterns = [
-            "Content-Type:",
-            "Content-Transfer-Encoding:",
-            "Content-Disposition:",
-            "Content-ID:",
-            "MIME-Version:",
-            "Mime-Version:",
-            "charset=",
-            "boundary=",
-            "name=",
-            "filename="
-        ]
+    /// Entfernt/Normalisiert HTML-Meta-Tags
+    private static func cleanHTMLMetaTags(_ content: String) -> String {
+        var content = content
         
-        for pattern in technicalPatterns {
-            if line.hasPrefix(pattern) || line.contains(pattern) && line.count < 200 {
-                return true
-            }
-        }
-        
-        // Quoted-Printable kodierte Zeilen (z.B. =E2=80=93)
-        if line.contains("=") && line.range(of: "=[0-9A-F]{2}", options: .regularExpression) != nil {
-            // Aber nur wenn die Zeile hauptsächlich aus Codes besteht
-            let codeMatches = line.components(separatedBy: "=").count - 1
-            if codeMatches > 5 && line.count < 100 {
-                return true
-            }
-        }
-        
-        return false
-    }
-    
-    /// Bereinigt HTML-Meta-Tags und DOCTYPE
-    private static func cleanHTMLMetaTags(_ html: String) -> String {
-        var content = html
-        
-        // Entferne DOCTYPE deklarationen
+        // Entferne DOCTYPE deklarationen (oft doppelt oder falsch platziert)
         let doctypePattern = "<!DOCTYPE[^>]*>"
         content = content.replacingOccurrences(
             of: doctypePattern,
@@ -277,16 +289,8 @@ public class BodyContentProcessor {
             options: [.regularExpression, .caseInsensitive]
         )
         
-        // Entferne problematische meta-tags (charset-Konflikte)
-        let metaCharsetPattern = "<meta[^>]*charset[^>]*>"
-        content = content.replacingOccurrences(
-            of: metaCharsetPattern,
-            with: "",
-            options: [.regularExpression, .caseInsensitive]
-        )
-        
-        // Entferne meta content-type tags
-        let metaContentTypePattern = "<meta[^>]*http-equiv=[\"']?content-type[\"']?[^>]*>"
+        // Entferne problematische Content-Type Meta-Tags
+        let metaContentTypePattern = "<meta[^>]*http-equiv=['\"]Content-Type['\"][^>]*>"
         content = content.replacingOccurrences(
             of: metaContentTypePattern,
             with: "",
@@ -334,7 +338,7 @@ public class BodyContentProcessor {
         return cleaned
     }
     
-    /// ✨ NEUE METHODE: Entfernt einzelne Sonderzeichen am Ende
+    /// Entfernt einzelne Sonderzeichen am Ende
     private static func removeTrailingOrphans(_ text: String) -> String {
         var cleaned = text
         
@@ -356,7 +360,7 @@ public class BodyContentProcessor {
         return cleaned
     }
     
-    /// ✨ NEUE METHODE: Entfernt MIME-Boundaries die versehentlich im HTML gelandet sind
+    /// Entfernt MIME-Boundaries die versehentlich im HTML gelandet sind
     private static func removeMIMEBoundariesFromHTML(_ html: String) -> String {
         var lines = html.components(separatedBy: .newlines)
         var cleanedLines: [String] = []
@@ -370,6 +374,7 @@ public class BodyContentProcessor {
             }
             
             // Überspringe Zeilen die hauptsächlich aus Quoted-Printable Codes bestehen
+            // (nur noch relevant für nicht-dekodierte Reste)
             if trimmed.contains("=") && trimmed.range(of: "=[0-9A-Fa-f]{2}", options: .regularExpression) != nil {
                 let equals = trimmed.components(separatedBy: "=").count - 1
                 // Wenn mehr als 50% der Zeile aus "=XX" Codes besteht, überspringe sie
@@ -382,6 +387,66 @@ public class BodyContentProcessor {
         }
         
         return cleanedLines.joined(separator: "\n")
+    }
+    
+    /// Entfernt MIME-Header vom Anfang des Contents (charset=, boundary=, etc.)
+    private static func removeMIMEHeadersFromStart(_ content: String) -> String {
+        let lines = content.components(separatedBy: .newlines)
+        var startIndex = 0
+        
+        // Suche nach der ersten Zeile die KEIN MIME-Header ist
+        for (index, line) in lines.enumerated() {
+            let trimmed = line.trimmingCharacters(in: .whitespaces)
+            
+            // MIME-Header-Muster
+            if trimmed.hasPrefix("charset=") ||
+               trimmed.hasPrefix("boundary=") ||
+               trimmed.hasPrefix("Content-Type:") ||
+               trimmed.hasPrefix("Content-Transfer-Encoding:") ||
+               trimmed.isEmpty && index < 3 {
+                startIndex = index + 1
+                continue
+            }
+            
+            // Erste Nicht-MIME-Zeile gefunden
+            break
+        }
+        
+        // Entferne alle MIME-Header-Zeilen vom Anfang
+        if startIndex > 0 && startIndex < lines.count {
+            let cleanedLines = Array(lines.dropFirst(startIndex))
+            return cleanedLines.joined(separator: "\n")
+        }
+        
+        return content
+    }
+    
+    /// Entfernt MIME-Boundaries vom Ende des Contents
+    private static func removeMIMEBoundariesFromEnd(_ content: String) -> String {
+        let lines = content.components(separatedBy: .newlines)
+        var endIndex = lines.count
+        
+        // Suche rückwärts nach MIME-Boundaries
+        for (index, line) in lines.enumerated().reversed() {
+            let trimmed = line.trimmingCharacters(in: .whitespaces)
+            
+            // MIME-Boundary am Ende
+            if isMIMEBoundary(trimmed) || trimmed.isEmpty && index > lines.count - 5 {
+                endIndex = index
+                continue
+            }
+            
+            // Erste Nicht-Boundary-Zeile gefunden
+            break
+        }
+        
+        // Entferne alle Boundary-Zeilen vom Ende
+        if endIndex < lines.count {
+            let cleanedLines = Array(lines.prefix(endIndex))
+            return cleanedLines.joined(separator: "\n")
+        }
+        
+        return content
     }
     
     /// Stellt sicher, dass HTML minimale Struktur hat
