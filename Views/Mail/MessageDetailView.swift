@@ -22,6 +22,7 @@ struct MessageDetailView: View {
     @State private var tempFiles: [URL] = []
     @State private var errorMessage: String? = nil
     @State private var showTechnicalHeaders: Bool = false
+    @State private var rawBodyText: String = ""  // NEU
     
     @Environment(\.dismiss) private var dismiss
     
@@ -253,22 +254,55 @@ struct MessageDetailView: View {
     @ViewBuilder
     private var mailBodySection: some View {
         VStack(alignment: .leading, spacing: 0) {
-            // ✨ HYBRID: Optional UI-Filter für technische Headers (User-Toggle)
-            let cleanedBody = showTechnicalHeaders ? bodyText : filterTechnicalHeaders(bodyText)
-            
-            // BodyContentProcessor entscheidet über finale Darstellung
-            let displayContent = (content: cleanedBody, isHTML: isHTML)
-            
-            if displayContent.isHTML {
-                MailHTMLWebView(html: displayContent.content)
-                    .frame(minHeight: 200)
+            if showTechnicalHeaders {
+                // RAW RFC822 Ansicht
+                rawMailView
             } else {
-                Text(displayContent.content)
-                    .font(.body)
-                    .lineSpacing(2)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .textSelection(.enabled)
+                // Normale Ansicht
+                if isHTML {
+                    MailHTMLWebView(html: bodyText)
+                        .frame(minHeight: 200)
+                } else {
+                    Text(bodyText)
+                        .font(.body)
+                        .lineSpacing(2)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .textSelection(.enabled)
+                }
             }
+        }
+    }
+    
+    /// RAW Mail Ansicht für technische Analyse
+    @ViewBuilder
+    private var rawMailView: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            // Info-Banner
+            HStack(spacing: 8) {
+                Image(systemName: "doc.plaintext")
+                    .foregroundStyle(.blue)
+                Text("RAW RFC822 Format")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                Spacer()
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 8)
+            .background(Color.blue.opacity(0.1))
+            .clipShape(RoundedRectangle(cornerRadius: 8))
+            
+            // RAW Content
+            ScrollView {
+                Text(rawBodyText.isEmpty ? "RAW-Content nicht verfügbar" : rawBodyText)
+                    .font(.system(.body, design: .monospaced))
+                    .foregroundStyle(rawBodyText.isEmpty ? .secondary : .primary)
+                    .textSelection(.enabled)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(12)
+            }
+            .background(Color(UIColor.secondarySystemBackground))
+            .clipShape(RoundedRectangle(cornerRadius: 8))
+            .frame(minHeight: 200)
         }
     }
     
@@ -319,6 +353,15 @@ struct MessageDetailView: View {
                             isLoadingBody = false
                         }
                         print("✅ Cached mail body loaded and processed: \(displayContent.content.prefix(100))...")
+                        
+                        // RAW body für technische Ansicht laden
+                        if let dao = MailRepository.shared.dao,
+                           let bodyEntity = try? dao.bodyEntity(accountId: mail.accountId, folder: mail.folder, uid: mail.uid) {
+                            await MainActor.run {
+                                rawBodyText = bodyEntity.rawBody ?? "RAW-Content nicht verfügbar"
+                            }
+                        }
+                        
                         bodyLoaded = true
                     }
                 }
@@ -337,6 +380,15 @@ struct MessageDetailView: View {
                                 isHTML = displayContent.isHTML
                                 isLoadingBody = false
                             }
+                            
+                            // RAW body für technische Ansicht laden
+                            if let dao = MailRepository.shared.dao,
+                               let bodyEntity = try? dao.bodyEntity(accountId: mail.accountId, folder: mail.folder, uid: mail.uid) {
+                                await MainActor.run {
+                                    rawBodyText = bodyEntity.rawBody ?? "RAW-Content nicht verfügbar"
+                                }
+                            }
+                            
                             bodyLoaded = true
                             print("✅ Body loaded from repository and processed")
                         }
@@ -397,6 +449,15 @@ struct MessageDetailView: View {
                         isHTML = displayContent.isHTML
                         isLoadingBody = false
                     }
+                    
+                    // RAW body für technische Ansicht laden
+                    if let dao = MailRepository.shared.dao,
+                       let bodyEntity = try? dao.bodyEntity(accountId: mail.accountId, folder: mail.folder, uid: mail.uid) {
+                        await MainActor.run {
+                            rawBodyText = bodyEntity.rawBody ?? "RAW-Content nicht verfügbar"
+                        }
+                    }
+                    
                     bodyLoaded = true
                     print("✅ Body loaded and processed after full sync")
                 }
@@ -568,76 +629,6 @@ struct MessageDetailView: View {
         return (trimmed, nil)
     }
     
-    /// ✨ BEHALTEN: Filter technical mail headers from body text (UI Toggle)
-    /// Diese Methode bleibt für das optionale Ein-/Ausblenden technischer Headers
-    /// Removes headers like: Return-Path, Delivered-To, Received, Message-Id, X-*, etc.
-    private func filterTechnicalHeaders(_ text: String) -> String {
-        // Patterns for technical headers
-        let headerPatterns = [
-            "Return-Path:",
-            "X-Original-To:",
-            "Delivered-To:",
-            "Received:",
-            "Message-Id:",
-            "Message-ID:",
-            "X-Mailer:",
-            "X-",
-            "MIME-Version:",
-            "Content-Type:",
-            "Content-Transfer-Encoding:",
-            "Authentication-Results:",
-            "DKIM-Signature:",
-            "DomainKey-Signature:",
-            "SPF:",
-            "ARC-"
-        ]
-        
-        var lines = text.components(separatedBy: .newlines)
-        var filteredLines: [String] = []
-        var skipMode = false
-        var headerSectionEnded = false
-        
-        for (index, line) in lines.enumerated() {
-            let trimmedLine = line.trimmingCharacters(in: .whitespaces)
-            
-            // Check if we've reached the actual message content
-            // Usually indicated by an empty line after headers
-            if trimmedLine.isEmpty && index < 50 && !headerSectionEnded {
-                headerSectionEnded = true
-                continue
-            }
-            
-            // If we're past the header section, include all lines
-            if headerSectionEnded {
-                filteredLines.append(line)
-                continue
-            }
-            
-            // Check if line starts with a technical header
-            let isTechnicalHeader = headerPatterns.contains { pattern in
-                trimmedLine.hasPrefix(pattern)
-            }
-            
-            // Check if line is a continuation of previous header (starts with whitespace)
-            let isContinuation = line.hasPrefix(" ") || line.hasPrefix("\t")
-            
-            if isTechnicalHeader {
-                skipMode = true
-                continue
-            } else if isContinuation && skipMode {
-                // Skip continuation lines of technical headers
-                continue
-            } else {
-                skipMode = false
-                // Only include non-empty lines or if we're clearly past headers
-                if !trimmedLine.isEmpty || headerSectionEnded {
-                    filteredLines.append(line)
-                }
-            }
-        }
-        
-        return filteredLines.joined(separator: "\n").trimmingCharacters(in: .whitespacesAndNewlines)
-    }
 }
 
 // MARK: - Supporting Views
