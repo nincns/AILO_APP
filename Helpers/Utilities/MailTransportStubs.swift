@@ -145,7 +145,7 @@ final class MailSendReceive {
                 if let cached = try? dao.headers(accountId: account.id, folder: folder, limit: limit, offset: 0), !cached.isEmpty {
                     print("📥 [MailTransportStubs] Found \(cached.count) cached headers")
                     return .success(cached.map { domainHeader in
-                        MailHeader(id: domainHeader.id, from: domainHeader.from, subject: domainHeader.subject, 
+                        MailHeader(id: domainHeader.id, from: domainHeader.from, subject: domainHeader.subject,
                                   date: domainHeader.date ?? Date(), unread: !domainHeader.flags.contains("\\Seen"))
                     })
                 }
@@ -154,7 +154,7 @@ final class MailSendReceive {
                 if let cached, !cached.isEmpty {
                     print("📥 [MailTransportStubs] Found \(cached.count) cached headers via repository")
                     return .success(cached.map { domainHeader in
-                        MailHeader(id: domainHeader.id, from: domainHeader.from, subject: domainHeader.subject, 
+                        MailHeader(id: domainHeader.id, from: domainHeader.from, subject: domainHeader.subject,
                                   date: domainHeader.date ?? Date(), unread: !domainHeader.flags.contains("\\Seen"))
                     })
                 }
@@ -164,9 +164,9 @@ final class MailSendReceive {
 
         // 2) Network fallback via IMAP
         print("📥 [MailTransportStubs] Starting network fetch via IMAP...")
-        guard account.recvProtocol == .imap else { 
+        guard account.recvProtocol == .imap else {
             print("❌ [MailTransportStubs] Not IMAP protocol: \(account.recvProtocol)")
-            return .success([]) 
+            return .success([])
         }
         
         do {
@@ -191,15 +191,15 @@ final class MailSendReceive {
             _ = try await cmds.greeting(conn)
             print("✅ [MailTransportStubs] Greeting received")
             
-            if account.recvEncryption == .startTLS { 
+            if account.recvEncryption == .startTLS {
                 print("🔐 [MailTransportStubs] Starting TLS...")
-                try await cmds.startTLS(conn) 
+                try await cmds.startTLS(conn)
                 print("✅ [MailTransportStubs] TLS established")
             }
             
-            guard let pwd = account.recvPassword else { 
+            guard let pwd = account.recvPassword else {
                 print("❌ [MailTransportStubs] Password is nil!")
-                throw ServiceError.invalidAccount 
+                throw ServiceError.invalidAccount
             }
             
             print("🔐 [MailTransportStubs] Logging in as \(account.recvUsername)...")
@@ -368,11 +368,43 @@ final class MailSendReceive {
             let lines = try await cmds.uidFetchBody(conn, uid: uid, partsOrPeek: "BODY.PEEK[]")
             // Parse body (best-effort text/html split)
             let raw = IMAPParsers().parseBodySection(lines) ?? ""
-            let mime = MIMEParser().parse(rawBodyBytes: nil, rawBodyString: raw, contentType: nil, charset: nil)
+            
+            // ✨ CRITICAL FIX: Separate headers from body BEFORE parsing
+            // RFC822 format: Headers, then blank line, then body
+            let (extractedHeaders, bodyOnly) = separateHeadersFromBody(raw)
+            print("📧 Extracted \(extractedHeaders.count) header lines, body: \(bodyOnly.prefix(200))...")
+            
+            // Parse ONLY the body content (without headers)
+            let mime = MIMEParser().parse(rawBodyBytes: nil, rawBodyString: bodyOnly, contentType: nil, charset: nil)
 
-            // Persist into DAO - Note: Currently no direct write methods in repository  
-            // This would need to be implemented if write functionality is needed
-            // For now, we skip persistence and just return the network data
+            // ✨ SCHRITT 2: BodyContentProcessor anwenden VOR dem Speichern!
+            let cleanedText: String?
+            let cleanedHTML: String?
+
+            if let rawText = mime.text {
+                cleanedText = BodyContentProcessor.cleanPlainTextForDisplay(rawText)
+            } else {
+                cleanedText = nil
+            }
+
+            if let rawHTML = mime.html {
+                cleanedHTML = BodyContentProcessor.cleanHTMLForDisplay(rawHTML)
+            } else {
+                cleanedHTML = nil
+            }
+
+            // Persist into DAO mit BEREINIGTEM Content
+            if let writeDAO = MailRepository.shared.writeDAO {
+                let entity = MessageBodyEntity(
+                    accountId: account.id,
+                    folder: folder,
+                    uid: uid,
+                    text: cleanedText,      // ✅ CLEANED Content!
+                    html: cleanedHTML,      // ✅ CLEANED Content!
+                    hasAttachments: !mime.attachments.isEmpty
+                )
+                try? writeDAO.storeBody(accountId: account.id, folder: folder, uid: uid, body: entity)
+            }
 
             // Build header from cache or placeholder
             var from = "unknown@example.com"
@@ -382,11 +414,78 @@ final class MailSendReceive {
                let head = try? dao.headers(accountId: account.id, folder: folder, limit: 200, offset: 0).first(where: { $0.id == uid }) {
                 from = head.from; subj = head.subject; date = head.date ?? Date()
             }
+            
+            // ✨ Auch für FullMessage Return-Wert bereinigten Content verwenden
             let header = MailHeader(id: uid, from: from, subject: subj, date: date, unread: false)
-            return .success(FullMessage(header: header, textBody: mime.text, htmlBody: mime.html))
+            return .success(FullMessage(header: header, textBody: cleanedText, htmlBody: cleanedHTML))
         } catch {
             return .failure(error)
         }
+    }
+
+    // MARK: - Helper: Separate RFC822 Headers from Body
+    
+    /// Separates mail headers from body content according to RFC822
+    /// Returns: (headers as array of lines, body content)
+    private func separateHeadersFromBody(_ raw: String) -> ([String], String) {
+        let lines = raw.components(separatedBy: .newlines)
+        var headerLines: [String] = []
+        var bodyStartIndex = 0
+        var inHeaderSection = true
+        
+        for (index, line) in lines.enumerated() {
+            let trimmed = line.trimmingCharacters(in: .whitespaces)
+            
+            if inHeaderSection {
+                // Empty line marks end of headers (RFC822)
+                if trimmed.isEmpty {
+                    bodyStartIndex = index + 1
+                    inHeaderSection = false
+                    break
+                }
+                
+                // Check if this looks like a header line
+                if isMailHeaderLine(line) || isHeaderContinuation(line) {
+                    headerLines.append(line)
+                } else if !trimmed.isEmpty {
+                    // Non-empty, non-header line found - body starts here
+                    bodyStartIndex = index
+                    break
+                }
+            }
+        }
+        
+        // Extract body (everything after headers)
+        let bodyLines = bodyStartIndex < lines.count ? Array(lines[bodyStartIndex...]) : []
+        let body = bodyLines.joined(separator: "\n")
+        
+        return (headerLines, body)
+    }
+    
+    /// Check if line looks like a mail header
+    private func isMailHeaderLine(_ line: String) -> Bool {
+        let headerPrefixes = [
+            "From:", "To:", "Cc:", "Bcc:", "Subject:", "Date:",
+            "Return-Path:", "Received:", "Message-ID:", "Message-Id:",
+            "In-Reply-To:", "References:", "MIME-Version:", "Mime-Version:",
+            "Content-Type:", "Content-Transfer-Encoding:",
+            "X-", "Delivered-To:", "Reply-To:", "Sender:",
+            "List-", "Precedence:", "Priority:", "Importance:",
+            "Authentication-Results:", "DKIM-Signature:", "ARC-"
+        ]
+        
+        for prefix in headerPrefixes {
+            if line.hasPrefix(prefix) {
+                return true
+            }
+        }
+        
+        return false
+    }
+    
+    /// Check if line is a continuation of previous header (starts with whitespace)
+    private func isHeaderContinuation(_ line: String) -> Bool {
+        return line.hasPrefix(" ") || line.hasPrefix("\t")
     }
 
     // MARK: - Cache

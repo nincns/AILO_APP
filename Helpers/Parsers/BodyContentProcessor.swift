@@ -55,6 +55,9 @@ public class BodyContentProcessor {
         // Schritt 4: Entferne übermäßige Leerzeilen
         content = removeExcessiveWhitespace(content)
         
+        // ✨ Schritt 5: Entferne einzelne Sonderzeichen am Ende
+        content = removeTrailingOrphans(content)
+        
         return content
     }
     
@@ -331,6 +334,28 @@ public class BodyContentProcessor {
         
         // Entferne leading/trailing whitespace vom gesamten Content
         cleaned = cleaned.trimmingCharacters(in: .whitespacesAndNewlines)
+        
+        return cleaned
+    }
+    
+    /// ✨ NEUE METHODE: Entfernt einzelne Sonderzeichen am Ende
+    private static func removeTrailingOrphans(_ text: String) -> String {
+        var cleaned = text
+        
+        // Liste von Sonderzeichen die alleine am Ende nichts zu suchen haben
+        let trailingOrphans = [")", "(", "]", "[", "}", "{", ">", "<", "|", "\\", "/", ";", ":", ","]
+        
+        // Entferne trailing Orphans (wenn sie alleine in der letzten Zeile stehen)
+        let lines = cleaned.components(separatedBy: .newlines)
+        if let lastLine = lines.last {
+            let trimmedLast = lastLine.trimmingCharacters(in: .whitespaces)
+            // Wenn letzte Zeile nur aus einem einzelnen Sonderzeichen besteht
+            if trimmedLast.count == 1 && trailingOrphans.contains(trimmedLast) {
+                // Entferne diese Zeile
+                let withoutLast = lines.dropLast()
+                cleaned = withoutLast.joined(separator: "\n").trimmingCharacters(in: .whitespacesAndNewlines)
+            }
+        }
         
         return cleaned
     }
