@@ -143,15 +143,34 @@ struct MessageDetailView: View {
             
             // From, Date, and Flags
             VStack(alignment: .leading, spacing: 8) {
-                HStack {
-                    Image(systemName: "person.circle.fill")
-                        .foregroundStyle(.secondary)
-                    Text("Von:")
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                    Text(mail.from)
-                        .font(.subheadline)
-                        .fontWeight(.medium)
+                VStack(alignment: .leading, spacing: 4) {
+                    HStack {
+                        Image(systemName: "person.circle.fill")
+                            .foregroundStyle(.secondary)
+                        Text("Von:")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                    }
+                    
+                    // Parse name and email from "Name <email@domain.com>" format
+                    let parsedFrom = parseFromAddress(mail.from)
+                    
+                    if let displayName = parsedFrom.name, !displayName.isEmpty {
+                        Text(displayName)
+                            .font(.subheadline)
+                            .fontWeight(.semibold)
+                    }
+                    
+                    if let email = parsedFrom.email {
+                        Text(email)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    } else {
+                        // Fallback: show raw from if parsing failed
+                        Text(mail.from)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
                 }
                 
                 if let date = mail.date {
