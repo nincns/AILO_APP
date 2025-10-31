@@ -257,7 +257,7 @@ struct MessageDetailView: View {
             let cleanedBody = showTechnicalHeaders ? bodyText : filterTechnicalHeaders(bodyText)
             
             // BodyContentProcessor entscheidet über finale Darstellung
-            let displayContent = prepareDisplayContent(cleanedBody)
+            let displayContent = (content: cleanedBody, isHTML: isHTML)
             
             if displayContent.isHTML {
                 MailHTMLWebView(html: displayContent.content)
@@ -309,15 +309,16 @@ struct MessageDetailView: View {
                 if let cachedText = try MailRepository.shared.loadCachedBody(accountId: mail.accountId, folder: mail.folder, uid: mail.uid) {
                     // Check if we actually have content (not just empty cache entry)
                     if !cachedText.trimmingCharacters(in: CharacterSet.whitespacesAndNewlines).isEmpty {
-                        // ✨ SCHRITT 2: BodyContentProcessor für initiale Bereinigung
-                        let cleanedContent = prepareContentForDisplay(cachedText)
+                        // ✅ RAW aus DB holen, dann MIME parsen + BodyContentProcessor
+                        let mime = MIMEParser().parse(rawBodyBytes: nil, rawBodyString: cachedText, contentType: nil, charset: nil)
+                        let displayContent = BodyContentProcessor.selectDisplayContent(html: mime.html, text: mime.text)
                         
                         await MainActor.run {
-                            bodyText = cleanedContent.content
-                            isHTML = cleanedContent.isHTML
+                            bodyText = displayContent.content
+                            isHTML = displayContent.isHTML
                             isLoadingBody = false
                         }
-                        print("✅ Cached mail body loaded and processed: \(cleanedContent.content.prefix(100))...")
+                        print("✅ Cached mail body loaded and processed: \(displayContent.content.prefix(100))...")
                         bodyLoaded = true
                     }
                 }
@@ -327,12 +328,13 @@ struct MessageDetailView: View {
                     print("🔧 Fallback: trying regular repository getBody...")
                     if let text = try MailRepository.shared.getBody(accountId: mail.accountId, folder: mail.folder, uid: mail.uid) {
                         if !text.trimmingCharacters(in: CharacterSet.whitespacesAndNewlines).isEmpty {
-                            // ✨ SCHRITT 2: BodyContentProcessor für initiale Bereinigung
-                            let cleanedContent = prepareContentForDisplay(text)
+                            // ✅ RAW aus DB holen, dann MIME parsen + BodyContentProcessor
+                            let mime = MIMEParser().parse(rawBodyBytes: nil, rawBodyString: text, contentType: nil, charset: nil)
+                            let displayContent = BodyContentProcessor.selectDisplayContent(html: mime.html, text: mime.text)
                             
                             await MainActor.run {
-                                bodyText = cleanedContent.content
-                                isHTML = cleanedContent.isHTML
+                                bodyText = displayContent.content
+                                isHTML = displayContent.isHTML
                                 isLoadingBody = false
                             }
                             bodyLoaded = true
@@ -376,40 +378,6 @@ struct MessageDetailView: View {
         }
     }
     
-    /// ✨ NEUE METHODE: Bereitet Content mit BodyContentProcessor für Anzeige vor
-    /// Diese Methode ersetzt die bisherige direkte Verwendung von ContentAnalyzer
-    private func prepareContentForDisplay(_ rawContent: String) -> (content: String, isHTML: Bool) {
-        // Schritt 1: Erkenne Content-Typ mit BodyContentProcessor
-        let detectedIsHTML = BodyContentProcessor.isHTMLContent(rawContent)
-        
-        // Schritt 2: Bereinige Content entsprechend dem Typ
-        let cleanedContent: String
-        if detectedIsHTML {
-            cleanedContent = BodyContentProcessor.cleanHTMLForDisplay(rawContent)
-        } else {
-            cleanedContent = BodyContentProcessor.cleanPlainTextForDisplay(rawContent)
-        }
-        
-        print("🧹 BodyContentProcessor: HTML=\(detectedIsHTML), Original=\(rawContent.count) → Clean=\(cleanedContent.count)")
-        return (content: cleanedContent, isHTML: detectedIsHTML)
-    }
-    
-    /// Entscheidet über finale Darstellung basierend auf bereits bereinigtem Content
-    /// Verwendet für die UI-Darstellung nach der technischen Header-Filterung
-    private func prepareDisplayContent(_ cleanedBody: String) -> (content: String, isHTML: Bool) {
-        // BodyContentProcessor entscheidet über Content-Typ und finale Bereinigung
-        let detectedIsHTML = BodyContentProcessor.isHTMLContent(cleanedBody)
-        
-        let finalContent: String
-        if detectedIsHTML {
-            finalContent = BodyContentProcessor.cleanHTMLForDisplay(cleanedBody)
-        } else {
-            finalContent = BodyContentProcessor.cleanPlainTextForDisplay(cleanedBody)
-        }
-        
-        return (content: finalContent, isHTML: detectedIsHTML)
-    }
-    
     /// Load mail body after full sync
     private func loadMailBodyAfterSync() async {
         print("📧 Attempting to load body after full sync...")
@@ -418,14 +386,15 @@ struct MessageDetailView: View {
             var bodyLoaded = false
             
             // Try repository method after full sync
-            if let text = try MailRepository.shared.getBody(accountId: mail.accountId, folder: mail.folder, uid: mail.uid) {
-                if !text.trimmingCharacters(in: CharacterSet.whitespacesAndNewlines).isEmpty {
-                    // ✨ SCHRITT 2: BodyContentProcessor für initiale Bereinigung
-                    let cleanedContent = prepareContentForDisplay(text)
+            if let rawText = try MailRepository.shared.getBody(accountId: mail.accountId, folder: mail.folder, uid: mail.uid) {
+                if !rawText.trimmingCharacters(in: CharacterSet.whitespacesAndNewlines).isEmpty {
+                    // ✅ RAW aus DB holen, dann MIME parsen + BodyContentProcessor
+                    let mime = MIMEParser().parse(rawBodyBytes: nil, rawBodyString: rawText, contentType: nil, charset: nil)
+                    let displayContent = BodyContentProcessor.selectDisplayContent(html: mime.html, text: mime.text)
                     
                     await MainActor.run {
-                        bodyText = cleanedContent.content
-                        isHTML = cleanedContent.isHTML
+                        bodyText = displayContent.content
+                        isHTML = displayContent.isHTML
                         isLoadingBody = false
                     }
                     bodyLoaded = true

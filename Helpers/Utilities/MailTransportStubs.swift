@@ -1,4 +1,4 @@
-// AILO_APP/Configuration/Services/Mail/Transport.swift
+// AILO_APP/Configuration/Services/Mail/TransportStubs.swift
 // High-level send/receive facade backed by real IMAP/SMTP implementations.
 // Used by lightweight UI features (e.g., SchreibenMailView) without wiring the whole engine.
 
@@ -374,37 +374,21 @@ final class MailSendReceive {
             let (extractedHeaders, bodyOnly) = separateHeadersFromBody(raw)
             print("📧 Extracted \(extractedHeaders.count) header lines, body: \(bodyOnly.prefix(200))...")
             
-            // Parse ONLY the body content (without headers)
-            let mime = MIMEParser().parse(rawBodyBytes: nil, rawBodyString: bodyOnly, contentType: nil, charset: nil)
-
-            // ✨ SCHRITT 2: BodyContentProcessor anwenden VOR dem Speichern!
-            let cleanedText: String?
-            let cleanedHTML: String?
-
-            if let rawText = mime.text {
-                cleanedText = BodyContentProcessor.cleanPlainTextForDisplay(rawText)
-            } else {
-                cleanedText = nil
-            }
-
-            if let rawHTML = mime.html {
-                cleanedHTML = BodyContentProcessor.cleanHTMLForDisplay(rawHTML)
-            } else {
-                cleanedHTML = nil
-            }
-
-            // Persist into DAO mit BEREINIGTEM Content
+            // ✅ Speichere NUR RAW Content in DB - keine Verarbeitung mehr hier!
             if let writeDAO = MailRepository.shared.writeDAO {
                 let entity = MessageBodyEntity(
                     accountId: account.id,
                     folder: folder,
                     uid: uid,
-                    text: cleanedText,      // ✅ CLEANED Content!
-                    html: cleanedHTML,      // ✅ CLEANED Content!
-                    hasAttachments: !mime.attachments.isEmpty
+                    text: bodyOnly,              // ✅ RAW speichern
+                    html: nil,                   // ✅ Kein HTML mehr hier
+                    hasAttachments: bodyOnly.contains("Content-Disposition: attachment")
                 )
                 try? writeDAO.storeBody(accountId: account.id, folder: folder, uid: uid, body: entity)
             }
+            
+            // ✅ Für die Rückgabe JETZT verarbeiten (nur für API-Response)
+            let mime = MIMEParser().parse(rawBodyBytes: nil, rawBodyString: bodyOnly, contentType: nil, charset: nil)
 
             // Build header from cache or placeholder
             var from = "unknown@example.com"
@@ -415,9 +399,10 @@ final class MailSendReceive {
                 from = head.from; subj = head.subject; date = head.date ?? Date()
             }
             
-            // ✨ Auch für FullMessage Return-Wert bereinigten Content verwenden
+            // ✅ BodyContentProcessor für Anzeige-Verarbeitung
             let header = MailHeader(id: uid, from: from, subject: subj, date: date, unread: false)
-            return .success(FullMessage(header: header, textBody: cleanedText, htmlBody: cleanedHTML))
+            let displayContent = BodyContentProcessor.selectDisplayContent(html: mime.html, text: mime.text)
+            return .success(FullMessage(header: header, textBody: displayContent.isHTML ? nil : displayContent.content, htmlBody: displayContent.isHTML ? displayContent.content : nil))
         } catch {
             return .failure(error)
         }

@@ -61,6 +61,28 @@ public class BodyContentProcessor {
         return content
     }
     
+    /// Entscheidet welcher Content-Typ bevorzugt wird und liefert finalen Display-Content
+    /// - Parameters:
+    ///   - html: HTML-Content (optional)
+    ///   - text: Plain-Text-Content (optional)
+    /// - Returns: Tuple mit finalem Content und isHTML-Flag
+    public static func selectDisplayContent(html: String?, text: String?) -> (content: String, isHTML: Bool) {
+        // Priorität 1: HTML-Content
+        if let htmlContent = html, !htmlContent.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            let cleaned = cleanHTMLForDisplay(htmlContent)
+            return (content: cleaned, isHTML: true)
+        }
+        
+        // Priorität 2: Plain-Text
+        if let textContent = text, !textContent.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            let cleaned = cleanPlainTextForDisplay(textContent)
+            return (content: cleaned, isHTML: false)
+        }
+        
+        // Kein Content
+        return (content: "", isHTML: false)
+    }
+    
     /// Erkennt ob Content HTML ist (für bereits dekodierten Content)
     /// - Parameter content: Der zu prüfende Content
     /// - Returns: true wenn HTML erkannt wurde
