@@ -161,7 +161,7 @@ Lokalisierungsdateien: `Configuration/Language/`
 
 ## Lizenz
 
-[MIT License](LICENSE) *(oder andere Lizenz nach Wunsch)*
+noch keine Lizenz und damit meins
 
 ---
 
