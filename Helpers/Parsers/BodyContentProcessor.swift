@@ -80,8 +80,8 @@ public class BodyContentProcessor {
         }
         
         // Zusätzlich: Wenn mehr als 3 HTML-Tags vorhanden
-        let tagPattern = /<[^>]+>/
-        if let regex = try? NSRegularExpression(pattern: tagPattern.pattern) {
+        let tagPattern = "<[^>]+>"
+        if let regex = try? NSRegularExpression(pattern: tagPattern) {
             let matches = regex.matches(in: trimmed, range: NSRange(trimmed.startIndex..., in: trimmed))
             if matches.count >= 3 {
                 return true
@@ -199,10 +199,10 @@ public class BodyContentProcessor {
             "&apos;": "'",
             "&#8211;": "–",
             "&#8212;": "—",
-            "&#8220;": """,
-            "&#8221;": """,
-            "&#8216;": "'",
-            "&#8217;": "'",
+            "&#8220;": "\u{201C}",  // " (left double quotation mark)
+            "&#8221;": "\u{201D}",  // " (right double quotation mark)
+            "&#8216;": "\u{2018}",  // ' (left single quotation mark)
+            "&#8217;": "\u{2019}",  // ' (right single quotation mark),
             "&auml;": "ä",
             "&ouml;": "ö",
             "&uuml;": "ü",

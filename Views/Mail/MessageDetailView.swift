@@ -1,11 +1,13 @@
 // MessageDetailView.swift - Detailed view for reading email messages
+// OPTIMIERT: Nutzt BodyContentProcessor für initiale Bereinigung + filterTechnicalHeaders für UI-Toggle
 import SwiftUI
 import WebKit
 
 // MARK: - Message Detail View
 // 🚀 PERFORMANCE FIX: This view now loads pre-processed content directly from storage
 // The MailSyncEngine handles all MIME parsing, transfer encoding decoding, and content processing
-// This view should NOT reprocess content with EmailContentParser to avoid crashes and poor performance
+// BodyContentProcessor handles final display preparation (Schritt 2)
+// filterTechnicalHeaders provides optional UI toggle for technical details
 
 struct MessageDetailView: View {
     let mail: MessageHeaderEntity
@@ -251,7 +253,7 @@ struct MessageDetailView: View {
     @ViewBuilder
     private var mailBodySection: some View {
         VStack(alignment: .leading, spacing: 0) {
-            // Filter technical headers from body text
+            // ✨ HYBRID: Optional UI-Filter für technische Headers (User-Toggle)
             let cleanedBody = showTechnicalHeaders ? bodyText : filterTechnicalHeaders(bodyText)
             
             if isHTML {
@@ -304,19 +306,15 @@ struct MessageDetailView: View {
                 if let cachedText = try MailRepository.shared.loadCachedBody(accountId: mail.accountId, folder: mail.folder, uid: mail.uid) {
                     // Check if we actually have content (not just empty cache entry)
                     if !cachedText.trimmingCharacters(in: CharacterSet.whitespacesAndNewlines).isEmpty {
-                        // 🚀 Content is already fully processed by MailSyncEngine - use directly
-                        let isHTMLContent = ContentAnalyzer.detectHTMLContent(cachedText)
-                        
-                        // Validate content quality (ensure it's properly processed)
-                        let hasReasonableContent = ContentAnalyzer.hasReasonableTextDensity(cachedText)
-                        print("🚀 DEBUG: Loaded cached content - HTML detected: \(isHTMLContent), reasonable content: \(hasReasonableContent), length: \(cachedText.count)")
+                        // ✨ SCHRITT 2: BodyContentProcessor für initiale Bereinigung
+                        let cleanedContent = prepareContentForDisplay(cachedText)
                         
                         await MainActor.run {
-                            bodyText = cachedText
-                            isHTML = isHTMLContent
+                            bodyText = cleanedContent.content
+                            isHTML = cleanedContent.isHTML
                             isLoadingBody = false
                         }
-                        print("✅ Cached mail body loaded directly: \(cachedText.prefix(100))...")
+                        print("✅ Cached mail body loaded and processed: \(cleanedContent.content.prefix(100))...")
                         bodyLoaded = true
                     }
                 }
@@ -326,16 +324,16 @@ struct MessageDetailView: View {
                     print("🔧 Fallback: trying regular repository getBody...")
                     if let text = try MailRepository.shared.getBody(accountId: mail.accountId, folder: mail.folder, uid: mail.uid) {
                         if !text.trimmingCharacters(in: CharacterSet.whitespacesAndNewlines).isEmpty {
-                            // 🚀 Content sollte bereits von MailSyncEngine verarbeitet sein
-                            let isHTMLContent = ContentAnalyzer.detectHTMLContent(text)
+                            // ✨ SCHRITT 2: BodyContentProcessor für initiale Bereinigung
+                            let cleanedContent = prepareContentForDisplay(text)
                             
                             await MainActor.run {
-                                bodyText = text  // Direktes Verwenden ohne weitere Verarbeitung
-                                isHTML = isHTMLContent
+                                bodyText = cleanedContent.content
+                                isHTML = cleanedContent.isHTML
                                 isLoadingBody = false
                             }
                             bodyLoaded = true
-                            print("✅ Body loaded directly from repository")
+                            print("✅ Body loaded from repository and processed")
                         }
                     }
                 }
@@ -345,7 +343,6 @@ struct MessageDetailView: View {
                     await MainActor.run {
                         bodyText = "Inhalt wird vom Server geladen..."
                         isHTML = false
-                        // Keep loading state active
                         isLoadingBody = true
                     }
                     print("⚠️ No mail body content available in cache or storage")
@@ -376,6 +373,24 @@ struct MessageDetailView: View {
         }
     }
     
+    /// ✨ NEUE METHODE: Bereitet Content mit BodyContentProcessor für Anzeige vor
+    /// Diese Methode ersetzt die bisherige direkte Verwendung von ContentAnalyzer
+    private func prepareContentForDisplay(_ rawContent: String) -> (content: String, isHTML: Bool) {
+        // Schritt 1: Erkenne Content-Typ mit BodyContentProcessor
+        let detectedIsHTML = BodyContentProcessor.isHTMLContent(rawContent)
+        
+        // Schritt 2: Bereinige Content entsprechend dem Typ
+        let cleanedContent: String
+        if detectedIsHTML {
+            cleanedContent = BodyContentProcessor.cleanHTMLForDisplay(rawContent)
+        } else {
+            cleanedContent = BodyContentProcessor.cleanPlainTextForDisplay(rawContent)
+        }
+        
+        print("🧹 BodyContentProcessor: HTML=\(detectedIsHTML), Original=\(rawContent.count) → Clean=\(cleanedContent.count)")
+        return (content: cleanedContent, isHTML: detectedIsHTML)
+    }
+    
     /// Load mail body after full sync
     private func loadMailBodyAfterSync() async {
         print("📧 Attempting to load body after full sync...")
@@ -386,17 +401,16 @@ struct MessageDetailView: View {
             // Try repository method after full sync
             if let text = try MailRepository.shared.getBody(accountId: mail.accountId, folder: mail.folder, uid: mail.uid) {
                 if !text.trimmingCharacters(in: CharacterSet.whitespacesAndNewlines).isEmpty {
-                    // 🚀 Content is already fully processed by MailSyncEngine - use directly
-                    let isHTMLContent = ContentAnalyzer.detectHTMLContent(text)
-                    print("🚀 DEBUG: Loaded after sync - HTML detected: \(isHTMLContent), length: \(text.count)")
+                    // ✨ SCHRITT 2: BodyContentProcessor für initiale Bereinigung
+                    let cleanedContent = prepareContentForDisplay(text)
                     
                     await MainActor.run {
-                        bodyText = text
-                        isHTML = isHTMLContent
+                        bodyText = cleanedContent.content
+                        isHTML = cleanedContent.isHTML
                         isLoadingBody = false
                     }
                     bodyLoaded = true
-                    print("✅ Body loaded directly after full sync")
+                    print("✅ Body loaded and processed after full sync")
                 }
             }
             
@@ -465,46 +479,6 @@ struct MessageDetailView: View {
         }
         
         print("⏱️ Sync wait completed after \(Date().timeIntervalSince(startTime))s")
-    }
-    
-    /// Load mail body from storage only (no network calls)
-    private func loadMailBodyFromStorage() async {
-        do {
-            var bodyLoaded = false
-            
-            // Fallback to repository method
-            if let text = try MailRepository.shared.getBody(accountId: mail.accountId, folder: mail.folder, uid: mail.uid) {
-                if !text.trimmingCharacters(in: CharacterSet.whitespacesAndNewlines).isEmpty {
-                    // 🚀 Content is already fully processed by MailSyncEngine - use directly
-                    let isHTMLContent = ContentAnalyzer.detectHTMLContent(text)
-                    print("🚀 DEBUG: Loaded from storage - HTML detected: \(isHTMLContent), length: \(text.count)")
-                    
-                    await MainActor.run {
-                        bodyText = text
-                        isHTML = isHTMLContent
-                        isLoadingBody = false
-                    }
-                    bodyLoaded = true
-                    print("✅ Body loaded directly from repository after sync")
-                }
-            }
-            
-            if !bodyLoaded {
-                await MainActor.run {
-                    bodyText = "Synchronisation läuft..."
-                    isHTML = false
-                    isLoadingBody = false
-                }
-                print("⚠️ Body still not available after sync attempt")
-            }
-            
-        } catch {
-            MailLogger.shared.error(.FETCH, accountId: mail.accountId, "Failed to load body after sync: \(error)")
-            await MainActor.run {
-                errorMessage = "Failed to refresh content: \(error.localizedDescription)"
-                isLoadingBody = false
-            }
-        }
     }
     
     private func loadAttachments() async {
@@ -606,7 +580,8 @@ struct MessageDetailView: View {
         return (trimmed, nil)
     }
     
-    /// Filter technical mail headers from body text
+    /// ✨ BEHALTEN: Filter technical mail headers from body text (UI Toggle)
+    /// Diese Methode bleibt für das optionale Ein-/Ausblenden technischer Headers
     /// Removes headers like: Return-Path, Delivered-To, Received, Message-Id, X-*, etc.
     private func filterTechnicalHeaders(_ text: String) -> String {
         // Patterns for technical headers
@@ -691,7 +666,8 @@ private struct MailHTMLWebView: UIViewRepresentable {
     }
     
     func updateUIView(_ webView: WKWebView, context: Context) {
-        // Create a styled HTML string with proper CSS for mobile viewing
+        // Der HTML-Content ist bereits durch BodyContentProcessor bereinigt
+        // Minimales Styling für optimale Darstellung
         let styledHTML = """
         <!DOCTYPE html>
         <html>

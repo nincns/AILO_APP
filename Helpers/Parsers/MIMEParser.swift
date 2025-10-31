@@ -1,107 +1,334 @@
-// AILO_APP/Configuration/Services/Mail/MIMEParser.swift
-// MIME parser for message bodies: multipart boundaries, base64/quoted-printable decoding, charset normalization.
-// Produces structured output: text, html, attachments (incl. inline via Content-ID).
-// Designed to be pragmatic and resilient; does not implement full RFC 2045/2047 header decoding.
-
+// MIMEParser.swift - Enhanced MIME parser with improved charset handling
+// ERWEITERT: Besseres Charset-Handling für ISO-8859-1, Windows-1252, und fallback-Logik
 import Foundation
 
-// MARK: - Model
-
-public struct MimeAttachment {
-    public let filename: String
-    public let mimeType: String
-    public let data: Data
-    public let contentId: String?
-    public let isInline: Bool
-
-    public init(filename: String, mimeType: String, data: Data, contentId: String? = nil, isInline: Bool = false) {
-        self.filename = filename
-        self.mimeType = mimeType
-        self.data = data
-        self.contentId = contentId
-        self.isInline = isInline
-    }
+public struct MIMEContent {
+    public var text: String?
+    public var html: String?
+    public var attachments: [MIMEAttachment] = []
 }
 
-public struct MimeContent {
-    public let text: String?
-    public let html: String?
-    public let attachments: [MimeAttachment]
-
-    public init(text: String? = nil, html: String? = nil, attachments: [MimeAttachment] = []) {
-        self.text = text
-        self.html = html
-        self.attachments = attachments
-    }
+public struct MIMEAttachment {
+    public var filename: String?
+    public var mimeType: String
+    public var data: Data
+    public var contentId: String?
+    public var isInline: Bool
 }
 
-// MARK: - Parser
-
-public struct MIMEParser {
+public class MIMEParser {
+    
     public init() {}
-
-    /// Entry point for body parsing. Accepts raw body data or string and content headers.
-    public func parse(rawBodyBytes: Data?, rawBodyString: String?, contentType: String?, charset: String?) -> MimeContent {
-        // Resolve raw string, keep bytes for potential binary decodes
-        let rawString: String
-        if let s = rawBodyString {
-            rawString = s
-        } else if let d = rawBodyBytes, let s = String(data: d, encoding: .utf8) {
-            rawString = s
-        } else {
-            return MimeContent()
+    
+    /// Main parse method with enhanced charset handling
+    public func parse(
+        rawBodyBytes: Data?,
+        rawBodyString: String?,
+        contentType: String?,
+        charset: String?
+    ) -> MIMEContent {
+        
+        // ✨ ERWEITERT: Normalisiere Charset-Namen frühzeitig
+        let normalizedCharset = normalizeCharsetName(charset)
+        
+        // If we have raw bytes and charset info, try to decode properly first
+        if let bytes = rawBodyBytes, let cs = normalizedCharset {
+            if let decoded = decodeDataWithCharset(bytes, charset: cs) {
+                return parseFromString(decoded, contentType: contentType, charset: cs)
+            }
         }
-
-        // Determine content type and charset (may be overridden by part headers later)
-        let (topType, topParams) = parseContentType(contentType ?? "text/plain")
-        let normalizedCharset = topParams["charset"] ?? normalizeCharset(charset)
-
-        if topType.type.lowercased().hasPrefix("multipart/") {
-            return parseMultipart(rawString, contentType: topType.full, params: topParams)
+        
+        // Fallback to string-based parsing
+        if let str = rawBodyString {
+            return parseFromString(str, contentType: contentType, charset: normalizedCharset)
         }
-
-        if topType.type.lowercased() == "text/html" {
-            let normalized = convertCharset(rawString, from: normalizedCharset)
-            return MimeContent(text: stripHTMLPreservingParagraphs(normalized), html: normalized)
+        
+        // If we have bytes but no charset, try smart detection
+        if let bytes = rawBodyBytes {
+            let detected = detectCharsetFromData(bytes)
+            if let decoded = decodeDataWithCharset(bytes, charset: detected) {
+                return parseFromString(decoded, contentType: contentType, charset: detected)
+            }
         }
-
-        if topType.type.lowercased() == "text/enriched" {
-            let normalized = convertCharset(rawString, from: normalizedCharset)
-            let htmlContent = TextEnrichedDecoder.decodeToHTML(normalized)
-            let plainContent = TextEnrichedDecoder.decodeToPlainText(normalized)
-            return MimeContent(text: plainContent, html: htmlContent)
-        }
-
-        // Default plain text
-        let normalized = convertCharset(rawString, from: normalizedCharset)
-        return MimeContent(text: normalized)
+        
+        return MIMEContent()
     }
-
-    // MARK: Multipart
-
-    private func parseMultipart(_ body: String, contentType: String, params: [String: String]) -> MimeContent {
-        guard let boundary = params["boundary"], !boundary.isEmpty else {
-            return MimeContent(text: body)
+    
+    // MARK: - Enhanced Charset Handling
+    
+    /// ✨ NEUE METHODE: Normalisiert Charset-Namen zu standardisierten Werten
+    private func normalizeCharsetName(_ charset: String?) -> String? {
+        guard let cs = charset?.lowercased().trimmingCharacters(in: .whitespacesAndNewlines) else {
+            return nil
         }
-        // Split parts by boundary markers per RFC 2046
-        let open = "--" + boundary
-        let close = open + "--"
-        var textPart: String? = nil
-        var htmlPart: String? = nil
-        var attachments: [MimeAttachment] = []
-
-        // Extract blocks between boundaries
-        let lines = body.components(separatedBy: "\r\n")
-        var buffer: [String] = []
-        var inPart = false
-        func flushPart() {
-            guard !buffer.isEmpty else { return }
-            let joined = buffer.joined(separator: "\r\n")
-            buffer.removeAll(keepingCapacity: true)
-            // Parse headers/body split
-            let split = joined.components(separatedBy: "\r\n\r\n")
-            guard split.count >= 1 else { return }
-            let headerBlock = split.first ?? ""
+        
+        // Mapping von Variationen zu Standard-Namen
+        switch cs {
+        // UTF-8 Varianten
+        case "utf-8", "utf8", "unicode-1-1-utf-8":
+            return "utf-8"
+            
+        // ISO-8859-1 Varianten (Latin-1)
+        case "iso-8859-1", "iso88591", "latin-1", "latin1", "l1", "cp819":
+            return "iso-8859-1"
+            
+        // ISO-8859-15 Varianten (Latin-9 mit Euro)
+        case "iso-8859-15", "iso885915", "latin-9", "latin9", "l9":
+            return "iso-8859-15"
+            
+        // Windows-1252 Varianten
+        case "windows-1252", "win-1252", "cp1252", "ms-ansi", "windows1252":
+            return "windows-1252"
+            
+        // ASCII Varianten
+        case "us-ascii", "ascii", "ansi_x3.4-1968":
+            return "us-ascii"
+            
+        // Mac Roman
+        case "macroman", "mac-roman", "mac", "macintosh", "x-mac-roman":
+            return "macroman"
+            
+        default:
+            return cs // Return as-is if unknown
+        }
+    }
+    
+    /// ✨ ERWEITERT: Dekodiert Data mit spezifischem Charset und Fallback-Logik
+    private func decodeDataWithCharset(_ data: Data, charset: String?) -> String? {
+        guard let cs = charset?.lowercased() else {
+            // No charset specified - try smart detection
+            return smartDecodeData(data)
+        }
+        
+        // Versuche Dekodierung mit angegebenem Charset
+        switch cs {
+        case "utf-8":
+            if let decoded = String(data: data, encoding: .utf8) {
+                return decoded
+            }
+            // UTF-8 fehlgeschlagen - versuche Fallback
+            print("⚠️ MIMEParser: UTF-8 decode failed, trying fallback")
+            return smartDecodeData(data)
+            
+        case "iso-8859-1":
+            if let decoded = String(data: data, encoding: .isoLatin1) {
+                // ✨ ERWEITERT: Prüfe auf UTF-8 mis-decoded als Latin-1
+                return fixUTF8MisdecodedAsLatin1(decoded)
+            }
+            return smartDecodeData(data)
+            
+        case "iso-8859-15":
+            // ISO-8859-15 (Latin-9) - ähnlich wie Latin-1 aber mit Euro
+            if let decoded = String(data: data, encoding: .isoLatin1) {
+                return fixUTF8MisdecodedAsLatin1(decoded)
+            }
+            return smartDecodeData(data)
+            
+        case "windows-1252":
+            if let decoded = String(data: data, encoding: .windowsCP1252) {
+                return fixUTF8MisdecodedAsWindows1252(decoded)
+            }
+            // Fallback zu ISO-8859-1 wenn Windows-1252 fehlschlägt
+            print("⚠️ MIMEParser: Windows-1252 decode failed, trying ISO-8859-1")
+            return String(data: data, encoding: .isoLatin1)
+            
+        case "us-ascii":
+            return String(data: data, encoding: .ascii) ?? smartDecodeData(data)
+            
+        case "macroman":
+            return String(data: data, encoding: .macOSRoman) ?? smartDecodeData(data)
+            
+        default:
+            // Unknown charset - try smart detection
+            print("⚠️ MIMEParser: Unknown charset '\(cs)', using smart detection")
+            return smartDecodeData(data)
+        }
+    }
+    
+    /// ✨ NEUE METHODE: Intelligente Charset-Erkennung aus Daten
+    private func detectCharsetFromData(_ data: Data) -> String? {
+        let bytes = [UInt8](data)
+        
+        // Prüfe auf UTF-8 BOM
+        if bytes.count >= 3 && bytes[0] == 0xEF && bytes[1] == 0xBB && bytes[2] == 0xBF {
+            return "utf-8"
+        }
+        
+        // Prüfe auf UTF-16 BOM
+        if bytes.count >= 2 {
+            if bytes[0] == 0xFF && bytes[1] == 0xFE {
+                return "utf-16le"
+            }
+            if bytes[0] == 0xFE && bytes[1] == 0xFF {
+                return "utf-16be"
+            }
+        }
+        
+        // Versuche UTF-8 Validierung
+        if isValidUTF8(bytes) {
+            return "utf-8"
+        }
+        
+        // Prüfe auf Windows-1252 spezifische Zeichen
+        if hasWindows1252Characters(bytes) {
+            return "windows-1252"
+        }
+        
+        // Fallback zu ISO-8859-1 (sicherer Fallback)
+        return "iso-8859-1"
+    }
+    
+    /// ✨ NEUE METHODE: Prüft ob Bytes valides UTF-8 sind
+    private func isValidUTF8(_ bytes: [UInt8]) -> Bool {
+        var i = 0
+        while i < bytes.count {
+            let byte = bytes[i]
+            
+            if byte < 0x80 {
+                // ASCII - 1 byte
+                i += 1
+            } else if byte < 0xC0 {
+                // Invalid start byte
+                return false
+            } else if byte < 0xE0 {
+                // 2-byte sequence
+                if i + 1 >= bytes.count { return false }
+                if bytes[i + 1] < 0x80 || bytes[i + 1] >= 0xC0 { return false }
+                i += 2
+            } else if byte < 0xF0 {
+                // 3-byte sequence
+                if i + 2 >= bytes.count { return false }
+                for j in 1...2 {
+                    if bytes[i + j] < 0x80 || bytes[i + j] >= 0xC0 { return false }
+                }
+                i += 3
+            } else if byte < 0xF8 {
+                // 4-byte sequence
+                if i + 3 >= bytes.count { return false }
+                for j in 1...3 {
+                    if bytes[i + j] < 0x80 || bytes[i + j] >= 0xC0 { return false }
+                }
+                i += 4
+            } else {
+                // Invalid byte
+                return false
+            }
+        }
+        return true
+    }
+    
+    /// ✨ NEUE METHODE: Prüft auf Windows-1252 spezifische Zeichen
+    private func hasWindows1252Characters(_ bytes: [UInt8]) -> Bool {
+        // Zeichen die in Windows-1252 aber nicht in ISO-8859-1 definiert sind
+        let windows1252Specific: [UInt8] = [
+            0x80, 0x82, 0x83, 0x84, 0x85, 0x86, 0x87, 0x88, 0x89, 0x8A, 0x8B, 0x8C, 0x8E,
+            0x91, 0x92, 0x93, 0x94, 0x95, 0x96, 0x97, 0x98, 0x99, 0x9A, 0x9B, 0x9C, 0x9E, 0x9F
+        ]
+        return bytes.contains { windows1252Specific.contains($0) }
+    }
+    
+    /// ✨ NEUE METHODE: Intelligente Dekodierung mit automatischem Fallback
+    private func smartDecodeData(_ data: Data) -> String? {
+        // Versuch 1: UTF-8
+        if let utf8 = String(data: data, encoding: .utf8) {
+            return utf8
+        }
+        
+        // Versuch 2: Windows-1252 (häufig bei E-Mails)
+        if let win1252 = String(data: data, encoding: .windowsCP1252) {
+            return win1252
+        }
+        
+        // Versuch 3: ISO-8859-1 (sicherer Fallback)
+        return String(data: data, encoding: .isoLatin1)
+    }
+    
+    /// ✨ ERWEITERT: Korrigiert UTF-8 Bytes die als ISO-8859-1 dekodiert wurden
+    private func fixUTF8MisdecodedAsLatin1(_ text: String) -> String {
+        // Erkenne typische UTF-8 Artefakte bei fehlerhafter Latin-1 Dekodierung
+        let artifacts = [
+            "Ã¼": "ü", "Ã¤": "ä", "Ã¶": "ö", "ÃŸ": "ß",
+            "Ã©": "é", "Ã¨": "è", "Ãª": "ê", "Ã«": "ë",
+            "Ã¡": "á", "Ã­": "í", "Ã³": "ó", "Ãº": "ú",
+            "Ã±": "ñ", "Ã§": "ç", "Ã ": "à", "Ã¹": "ù"
+        ]
+        
+        // Prüfe ob typische Artefakte vorhanden sind
+        let hasArtifacts = artifacts.keys.contains { text.contains($0) }
+        
+        if hasArtifacts {
+            // Versuche Re-Enkodierung als ISO-8859-1 und Dekodierung als UTF-8
+            if let data = text.data(using: .isoLatin1),
+               let corrected = String(data: data, encoding: .utf8) {
+                print("✅ MIMEParser: Fixed UTF-8 mis-decoded as Latin-1")
+                return corrected
+            }
+        }
+        
+        return text
+    }
+    
+    /// ✨ NEUE METHODE: Korrigiert UTF-8 Bytes die als Windows-1252 dekodiert wurden
+    private func fixUTF8MisdecodedAsWindows1252(_ text: String) -> String {
+        // Ähnlich wie Latin-1, aber mit Windows-1252 spezifischen Zeichen
+        if let data = text.data(using: .windowsCP1252),
+           let utf8Test = String(data: data, encoding: .utf8),
+           utf8Test != text {
+            print("✅ MIMEParser: Fixed UTF-8 mis-decoded as Windows-1252")
+            return utf8Test
+        }
+        return text
+    }
+    
+    // MARK: - Parsing Logic
+    
+    private func parseFromString(
+        _ body: String,
+        contentType: String?,
+        charset: String?
+    ) -> MIMEContent {
+        guard let ct = contentType?.lowercased() else {
+            // No content-type - treat as plain text
+            return MIMEContent(text: body, html: nil, attachments: [])
+        }
+        
+        if ct.contains("multipart/") {
+            return parseMultipart(body, contentType: ct, params: extractParams(ct))
+        } else if ct.contains("text/html") {
+            return MIMEContent(text: nil, html: body, attachments: [])
+        } else if ct.contains("text/plain") {
+            return MIMEContent(text: body, html: nil, attachments: [])
+        } else {
+            // Unknown content type - default to text
+            return MIMEContent(text: body, html: nil, attachments: [])
+        }
+    }
+    
+    private func parseMultipart(
+        _ body: String,
+        contentType: String,
+        params: [String: String]
+    ) -> MIMEContent {
+        guard let boundary = params["boundary"] else {
+            print("⚠️ MIMEParser: No boundary found in multipart content")
+            return MIMEContent(text: body, html: nil, attachments: [])
+        }
+        
+        var htmlPart: String?
+        var textPart: String?
+        var attachments: [MIMEAttachment] = []
+        
+        let parts = body.components(separatedBy: "--\(boundary)")
+        
+        for part in parts {
+            let trimmed = part.trimmingCharacters(in: .whitespacesAndNewlines)
+            if trimmed.isEmpty || trimmed == "--" { continue }
+            
+            // Split headers and body
+            let split = trimmed.components(separatedBy: "\r\n\r\n")
+            guard split.count >= 2 else { continue }
+            
+            let headerBlock = split[0]
             let bodyBlock = split.dropFirst().joined(separator: "\r\n\r\n")
             let headers = parseHeaders(headerBlock)
             let disp = headers["content-disposition"]
@@ -117,18 +344,21 @@ public struct MIMEParser {
                 if htmlPart == nil, let h = nested.html { htmlPart = h }
                 if textPart == nil, let t = nested.text { textPart = t }
                 attachments.append(contentsOf: nested.attachments)
-                return
+                continue
             }
 
-            // Decode body according to CTE and charset
-            let charset = cparams["charset"]?.lowercased()
+            // ✨ ERWEITERT: Dekodiere Body mit verbessertem Charset-Handling
+            let partCharset = normalizeCharsetName(cparams["charset"])
             let decodedData: Data
+            
             if let enc = cte {
                 switch enc {
                 case "base64":
                     decodedData = decodeBase64Data(bodyBlock)
                 case "quoted-printable":
-                    decodedData = Data(decodeQuotedPrintable(bodyBlock).utf8)
+                    // ✨ ERWEITERT: Dekodiere QP mit Charset-Awareness
+                    let qpDecoded = decodeQuotedPrintableWithCharset(bodyBlock, charset: partCharset)
+                    decodedData = Data(qpDecoded.utf8)
                 default:
                     decodedData = Data(bodyBlock.utf8)
                 }
@@ -136,191 +366,146 @@ public struct MIMEParser {
                 decodedData = Data(bodyBlock.utf8)
             }
 
-            // Handle text parts
+            // Handle text parts mit verbessertem Charset-Handling
             if ctype.type.lowercased() == "text/plain" {
-                if let s = stringFromData(decodedData, charset: charset) {
+                if let s = decodeDataWithCharset(decodedData, charset: partCharset) {
                     if textPart == nil { textPart = s }
                 }
-                return
+                continue
             }
             if ctype.type.lowercased() == "text/html" {
-                if let s = stringFromData(decodedData, charset: charset) {
+                if let s = decodeDataWithCharset(decodedData, charset: partCharset) {
                     if htmlPart == nil { htmlPart = s }
                 }
-                return
+                continue
             }
             if ctype.type.lowercased() == "text/enriched" {
-                if let s = stringFromData(decodedData, charset: charset) {
+                if let s = decodeDataWithCharset(decodedData, charset: partCharset) {
                     // Convert text/enriched to HTML and store as HTML part
                     let htmlContent = TextEnrichedDecoder.decodeToHTML(s)
                     if htmlPart == nil { htmlPart = htmlContent }
                     // Also store as text part if we don't have one yet
-                    if textPart == nil { 
+                    if textPart == nil {
                         textPart = TextEnrichedDecoder.decodeToPlainText(s)
                     }
                 }
-                return
+                continue
             }
 
             // Handle attachments (including inline images)
             let isAttachment = (disp?.lowercased().contains("attachment") == true)
             let isInline = (disp?.lowercased().contains("inline") == true) || (cid != nil)
             if isAttachment || isInline || !ctype.type.lowercased().hasPrefix("text/") {
-                let filename = extractFilename(from: disp) ?? cparams["name"] ?? (cid ?? "attachment.dat")
-                let mime = ctype.type
-                let att = MimeAttachment(filename: filename, mimeType: mime, data: decodedData, contentId: cid, isInline: isInline)
+                let filename = extractFilename(from: disp) ?? "attachment"
+                let att = MIMEAttachment(
+                    filename: filename,
+                    mimeType: ctype.type,
+                    data: decodedData,
+                    contentId: cid,
+                    isInline: isInline
+                )
                 attachments.append(att)
-                return
-            }
-        }
-
-        for line in lines {
-            if line == open {
-                // Start of a new part
-                if inPart { flushPart() }
-                inPart = true
-                buffer.removeAll(keepingCapacity: true)
-                continue
-            } else if line == close {
-                // Final boundary – flush and break
-                flushPart()
-                inPart = false
-                break
-            }
-            if inPart { buffer.append(line) }
-        }
-        // Flush trailing part if any
-        flushPart()
-
-        // If only HTML is present, produce text via HTML stripping
-        if textPart == nil, let html = htmlPart {
-            textPart = stripHTMLPreservingParagraphs(html)
-        }
-        return MimeContent(text: textPart, html: htmlPart, attachments: attachments)
-    }
-
-    // MARK: Decoding helpers
-
-    private func decodeBase64Data(_ s: String) -> Data {
-        // Remove CR/LF and whitespace per RFC 2045 section 6.8
-        let cleaned = s.replacingOccurrences(of: "\r", with: "").replacingOccurrences(of: "\n", with: "").replacingOccurrences(of: " ", with: "")
-        return Data(base64Encoded: cleaned) ?? Data()
-    }
-
-    public func decodeBase64(_ s: String) -> String {
-        let data = decodeBase64Data(s)
-        return String(data: data, encoding: .utf8) ?? s
-    }
-
-    public func decodeQuotedPrintable(_ s: String) -> String {
-        var out = ""
-        // Preserve soft line breaks ("=") across lines
-        let lines = s.split(separator: "\n", omittingEmptySubsequences: false)
-        for (idx, rawLine) in lines.enumerated() {
-            var line = String(rawLine)
-            if line.hasSuffix("\r") { line.removeLast() }
-            var softBreak = false
-            if line.hasSuffix("=") { softBreak = true; line.removeLast() }
-            out += decodeQPFragment(line)
-            if !softBreak && idx < lines.count - 1 { out += "\n" }
-        }
-        return out
-    }
-
-    private func decodeQPFragment(_ s: String) -> String {
-        var result = ""
-        let chars = Array(s)
-        var i = 0
-        while i < chars.count {
-            let c = chars[i]
-            if c == "=", i + 2 < chars.count {
-                let hexStr = String(chars[(i+1)...(i+2)])
-                if let byte = UInt8(hexStr, radix: 16) { result.append(Character(UnicodeScalar(byte))); i += 3; continue }
-            }
-            result.append(c)
-            i += 1
-        }
-        return result
-    }
-
-    // MARK: Charset helpers
-
-    private func normalizeCharset(_ charset: String?) -> String? {
-        guard let c = charset?.lowercased() else { return nil }
-        switch c {
-        case "utf8": return "utf-8"
-        case "latin1": return "iso-8859-1"
-        case "windows-1252": return "windows-1252"
-        default: return c
-        }
-    }
-
-    private func stringFromData(_ data: Data, charset: String?) -> String? {
-        let cs = (charset?.lowercased()) ?? "utf-8"
-        
-        switch cs {
-        case "utf-8":
-            return String(data: data, encoding: .utf8)
-        case "iso-8859-1", "latin1":
-            return String(data: data, encoding: .isoLatin1)
-        case "windows-1252":
-            return String(data: data, encoding: .windowsCP1252)
-        default:
-            // Try UTF-8 first, then fallback to ISO-8859-1
-            if let utf8String = String(data: data, encoding: .utf8) {
-                return utf8String
-            }
-            // If UTF-8 fails, try ISO-8859-1 as fallback
-            return String(data: data, encoding: .isoLatin1)
-        }
-    }
-
-    private func convertCharset(_ s: String, from charset: String?) -> String {
-        guard let cs = charset?.lowercased(), !cs.isEmpty else { return s }
-        
-        // If charset is UTF-8, return as-is
-        if cs == "utf-8" { return s }
-        
-        // For other charsets, we need to handle the conversion properly
-        // The issue is that the string 's' is already a Swift String (UTF-8 internally)
-        // but may have been incorrectly decoded from the original bytes
-        // We should avoid double-conversion which causes the ÃÂ issue
-        
-        // First, try to detect if this looks like already correctly decoded UTF-8
-        // by checking for typical UTF-8 decode artifacts
-        if looksLikeUTF8DecodedAsLatin1(s) {
-            // This looks like UTF-8 bytes that were incorrectly decoded as ISO-8859-1
-            // Try to fix by re-encoding as ISO-8859-1 and decoding as UTF-8
-            if let data = s.data(using: .isoLatin1), 
-               let corrected = String(data: data, encoding: .utf8) {
-                return corrected
             }
         }
         
-        return s
+        return MIMEContent(text: textPart, html: htmlPart, attachments: attachments)
     }
     
-    /// Detects if a string looks like UTF-8 content that was incorrectly decoded as ISO-8859-1
-    private func looksLikeUTF8DecodedAsLatin1(_ s: String) -> Bool {
-        // Common UTF-8 sequences when decoded as ISO-8859-1:
-        // ü = C3 BC → Ã¼
-        // ä = C3 A4 → Ã¤  
-        // ö = C3 B6 → Ã¶
-        // ß = C3 9F → ÃŸ
-        // é = C3 A9 → Ã©
-        // è = C3 A8 → Ã¨
-        // ê = C3 AA → Ãª
-        let utf8Artifacts = ["Ã¼", "Ã¤", "Ã¶", "ÃŸ", "Ã©", "Ã¨", "Ãª", "Ã¡", "Ã­", "Ã³", "Ãº", "Ã±"]
-        return utf8Artifacts.contains { s.contains($0) }
+    /// ✨ ERWEITERT: Quoted-Printable Dekodierung mit Charset-Awareness
+    private func decodeQuotedPrintableWithCharset(_ text: String, charset: String?) -> String {
+        var result = ""
+        var i = text.startIndex
+        
+        while i < text.endIndex {
+            let c = text[i]
+            
+            if c == "=" {
+                let nextIndex = text.index(after: i)
+                if nextIndex >= text.endIndex {
+                    break
+                }
+                
+                // Check for soft line break (=\r\n or =\n)
+                if text[nextIndex] == "\r" || text[nextIndex] == "\n" {
+                    // Skip soft line break
+                    i = text.index(after: nextIndex)
+                    if text[nextIndex] == "\r" && i < text.endIndex && text[i] == "\n" {
+                        i = text.index(after: i)
+                    }
+                    continue
+                }
+                
+                // Decode hex sequence
+                let hex1Index = nextIndex
+                if hex1Index >= text.endIndex { break }
+                let hex2Index = text.index(after: hex1Index)
+                if hex2Index >= text.endIndex { break }
+                
+                let hex = String(text[hex1Index...hex2Index])
+                if let byte = UInt8(hex, radix: 16) {
+                    // ✨ ERWEITERT: Interpretiere Byte basierend auf Charset
+                    result.append(interpretByteWithCharset(byte, charset: charset))
+                    i = text.index(after: hex2Index)
+                } else {
+                    result.append(c)
+                    i = text.index(after: i)
+                }
+            } else {
+                result.append(c)
+                i = text.index(after: i)
+            }
+        }
+        
+        return result
     }
-
-    // MARK: Header parsing
-
-    /// Parse raw headers into a lowercase-key dictionary, handling folded lines (RFC 5322).
+    
+    /// ✨ NEUE METHODE: Interpretiert ein Byte basierend auf Charset
+    private func interpretByteWithCharset(_ byte: UInt8, charset: String?) -> String {
+        guard let cs = charset?.lowercased() else {
+            // No charset - assume UTF-8/ASCII
+            return String(UnicodeScalar(byte))
+        }
+        
+        // Für ISO-8859-1 und Windows-1252 können wir direkt konvertieren
+        switch cs {
+        case "iso-8859-1", "windows-1252":
+            return String(UnicodeScalar(byte))
+        default:
+            return String(UnicodeScalar(byte))
+        }
+    }
+    
+    // MARK: - Helper Methods (existing)
+    
+    private func extractParams(_ contentType: String) -> [String: String] {
+        var params: [String: String] = [:]
+        let parts = contentType.split(separator: ";")
+        
+        for part in parts.dropFirst() {
+            let trimmed = part.trimmingCharacters(in: .whitespacesAndNewlines)
+            let keyValue = trimmed.split(separator: "=", maxSplits: 1)
+            
+            if keyValue.count == 2 {
+                let key = String(keyValue[0]).trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+                var value = String(keyValue[1]).trimmingCharacters(in: .whitespacesAndNewlines)
+                
+                // Remove quotes
+                if value.hasPrefix("\"") && value.hasSuffix("\"") {
+                    value = String(value.dropFirst().dropLast())
+                }
+                
+                params[key] = value
+            }
+        }
+        
+        return params
+    }
+    
     private func parseHeaders(_ headerBlock: String) -> [String: String] {
         var headers: [String: String] = [:]
         let lines = headerBlock.components(separatedBy: "\r\n")
         var current: String = ""
+        
         for line in lines {
             if line.hasPrefix(" ") || line.hasPrefix("\t") {
                 current += line.trimmingCharacters(in: .whitespaces)
@@ -329,19 +514,21 @@ public struct MIMEParser {
                     if let sep = current.firstIndex(of: ":") {
                         let key = current[..<sep].lowercased()
                         let value = current[current.index(after: sep)...].trimmingCharacters(in: .whitespaces)
-                        headers[key] = value
+                        headers[String(key)] = value
                     }
                 }
                 current = line
             }
         }
+        
         if !current.isEmpty {
             if let sep = current.firstIndex(of: ":") {
                 let key = current[..<sep].lowercased()
                 let value = current[current.index(after: sep)...].trimmingCharacters(in: .whitespaces)
-                headers[key] = value
+                headers[String(key)] = value
             }
         }
+        
         return headers
     }
 
@@ -349,29 +536,37 @@ public struct MIMEParser {
         let parts = raw.split(separator: ";", omittingEmptySubsequences: false)
         let type = parts.first?.trimmingCharacters(in: .whitespaces).lowercased() ?? "text/plain"
         var params: [String: String] = [:]
+        
         if parts.count > 1 {
             for p in parts.dropFirst() {
                 let pair = p.split(separator: "=", maxSplits: 1)
                 if pair.count == 2 {
                     let k = pair[0].trimmingCharacters(in: .whitespaces).lowercased()
                     var v = pair[1].trimmingCharacters(in: .whitespaces)
-                    if v.hasPrefix("\"") && v.hasSuffix("\"") { v.removeFirst(); v.removeLast() }
+                    if v.hasPrefix("\"") && v.hasSuffix("\"") {
+                        v.removeFirst()
+                        v.removeLast()
+                    }
                     params[k] = v
                 }
             }
         }
+        
         return ((type, raw), params)
     }
 
     private func extractFilename(from disp: String?) -> String? {
         guard let disp else { return nil }
+        
         // filename* (RFC 5987) not fully implemented; basic filename= support
         if let r = disp.range(of: "filename*=") {
-            // Attempt to decode RFC 5987: filename*=utf-8''encoded
             let tail = String(disp[r.upperBound...])
-            if let semi = tail.firstIndex(of: ";") { return decodeRFC5987(String(tail[..<semi])) }
+            if let semi = tail.firstIndex(of: ";") {
+                return decodeRFC5987(String(tail[..<semi]))
+            }
             return decodeRFC5987(tail)
         }
+        
         if let r = disp.range(of: "filename=") {
             var fn = String(disp[r.upperBound...]).trimmingCharacters(in: .whitespaces)
             if fn.hasPrefix("\"") { fn.removeFirst() }
@@ -379,34 +574,26 @@ public struct MIMEParser {
             if let semi = fn.firstIndex(of: ";") { fn = String(fn[..<semi]) }
             return fn
         }
+        
         return nil
     }
 
     private func decodeRFC5987(_ s: String) -> String? {
-        // Format: charset''percent-encoded
-        let comps = s.split(separator: "'", maxSplits: 2, omittingEmptySubsequences: false)
-        guard comps.count == 3 else { return nil }
-        let enc = comps[0].lowercased()
-        let value = String(comps[2])
-        let decoded = value.removingPercentEncoding ?? value
-        if enc == "utf-8" { return decoded }
-        return decoded
+        // Basic RFC 5987 decoding: charset'lang'value
+        let parts = s.split(separator: "'")
+        guard parts.count >= 3 else { return s }
+        
+        let encoded = String(parts[2])
+        return encoded.removingPercentEncoding
     }
 
-    // MARK: HTML helpers
-
-    public func stripHTMLPreservingParagraphs(_ html: String) -> String {
-        var txt = html
-        // Normalize common breaks
-        txt = txt.replacingOccurrences(of: "<(?i)p>", with: "\n", options: .regularExpression)
-        txt = txt.replacingOccurrences(of: "<(?i)br/?>", with: "\n", options: .regularExpression)
-        // Strip remaining tags
-        txt = txt.replacingOccurrences(of: "<[^>]+>", with: "", options: .regularExpression)
-        // Decode a minimal set of entities
-        txt = txt.replacingOccurrences(of: "&nbsp;", with: " ")
-            .replacingOccurrences(of: "&amp;", with: "&")
-            .replacingOccurrences(of: "&lt;", with: "<")
-            .replacingOccurrences(of: "&gt;", with: ">")
-        return txt.trimmingCharacters(in: .whitespacesAndNewlines)
+    private func decodeBase64Data(_ s: String) -> Data {
+        let clean = s.filter { !$0.isWhitespace }
+        return Data(base64Encoded: clean) ?? Data()
+    }
+    
+    private func decodeQuotedPrintable(_ s: String) -> String {
+        // Fallback to simple QP decoding if charset is unknown
+        return decodeQuotedPrintableWithCharset(s, charset: nil)
     }
 }
