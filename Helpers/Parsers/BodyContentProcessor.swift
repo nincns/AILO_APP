@@ -18,33 +18,33 @@ public class BodyContentProcessor {
     /// Bereitet HTML-Content für WebView-Anzeige auf
     /// - Parameter html: Bereits dekodierter HTML-String
     /// - Returns: Bereinigter HTML-Content
-    /// 
+    ///
     /// ✅ PHASE 3: Reduzierte Filterung da MIME-Parser jetzt korrekt arbeitet
     public static func cleanHTMLForDisplay(_ html: String) -> String {
         var content = html
         
-        // ✅ Schritt 0: KRITISCH - Quoted-Printable Decoding ZUERST!
+        // ✅ Schritt 0: Quoted-Printable Decoding ZUERST
         content = decodeQuotedPrintableIfNeeded(content)
         
-        // ✅ Schritt 0.5: Entferne MIME-Header am Anfang (charset=, boundary=, etc.)
+        // ✅ NEU: MIME-Boundaries und Header entfernen (KRITISCH!)
+        content = removeMIMEBoundariesAndHeaders(content)
+        
+        // ✅ Schritt 0.5: Entferne MIME-Header am Anfang
         content = removeMIMEHeadersFromStart(content)
         
-        // Schritt 1: Entferne E-Mail-Header aus Body (falls vorhanden)
+        // Schritt 1: Entferne E-Mail-Header aus Body
         content = removeEmailHeaders(content)
         
         // Schritt 2: Entferne/Normalisiere HTML-Meta-Tags
         content = cleanHTMLMetaTags(content)
         
-        // ✅ PHASE 3: Leichtere MIME-Boundary-Filterung (MIME-Parser sollte das jetzt richtig machen)
-        content = removeStragglerMIMEBoundaries(content)
-        
-        // ✅ Schritt 4: Decode HTML-Entities
+        // Schritt 3: Decode HTML-Entities
         content = HTMLEntityDecoder.decodeForHTML(content)
         
-        // Schritt 5: Normalisiere Sonderzeichen (Legacy, für Sonderfälle)
+        // Schritt 4: Normalisiere Sonderzeichen
         content = normalizeSonderzeichen(content)
         
-        // Schritt 6: Sichere minimale HTML-Struktur
+        // Schritt 5: Sichere minimale HTML-Struktur
         content = ensureMinimalHTMLStructure(content)
         
         return content
@@ -56,8 +56,11 @@ public class BodyContentProcessor {
     public static func cleanPlainTextForDisplay(_ text: String) -> String {
         var content = text
         
-        // ✅ Schritt 0: KRITISCH - Quoted-Printable Decoding ZUERST!
+        // ✅ Schritt 0: Quoted-Printable Decoding ZUERST
         content = decodeQuotedPrintableIfNeeded(content)
+        
+        // ✅ NEU: MIME-Boundaries und Header entfernen
+        content = removeMIMEBoundariesAndHeaders(content)
         
         // Schritt 1: Entferne E-Mail-Header aus Body
         content = removeEmailHeaders(content)
@@ -65,10 +68,10 @@ public class BodyContentProcessor {
         // Schritt 2: Normalisiere Zeilenumbrüche
         content = normalizeLineBreaks(content)
         
-        // ✅ Schritt 3: Decode HTML-Entities für Plain-Text
+        // Schritt 3: Decode HTML-Entities
         content = HTMLEntityDecoder.decodeForPlainText(content)
         
-        // Schritt 4: Normalisiere Sonderzeichen (Legacy)
+        // Schritt 4: Normalisiere Sonderzeichen
         content = normalizeSonderzeichen(content)
         
         // Schritt 5: Entferne übermäßige Leerzeilen
@@ -85,7 +88,7 @@ public class BodyContentProcessor {
     ///   - html: HTML-Content (optional, bereits durch MIME-Parsing verarbeitet)
     ///   - text: Plain-Text-Content (optional, bereits durch MIME-Parsing verarbeitet)
     /// - Returns: Tuple mit finalem Content und isHTML-Flag
-    /// 
+    ///
     /// ✅ PHASE 2: Optimiert für bereits verarbeitete Daten aus bodyEntity
     public static func selectDisplayContent(html: String?, text: String?) -> (content: String, isHTML: Bool) {
         // Debug-Info für Performance-Monitoring
@@ -212,6 +215,54 @@ public class BodyContentProcessor {
     }
     
     // MARK: - Private Helper Methods
+    
+    /// ✅ NEU: Zentrale Methode zum Entfernen von MIME-Artefakten
+    /// Entfernt MIME-Boundaries und technische Header aus bereits dekodiertem Content
+    /// - Parameter content: Der zu bereinigende Content
+    /// - Returns: Content ohne MIME-Boundaries und technische Header
+    private static func removeMIMEBoundariesAndHeaders(_ content: String) -> String {
+        var lines = content.components(separatedBy: .newlines)
+        var cleanedLines: [String] = []
+        var skipMode = false
+        
+        for line in lines {
+            let trimmed = line.trimmingCharacters(in: .whitespaces)
+            
+            // MIME-Boundary erkannt
+            if trimmed.hasPrefix("--") && (
+                trimmed.contains("Apple-Mail") ||
+                trimmed.contains("boundary") ||
+                trimmed.range(of: "^--[A-Za-z0-9_=-]+$", options: .regularExpression) != nil
+            ) {
+                skipMode = true
+                print("🧹 removeMIMEBoundariesAndHeaders: Removing boundary: \(trimmed)")
+                continue
+            }
+            
+            // Technische Header in Body-Section
+            if trimmed.hasPrefix("Content-Type:") ||
+               trimmed.hasPrefix("Content-Transfer-Encoding:") ||
+               trimmed.hasPrefix("Content-Disposition:") ||
+               trimmed.hasPrefix("MIME-Version:") {
+                skipMode = true
+                print("🧹 removeMIMEBoundariesAndHeaders: Removing header: \(trimmed)")
+                continue
+            }
+            
+            // Leere Zeile nach Header-Block beendet Skip-Mode
+            if skipMode && trimmed.isEmpty {
+                skipMode = false
+                continue
+            }
+            
+            // Normale Content-Zeile
+            if !skipMode {
+                cleanedLines.append(line)
+            }
+        }
+        
+        return cleanedLines.joined(separator: "\n")
+    }
     
     /// Entfernt technische E-Mail-Header aus Body-Content
     /// - Parameter content: Der zu bereinigende Content
@@ -366,24 +417,9 @@ public class BodyContentProcessor {
         return false
     }
     
-    /// ✅ PHASE 3: Leichte MIME-Boundary-Filterung für Straggler (MIME-Parser macht das Meiste)
+    /// ✅ PHASE 3: Leichte MIME-Boundary-Filterung für Straggler (nutzt zentrale Methode)
     private static func removeStragglerMIMEBoundaries(_ content: String) -> String {
-        var lines = content.components(separatedBy: .newlines)
-        var cleanedLines: [String] = []
-        
-        for line in lines {
-            let trimmed = line.trimmingCharacters(in: .whitespaces)
-            
-            // Nur offensichtliche Boundaries entfernen, die durchgerutscht sind
-            if isMIMEBoundary(trimmed) {
-                print("🧹 PHASE 3: Removing straggler boundary: \(trimmed)")
-                continue
-            }
-            
-            cleanedLines.append(line)
-        }
-        
-        return cleanedLines.joined(separator: "\n")
+        return removeMIMEBoundariesAndHeaders(content)
     }
     
     /// Entfernt/Normalisiert HTML-Meta-Tags

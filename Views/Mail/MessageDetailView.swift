@@ -1,10 +1,10 @@
 // MessageDetailView.swift - Detailed view for reading email messages
-// OPTIMIERT: Nutzt BodyContentProcessor für initiale Bereinigung + filterTechnicalHeaders für UI-Toggle
+// OPTIMIERT: Nutzt BodyContentProcessor fr initiale Bereinigung + filterTechnicalHeaders fr UI-Toggle
 import SwiftUI
 import WebKit
 
 // MARK: - Message Detail View
-// 🚀 PERFORMANCE FIX: This view now loads pre-processed content directly from storage
+//  PERFORMANCE FIX: This view now loads pre-processed content directly from storage
 // The MailSyncEngine handles all MIME parsing, transfer encoding decoding, and content processing
 // BodyContentProcessor handles final display preparation (Schritt 2)
 // filterTechnicalHeaders provides optional UI toggle for technical details
@@ -66,7 +66,7 @@ struct MessageDetailView: View {
                 // Show refresh action if no content available
                 if bodyText.trimmingCharacters(in: CharacterSet.whitespacesAndNewlines).isEmpty && !isLoadingBody {
                     VStack(spacing: 12) {
-                        Text("Der Mail-Inhalt ist noch nicht verfügbar. Versuchen Sie eine Aktualisierung.")
+                        Text("Der Mail-Inhalt ist noch nicht verfgbar. Versuchen Sie eine Aktualisierung.")
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
                             .multilineTextAlignment(.center)
@@ -128,7 +128,7 @@ struct MessageDetailView: View {
                         )
                     }
                     Button(role: .destructive, action: deleteAction) {
-                        Label("Löschen", systemImage: "trash")
+                        Label("Lschen", systemImage: "trash")
                     }
                 } label: {
                     Image(systemName: "ellipsis.circle")
@@ -273,7 +273,7 @@ struct MessageDetailView: View {
         }
     }
     
-    /// RAW Mail Ansicht für technische Analyse
+    /// RAW Mail Ansicht fr technische Analyse
     @ViewBuilder
     private var rawMailView: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -293,7 +293,7 @@ struct MessageDetailView: View {
             
             // RAW Content
             ScrollView {
-                Text(rawBodyText.isEmpty ? "RAW-Content nicht verfügbar" : rawBodyText)
+                Text(rawBodyText.isEmpty ? "RAW-Content nicht verfgbar" : rawBodyText)
                     .font(.system(.body, design: .monospaced))
                     .foregroundStyle(rawBodyText.isEmpty ? .secondary : .primary)
                     .textSelection(.enabled)
@@ -312,7 +312,7 @@ struct MessageDetailView: View {
             HStack {
                 Image(systemName: "paperclip")
                     .foregroundStyle(.secondary)
-                Text("Anhänge")
+                Text("Anhnge")
                     .font(.headline)
                     .fontWeight(.medium)
             }
@@ -336,40 +336,63 @@ struct MessageDetailView: View {
         
         Task {
             do {
-                // 🚀 FIRST: Try to load cached mail body from local storage
-                print("📱 Loading cached mail body immediately...")
+                //  FIRST: Try to load cached mail body from local storage
+                print(" Loading cached mail body immediately...")
                 var bodyLoaded = false
                 
-                // ✅ PHASE 2: Optimiertes Caching - direkt bodyEntity nutzen
+                //  PHASE 2: Optimiertes Caching - direkt bodyEntity nutzen
                 if let dao = MailRepository.shared.dao,
                    let bodyEntity = try? dao.bodyEntity(accountId: mail.accountId, folder: mail.folder, uid: mail.uid) {
                     
-                    // Prüfe ob verarbeitete Daten vorhanden sind
+                    //  DEBUG: Prfe RAW-Daten
+                    print(" DEBUG - bodyEntity.html length: \(bodyEntity.html?.count ?? 0)")
+                    print(" DEBUG - bodyEntity.text length: \(bodyEntity.text?.count ?? 0)")
+                    print(" DEBUG - bodyEntity.rawBody length: \(bodyEntity.rawBody?.count ?? 0)")
+                    
+                    if let html = bodyEntity.html, !html.isEmpty {
+                        print(" DEBUG - HTML Preview: \(String(html.prefix(200)))")
+                    }
+                    
+                    // Prfe ob verarbeitete Daten vorhanden sind
                     if (bodyEntity.html != nil && !bodyEntity.html!.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty) ||
                        (bodyEntity.text != nil && !bodyEntity.text!.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty) {
                         
-                        // ✅ Direkte Nutzung der verarbeiteten Daten - minimale weitere Bereinigung
+                        //  Direkte Nutzung der verarbeiteten Daten - minimale weitere Bereinigung
                         let displayContent = BodyContentProcessor.selectDisplayContent(html: bodyEntity.html, text: bodyEntity.text)
                         
+                        print(" DEBUG - Final displayContent length: \(displayContent.content.count)")
+                        print(" DEBUG - Final Preview: \(String(displayContent.content.prefix(200)))")
+                        
+                        //  SICHERHEIT: Falls MIME-Boundaries noch vorhanden, nochmal filtern
+                        var finalContent = displayContent.content
+                        if finalContent.contains("--Apple-Mail") ||
+                           finalContent.contains("Content-Transfer-Encoding:") ||
+                           finalContent.contains("Content-Type:") {
+                            print(" WARNING: MIME artifacts detected in final content, re-cleaning...")
+                            finalContent = displayContent.isHTML ?
+                                BodyContentProcessor.cleanHTMLForDisplay(finalContent) :
+                                BodyContentProcessor.cleanPlainTextForDisplay(finalContent)
+                        }
+                        
                         await MainActor.run {
-                            bodyText = displayContent.content
+                            bodyText = finalContent
                             isHTML = displayContent.isHTML
                             isLoadingBody = false
-                            rawBodyText = bodyEntity.rawBody ?? "RAW-Content nicht verfügbar"
+                            rawBodyText = bodyEntity.rawBody ?? "RAW-Content nicht verfgbar"
                         }
-                        print("✅ PHASE 2: Optimized cache hit - direct bodyEntity usage")
-                        print("📊 Content stats: text=\(bodyEntity.text?.count ?? 0), html=\(bodyEntity.html?.count ?? 0), final=\(displayContent.content.count)")
+                        print(" PHASE 2: Optimized cache hit - direct bodyEntity usage")
+                        print(" Content stats: text=\(bodyEntity.text?.count ?? 0), html=\(bodyEntity.html?.count ?? 0), final=\(finalContent.count)")
                         
                         bodyLoaded = true
                     }
                 }
                 
-                // 🔄 PHASE 2: Legacy-Fallback nur für alte Daten ohne bodyEntity
+                //  PHASE 2: Legacy-Fallback nur fr alte Daten ohne bodyEntity
                 if !bodyLoaded {
-                    print("⚠️ PHASE 2: No bodyEntity found - trying legacy getBody() method...")
+                    print(" PHASE 2: No bodyEntity found - trying legacy getBody() method...")
                     if let text = try MailRepository.shared.getBody(accountId: mail.accountId, folder: mail.folder, uid: mail.uid) {
                         if !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                            // ⚠️ Legacy-Verarbeitung für alte Cache-Einträge
+                            //  Legacy-Verarbeitung fr alte Cache-Eintrge
                             let mime = MIMEParser().parse(rawBodyBytes: nil, rawBodyString: text, contentType: nil, charset: nil)
                             let displayContent = BodyContentProcessor.selectDisplayContent(html: mime.html, text: mime.text)
                             
@@ -379,36 +402,36 @@ struct MessageDetailView: View {
                                 isLoadingBody = false
                                 rawBodyText = text  // RAW = unverarbeiteter Text
                             }
-                            print("⚠️ PHASE 2: Legacy fallback used - consider cache refresh")
+                            print(" PHASE 2: Legacy fallback used - consider cache refresh")
                             
                             bodyLoaded = true
                         }
                     }
                 }
                 
-                // 🚫 No content available - trigger EXPLICIT body fetch for this specific mail
+                //  No content available - trigger EXPLICIT body fetch for this specific mail
                 if !bodyLoaded {
                     await MainActor.run {
                         bodyText = "Inhalt wird vom Server geladen..."
                         isHTML = false
                         isLoadingBody = true
                     }
-                    print("⚠️ No mail body content available in cache or storage")
+                    print(" No mail body content available in cache or storage")
                     
-                    // 🔄 Trigger FULL sync to fetch missing body for this specific message
+                    //  Trigger FULL sync to fetch missing body for this specific message
                 }
                 
-                // 🚫 No content available - trigger EXPLICIT body fetch for this specific mail
+                //  No content available - trigger EXPLICIT body fetch for this specific mail
                 if !bodyLoaded {
                     await MainActor.run {
                         bodyText = "Inhalt wird vom Server geladen..."
                         isHTML = false
                         isLoadingBody = true
                     }
-                    print("⚠️ No mail body content available in cache or storage")
+                    print(" No mail body content available in cache or storage")
                     
-                    // 🔄 Trigger FULL sync to fetch missing body for this specific message
-                    print("🔄 Triggering full sync to fetch missing body for UID: \(mail.uid)")
+                    //  Trigger FULL sync to fetch missing body for this specific message
+                    print(" Triggering full sync to fetch missing body for UID: \(mail.uid)")
                     MailRepository.shared.sync(accountId: mail.accountId, folders: [mail.folder])
                     
                     // Wait for sync completion with monitoring
@@ -435,7 +458,7 @@ struct MessageDetailView: View {
     
     /// Load mail body after full sync
     private func loadMailBodyAfterSync() async {
-        print("📧 Attempting to load body after full sync...")
+        print(" Attempting to load body after full sync...")
         
         do {
             var bodyLoaded = false
@@ -444,29 +467,43 @@ struct MessageDetailView: View {
             if let dao = MailRepository.shared.dao,
                let bodyEntity = try? dao.bodyEntity(accountId: mail.accountId, folder: mail.folder, uid: mail.uid) {
                 
-                // Prüfe ob verarbeitete Daten verfügbar sind
+                print(" DEBUG Post-sync - bodyEntity.html length: \(bodyEntity.html?.count ?? 0)")
+                print(" DEBUG Post-sync - bodyEntity.text length: \(bodyEntity.text?.count ?? 0)")
+                
+                // Prfe ob verarbeitete Daten verfgbar sind
                 if (bodyEntity.html != nil && !bodyEntity.html!.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty) ||
                    (bodyEntity.text != nil && !bodyEntity.text!.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty) {
                     
                     let displayContent = BodyContentProcessor.selectDisplayContent(html: bodyEntity.html, text: bodyEntity.text)
                     
+                    //  SICHERHEIT: Falls MIME-Boundaries noch vorhanden, nochmal filtern
+                    var finalContent = displayContent.content
+                    if finalContent.contains("--Apple-Mail") ||
+                       finalContent.contains("Content-Transfer-Encoding:") ||
+                       finalContent.contains("Content-Type:") {
+                        print(" WARNING Post-sync: MIME artifacts detected, re-cleaning...")
+                        finalContent = displayContent.isHTML ?
+                            BodyContentProcessor.cleanHTMLForDisplay(finalContent) :
+                            BodyContentProcessor.cleanPlainTextForDisplay(finalContent)
+                    }
+                    
                     await MainActor.run {
-                        bodyText = displayContent.content
+                        bodyText = finalContent
                         isHTML = displayContent.isHTML
                         isLoadingBody = false
-                        rawBodyText = bodyEntity.rawBody ?? "RAW-Content nicht verfügbar"
+                        rawBodyText = bodyEntity.rawBody ?? "RAW-Content nicht verfgbar"
                     }
-                    print("✅ PHASE 2: Post-sync optimized load - bodyEntity direct usage")
+                    print(" PHASE 2: Post-sync optimized load - bodyEntity direct usage")
                     
                     bodyLoaded = true
                 }
             }
             
-            // Legacy fallback nur wenn bodyEntity nicht verfügbar
+            // Legacy fallback nur wenn bodyEntity nicht verfgbar
             if !bodyLoaded {
                 if let rawText = try MailRepository.shared.getBody(accountId: mail.accountId, folder: mail.folder, uid: mail.uid) {
                     if !rawText.trimmingCharacters(in: CharacterSet.whitespacesAndNewlines).isEmpty {
-                        // ⚠️ Legacy-Verarbeitung für alte Cache-Einträge ohne bodyEntity
+                        //  Legacy-Verarbeitung fr alte Cache-Eintrge ohne bodyEntity
                         let mime = MIMEParser().parse(rawBodyBytes: nil, rawBodyString: rawText, contentType: nil, charset: nil)
                         let displayContent = BodyContentProcessor.selectDisplayContent(html: mime.html, text: mime.text)
                         
@@ -476,7 +513,7 @@ struct MessageDetailView: View {
                             isLoadingBody = false
                             rawBodyText = rawText  // RAW = unverarbeiteter Text
                         }
-                        print("⚠️ PHASE 2: Post-sync legacy processing used")
+                        print(" PHASE 2: Post-sync legacy processing used")
                         
                         bodyLoaded = true
                     }
@@ -489,7 +526,7 @@ struct MessageDetailView: View {
                     isHTML = false
                     isLoadingBody = false
                 }
-                print("⚠️ Body still not available after full sync")
+                print(" Body still not available after full sync")
             }
             
         } catch {
@@ -505,7 +542,7 @@ struct MessageDetailView: View {
     
     /// Refresh body content by triggering sync and reloading
     private func refreshBodyContent() {
-        print("🔄 User requested body content refresh")
+        print(" User requested body content refresh")
         
         // Start loading state
         isLoadingBody = true
@@ -514,7 +551,7 @@ struct MessageDetailView: View {
         
         Task {
             // Trigger FULL sync to fetch missing body
-            print("🔄 Triggering FULL sync for missing body content...")
+            print(" Triggering FULL sync for missing body content...")
             MailRepository.shared.sync(accountId: mail.accountId, folders: [mail.folder])
             
             // Monitor sync state instead of fixed wait time
@@ -535,19 +572,19 @@ struct MessageDetailView: View {
             do {
                 if let text = try MailRepository.shared.getBody(accountId: mail.accountId, folder: mail.folder, uid: mail.uid) {
                     if !text.trimmingCharacters(in: CharacterSet.whitespacesAndNewlines).isEmpty {
-                        print("✅ Body content became available during sync wait")
+                        print(" Body content became available during sync wait")
                         return
                     }
                 }
             } catch {
-                print("⚠️ Error checking body during sync wait: \(error)")
+                print(" Error checking body during sync wait: \(error)")
             }
             
             // Wait 0.5 seconds before checking again
             try? await Task.sleep(nanoseconds: 500_000_000)
         }
         
-        print("⏱️ Sync wait completed after \(Date().timeIntervalSince(startTime))s")
+        print(" Sync wait completed after \(Date().timeIntervalSince(startTime))s")
     }
     
     private func loadAttachments() async {
@@ -596,27 +633,27 @@ struct MessageDetailView: View {
     
     private func replyAction() {
         // TODO: Implement reply functionality
-        print("🔄 Reply to mail: \(mail.subject)")
+        print(" Reply to mail: \(mail.subject)")
     }
     
     private func forwardAction() {
         // TODO: Implement forward functionality
-        print("➡️ Forward mail: \(mail.subject)")
+        print(" Forward mail: \(mail.subject)")
     }
     
     private func toggleFlagAction() {
         onToggleFlag?(mail)
-        print("🏴 Toggle flag for mail: \(mail.subject)")
+        print(" Toggle flag for mail: \(mail.subject)")
     }
     
     private func toggleReadAction() {
         onToggleRead?(mail)
-        print("📧 Toggle read status for mail: \(mail.subject)")
+        print(" Toggle read status for mail: \(mail.subject)")
     }
     
     private func deleteAction() {
         onDelete?(mail)
-        print("🗑️ Delete mail: \(mail.subject)")
+        print(" Delete mail: \(mail.subject)")
         dismiss()
     }
     
@@ -666,7 +703,7 @@ private struct MailHTMLWebView: UIViewRepresentable {
     
     func updateUIView(_ webView: WKWebView, context: Context) {
         // Der HTML-Content ist bereits durch BodyContentProcessor bereinigt
-        // Minimales Styling für optimale Darstellung
+        // Minimales Styling fr optimale Darstellung
         let styledHTML = """
         <!DOCTYPE html>
         <html>
