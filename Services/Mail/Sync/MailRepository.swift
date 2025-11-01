@@ -101,32 +101,43 @@ public final class MailRepository: ObservableObject {
     public func getAllConfiguredFolders(accountId: UUID) -> [String] {
         print("📁 getAllConfiguredFolders for account: \(accountId)")
         
-        // Standardordner: INBOX ist immer dabei
-        var folders: [String] = ["INBOX"]
-        
-        // SpecialFolders aus DAO hinzufügen (falls vorhanden)
-        if let dao = dao, 
-           let specialFolders = try? dao.specialFolders(accountId: accountId) {
-            print("📁 Found special folders from DAO: \(specialFolders)")
-            
-            // Füge alle nicht-leeren Special Folders hinzu
-            for (_, folderName) in specialFolders {
-                if !folderName.isEmpty && !folders.contains(folderName) {
-                    folders.append(folderName)
-                }
-            }
-        } else {
-            print("📁 No special folders found in DAO, using defaults")
-            // Fallback: Standard-Ordner hinzufügen
-            let defaultFolders = ["INBOX", "Sent", "Drafts", "Trash"]
-            for folder in defaultFolders {
-                if !folders.contains(folder) {
-                    folders.append(folder)
-                }
-            }
+        let key = "mail.accounts"
+        guard let data = UserDefaults.standard.data(forKey: key),
+              let list = try? JSONDecoder().decode([MailAccountConfig].self, from: data),
+              let account = list.first(where: { $0.id == accountId }) else {
+            print("❌ Account not found, returning INBOX only")
+            return ["INBOX"]
         }
         
-        print("📁 Configured folders: \(folders)")
+        var folders: [String] = []
+        
+        // WICHTIG: Trim alle Ordnernamen!
+        let inbox = account.folders.inbox.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !inbox.isEmpty {
+            folders.append(inbox)
+        }
+        
+        let sent = account.folders.sent.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !sent.isEmpty && !folders.contains(sent) {
+            folders.append(sent)
+        }
+        
+        let drafts = account.folders.drafts.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !drafts.isEmpty && !folders.contains(drafts) {
+            folders.append(drafts)
+        }
+        
+        let trash = account.folders.trash.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !trash.isEmpty && !folders.contains(trash) {
+            folders.append(trash)
+        }
+        
+        let spam = account.folders.spam.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !spam.isEmpty && !folders.contains(spam) {
+            folders.append(spam)
+        }
+        
+        print("📁 Configured folders from account (trimmed): \(folders)")
         return folders
     }
 

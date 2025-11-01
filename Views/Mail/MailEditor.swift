@@ -320,11 +320,13 @@ struct MailEditor: View {
                 enableLogging: connectionLogging,
                 checkIntervalMin: intervalActive ? safeCheckInterval : nil,
                 checkIntervalEnabled: intervalActive,
-                folders: .init(inbox: folderInbox.isEmpty ? "INBOX" : folderInbox,
-                               sent: folderSent,
-                               drafts: folderDrafts,
-                               trash: folderTrash,
-                               spam: folderSpam)
+                folders: .init(
+                    inbox: folderInbox.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? "INBOX" : folderInbox.trimmingCharacters(in: .whitespacesAndNewlines),
+                    sent: folderSent.trimmingCharacters(in: .whitespacesAndNewlines),
+                    drafts: folderDrafts.trimmingCharacters(in: .whitespacesAndNewlines),
+                    trash: folderTrash.trimmingCharacters(in: .whitespacesAndNewlines),
+                    spam: folderSpam.trimmingCharacters(in: .whitespacesAndNewlines)
+                )
             )
 
             print("🔧 DEBUG: MailAccountConfig created successfully")
@@ -523,19 +525,27 @@ struct MailEditor: View {
         switch result {
         case .success(let map):
             await MainActor.run {
-                folderInbox  = map.inbox
-                folderSent   = map.sent
-                folderDrafts = map.drafts
-                folderTrash  = map.trash
-                folderSpam   = map.spam
+                // Trim alle Folder-Namen nach Discovery
+                folderInbox  = map.inbox.trimmingCharacters(in: .whitespacesAndNewlines)
+                folderSent   = map.sent.trimmingCharacters(in: .whitespacesAndNewlines)
+                folderDrafts = map.drafts.trimmingCharacters(in: .whitespacesAndNewlines)
+                folderTrash  = map.trash.trimmingCharacters(in: .whitespacesAndNewlines)
+                folderSpam   = map.spam.trimmingCharacters(in: .whitespacesAndNewlines)
+                
+                print("✅ Discovered folders (trimmed):")
+                print("  - Inbox: '\(folderInbox)'")
+                print("  - Sent: '\(folderSent)'")
+                print("  - Drafts: '\(folderDrafts)'")
+                print("  - Trash: '\(folderTrash)'")
+                print("  - Spam: '\(folderSpam)'")
                 
                 // More informative feedback for the user
                 let details = [
-                    "INBOX: \(map.inbox)",
-                    "Sent: \(map.sent)",
-                    "Drafts: \(map.drafts)",
-                    "Trash: \(map.trash)",
-                    "Spam: \(map.spam)"
+                    "INBOX: \(folderInbox)",
+                    "Sent: \(folderSent)",
+                    "Drafts: \(folderDrafts)",
+                    "Trash: \(folderTrash)",
+                    "Spam: \(folderSpam)"
                 ].joined(separator: "\n")
                 testMessage = String(localized: "mail.editor.fetch.success") + "\n" + details
                 
@@ -550,22 +560,22 @@ struct MailEditor: View {
                 if let idx = list.firstIndex(where: { $0.id == id }) {
                     var cfg = list[idx]
                     cfg.folders = .init(
-                        inbox: map.inbox,
-                        sent: map.sent,
-                        drafts: map.drafts,
-                        trash: map.trash,
-                        spam: map.spam
+                        inbox: map.inbox.trimmingCharacters(in: .whitespacesAndNewlines),
+                        sent: map.sent.trimmingCharacters(in: .whitespacesAndNewlines),
+                        drafts: map.drafts.trimmingCharacters(in: .whitespacesAndNewlines),
+                        trash: map.trash.trimmingCharacters(in: .whitespacesAndNewlines),
+                        spam: map.spam.trimmingCharacters(in: .whitespacesAndNewlines)
                     )
                     list[idx] = cfg
                     MailStorageEditorHelper.save(list)
                     
                     // Keep DAO replica in sync - convert FolderMap to Dictionary
                     let daoMap: [String: String] = [
-                        "inbox": map.inbox,
-                        "sent": map.sent,
-                        "drafts": map.drafts,
-                        "trash": map.trash,
-                        "spam": map.spam
+                        "inbox": map.inbox.trimmingCharacters(in: .whitespacesAndNewlines),
+                        "sent": map.sent.trimmingCharacters(in: .whitespacesAndNewlines),
+                        "drafts": map.drafts.trimmingCharacters(in: .whitespacesAndNewlines),
+                        "trash": map.trash.trimmingCharacters(in: .whitespacesAndNewlines),
+                        "spam": map.spam.trimmingCharacters(in: .whitespacesAndNewlines)
                     ]
                     
                     // Asynchronous DAO operation to avoid blocking UI  

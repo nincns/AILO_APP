@@ -261,12 +261,14 @@ public struct IMAPParsers {
         // Name: prefer last quoted segment
         let name: String = {
             if let lastQuoted = trimmed.split(separator: "\"", omittingEmptySubsequences: false).last {
-                let s = String(lastQuoted)
+                let s = String(lastQuoted).trimmingCharacters(in: .whitespacesAndNewlines)
                 if !s.isEmpty { return s }
             }
             // Fallback: last whitespace token
-            return trimmed.split(whereSeparator: \.isWhitespace).last.map(String.init) ?? ""
+            let fallback = trimmed.split(whereSeparator: \.isWhitespace).last.map(String.init) ?? ""
+            return fallback.trimmingCharacters(in: .whitespacesAndNewlines)
         }()
+
         return FolderInfo(attributes: attrs, delimiter: delimiter, name: name)
     }
 }

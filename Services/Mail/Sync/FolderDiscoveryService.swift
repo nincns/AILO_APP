@@ -326,13 +326,20 @@ public final class FolderDiscoveryService {
         if lines.count > 2000 { return Array(lines.prefix(2000)) }
         for l in lines where l.hasPrefix("* ") && (l.contains(" LIST ") || l.contains(" XLIST ")) {
             if let lastQuote = l.split(separator: "\"", omittingEmptySubsequences: false).last {
-                let name = String(lastQuote)
-                if !name.isEmpty { result.append(name) }
+                let name = String(lastQuote).trimmingCharacters(in: .whitespacesAndNewlines)
+                if !name.isEmpty { 
+                    result.append(name)
+                    print("📁 Extracted folder name: '\(name)'")
+                }
                 continue
             }
             // Fallback: last whitespace token
             if let last = l.split(whereSeparator: \.isWhitespace).last {
-                result.append(String(last))
+                let name = String(last).trimmingCharacters(in: .whitespacesAndNewlines)
+                if !name.isEmpty {
+                    result.append(name)
+                    print("📁 Extracted folder name (fallback): '\(name)'")
+                }
             }
         }
         return Array(Set(result)) // unique
