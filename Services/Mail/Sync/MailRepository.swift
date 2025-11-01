@@ -7,6 +7,7 @@
 import Foundation
 import Combine
 import SwiftUI
+import SQLite3  // ✅ NEU - FÜR sqlite3_step und SQLITE_ROW
 
 // MARK: - FolderMap Extension for DAO Compatibility
 
@@ -754,25 +755,42 @@ public final class MailRepository: ObservableObject {
             return [:]
         }
         
+        // ✅ Cast zu BaseDAO für direkten SQL-Zugriff
+        guard let baseDAO = dao as? BaseDAO else {
+            print("❌ DAO is not a BaseDAO, falling back to slow method")
+            // Fallback zur alten Methode
+            let headers = try dao.headers(accountId: accountId, folder: folder, limit: 1000, offset: 0)
+            var statusMap: [String: Bool] = [:]
+            for header in headers {
+                do {
+                    let attachments = try dao.attachments(accountId: accountId, folder: folder, uid: header.id)
+                    statusMap[header.id] = !attachments.isEmpty
+                } catch {
+                    statusMap[header.id] = false
+                }
+            }
+            return statusMap
+        }
+        
         print("📎 [OPTIMIZED] Loading attachment status for account: \(accountId), folder: \(folder)")
         
-        // ✅ OPTIMIERT: Eine einzige SQL-Query statt Loop!
+        // ✅ OPTIMIERT: Eine einzige SQL-Query!
         let sql = """
             SELECT uid, has_attachments 
             FROM \(MailSchema.tMsgHeader) 
             WHERE account_id = ? AND folder = ?
         """
         
-        let stmt = try dao.prepare(sql)
-        defer { dao.finalize(stmt) }
+        let stmt = try baseDAO.prepare(sql)
+        defer { baseDAO.finalize(stmt) }
         
-        dao.bindUUID(stmt, 1, accountId)
-        dao.bindText(stmt, 2, folder)
+        baseDAO.bindUUID(stmt, 1, accountId)
+        baseDAO.bindText(stmt, 2, folder)
         
         var statusMap: [String: Bool] = [:]
         
         while sqlite3_step(stmt) == SQLITE_ROW {
-            if let uid = dao.columnText(stmt, 0) {
+            if let uid = baseDAO.columnText(stmt, 0) {
                 let hasAttachments = sqlite3_column_int(stmt, 1) != 0
                 statusMap[uid] = hasAttachments
                 
