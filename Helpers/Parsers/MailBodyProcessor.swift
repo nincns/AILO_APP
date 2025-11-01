@@ -183,15 +183,52 @@ public class MailBodyProcessor {
     
     // MARK: - Content-Type/Charset Extraktion
     
+    /// ✅ FIXED: Extrahiert vollständigen Content-Type inkl. boundary Parameter
     private static func extractContentType(_ rawBody: String) -> String? {
         let lines = rawBody.components(separatedBy: .newlines).prefix(50)
+        var contentTypeValue = ""
+        var inContentType = false
+        
         for line in lines {
-            if line.lowercased().hasPrefix("content-type:") {
-                let value = line.dropFirst("content-type:".count).trimmingCharacters(in: .whitespaces)
-                return value.split(separator: ";").first.map(String.init)
+            let trimmed = line.trimmingCharacters(in: .whitespaces)
+            
+            // Start des Content-Type Headers
+            if trimmed.lowercased().hasPrefix("content-type:") {
+                contentTypeValue = line.dropFirst("content-type:".count).trimmingCharacters(in: .whitespaces)
+                inContentType = true
+                
+                // Wenn die Zeile nicht mit ; oder , endet, ist es komplett
+                if !trimmed.hasSuffix(";") && !trimmed.hasSuffix(",") {
+                    break
+                }
+                continue
+            }
+            
+            // Fortsetzung des Content-Type (mehrzeilige Header)
+            if inContentType {
+                // Header-Fortsetzung beginnt mit Whitespace oder Tab
+                if line.hasPrefix(" ") || line.hasPrefix("\t") {
+                    contentTypeValue += " " + trimmed
+                    
+                    // Wenn die Zeile nicht mit ; oder , endet, ist Header komplett
+                    if !trimmed.hasSuffix(";") && !trimmed.hasSuffix(",") {
+                        break
+                    }
+                    continue
+                } else {
+                    // Neuer Header beginnt, Content-Type ist komplett
+                    break
+                }
             }
         }
-        return nil
+        
+        if contentTypeValue.isEmpty {
+            return nil
+        }
+        
+        // ✅ KRITISCH: Gebe VOLLSTÄNDIGEN Content-Type zurück (inkl. boundary Parameter!)
+        print("🔍 [extractContentType] Extracted full Content-Type: \(contentTypeValue)")
+        return contentTypeValue
     }
     
     private static func extractCharset(_ rawBody: String) -> String? {
