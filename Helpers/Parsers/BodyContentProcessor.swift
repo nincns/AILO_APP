@@ -223,19 +223,21 @@ public class BodyContentProcessor {
     private static func removeMIMEBoundariesAndHeaders(_ content: String) -> String {
         var lines = content.components(separatedBy: .newlines)
         var cleanedLines: [String] = []
-        var skipMode = false
+        var inHeaderBlock = false
+        var emptyLinesSinceHeader = 0
         
         for line in lines {
             let trimmed = line.trimmingCharacters(in: .whitespaces)
             
-            // MIME-Boundary erkannt
+            // MIME-Boundary erkannt - überspringe diese Zeile
             if trimmed.hasPrefix("--") && (
                 trimmed.contains("Apple-Mail") ||
                 trimmed.contains("boundary") ||
                 trimmed.range(of: "^--[A-Za-z0-9_=-]+$", options: .regularExpression) != nil
             ) {
-                skipMode = true
                 print("🧹 removeMIMEBoundariesAndHeaders: Removing boundary: \(trimmed)")
+                inHeaderBlock = true
+                emptyLinesSinceHeader = 0
                 continue
             }
             
@@ -243,21 +245,38 @@ public class BodyContentProcessor {
             if trimmed.hasPrefix("Content-Type:") ||
                trimmed.hasPrefix("Content-Transfer-Encoding:") ||
                trimmed.hasPrefix("Content-Disposition:") ||
-               trimmed.hasPrefix("MIME-Version:") {
-                skipMode = true
+               trimmed.hasPrefix("MIME-Version:") ||
+               (trimmed.hasPrefix("charset=") && inHeaderBlock) {
                 print("🧹 removeMIMEBoundariesAndHeaders: Removing header: \(trimmed)")
+                inHeaderBlock = true
+                emptyLinesSinceHeader = 0
                 continue
             }
             
-            // Leere Zeile nach Header-Block beendet Skip-Mode
-            if skipMode && trimmed.isEmpty {
-                skipMode = false
+            // Leere Zeile - könnte Header-Ende sein
+            if trimmed.isEmpty {
+                if inHeaderBlock {
+                    emptyLinesSinceHeader += 1
+                    // Nach 1 Leerzeile endet der Header-Block
+                    if emptyLinesSinceHeader >= 1 {
+                        inHeaderBlock = false
+                        emptyLinesSinceHeader = 0
+                    }
+                    continue
+                } else {
+                    // Normale Leerzeile im Content
+                    cleanedLines.append(line)
+                }
                 continue
             }
             
-            // Normale Content-Zeile
-            if !skipMode {
+            // Nicht-leere Zeile
+            if !inHeaderBlock {
+                // Normale Content-Zeile
                 cleanedLines.append(line)
+            } else {
+                // Noch im Header-Block (z.B. Header-Continuation)
+                emptyLinesSinceHeader = 0
             }
         }
         

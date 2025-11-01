@@ -409,36 +409,40 @@ struct MessageDetailView: View {
                     }
                 }
                 
-                //  No content available - trigger EXPLICIT body fetch for this specific mail
+                // ✅ NEU: On-Demand Body Fetch wenn nicht im Cache
                 if !bodyLoaded {
+                    print("⚠️ No cached body - triggering ON-DEMAND fetch for UID: \(mail.uid)")
+                    
                     await MainActor.run {
                         bodyText = "Inhalt wird vom Server geladen..."
                         isHTML = false
                         isLoadingBody = true
                     }
-                    print(" No mail body content available in cache or storage")
                     
-                    //  Trigger FULL sync to fetch missing body for this specific message
-                }
-                
-                //  No content available - trigger EXPLICIT body fetch for this specific mail
-                if !bodyLoaded {
-                    await MainActor.run {
-                        bodyText = "Inhalt wird vom Server geladen..."
-                        isHTML = false
-                        isLoadingBody = true
+                    // Direkter Body-Fetch statt Full-Sync (schneller!)
+                    do {
+                        try await MailRepository.shared.fetchBodyOnDemand(
+                            accountId: mail.accountId,
+                            folder: mail.folder,
+                            uid: mail.uid
+                        )
+                        
+                        print("✅ On-Demand fetch completed, waiting for DB write...")
+                        
+                        // Warte kurz damit DB-Write abgeschlossen ist
+                        try await Task.sleep(nanoseconds: 300_000_000) // 0.3s
+                        
+                        // Versuche erneut zu laden
+                        await loadMailBodyAfterSync()
+                        
+                    } catch {
+                        print("❌ On-Demand fetch failed: \(error)")
+                        await MainActor.run {
+                            errorMessage = "Fehler beim Laden: \(error.localizedDescription)"
+                            bodyText = ""
+                            isLoadingBody = false
+                        }
                     }
-                    print(" No mail body content available in cache or storage")
-                    
-                    //  Trigger FULL sync to fetch missing body for this specific message
-                    print(" Triggering full sync to fetch missing body for UID: \(mail.uid)")
-                    MailRepository.shared.sync(accountId: mail.accountId, folders: [mail.folder])
-                    
-                    // Wait for sync completion with monitoring
-                    await waitForSyncCompletion()
-                    
-                    // Try loading the body again after full sync
-                    await loadMailBodyAfterSync()
                 }
                 
                 // Load attachments in parallel (doesn't block body display)
@@ -542,7 +546,7 @@ struct MessageDetailView: View {
     
     /// Refresh body content by triggering sync and reloading
     private func refreshBodyContent() {
-        print(" User requested body content refresh")
+        print("🔄 User requested body content refresh")
         
         // Start loading state
         isLoadingBody = true
@@ -550,15 +554,30 @@ struct MessageDetailView: View {
         bodyText = "Inhalt wird vom Server geladen..."
         
         Task {
-            // Trigger FULL sync to fetch missing body
-            print(" Triggering FULL sync for missing body content...")
-            MailRepository.shared.sync(accountId: mail.accountId, folders: [mail.folder])
-            
-            // Monitor sync state instead of fixed wait time
-            await waitForSyncCompletion()
-            
-            // Try loading again after sync completes
-            await loadMailBodyAfterSync()
+            do {
+                // ✅ NEU: Direkter On-Demand Fetch (schneller als Full-Sync)
+                print("🔄 Triggering ON-DEMAND body fetch...")
+                try await MailRepository.shared.fetchBodyOnDemand(
+                    accountId: mail.accountId,
+                    folder: mail.folder,
+                    uid: mail.uid
+                )
+                
+                print("✅ On-Demand fetch completed for refresh")
+                
+                // Warte kurz damit DB-Write abgeschlossen ist
+                try await Task.sleep(nanoseconds: 300_000_000) // 0.3s
+                
+                // Try loading again after fetch completes
+                await loadMailBodyAfterSync()
+                
+            } catch {
+                print("❌ Refresh failed: \(error)")
+                await MainActor.run {
+                    errorMessage = "Fehler beim Aktualisieren: \(error.localizedDescription)"
+                    isLoadingBody = false
+                }
+            }
         }
     }
     
