@@ -301,16 +301,12 @@ import Foundation
     private func filterCustomFolders(_ allFolders: [String], account: MailAccountConfig) -> [String] {
         print("🔍 filterCustomFolders called with \(allFolders.count) folders")
         
-        // Standard-/Special-Folders die ausgeschlossen werden sollen
+        // Set für schnelles Lookup
         var excludedFolders = Set<String>()
         
-        // Immer ausschließen: Standard IMAP-Folder
-        excludedFolders.insert("INBOX")
-        excludedFolders.insert("Inbox")
-        excludedFolders.insert("inbox")
-        
-        // Konfigurierte Special-Folders ausschließen
-        let specialFolders = [
+        // 1. WICHTIG: Konfigurierte Special-Folders aus Account ausschließen
+        //    Diese sind bereits vom Server abgerufen und gespeichert!
+        let configuredSpecialFolders = [
             account.folders.inbox,
             account.folders.sent,
             account.folders.drafts, 
@@ -318,33 +314,46 @@ import Foundation
             account.folders.spam
         ]
         
-        for folder in specialFolders {
+        for folder in configuredSpecialFolders {
             if !folder.isEmpty {
                 excludedFolders.insert(folder)
+                print("🔍 Excluding configured special folder: '\(folder)'")
             }
         }
         
-        // Häufige Standard-Folder-Namen ausschließen (case-insensitive)
-        let commonSpecialFolders = [
-            "Sent", "SENT", "sent", "Sent Items", "Sent Messages",
-            "Drafts", "DRAFTS", "drafts", "Draft",
-            "Trash", "TRASH", "trash", "Deleted Items", "Deleted Messages",
-            "Spam", "SPAM", "spam", "Junk", "JUNK", "junk", "Junk E-mail",
-            "Archive", "ARCHIVE", "archive", "Archives",
-            "Outbox", "OUTBOX", "outbox"
+        // 2. OPTIONAL: Häufige Varianten ausschließen (Fallback für alte Accounts)
+        //    Nur als Sicherheitsnetz für Accounts die noch keine Discovery hatten
+        let commonVariants = [
+            "INBOX", "Inbox", "inbox",
+            "Sent", "Sent Items", "Sent Messages", "Gesendet",
+            "Drafts", "Draft", "Entwürfe", "Entwurf",
+            "Trash", "Deleted Items", "Deleted Messages", "Papierkorb", "Gelöscht",
+            "Spam", "Junk", "Junk E-mail", "Junk Email"
         ]
         
-        for folder in commonSpecialFolders {
+        for variant in commonVariants {
+            excludedFolders.insert(variant)
+        }
+        
+        // 3. Gmail-spezifische Ordner ausschließen
+        let gmailFolders = [
+            "[Gmail]",
+            "[Gmail]/All Mail",
+            "[Gmail]/Starred",
+            "[Gmail]/Important"
+        ]
+        
+        for folder in gmailFolders {
             excludedFolders.insert(folder)
         }
         
-        // Filtern: Nur Ordner die NICHT in excludedFolders sind
+        // 4. Filtern: Nur Ordner die NICHT in excludedFolders sind
         let customFolders = allFolders.filter { folder in
             !excludedFolders.contains(folder)
         }
         
         print("🔍 Filtered to \(customFolders.count) custom folders: \(customFolders)")
-        print("🔍 Excluded \(excludedFolders.count) special folders: \(Array(excludedFolders).sorted())")
+        print("🔍 Excluded \(excludedFolders.count) special folders")
         
         return customFolders.sorted()
     }
