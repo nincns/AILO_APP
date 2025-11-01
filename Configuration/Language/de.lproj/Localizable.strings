@@ -1,4 +1,5 @@
 /* ============================================================================
+   /AILO_APP/Configuration/Language/de.lproj/Localizable.strings
    AILO – Base Localization (Fallback: English)
    Key style: <feature>.<view>.<element>[.<state|action|hint>]
    Notes:
@@ -509,3 +510,21 @@
 
 /* Preview */
 "app.mail.body.preview.placeholder" = "E-Mail-Vorschau erscheint hier…";
+
+/* MessageDetailView - Header fields */
+"app.mail.detail.from" = "Von";
+"app.mail.detail.date" = "Datum";
+"app.mail.detail.attachments" = "Anhänge";
+
+/* RegularSplitView & CompactMessageListView - Empty/Fallback states */
+"app.mail.no_subject" = "(Kein Betreff)";
+"app.mail.from_prefix" = "Von";
+"app.mail.body_placeholder" = "Kein Inhalt verfügbar";
+"app.mail.no_message_selected" = "Keine Nachricht ausgewählt";
+"app.mail.no_message_selected_description" = "Wähle eine Nachricht aus der Liste";
+
+/* CompactMessageListView - Actions */
+"app.mail.read_unread" = "Gelesen/Ungelesen";
+
+/* ComposeMailView */
+"app.mail.compose.from" = "Von";
