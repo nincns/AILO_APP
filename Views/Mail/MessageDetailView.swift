@@ -121,7 +121,17 @@ struct MessageDetailView: View {
                         )
                     }
                     Divider()
-                    Button(action: { showTechnicalHeaders.toggle() }) {
+                    Button(action: {
+                        let oldValue = showTechnicalHeaders
+                        showTechnicalHeaders.toggle()
+                        
+                        // Wechsel von ON (RAW) → OFF (Normal) triggert Re-Processing
+                        if oldValue == true && showTechnicalHeaders == false {
+                            Task {
+                                await reprocessMailBody()
+                            }
+                        }
+                    }) {
                         Label(
                             showTechnicalHeaders ? "Technische Details ausblenden" : "Technische Details anzeigen",
                             systemImage: "info.circle"
@@ -255,54 +265,30 @@ struct MessageDetailView: View {
     private var mailBodySection: some View {
         VStack(alignment: .leading, spacing: 0) {
             if showTechnicalHeaders {
-                // RAW RFC822 Ansicht
-                rawMailView
+                // RAW Ansicht
+                ScrollView {
+                    Text(rawBodyText)
+                        .font(.system(.caption, design: .monospaced))
+                        .textSelection(.enabled)
+                        .padding()
+                }
+                .background(Color.gray.opacity(0.1))
             } else {
-                // Normale Ansicht
+                // Normal Ansicht
                 if isHTML {
+                    // HTML rendern
                     MailHTMLWebView(html: bodyText)
                         .frame(minHeight: 200)
                 } else {
-                    Text(bodyText)
-                        .font(.body)
-                        .lineSpacing(2)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .textSelection(.enabled)
+                    // Plain-Text rendern
+                    ScrollView {
+                        Text(bodyText)
+                            .font(.body)
+                            .textSelection(.enabled)
+                            .padding()
+                    }
                 }
             }
-        }
-    }
-    
-    /// RAW Mail Ansicht fr technische Analyse
-    @ViewBuilder
-    private var rawMailView: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            // Info-Banner
-            HStack(spacing: 8) {
-                Image(systemName: "doc.plaintext")
-                    .foregroundStyle(.blue)
-                Text("RAW RFC822 Format")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                Spacer()
-            }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 8)
-            .background(Color.blue.opacity(0.1))
-            .clipShape(RoundedRectangle(cornerRadius: 8))
-            
-            // RAW Content
-            ScrollView {
-                Text(rawBodyText.isEmpty ? "RAW-Content nicht verfgbar" : rawBodyText)
-                    .font(.system(.body, design: .monospaced))
-                    .foregroundStyle(rawBodyText.isEmpty ? .secondary : .primary)
-                    .textSelection(.enabled)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(12)
-            }
-            .background(Color(UIColor.secondarySystemBackground))
-            .clipShape(RoundedRectangle(cornerRadius: 8))
-            .frame(minHeight: 200)
         }
     }
     
@@ -336,77 +322,85 @@ struct MessageDetailView: View {
         
         Task {
             do {
-                //  FIRST: Try to load cached mail body from local storage
-                print(" Loading cached mail body immediately...")
+                print("🔍 [MessageDetailView] Loading mail body...")
+                print("🔍 DEBUG: mail.accountId = \(mail.accountId)")
+                print("🔍 DEBUG: mail.folder = \(mail.folder)")  
+                print("🔍 DEBUG: mail.uid = \(mail.uid)")
+                print("🔍 DEBUG: MailRepository.shared.dao = \(MailRepository.shared.dao != nil)")
+                
                 var bodyLoaded = false
                 
-                //  PHASE 2: Optimiertes Caching - direkt bodyEntity nutzen
-                if let dao = MailRepository.shared.dao,
-                   let bodyEntity = try? dao.bodyEntity(accountId: mail.accountId, folder: mail.folder, uid: mail.uid) {
-                    
-                    //  DEBUG: Prfe RAW-Daten
-                    print(" DEBUG - bodyEntity.html length: \(bodyEntity.html?.count ?? 0)")
-                    print(" DEBUG - bodyEntity.text length: \(bodyEntity.text?.count ?? 0)")
-                    print(" DEBUG - bodyEntity.rawBody length: \(bodyEntity.rawBody?.count ?? 0)")
-                    
-                    if let html = bodyEntity.html, !html.isEmpty {
-                        print(" DEBUG - HTML Preview: \(String(html.prefix(200)))")
+                // ✅ PHASE 4: RAW-first Loading mit Safety Guards
+                guard let dao = MailRepository.shared.dao else {
+                    print("❌ [MessageDetailView] DAO not available")
+                    await MainActor.run {
+                        errorMessage = "Datenbankzugriff nicht verfügbar"
+                        isLoadingBody = false
                     }
-                    
-                    // Prfe ob verarbeitete Daten vorhanden sind
-                    if (bodyEntity.html != nil && !bodyEntity.html!.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty) ||
-                       (bodyEntity.text != nil && !bodyEntity.text!.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty) {
-                        
-                        //  Direkte Nutzung der verarbeiteten Daten - minimale weitere Bereinigung
-                        let displayContent = BodyContentProcessor.selectDisplayContent(html: bodyEntity.html, text: bodyEntity.text)
-                        
-                        print(" DEBUG - Final displayContent length: \(displayContent.content.count)")
-                        print(" DEBUG - Final Preview: \(String(displayContent.content.prefix(200)))")
-                        
-                        //  SICHERHEIT: Falls MIME-Boundaries noch vorhanden, nochmal filtern
-                        var finalContent = displayContent.content
-                        if finalContent.contains("--Apple-Mail") ||
-                           finalContent.contains("Content-Transfer-Encoding:") ||
-                           finalContent.contains("Content-Type:") {
-                            print(" WARNING: MIME artifacts detected in final content, re-cleaning...")
-                            finalContent = displayContent.isHTML ?
-                                BodyContentProcessor.cleanHTMLForDisplay(finalContent) :
-                                BodyContentProcessor.cleanPlainTextForDisplay(finalContent)
-                        }
-                        
-                        await MainActor.run {
-                            bodyText = finalContent
-                            isHTML = displayContent.isHTML
-                            isLoadingBody = false
-                            rawBodyText = bodyEntity.rawBody ?? "RAW-Content nicht verfgbar"
-                        }
-                        print(" PHASE 2: Optimized cache hit - direct bodyEntity usage")
-                        print(" Content stats: text=\(bodyEntity.text?.count ?? 0), html=\(bodyEntity.html?.count ?? 0), final=\(finalContent.count)")
-                        
-                        bodyLoaded = true
-                    }
+                    return
                 }
                 
-                //  PHASE 2: Legacy-Fallback nur fr alte Daten ohne bodyEntity
-                if !bodyLoaded {
-                    print(" PHASE 2: No bodyEntity found - trying legacy getBody() method...")
-                    if let text = try MailRepository.shared.getBody(accountId: mail.accountId, folder: mail.folder, uid: mail.uid) {
-                        if !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                            //  Legacy-Verarbeitung fr alte Cache-Eintrge
-                            let mime = MIMEParser().parse(rawBodyBytes: nil, rawBodyString: text, contentType: nil, charset: nil)
-                            let displayContent = BodyContentProcessor.selectDisplayContent(html: mime.html, text: mime.text)
+                do {
+                    if let bodyEntity = try dao.bodyEntity(accountId: mail.accountId, folder: mail.folder, uid: mail.uid) {
+                        print("🔍 [MessageDetailView] bodyEntity loaded successfully")
+                        print("   - text: \(bodyEntity.text?.count ?? 0)")
+                        print("   - html: \(bodyEntity.html?.count ?? 0)")
+                        print("   - rawBody: \(bodyEntity.rawBody?.count ?? 0)")
+                        
+                        // ✅ Check: Brauchen wir Processing?
+                        if MailBodyProcessor.needsProcessing(bodyEntity.html) {
+                            print("⚠️ [MessageDetailView] HTML needs processing - triggering decode...")
+                            
+                            // Process rawBody
+                            if let rawBody = bodyEntity.rawBody {
+                                let (text, html) = MailBodyProcessor.processRawBody(rawBody)
+                                
+                                // Update DB
+                                if let writeDAO = MailRepository.shared.writeDAO {
+                                    var updatedEntity = bodyEntity
+                                    updatedEntity.text = text
+                                    updatedEntity.html = html
+                                    updatedEntity.processedAt = Date()
+                                    
+                                    try? writeDAO.storeBody(
+                                        accountId: mail.accountId,
+                                        folder: mail.folder,
+                                        uid: mail.uid,
+                                        body: updatedEntity
+                                    )
+                                    print("✅ [MessageDetailView] DB updated with processed content")
+                                }
+                                
+                                // Display processed
+                                await MainActor.run {
+                                    bodyText = html ?? text ?? ""
+                                    isHTML = html != nil
+                                    rawBodyText = rawBody
+                                    isLoadingBody = false
+                                }
+                                bodyLoaded = true
+                            }
+                        } else {
+                            // ✅ Bereits dekodiert - direkt rendern
+                            print("✅ [MessageDetailView] HTML already processed - rendering directly")
+                            
+                            let displayContent = BodyContentProcessor.selectDisplayContent(
+                                html: bodyEntity.html,
+                                text: bodyEntity.text
+                            )
                             
                             await MainActor.run {
                                 bodyText = displayContent.content
                                 isHTML = displayContent.isHTML
+                                rawBodyText = bodyEntity.rawBody ?? ""
                                 isLoadingBody = false
-                                rawBodyText = text  // RAW = unverarbeiteter Text
                             }
-                            print(" PHASE 2: Legacy fallback used - consider cache refresh")
-                            
                             bodyLoaded = true
                         }
                     }
+                } catch {
+                    print("⚠️ [MessageDetailView] Error loading bodyEntity: \(error)")
+                    // Continue to on-demand fetch
                 }
                 
                 // ✅ NEU: On-Demand Body Fetch wenn nicht im Cache
@@ -449,7 +443,7 @@ struct MessageDetailView: View {
                 await loadAttachments()
                 
             } catch {
-                MailLogger.shared.error(.FETCH, accountId: mail.accountId, "Failed to load mail body: \(error)")
+                print("❌ [MessageDetailView] Failed to load mail body: \(error)")
                 await MainActor.run {
                     errorMessage = error.localizedDescription
                     bodyText = ""
@@ -462,66 +456,76 @@ struct MessageDetailView: View {
     
     /// Load mail body after full sync
     private func loadMailBodyAfterSync() async {
-        print(" Attempting to load body after full sync...")
+        print("🔍 [MessageDetailView] Loading body after sync...")
         
         do {
             var bodyLoaded = false
             
-            // PHASE 2: Nach Sync direkt optimierte bodyEntity-Abfrage
-            if let dao = MailRepository.shared.dao,
-               let bodyEntity = try? dao.bodyEntity(accountId: mail.accountId, folder: mail.folder, uid: mail.uid) {
-                
-                print(" DEBUG Post-sync - bodyEntity.html length: \(bodyEntity.html?.count ?? 0)")
-                print(" DEBUG Post-sync - bodyEntity.text length: \(bodyEntity.text?.count ?? 0)")
-                
-                // Prfe ob verarbeitete Daten verfgbar sind
-                if (bodyEntity.html != nil && !bodyEntity.html!.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty) ||
-                   (bodyEntity.text != nil && !bodyEntity.text!.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty) {
-                    
-                    let displayContent = BodyContentProcessor.selectDisplayContent(html: bodyEntity.html, text: bodyEntity.text)
-                    
-                    //  SICHERHEIT: Falls MIME-Boundaries noch vorhanden, nochmal filtern
-                    var finalContent = displayContent.content
-                    if finalContent.contains("--Apple-Mail") ||
-                       finalContent.contains("Content-Transfer-Encoding:") ||
-                       finalContent.contains("Content-Type:") {
-                        print(" WARNING Post-sync: MIME artifacts detected, re-cleaning...")
-                        finalContent = displayContent.isHTML ?
-                            BodyContentProcessor.cleanHTMLForDisplay(finalContent) :
-                            BodyContentProcessor.cleanPlainTextForDisplay(finalContent)
-                    }
-                    
-                    await MainActor.run {
-                        bodyText = finalContent
-                        isHTML = displayContent.isHTML
-                        isLoadingBody = false
-                        rawBodyText = bodyEntity.rawBody ?? "RAW-Content nicht verfgbar"
-                    }
-                    print(" PHASE 2: Post-sync optimized load - bodyEntity direct usage")
-                    
-                    bodyLoaded = true
+            // ✅ PHASE 4: RAW direkt laden und anzeigen mit Safety Guards
+            guard let dao = MailRepository.shared.dao else {
+                print("❌ [MessageDetailView] DAO not available after sync")
+                await MainActor.run {
+                    errorMessage = "Datenbankzugriff nicht verfügbar"
+                    isLoadingBody = false
                 }
+                return
             }
             
-            // Legacy fallback nur wenn bodyEntity nicht verfgbar
-            if !bodyLoaded {
-                if let rawText = try MailRepository.shared.getBody(accountId: mail.accountId, folder: mail.folder, uid: mail.uid) {
-                    if !rawText.trimmingCharacters(in: CharacterSet.whitespacesAndNewlines).isEmpty {
-                        //  Legacy-Verarbeitung fr alte Cache-Eintrge ohne bodyEntity
-                        let mime = MIMEParser().parse(rawBodyBytes: nil, rawBodyString: rawText, contentType: nil, charset: nil)
-                        let displayContent = BodyContentProcessor.selectDisplayContent(html: mime.html, text: mime.text)
+            do {
+                if let bodyEntity = try dao.bodyEntity(accountId: mail.accountId, folder: mail.folder, uid: mail.uid) {
+                    // ✅ Check: Brauchen wir Processing?
+                    if MailBodyProcessor.needsProcessing(bodyEntity.html) {
+                        print("⚠️ [MessageDetailView] Post-sync HTML needs processing...")
+                        
+                        // Process rawBody
+                        if let rawBody = bodyEntity.rawBody {
+                            let (text, html) = MailBodyProcessor.processRawBody(rawBody)
+                            
+                            // Update DB
+                            if let writeDAO = MailRepository.shared.writeDAO {
+                                var updatedEntity = bodyEntity
+                                updatedEntity.text = text
+                                updatedEntity.html = html
+                                updatedEntity.processedAt = Date()
+                                
+                                try? writeDAO.storeBody(
+                                    accountId: mail.accountId,
+                                    folder: mail.folder,
+                                    uid: mail.uid,
+                                    body: updatedEntity
+                                )
+                                print("✅ [MessageDetailView] Post-sync DB updated with processed content")
+                            }
+                            
+                            await MainActor.run {
+                                bodyText = html ?? text ?? ""
+                                isHTML = html != nil
+                                rawBodyText = rawBody
+                                isLoadingBody = false
+                            }
+                            print("✅ [MessageDetailView] Post-sync processed content loaded")
+                            bodyLoaded = true
+                        }
+                    } else {
+                        // ✅ Bereits dekodiert - direkt rendern
+                        print("✅ [MessageDetailView] Post-sync HTML already processed - rendering directly")
+                        
+                        let displayContent = BodyContentProcessor.selectDisplayContent(
+                            html: bodyEntity.html,
+                            text: bodyEntity.text
+                        )
                         
                         await MainActor.run {
                             bodyText = displayContent.content
                             isHTML = displayContent.isHTML
+                            rawBodyText = bodyEntity.rawBody ?? ""
                             isLoadingBody = false
-                            rawBodyText = rawText  // RAW = unverarbeiteter Text
                         }
-                        print(" PHASE 2: Post-sync legacy processing used")
-                        
                         bodyLoaded = true
                     }
                 }
+            } catch {
+                print("⚠️ [MessageDetailView] Error loading bodyEntity after sync: \(error)")
             }
             
             if !bodyLoaded {
@@ -530,11 +534,11 @@ struct MessageDetailView: View {
                     isHTML = false
                     isLoadingBody = false
                 }
-                print(" Body still not available after full sync")
+                print("⚠️ [MessageDetailView] Body still not available after sync")
             }
             
         } catch {
-            MailLogger.shared.error(.FETCH, accountId: mail.accountId, "Failed to load body after full sync: \(error)")
+            print("❌ [MessageDetailView] Failed to load body after sync: \(error)")
             await MainActor.run {
                 errorMessage = "Fehler beim Laden des Inhalts: \(error.localizedDescription)"
                 bodyText = ""
@@ -674,6 +678,43 @@ struct MessageDetailView: View {
         onDelete?(mail)
         print(" Delete mail: \(mail.subject)")
         dismiss()
+    }
+    
+    /// Re-processes mail body when toggling from RAW to Normal view
+    private func reprocessMailBody() async {
+        print("🔄 [MessageDetailView] Re-processing mail body (toggle trigger)...")
+        
+        guard let dao = MailRepository.shared.dao,
+              let bodyEntity = try? dao.bodyEntity(accountId: mail.accountId, folder: mail.folder, uid: mail.uid),
+              let rawBody = bodyEntity.rawBody else {
+            print("❌ [MessageDetailView] No rawBody available for re-processing")
+            return
+        }
+        
+        // Process
+        let (text, html) = MailBodyProcessor.processRawBody(rawBody)
+        
+        // Update DB (drop old html)
+        if let writeDAO = MailRepository.shared.writeDAO {
+            var updatedEntity = bodyEntity
+            updatedEntity.text = text
+            updatedEntity.html = html
+            updatedEntity.processedAt = Date()
+            
+            try? writeDAO.storeBody(
+                accountId: mail.accountId,
+                folder: mail.folder,
+                uid: mail.uid,
+                body: updatedEntity
+            )
+            print("✅ [MessageDetailView] Re-processed and updated DB")
+        }
+        
+        // Update UI
+        await MainActor.run {
+            bodyText = html ?? text ?? ""
+            isHTML = html != nil
+        }
     }
     
     // MARK: - Helper Functions

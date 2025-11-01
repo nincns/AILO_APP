@@ -370,41 +370,29 @@ final class MailSendReceive {
             // Parse body (best-effort text/html split)
             let raw = IMAPParsers().parseBodySection(lines) ?? ""
             
-            // ✨ CRITICAL FIX: Separate headers from body BEFORE parsing
-            // RFC822 format: Headers, then blank line, then body
-            let (extractedHeaders, bodyOnly) = separateHeadersFromBody(raw)
-            print("📧 Extracted \(extractedHeaders.count) header lines, body: \(bodyOnly.prefix(200))...")
-            
-            // ✅ PHASE 3: Einmaliges MIME-Parsing - speichere RAW-Daten
-            print("🔍 PHASE 3: Starting MIME parsing for UID: \(uid)")
+            // ✅ PHASE 4: RAW-first Storage - vereinfacht
+            print("🔍 PHASE 4: RAW-first storage for UID: \(uid)")
             print("🔍 [MailTransportStubs] Raw body length: \(raw.count)")
-            print("🔍 [MailTransportStubs] Raw body preview: \(String(raw.prefix(300)))")
-            let mime = MIMEParser().parse(rawBodyBytes: nil, rawBodyString: bodyOnly, contentType: nil, charset: nil)
-            print("🔍 PHASE 3: MIME parsing complete - text: \(mime.text?.count ?? 0), html: \(mime.html?.count ?? 0)")
             
-            // ✅ Store RAW parsed content (NO cleaning here - that's for display only)
-            let finalText = mime.text  // RAW from MIME parser
-            let finalHTML = mime.html  // RAW from MIME parser
-            
-            // ✅ Speichere sowohl RAW als auch verarbeitete Daten
+            // ✅ RAW direkt speichern ohne MIME-Processing
             if let writeDAO = MailRepository.shared.writeDAO {
                 let entity = MessageBodyEntity(
                     accountId: account.id,
                     folder: folder,
                     uid: uid,
-                    text: finalText,             // ✅ Verarbeiteter Text
-                    html: finalHTML,             // ✅ Verarbeitetes HTML  
-                    hasAttachments: bodyOnly.contains("Content-Disposition: attachment"),
-                    rawBody: bodyOnly,           // ✅ RAW RFC822 body für technische Ansicht
-                    contentType: finalHTML != nil ? "text/html" : "text/plain",
-                    charset: "utf-8",
+                    text: nil,              // ← Leer lassen (später Processing)
+                    html: nil,              // ← Leer lassen (später Processing)
+                    hasAttachments: false,  // ← Später aus rawBody erkennen
+                    rawBody: raw,           // ← NUR RAW speichern
+                    contentType: nil,       // ← Später extrahieren
+                    charset: nil,           // ← Später extrahieren
                     transferEncoding: nil,
-                    isMultipart: bodyOnly.contains("boundary="),
-                    rawSize: bodyOnly.count,
-                    processedAt: Date()
+                    isMultipart: false,     // ← Später aus rawBody erkennen
+                    rawSize: raw.count,
+                    processedAt: nil        // ← NIL = nicht verarbeitet
                 )
                 try? writeDAO.storeBody(accountId: account.id, folder: folder, uid: uid, body: entity)
-                print("✅ Stored processed body + rawBody for UID: \(uid)")
+                print("✅ [MailTransportStubs] Stored RAW body (\(raw.count) bytes)")
             }
 
             // Build header from cache or placeholder
@@ -416,13 +404,13 @@ final class MailSendReceive {
                 from = head.from; subj = head.subject; date = head.date ?? Date()
             }
             
-            // ✅ Rückgabe der verarbeiteten Daten (für API-Consumer)
+            // ✅ PHASE 4: Return mit RAW statt processed
             let header = MailHeader(id: uid, from: from, subject: subj, date: date, unread: false)
             return .success(FullMessage(
                 header: header, 
-                textBody: finalText, 
-                htmlBody: finalHTML,
-                rawBody: bodyOnly  // ✅ RAW body für technische Ansicht
+                textBody: raw,      // ← RAW als textBody
+                htmlBody: nil,      // ← Kein HTML Processing
+                rawBody: raw        // ← RAW body für technische Ansicht
             ))
         } catch {
             return .failure(error)

@@ -184,15 +184,17 @@ public class MailReadDAOImpl: BaseDAO, MailReadDAO {
                 let rawSize = stmt.columnIsNull(8) ? nil : stmt.columnInt(8)
                 let processedAt = stmt.columnDate(9)
                 
-                // 🔍 DEBUG: Check raw_body content
-                print("🔍 [MailReadDAO.DEBUG] bodyEntity loaded:")
+                // ✅ PHASE 2: RAW-first Loading - Debug Info
+                print("✅ [MailReadDAO] bodyEntity loaded (RAW-first):")
                 print("   - UID: \(uid)")
                 print("   - text length: \(text?.count ?? 0)")
                 print("   - html length: \(html?.count ?? 0)")
                 print("   - rawBody length: \(rawBody?.count ?? 0)")
-                print("   - rawBody preview: \(rawBody?.prefix(200) ?? "nil")")
-                print("   - contentType: \(contentType ?? "nil")")
-                print("   - charset: \(charset ?? "nil")")
+                print("   - rawBody available: \(rawBody != nil)")
+                print("   - processedAt: \(processedAt?.description ?? "nil")")
+                if let rawBody = rawBody {
+                    print("   - rawBody preview: \(String(rawBody.prefix(200)))")
+                }
                 
                 return MessageBodyEntity(
                     accountId: accountId,

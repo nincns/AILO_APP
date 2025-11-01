@@ -22,6 +22,9 @@
 		C947E90C2EB41367007634FC /* AccountDAO.swift in Sources */ = {isa = PBXBuildFile; fileRef = C947E90B2EB41367007634FC /* AccountDAO.swift */; };
 		C947E90E2EB414A6007634FC /* DAOFactory.swift in Sources */ = {isa = PBXBuildFile; fileRef = C947E90D2EB414A6007634FC /* DAOFactory.swift */; };
 		C947E9122EB414F3007634FC /* MigrationGuide.swift in Sources */ = {isa = PBXBuildFile; fileRef = C947E9112EB414F3007634FC /* MigrationGuide.swift */; };
+		C9492FE42EB6133000F2EE4B /* PHASE4_CRASH_FIX.md in Resources */ = {isa = PBXBuildFile; fileRef = C9492FE32EB6133000F2EE4B /* PHASE4_CRASH_FIX.md */; };
+		C9492FE62EB6137400F2EE4B /* PHASE4_COMPLETED.md in Resources */ = {isa = PBXBuildFile; fileRef = C9492FE52EB6137400F2EE4B /* PHASE4_COMPLETED.md */; };
+		C9492FE82EB617DC00F2EE4B /* HelpersParsersMailBodyProcessor.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9492FE72EB617DC00F2EE4B /* HelpersParsersMailBodyProcessor.swift */; };
 		C949C3E52EB3F36200CB9D27 /* MailSyncEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = C949C3E42EB3F36200CB9D27 /* MailSyncEngine.swift */; };
 		C949C3E72EB3F52B00CB9D27 /* StructuredMailStorage.swift in Sources */ = {isa = PBXBuildFile; fileRef = C949C3E62EB3F52B00CB9D27 /* StructuredMailStorage.swift */; };
 		C96E33A92EAED61F0058CB0A /* EmailContentParser.swift in Sources */ = {isa = PBXBuildFile; fileRef = C96E33A82EAED61F0058CB0A /* EmailContentParser.swift */; };
@@ -136,6 +139,9 @@
 		C947E90B2EB41367007634FC /* AccountDAO.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AccountDAO.swift; sourceTree = "<group>"; };
 		C947E90D2EB414A6007634FC /* DAOFactory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DAOFactory.swift; sourceTree = "<group>"; };
 		C947E9112EB414F3007634FC /* MigrationGuide.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MigrationGuide.swift; sourceTree = "<group>"; };
+		C9492FE32EB6133000F2EE4B /* PHASE4_CRASH_FIX.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = PHASE4_CRASH_FIX.md; sourceTree = "<group>"; };
+		C9492FE52EB6137400F2EE4B /* PHASE4_COMPLETED.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = PHASE4_COMPLETED.md; sourceTree = "<group>"; };
+		C9492FE72EB617DC00F2EE4B /* HelpersParsersMailBodyProcessor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HelpersParsersMailBodyProcessor.swift; sourceTree = "<group>"; };
 		C949C3E42EB3F36200CB9D27 /* MailSyncEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MailSyncEngine.swift; sourceTree = "<group>"; };
 		C949C3E62EB3F52B00CB9D27 /* StructuredMailStorage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StructuredMailStorage.swift; sourceTree = "<group>"; };
 		C96E33A82EAED61F0058CB0A /* EmailContentParser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EmailContentParser.swift; sourceTree = "<group>"; };
@@ -545,6 +551,9 @@
 				C9FB883B2EB2ABB3002359BA /* AttachmentView.swift */,
 				C9CF88552EB2BAF1006CC028 /* PlatformImage.swift */,
 				C949C3E62EB3F52B00CB9D27 /* StructuredMailStorage.swift */,
+				C9492FE32EB6133000F2EE4B /* PHASE4_CRASH_FIX.md */,
+				C9492FE52EB6137400F2EE4B /* PHASE4_COMPLETED.md */,
+				C9492FE72EB617DC00F2EE4B /* HelpersParsersMailBodyProcessor.swift */,
 			);
 			path = Mail;
 			sourceTree = "<group>";
@@ -679,6 +688,8 @@
 			buildActionMask = 2147483647;
 			files = (
 				C9DEDFF02EAECC4D00C40B92 /* AILO-APP-Info.plist in Resources */,
+				C9492FE42EB6133000F2EE4B /* PHASE4_CRASH_FIX.md in Resources */,
+				C9492FE62EB6137400F2EE4B /* PHASE4_COMPLETED.md in Resources */,
 				C9DEDFF12EAECC4D00C40B92 /* Assets.xcassets in Resources */,
 				C9DEDFF52EAECC4D00C40B92 /* Localizable.strings in Resources */,
 			);
@@ -779,6 +790,7 @@
 				C96E33B32EB157C40058CB0A /* HTMLEntityDecoder.swift in Sources */,
 				C9DEE0312EAECC4D00C40B92 /* MailEntities.swift in Sources */,
 				C9DEE0332EAECC4D00C40B92 /* DashboardView.swift in Sources */,
+				C9492FE82EB617DC00F2EE4B /* HelpersParsersMailBodyProcessor.swift in Sources */,
 				C9DEE0342EAECC4D00C40B92 /* MailEditor.swift in Sources */,
 				C93D2CB52EB16DC300AA4072 /* MailViewSheets.swift in Sources */,
 				C9DEE0352EAECC4D00C40B92 /* CompactMessageListView.swift in Sources */,
