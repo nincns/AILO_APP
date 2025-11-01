@@ -375,35 +375,14 @@ final class MailSendReceive {
             let (extractedHeaders, bodyOnly) = separateHeadersFromBody(raw)
             print("📧 Extracted \(extractedHeaders.count) header lines, body: \(bodyOnly.prefix(200))...")
             
-            // ✅ PHASE 3: Einmaliges MIME-Parsing und korrekte Speicherung  
+            // ✅ PHASE 3: Einmaliges MIME-Parsing - speichere RAW-Daten
             print("🔍 PHASE 3: Starting MIME parsing for UID: \(uid)")
             let mime = MIMEParser().parse(rawBodyBytes: nil, rawBodyString: bodyOnly, contentType: nil, charset: nil)
             print("🔍 PHASE 3: MIME parsing complete - text: \(mime.text?.count ?? 0), html: \(mime.html?.count ?? 0)")
             
-            // Debug: Check for boundaries in parsed content
-            if let text = mime.text, text.contains("--") {
-                let boundaryLines = text.components(separatedBy: .newlines).filter { $0.contains("--") && $0.count > 10 }
-                if !boundaryLines.isEmpty {
-                    print("⚠️ PHASE 3: Found potential boundaries in TEXT: \(boundaryLines.count)")
-                    boundaryLines.prefix(3).forEach { print("  - \($0)") }
-                }
-            }
-            if let html = mime.html, html.contains("--") {
-                let boundaryLines = html.components(separatedBy: .newlines).filter { $0.contains("--") && $0.count > 10 }
-                if !boundaryLines.isEmpty {
-                    print("⚠️ PHASE 3: Found potential boundaries in HTML: \(boundaryLines.count)")
-                    boundaryLines.prefix(3).forEach { print("  - \($0)") }
-                }
-            }
-            
-            // ✅ CRITICAL FIX: Clean content BEFORE storing in database
-            let cleanedText = mime.text.map { BodyContentProcessor.cleanPlainTextForDisplay($0) }
-            let cleanedHTML = mime.html.map { BodyContentProcessor.cleanHTMLForDisplay($0) }
-
-            // Select which to use for display
-            let displayContent = BodyContentProcessor.selectDisplayContent(html: cleanedHTML, text: cleanedText)
-            let finalText = displayContent.isHTML ? nil : cleanedText
-            let finalHTML = displayContent.isHTML ? cleanedHTML : nil
+            // ✅ Store RAW parsed content (NO cleaning here - that's for display only)
+            let finalText = mime.text  // RAW from MIME parser
+            let finalHTML = mime.html  // RAW from MIME parser
             
             // ✅ Speichere sowohl RAW als auch verarbeitete Daten
             if let writeDAO = MailRepository.shared.writeDAO {
@@ -415,7 +394,7 @@ final class MailSendReceive {
                     html: finalHTML,             // ✅ Verarbeitetes HTML  
                     hasAttachments: bodyOnly.contains("Content-Disposition: attachment"),
                     rawBody: bodyOnly,           // ✅ RAW RFC822 body für technische Ansicht
-                    contentType: displayContent.isHTML ? "text/html" : "text/plain",
+                    contentType: finalHTML != nil ? "text/html" : "text/plain",
                     charset: "utf-8",
                     transferEncoding: nil,
                     isMultipart: bodyOnly.contains("boundary="),
