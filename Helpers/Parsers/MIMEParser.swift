@@ -330,20 +330,24 @@ public class MIMEParser {
         contentType: String?,
         charset: String?
     ) -> MIMEContent {
-        guard let ct = contentType?.lowercased() else {
+        guard let ct = contentType else {
             // No content-type - treat as plain text
             let result = MIMEContent(text: body, html: nil, attachments: [])
             print("🔍 [MIMEParser] Result - text: \(result.text?.count ?? 0), html: 0 (no content-type)")
             return result
         }
         
-        if ct.contains("multipart/") {
+        // ✅ FIX: Nur für VERGLEICHE lowercase nutzen, Original-String für Parameter-Extraktion behalten
+        let ctLower = ct.lowercased()
+        
+        if ctLower.contains("multipart/") {
+            // ✅ WICHTIG: ct (nicht ctLower!) für Parameter-Extraktion verwenden
             return parseMultipart(body, contentType: ct, params: extractParams(ct))
-        } else if ct.contains("text/html") {
+        } else if ctLower.contains("text/html") {
             let result = MIMEContent(text: nil, html: body, attachments: [])
             print("🔍 [MIMEParser] Result - text: 0, html: \(result.html?.count ?? 0)")
             return result
-        } else if ct.contains("text/plain") {
+        } else if ctLower.contains("text/plain") {
             let result = MIMEContent(text: body, html: nil, attachments: [])
             print("🔍 [MIMEParser] Result - text: \(result.text?.count ?? 0), html: 0")
             return result
