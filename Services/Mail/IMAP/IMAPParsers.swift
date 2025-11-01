@@ -289,6 +289,32 @@ public struct IMAPParsers {
 
         return FolderInfo(attributes: attrs, delimiter: delimiter, name: name)
     }
+
+    // ✅ NEU: PHASE 2 - BODYSTRUCTURE Parser für Attachment-Erkennung
+    public func hasAttachmentsFromBodyStructure(_ line: String) -> Bool {
+        guard let range = line.range(of: "BODYSTRUCTURE ") else { return false }
+        let payload = String(line[range.upperBound...])
+        
+        // Check für attachment oder mixed content types
+        let lowercasePayload = payload.lowercased()
+        return lowercasePayload.contains("\"attachment\"") || 
+               lowercasePayload.contains("multipart/mixed") ||
+               lowercasePayload.contains("application/") ||
+               lowercasePayload.contains("image/") && lowercasePayload.contains("\"attachment\"")
+    }
+
+    public func extractUID(fromFetchLine line: String) -> String? {
+        // Extract UID from FETCH response line like: "* 1 FETCH (UID 123 ...)"
+        guard line.contains(" FETCH ") else { return nil }
+        
+        if let range = line.range(of: "UID ") {
+            let afterUID = String(line[range.upperBound...])
+            let components = afterUID.split(whereSeparator: { $0.isWhitespace || $0 == "(" || $0 == ")" })
+            return components.first.map(String.init)
+        }
+        
+        return nil
+    }
 }
 
 // MARK: - New helpers for complex parsing
@@ -570,34 +596,6 @@ private func extractEnvelopeFrom(from line: String) -> String? {
         return nil
     }
 }
-
-// ✅ NEU: PHASE 2 - BODYSTRUCTURE Parser für Attachment-Erkennung (INNERHALB DER STRUCT!)
-public func hasAttachmentsFromBodyStructure(_ line: String) -> Bool {
-    guard let range = line.range(of: "BODYSTRUCTURE ") else { return false }
-    let payload = String(line[range.upperBound...])
-    
-    // Check für attachment oder mixed content types
-    let lowercasePayload = payload.lowercased()
-    return lowercasePayload.contains("\"attachment\"") || 
-           lowercasePayload.contains("multipart/mixed") ||
-           lowercasePayload.contains("application/") ||
-           lowercasePayload.contains("image/") && lowercasePayload.contains("\"attachment\"")
-}
-
-public func extractUID(fromFetchLine line: String) -> String? {
-    // Extract UID from FETCH response line like: "* 1 FETCH (UID 123 ...)"
-    guard line.contains(" FETCH ") else { return nil }
-    
-    if let range = line.range(of: "UID ") {
-        let afterUID = String(line[range.upperBound...])
-        let components = afterUID.split(whereSeparator: { $0.isWhitespace || $0 == "(" || $0 == ")" })
-        return components.first.map(String.init)
-    }
-    
-    return nil
-}
-
-} // ✅ KORREKTE Position der schließenden Klammer der IMAPParsers struct
 
 private func lastToken(from slice: Substring) -> String? {
     let comps = slice.split(whereSeparator: \.isWhitespace)

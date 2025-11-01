@@ -45,6 +45,18 @@ public struct MessageHeaderEntity: Sendable, Identifiable, Equatable {
     public var subject: String
     public var date: Date?
     public var flags: [String]
+    public var hasAttachments: Bool  // ✅ NEU
+    
+    public init(accountId: UUID, folder: String, uid: String, from: String, subject: String, date: Date?, flags: [String], hasAttachments: Bool = false) {
+        self.accountId = accountId
+        self.folder = folder
+        self.uid = uid
+        self.from = from
+        self.subject = subject
+        self.date = date
+        self.flags = flags
+        self.hasAttachments = hasAttachments
+    }
 }
 
 public struct MessageBodyEntity: Sendable, Equatable {
@@ -253,6 +265,7 @@ public enum MailSchema {
             subject TEXT,
             date INTEGER,                    -- epoch seconds
             flags TEXT,                      -- space-separated or JSON
+            has_attachments INTEGER NOT NULL DEFAULT 0,  -- ✅ NEU
             PRIMARY KEY (account_id, folder, uid)
         );
         """,

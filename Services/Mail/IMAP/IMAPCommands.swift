@@ -448,35 +448,35 @@ public final class IMAPClient {
     
     /// STORE command for flag manipulation (Phase 5)
     /// Supports +FLAGS, -FLAGS, FLAGS operations for bidirectional sync
-    public func store(_ conn: IMAPConnection, uid: String, flags: [String], operation: String, idleTimeout: TimeInterval = 8.0) async throws {
-        let t = Tagger().next()
+    public func storeFlags(uid: String, flags: [String], operation: String, idleTimeout: TimeInterval = 8.0) async throws {
+        let tag = tagger.next()
         let flagList = flags.map { "\\\\?\($0)" }.joined(separator: " ")
-        try await conn.send(line: "\(t) UID STORE \(uid) \(operation) (\(flagList))")
-        _ = try await conn.receiveLines(untilTag: t, idleTimeout: idleTimeout)
+        try await conn.send(line: "\(tag) UID STORE \(uid) \(operation) (\(flagList))")
+        _ = try await conn.receiveLines(untilTag: tag, idleTimeout: idleTimeout)
     }
     
     /// STORE command for multiple UIDs (batch flag updates)
-    public func store(_ conn: IMAPConnection, uids: [String], flags: [String], operation: String, idleTimeout: TimeInterval = 10.0) async throws {
+    public func storeFlags(uids: [String], flags: [String], operation: String, idleTimeout: TimeInterval = 10.0) async throws {
         guard !uids.isEmpty else { return }
-        let t = Tagger().next()
+        let tag = tagger.next()
         let uidSet = commands.joinUIDSet(uids)
         let flagList = flags.map { "\\\\?\($0)" }.joined(separator: " ")
-        try await conn.send(line: "\(t) UID STORE \(uidSet) \(operation) (\(flagList))")
-        _ = try await conn.receiveLines(untilTag: t, idleTimeout: idleTimeout)
+        try await conn.send(line: "\(tag) UID STORE \(uidSet) \(operation) (\(flagList))")
+        _ = try await conn.receiveLines(untilTag: tag, idleTimeout: idleTimeout)
     }
     
     /// EXPUNGE command for permanent deletion (Phase 5)
-    public func expunge(_ conn: IMAPConnection, idleTimeout: TimeInterval = 10.0) async throws {
-        let t = Tagger().next()
-        try await conn.send(line: "\(t) EXPUNGE")
-        _ = try await conn.receiveLines(untilTag: t, idleTimeout: idleTimeout)
+    public func expunge(idleTimeout: TimeInterval = 10.0) async throws {
+        let tag = tagger.next()
+        try await conn.send(line: "\(tag) EXPUNGE")
+        _ = try await conn.receiveLines(untilTag: tag, idleTimeout: idleTimeout)
     }
     
     /// APPEND command for adding messages to folders (Phase 5)
     /// Used for adding sent messages to Sent folder
-    public func append(_ conn: IMAPConnection, folder: String, message: String, flags: [String] = [], idleTimeout: TimeInterval = 15.0) async throws {
-        let t = Tagger().next()
-        var cmd = "\(t) APPEND \(commands.quote(folder))"
+    public func append(folder: String, message: String, flags: [String] = [], idleTimeout: TimeInterval = 15.0) async throws {
+        let tag = tagger.next()
+        var cmd = "\(tag) APPEND \(commands.quote(folder))"
         
         // Add flags if provided
         if !flags.isEmpty {
@@ -498,7 +498,7 @@ public final class IMAPClient {
         
         // Send message data
         try await conn.send(line: message)
-        _ = try await conn.receiveLines(untilTag: t, idleTimeout: idleTimeout)
+        _ = try await conn.receiveLines(untilTag: tag, idleTimeout: idleTimeout)
     }
 
     // MARK: - Helpers
