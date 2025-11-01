@@ -403,13 +403,13 @@ public class MailBodyProcessor {
         }
     }
     
-    /// Quoted-Printable Decoder - vollständig eigenständig mit Soft Wrap Support
+    /// Quoted-Printable Decoder - vollständig eigenständig mit Soft Wrap Support und UTF-8 Fix
     private static func decodeQuotedPrintable(_ text: String) -> String {
         // SCHRITT 1: Entferne alle Soft Line Breaks (=\n) ZUERST
         let withoutSoftWraps = text.replacingOccurrences(of: "=\n", with: "")
         
-        // SCHRITT 2: Dekodiere QP-Hexwerte (=XX)
-        var result = ""
+        // SCHRITT 2: Sammle alle Bytes für korrekte UTF-8 Dekodierung
+        var bytes: [UInt8] = []
         var i = withoutSoftWraps.startIndex
         
         while i < withoutSoftWraps.endIndex {
@@ -432,22 +432,24 @@ public class MailBodyProcessor {
                 let hexString = String(withoutSoftWraps[hex1Index...hex2Index])
                 
                 if let byte = UInt8(hexString, radix: 16) {
-                    // Convert byte to character (UInt8 always creates valid UnicodeScalar)
-                    let scalar = UnicodeScalar(byte)
-                    result.append(Character(scalar))
+                    // ✅ Byte sammeln statt einzeln interpretieren
+                    bytes.append(byte)
                     i = withoutSoftWraps.index(after: hex2Index)
                 } else {
-                    // Invalid hex - keep original
-                    result.append(c)
+                    // Invalid hex - keep original as UTF-8 bytes
+                    bytes.append(contentsOf: c.utf8)
                     i = withoutSoftWraps.index(after: i)
                 }
             } else {
-                result.append(c)
+                // Regular character - convert to UTF-8 bytes
+                bytes.append(contentsOf: c.utf8)
                 i = withoutSoftWraps.index(after: i)
             }
         }
         
-        return result
+        // ✅ Dekodiere alle gesammelten Bytes mit UTF-8
+        let data = Data(bytes)
+        return String(data: data, encoding: .utf8) ?? String(data: data, encoding: .isoLatin1) ?? text
     }
     
     /// Base64 Decoder - vollständig eigenständig
@@ -477,6 +479,9 @@ public class MailBodyProcessor {
         
         // Remove excessive whitespace
         content = content.replacingOccurrences(of: "\n{3,}", with: "\n\n", options: .regularExpression)
+        
+        // ✅ NEU: Entferne trailing orphan characters
+        content = removeTrailingOrphans(content)
         
         return content.trimmingCharacters(in: .whitespacesAndNewlines)
     }
@@ -519,5 +524,45 @@ public class MailBodyProcessor {
         ]
         
         return headerPrefixes.contains { line.hasPrefix($0) }
+    }
+    
+    /// Entfernt einzelne Sonderzeichen am Ende (z.B. einsame Klammern)
+    private static func removeTrailingOrphans(_ text: String) -> String {
+        var cleaned = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        
+        // Liste von Sonderzeichen die alleine am Ende nichts zu suchen haben
+        let trailingOrphans = [")", "(", "]", "[", "}", "{", ">", "<", "|", "\\", "/", ";", ":", ","]
+        
+        // ✅ NEU: Prüfe die letzten 3 Zeilen, nicht nur die letzte
+        let lines = cleaned.components(separatedBy: .newlines)
+        var linesToKeep = lines
+        
+        // Entferne trailing orphan Zeilen (von hinten nach vorne)
+        for _ in 0..<min(3, lines.count) {
+            guard let lastLine = linesToKeep.last else { break }
+            let trimmedLast = lastLine.trimmingCharacters(in: .whitespaces)
+            
+            // ✅ NEU: Entferne auch leere Zeilen am Ende
+            if trimmedLast.isEmpty {
+                linesToKeep = Array(linesToKeep.dropLast())
+                continue
+            }
+            
+            // ✅ NEU: Prüfe ob Zeile NUR aus Orphan-Zeichen besteht (mehrere erlaubt)
+            let orphanChars = trimmedLast.filter { trailingOrphans.contains(String($0)) }
+            let isOnlyOrphans = orphanChars.count == trimmedLast.count && !trimmedLast.isEmpty
+            
+            if isOnlyOrphans && trimmedLast.count <= 3 {
+                // Zeile besteht nur aus 1-3 Orphan-Zeichen → entfernen
+                linesToKeep = Array(linesToKeep.dropLast())
+            } else {
+                // Normale Content-Zeile gefunden → stop
+                break
+            }
+        }
+        
+        cleaned = linesToKeep.joined(separator: "\n").trimmingCharacters(in: .whitespacesAndNewlines)
+        
+        return cleaned
     }
 }

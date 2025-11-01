@@ -261,22 +261,60 @@ public actor MailProcessor {
     }
     
     private func decodeQuotedPrintableLine(_ line: String) -> String {
-        var result = line
+        // ✅ Sammle alle Bytes für korrekte UTF-8 Dekodierung
+        var bytes: [UInt8] = []
+        var i = line.startIndex
         
-        let pattern = #"=([0-9A-Fa-f]{2})"#
-        while let range = result.range(of: pattern, options: .regularExpression) {
-            let hex = String(result[range].dropFirst())
-            if let byte = UInt8(hex, radix: 16) {
-                let char = String(Character(UnicodeScalar(byte) ?? UnicodeScalar(0)!))
-                result.replaceSubrange(range, with: char)
+        while i < line.endIndex {
+            let c = line[i]
+            
+            if c == "=" {
+                let nextIdx = line.index(after: i)
+                guard nextIdx < line.endIndex else {
+                    break  // = am Ende
+                }
+                
+                // Prüfe auf Soft Line Break (=\r oder =\n)
+                if line[nextIdx] == "\r" || line[nextIdx] == "\n" {
+                    i = line.index(after: nextIdx)
+                    if nextIdx < line.endIndex && line[nextIdx] == "\r" {
+                        let afterCR = line.index(after: nextIdx)
+                        if afterCR < line.endIndex && line[afterCR] == "\n" {
+                            i = line.index(after: afterCR)
+                        }
+                    }
+                    continue  // Skip soft break
+                }
+                
+                // Dekodiere =XX
+                let hex1Idx = nextIdx
+                guard hex1Idx < line.endIndex else { break }
+                let hex2Idx = line.index(after: hex1Idx)
+                guard hex2Idx < line.endIndex else { break }
+                
+                let hexString = String(line[hex1Idx...hex2Idx])
+                if let byte = UInt8(hexString, radix: 16) {
+                    // ✅ Byte sammeln statt einzeln interpretieren
+                    bytes.append(byte)
+                    i = line.index(after: hex2Idx)
+                } else {
+                    // Invalid hex - keep original as UTF-8 bytes
+                    bytes.append(contentsOf: c.utf8)
+                    i = line.index(after: i)
+                }
             } else {
-                break
+                // Regular character - convert to UTF-8 bytes
+                bytes.append(contentsOf: c.utf8)
+                i = line.index(after: i)
             }
         }
         
-        if result.hasSuffix("=") {
-            result = String(result.dropLast())
-        } else {
+        // ✅ Dekodiere mit UTF-8
+        let data = Data(bytes)
+        var result = String(data: data, encoding: .utf8) ?? String(data: data, encoding: .isoLatin1) ?? ""
+        
+        // Füge Newline hinzu (wenn nicht Soft Break)
+        if !line.hasSuffix("=") {
             result += "\n"
         }
         
