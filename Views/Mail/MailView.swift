@@ -677,6 +677,7 @@ struct MailView: View {
                         searchText: $searchText,
                         onRefresh: { await self.refreshMails() }
                     )
+                    .environmentObject(mailManager)  // ✅ NEU: EnvironmentObject hinzugefügt
                 }
             }
         }

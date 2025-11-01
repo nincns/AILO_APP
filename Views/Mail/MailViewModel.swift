@@ -396,17 +396,21 @@ import Foundation
     
     /// Lädt Attachment-Status für effiziente UI-Anzeige
     private func loadAttachmentStatus(accountId: UUID, folder: String) async {
-        do {
-            let statusMap = try MailRepository.shared.loadAttachmentStatus(accountId: accountId, folder: folder)
-            
-            await MainActor.run {
-                self.attachmentStatus = statusMap
-                print("📎 Loaded attachment status for \(statusMap.count) messages")
-            }
-        } catch {
-            print("❌ Failed to load attachment status: \(error)")
-            await MainActor.run {
-                self.attachmentStatus = [:]
+        await MainActor.run {
+            Task {
+                do {
+                    let statusMap = try MailRepository.shared.loadAttachmentStatus(accountId: accountId, folder: folder)
+                    
+                    await MainActor.run {
+                        self.attachmentStatus = statusMap
+                        print("📎 Loaded attachment status for \(statusMap.count) messages")
+                    }
+                } catch {
+                    print("❌ Failed to load attachment status: \(error)")
+                    await MainActor.run {
+                        self.attachmentStatus = [:]
+                    }
+                }
             }
         }
     }

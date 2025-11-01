@@ -158,10 +158,16 @@ struct EnhancedMailRowView: View {
                 }
             }
             
-            // Zeile 3: Betreff + Attachment-Icon
-            HStack(alignment: .center, spacing: 4) {
+            // Zeile 3: Attachment-Icon + Betreff (linksbündig)
+            HStack(alignment: .center, spacing: 6) {
                 Spacer()
                     .frame(width: 12)
+                
+                if hasAttachments {
+                    Image(systemName: "paperclip")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
                 
                 Text(mail.subject.isEmpty ? String(localized: "app.mail.no_subject") : mail.subject)
                     .font(.subheadline)
@@ -169,12 +175,6 @@ struct EnhancedMailRowView: View {
                     .lineLimit(1)
                 
                 Spacer()
-                
-                if hasAttachments {
-                    Image(systemName: "paperclip")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
             }
         }
         .padding(.vertical, 2)
