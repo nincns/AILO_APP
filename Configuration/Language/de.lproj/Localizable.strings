@@ -511,20 +511,16 @@
 /* Preview */
 "app.mail.body.preview.placeholder" = "E-Mail-Vorschau erscheint hier…";
 
-/* MessageDetailView - Header fields */
-"app.mail.detail.from" = "Von";
-"app.mail.detail.date" = "Datum";
-"app.mail.detail.attachments" = "Anhänge";
+/* MessageDetailView - Status indicators */
+"app.mail.detail.unread" = "Ungelesen";
+"app.mail.detail.flagged" = "Markiert";
 
-/* RegularSplitView & CompactMessageListView - Empty/Fallback states */
-"app.mail.no_subject" = "(Kein Betreff)";
-"app.mail.from_prefix" = "Von";
-"app.mail.body_placeholder" = "Kein Inhalt verfügbar";
-"app.mail.no_message_selected" = "Keine Nachricht ausgewählt";
-"app.mail.no_message_selected_description" = "Wähle eine Nachricht aus der Liste";
-
-/* CompactMessageListView - Actions */
-"app.mail.read_unread" = "Gelesen/Ungelesen";
-
-/* ComposeMailView */
-"app.mail.compose.from" = "Von";
+/* MessageDetailView - Actions */
+"app.mail.action.reply" = "Antworten";
+"app.mail.action.forward" = "Weiterleiten";
+"app.mail.action.flag" = "Markieren";
+"app.mail.action.unflag" = "Markierung entfernen";
+"app.mail.action.mark_read" = "Als gelesen markieren";
+"app.mail.action.mark_unread" = "Als ungelesen markieren";
+"app.mail.action.show_technical" = "Quelltext anzeigen";
+"app.mail.action.hide_technical" = "Quelltext ausblenden";
