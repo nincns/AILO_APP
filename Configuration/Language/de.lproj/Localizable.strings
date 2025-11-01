@@ -543,6 +543,10 @@
 "app.mail.action.mark_unread" = "Als ungelesen markieren";
 "app.mail.action.show_technical" = "Quelltext anzeigen";
 "app.mail.action.hide_technical" = "Quelltext ausblenden";
+"app.mail.detail.content_loading" = "Inhalt wird geladen";
+"app.mail.detail.content_unavailable" = "Inhalt nicht verfügbar";
+"app.mail.detail.refresh_content" = "Inhalt neu laden";
+"app.mail.detail.content_could_not_load" = "Inhalt kann nicht geladen werden. :(";
 
 /* ComposeMailView - Complete */
 "app.mail.compose.title" = "Neue Nachricht";
