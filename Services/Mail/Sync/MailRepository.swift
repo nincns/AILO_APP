@@ -777,7 +777,7 @@ public final class MailRepository: ObservableObject {
         // ✅ OPTIMIERT: Eine einzige SQL-Query!
         let sql = """
             SELECT uid, has_attachments 
-            FROM \(MailSchema.tMsgHeader) 
+            FROM \(MailSchema.tMsgBody) 
             WHERE account_id = ? AND folder = ?
         """
         
