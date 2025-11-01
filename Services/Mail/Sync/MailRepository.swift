@@ -790,7 +790,9 @@ public final class MailRepository: ObservableObject {
         var statusMap: [String: Bool] = [:]
         
         while sqlite3_step(stmt) == SQLITE_ROW {
-            if let uid = baseDAO.columnText(stmt, 0) {
+            // Direkte SQLite-Funktion verwenden statt baseDAO.columnText
+            if let cString = sqlite3_column_text(stmt, 0) {
+                let uid = String(cString: cString)
                 let hasAttachments = sqlite3_column_int(stmt, 1) != 0
                 statusMap[uid] = hasAttachments
                 

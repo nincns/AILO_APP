@@ -40,6 +40,12 @@ struct MessageDetailView: View {
                 VStack(alignment: .leading, spacing: 12) {
                 // Mail header information
                 mailHeaderSection
+
+                // Attachments section - NEUE POSITION
+                if !attachments.isEmpty {
+                    attachmentsSection
+                        .padding(.top, 8)
+                }
                 
                 Divider()
                 
@@ -81,12 +87,6 @@ struct MessageDetailView: View {
                     }
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 20)
-                }
-                
-                // Attachments section
-                if !attachments.isEmpty {
-                    Divider()
-                    attachmentsSection
                 }
                 
                 Spacer(minLength: 20)
@@ -294,16 +294,18 @@ struct MessageDetailView: View {
     
     @ViewBuilder
     private var attachmentsSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 6) {
                 Image(systemName: "paperclip")
+                    .font(.caption)
                     .foregroundStyle(.secondary)
                 Text(String(localized: "app.mail.detail.attachments"))
-                    .font(.headline)
+                    .font(.subheadline)
                     .fontWeight(.medium)
+                    .foregroundStyle(.secondary)
             }
             
-            LazyVStack(alignment: .leading, spacing: 8) {
+            LazyVStack(alignment: .leading, spacing: 6) {
                 ForEach(Array(attachments.enumerated()), id: \.offset) { index, attachment in
                     AttachmentRowView(
                         attachment: attachment,
@@ -312,6 +314,10 @@ struct MessageDetailView: View {
                 }
             }
         }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
+        .background(Color(UIColor.secondarySystemBackground))
+        .clipShape(RoundedRectangle(cornerRadius: 8))
     }
     
     // MARK: - Actions
