@@ -747,27 +747,39 @@ public final class MailRepository: ObservableObject {
         return account
     }
     
-    /// Lädt Attachment-Status für effiziente UI-Anzeige über DAO-Interface
+    /// Lädt Attachment-Status für effiziente UI-Anzeige (OPTIMIERT)
     public func loadAttachmentStatus(accountId: UUID, folder: String) throws -> [String: Bool] {
         guard let dao = self.dao else {
             print("❌ No DAO available for loadAttachmentStatus")
             return [:]
         }
         
-        print("📎 Loading attachment status for account: \(accountId), folder: \(folder)")
+        print("📎 [OPTIMIZED] Loading attachment status for account: \(accountId), folder: \(folder)")
         
-        // Verwende die bestehende DAO-Methode headers() um UIDs zu erhalten
-        let headers = try dao.headers(accountId: accountId, folder: folder, limit: 1000, offset: 0)
+        // ✅ OPTIMIERT: Eine einzige SQL-Query statt Loop!
+        let sql = """
+            SELECT uid, has_attachments 
+            FROM \(MailSchema.tMsgHeader) 
+            WHERE account_id = ? AND folder = ?
+        """
+        
+        let stmt = try dao.prepare(sql)
+        defer { dao.finalize(stmt) }
+        
+        dao.bindUUID(stmt, 1, accountId)
+        dao.bindText(stmt, 2, folder)
+        
         var statusMap: [String: Bool] = [:]
         
-        // Für jede UID prüfen wir ob Attachments vorhanden sind
-        for header in headers {
-            do {
-                let attachments = try dao.attachments(accountId: accountId, folder: folder, uid: header.id)
-                statusMap[header.id] = !attachments.isEmpty
-            } catch {
-                print("❌ Failed to load attachments for UID \(header.id): \(error)")
-                statusMap[header.id] = false
+        while sqlite3_step(stmt) == SQLITE_ROW {
+            if let uid = dao.columnText(stmt, 0) {
+                let hasAttachments = sqlite3_column_int(stmt, 1) != 0
+                statusMap[uid] = hasAttachments
+                
+                // Debug ersten 3 Einträge
+                if statusMap.count <= 3 {
+                    print("📎 [DEBUG] UID: \(uid), hasAttachments: \(hasAttachments)")
+                }
             }
         }
         
