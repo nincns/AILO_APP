@@ -96,6 +96,17 @@ public struct IMAPCommands {
         try await conn.send(line: "\(t) \(body)")
         return try await conn.receiveLines(untilTag: t, idleTimeout: idleTimeout)
     }
+    
+    // ✅ NEU: PHASE 1 - BODYSTRUCTURE für Attachment-Erkennung
+    public func uidFetchEnvelopeWithStructure(_ conn: IMAPConnection, uids: [String], peek: Bool = true, idleTimeout: TimeInterval = 12.0) async throws -> [String] {
+        guard !uids.isEmpty else { return [] }
+        let t = Tagger().next()
+        let set = joinUIDSet(uids)
+        // ENVELOPE + INTERNALDATE + FLAGS + BODYSTRUCTURE für Attachment-Info
+        let body = "UID FETCH \(set) (UID FLAGS INTERNALDATE ENVELOPE BODYSTRUCTURE)"
+        try await conn.send(line: "\(t) \(body)")
+        return try await conn.receiveLines(untilTag: t, idleTimeout: idleTimeout)
+    }
 
     public func uidFetchFlags(_ conn: IMAPConnection, uids: [String], idleTimeout: TimeInterval = 8.0) async throws -> [String] {
         guard !uids.isEmpty else { return [] }
@@ -234,6 +245,16 @@ public struct IMAPMessage: Sendable, Identifiable, Equatable {
     public let from: String
     public let internalDate: Date?
     public let flags: [String]
+    public let hasAttachments: Bool  // ✅ NEU: PHASE 3 - Attachment-Flag
+    
+    public init(uid: String, subject: String, from: String, internalDate: Date?, flags: [String], hasAttachments: Bool = false) {
+        self.uid = uid
+        self.subject = subject
+        self.from = from
+        self.internalDate = internalDate
+        self.flags = flags
+        self.hasAttachments = hasAttachments
+    }
 }
 
 /// Search criteria builder for IMAP UID SEARCH
@@ -321,16 +342,25 @@ public final class IMAPClient {
     /// The `fields` parameter is accepted for future extension; currently ENVELOPE/INTERNALDATE/FLAGS are always returned.
     public func fetchHeaders(uids: [String], fields: [String] = ["ENVELOPE","INTERNALDATE","FLAGS"]) async throws -> [IMAPMessage] {
         guard !uids.isEmpty else { return [] }
-        // We always fetch a compact set that covers the UI needs
-        let lines = try await commands.uidFetchEnvelope(conn, uids: uids, peek: true)
+        // ✅ NEU: PHASE 4 - BODYSTRUCTURE mitladen für Attachment-Info
+        let lines = try await commands.uidFetchEnvelopeWithStructure(conn, uids: uids, peek: true)
         let envs = parsers.parseEnvelope(lines)
         let flagRecs = parsers.parseFlags(lines)
         let flagsByUID = Dictionary(uniqueKeysWithValues: flagRecs.map { ($0.uid, $0.flags) })
+        
+        // ✅ NEU: Attachment-Status aus BODYSTRUCTURE parsen
+        var attachmentsByUID: [String: Bool] = [:]
+        for line in lines {
+            guard line.contains(" FETCH "), let uid = parsers.extractUID(fromFetchLine: line) else { continue }
+            attachmentsByUID[uid] = parsers.hasAttachmentsFromBodyStructure(line)
+        }
+        
         // Merge into IMAPMessage models; keep original order by supplied UIDs when possible
         var map: [String: IMAPMessage] = [:]
         for e in envs {
             let flags = flagsByUID[e.uid] ?? []
-            map[e.uid] = IMAPMessage(uid: e.uid, subject: e.subject, from: e.from, internalDate: e.internalDate, flags: flags)
+            let hasAttachments = attachmentsByUID[e.uid] ?? false
+            map[e.uid] = IMAPMessage(uid: e.uid, subject: e.subject, from: e.from, internalDate: e.internalDate, flags: flags, hasAttachments: hasAttachments)
         }
         // Preserve order of the provided UID list, append any extra found records
         var out: [IMAPMessage] = []

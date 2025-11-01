@@ -396,21 +396,38 @@ import Foundation
     
     /// Lädt Attachment-Status für effiziente UI-Anzeige
     private func loadAttachmentStatus(accountId: UUID, folder: String) async {
-        await MainActor.run {
-            Task {
+        print("🔍 [DEBUG] Starting attachment status loading...")
+        print("🔍 [DEBUG] AccountId: \(accountId)")
+        print("🔍 [DEBUG] Folder: \(folder)")
+        
+        do {
+            // ✅ FIX: MainActor-kompatible Ausführung
+            let statusMap = await MainActor.run {
                 do {
-                    let statusMap = try MailRepository.shared.loadAttachmentStatus(accountId: accountId, folder: folder)
-                    
-                    await MainActor.run {
-                        self.attachmentStatus = statusMap
-                        print("📎 Loaded attachment status for \(statusMap.count) messages")
-                    }
+                    return try MailRepository.shared.loadAttachmentStatus(accountId: accountId, folder: folder)
                 } catch {
-                    print("❌ Failed to load attachment status: \(error)")
-                    await MainActor.run {
-                        self.attachmentStatus = [:]
-                    }
+                    print("❌ [DEBUG] Failed to load attachment status: \(error)")
+                    return [String: Bool]()
                 }
+            }
+            
+            print("📎 [DEBUG] Total status map: \(statusMap.count) entries")
+            
+            // 🧪 TEMP DEBUG: Setze ersten Entry auf true für Test
+            var finalStatusMap = statusMap
+            if let firstUID = statusMap.keys.first {
+                finalStatusMap[firstUID] = true
+                print("🧪 [DEBUG] TEMP: Set first UID (\(firstUID)) to hasAttachments=true for testing")
+            }
+            
+            await MainActor.run {
+                self.attachmentStatus = finalStatusMap
+                print("📎 Loaded attachment status for \(finalStatusMap.count) messages (DEBUG mode)")
+            }
+        } catch {
+            print("❌ [DEBUG] Outer catch - Failed to load attachment status: \(error)")
+            await MainActor.run {
+                self.attachmentStatus = [:]
             }
         }
     }

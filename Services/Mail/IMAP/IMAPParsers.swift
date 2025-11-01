@@ -443,33 +443,6 @@ private func extractLiteralBody(fromData data: Data, headerText: String) -> Data
     return data.subdata(in: headerByteLen..<(headerByteLen + n))
 }
 
-private func extractUID(fromFetchLine line: String) -> String? {
-    // Examples:
-    // * 23 FETCH (UID 123 FLAGS (\Seen) ENVELOPE (...))
-    // * 4 FETCH (FLAGS (\Seen) UID 555 INTERNALDATE "01-Jan-2024 10:00:00 +0000")
-    // * 1 FETCH (UID 1 INTERNALDATE ...) - UID attached to parenthesis
-    
-    let tokens = line.split(whereSeparator: \.isWhitespace)
-    
-    // Try exact match first
-    if let idx = tokens.firstIndex(of: Substring("UID")), idx + 1 < tokens.count {
-        return String(tokens[idx + 1]).trimmingCharacters(in: CharacterSet(charactersIn: ")"))
-    }
-    
-    // Try with parenthesis attached: "(UID"
-    if let idx = tokens.firstIndex(where: { $0 == "(UID" || $0.hasSuffix("(UID") }), idx + 1 < tokens.count {
-        return String(tokens[idx + 1]).trimmingCharacters(in: CharacterSet(charactersIn: ")"))
-    }
-    
-    // Fallback: regex search for "UID <number>"
-    let pattern = /UID\s+(\d+)/
-    if let match = line.firstMatch(of: pattern) {
-        return String(match.1)
-    }
-    
-    return nil
-}
-
 private func extractFlags(fromFetchLine line: String) -> [String]? {
     // FLAGS (\Seen \Answered)
     guard let r = line.range(of: "FLAGS (") else { return nil }
@@ -597,6 +570,34 @@ private func extractEnvelopeFrom(from line: String) -> String? {
         return nil
     }
 }
+
+// ✅ NEU: PHASE 2 - BODYSTRUCTURE Parser für Attachment-Erkennung (INNERHALB DER STRUCT!)
+public func hasAttachmentsFromBodyStructure(_ line: String) -> Bool {
+    guard let range = line.range(of: "BODYSTRUCTURE ") else { return false }
+    let payload = String(line[range.upperBound...])
+    
+    // Check für attachment oder mixed content types
+    let lowercasePayload = payload.lowercased()
+    return lowercasePayload.contains("\"attachment\"") || 
+           lowercasePayload.contains("multipart/mixed") ||
+           lowercasePayload.contains("application/") ||
+           lowercasePayload.contains("image/") && lowercasePayload.contains("\"attachment\"")
+}
+
+public func extractUID(fromFetchLine line: String) -> String? {
+    // Extract UID from FETCH response line like: "* 1 FETCH (UID 123 ...)"
+    guard line.contains(" FETCH ") else { return nil }
+    
+    if let range = line.range(of: "UID ") {
+        let afterUID = String(line[range.upperBound...])
+        let components = afterUID.split(whereSeparator: { $0.isWhitespace || $0 == "(" || $0 == ")" })
+        return components.first.map(String.init)
+    }
+    
+    return nil
+}
+
+} // ✅ KORREKTE Position der schließenden Klammer der IMAPParsers struct
 
 private func lastToken(from slice: Substring) -> String? {
     let comps = slice.split(whereSeparator: \.isWhitespace)
