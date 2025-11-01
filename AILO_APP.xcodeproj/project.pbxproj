@@ -42,6 +42,7 @@
 		C9C33C352EB2C0E4006390C7 /* ContentAnalyzer.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9C33C342EB2C0E4006390C7 /* ContentAnalyzer.swift */; };
 		C9C33C372EB2C341006390C7 /* TransferEncodingDecoder.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9C33C362EB2C341006390C7 /* TransferEncodingDecoder.swift */; };
 		C9C33C392EB2C35A006390C7 /* HeaderCharsetDetector.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9C33C382EB2C35A006390C7 /* HeaderCharsetDetector.swift */; };
+		C9C80C632EB6B990006A863A /* RFC2047Test.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9C80C622EB6B990006A863A /* RFC2047Test.swift */; };
 		C9CF88562EB2BAF1006CC028 /* PlatformImage.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9CF88552EB2BAF1006CC028 /* PlatformImage.swift */; };
 		C9CFFAB32EB2A71500B01A49 /* MailProcessorAdapter.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9CFFAB22EB2A71500B01A49 /* MailProcessorAdapter.swift */; };
 		C9D8E4BE2EB16263007F3DD1 /* String+HTMLEscaping.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9D8E4BD2EB16263007F3DD1 /* String+HTMLEscaping.swift */; };
@@ -157,6 +158,7 @@
 		C9C33C342EB2C0E4006390C7 /* ContentAnalyzer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentAnalyzer.swift; sourceTree = "<group>"; };
 		C9C33C362EB2C341006390C7 /* TransferEncodingDecoder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TransferEncodingDecoder.swift; sourceTree = "<group>"; };
 		C9C33C382EB2C35A006390C7 /* HeaderCharsetDetector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HeaderCharsetDetector.swift; sourceTree = "<group>"; };
+		C9C80C622EB6B990006A863A /* RFC2047Test.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RFC2047Test.swift; sourceTree = "<group>"; };
 		C9CF88552EB2BAF1006CC028 /* PlatformImage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlatformImage.swift; sourceTree = "<group>"; };
 		C9CFFAB22EB2A71500B01A49 /* MailProcessorAdapter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MailProcessorAdapter.swift; sourceTree = "<group>"; };
 		C9D8E4BD2EB16263007F3DD1 /* String+HTMLEscaping.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "String+HTMLEscaping.swift"; sourceTree = "<group>"; };
@@ -374,6 +376,7 @@
 				C9C33C362EB2C341006390C7 /* TransferEncodingDecoder.swift */,
 				C9C33C382EB2C35A006390C7 /* HeaderCharsetDetector.swift */,
 				C9FB88432EB2ACDD002359BA /* MailContentRenderer.swift */,
+				C9C80C622EB6B990006A863A /* RFC2047Test.swift */,
 			);
 			path = Parsers;
 			sourceTree = "<group>";
@@ -743,6 +746,7 @@
 				C96E33A92EAED61F0058CB0A /* EmailContentParser.swift in Sources */,
 				C9DEE0152EAECC4D00C40B92 /* CancellationToken.swift in Sources */,
 				C947E9122EB414F3007634FC /* MigrationGuide.swift in Sources */,
+				C9C80C632EB6B990006A863A /* RFC2047Test.swift in Sources */,
 				C96E33D52EB160790058CB0A /* EmailParserComponents.swift in Sources */,
 				C9DEE0162EAECC4D00C40B92 /* Categories.swift in Sources */,
 				C9DEE0172EAECC4D00C40B92 /* SMTPAbstractions.swift in Sources */,

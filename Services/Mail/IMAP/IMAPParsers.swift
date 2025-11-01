@@ -99,11 +99,19 @@ public struct IMAPParsers {
             guard raw.hasPrefix("* ") && raw.contains(" FETCH ") else { continue }
             guard let uid = extractUID(fromFetchLine: raw) else { continue }
 
-            // Subject (very tolerant): try ENVELOPE ("Subject", ...) or subject NIL
-            let subject = extractEnvelopeSubject(from: raw) ?? ""
+            // Subject with RFC2047 decoding
+            let rawSubject = extractEnvelopeSubject(from: raw) ?? ""
+            let subject = RFC2047EncodedWordsParser.decodeSubject(rawSubject)
+            if !rawSubject.isEmpty && rawSubject != subject {
+                print("📧 Subject decoded: '\(rawSubject)' → '\(subject)'")
+            }
 
-            // From (very tolerant): try to extract the first address name or mailbox@host
-            let from = extractEnvelopeFrom(from: raw) ?? ""
+            // From with RFC2047 decoding
+            let rawFrom = extractEnvelopeFrom(from: raw) ?? ""
+            let from = RFC2047EncodedWordsParser.decodeFrom(rawFrom)
+            if !rawFrom.isEmpty && rawFrom != from {
+                print("📧 From decoded: '\(rawFrom)' → '\(from)'")
+            }
 
             // InternalDate
             let date = extractInternalDate(from: raw)
@@ -185,10 +193,20 @@ public struct IMAPParsers {
 
     /// Parse an ENVELOPE (...) fragment from a single FETCH line.
     public func parseEnvelope(_ line: String) throws -> MessageEnvelope {
-        // Subject
-        let subject = extractEnvelopeSubject(from: line)
-        // From (best-effort)
-        let from = extractEnvelopeFrom(from: line)
+        // Subject with RFC2047 decoding
+        let rawSubject = extractEnvelopeSubject(from: line)
+        let subject = rawSubject != nil ? RFC2047EncodedWordsParser.decodeSubject(rawSubject!) : nil
+        if let raw = rawSubject, let decoded = subject, raw != decoded {
+            print("📧 Subject decoded: '\(raw)' → '\(decoded)'")
+        }
+        
+        // From with RFC2047 decoding
+        let rawFrom = extractEnvelopeFrom(from: line)
+        let from = rawFrom != nil ? RFC2047EncodedWordsParser.decodeFrom(rawFrom!) : nil
+        if let raw = rawFrom, let decoded = from, raw != decoded {
+            print("📧 From decoded: '\(raw)' → '\(decoded)'")
+        }
+        
         // Date (INTERNALDATE is usually outside envelope, but try to parse if present)
         let date = extractInternalDate(from: line)
         // The full address lists are complex; keep tolerant and return minimal info for now.
@@ -475,7 +493,7 @@ private func extractInternalDate(from line: String) -> Date? {
 }
 
 private func extractEnvelopeSubject(from line: String) -> String? {
-    // ENVELOPE (date subject from ...) -- extract the SECOND quoted string (subject)
+    // ENVELOPE structure: (date subject from ...) -- extract the SECOND quoted string (subject)
     guard let r = line.range(of: "ENVELOPE (") else { return nil }
     let tail = line[r.upperBound...]
     
