@@ -28,6 +28,10 @@
 "common.settings" = "Settings";
 "common.placeholder" = "Enter text…";
 
+/* Additional common keys (missing in EN, present only in DE) */
+"common.info" = "Info";
+"common.warning" = "Warnung";
+
 /* MARK: - Common States / Messages */
 "state.empty" = "Nothing here yet";
 "state.offline" = "No connection";
@@ -36,9 +40,15 @@
 "msg.saved" = "Saved successfully";
 "msg.deleted" = "Deleted";
 
+/* Additional state/message keys (missing in EN, present only in DE) */
+"state.error" = "Fehler";
+
 /* MARK: - Date / Format (prefer Swift FormatStyle in code; keep fallback labels minimal) */
 "date.today" = "Today";
 "date.yesterday" = "Yesterday";
+
+/* Additional date keys (missing in EN, present only in DE) */
+"date.tomorrow" = "Morgen";
 
 /* ============================================================================
    App Entry
@@ -63,6 +73,9 @@
 "dashboard.action.newNote" = "New note";
 "dashboard.banner.alt" = "App banner";
 
+/* Additional dashboard keys (missing in EN, present only in DE) */
+"dashboard.section.favorites" = "Favoriten";
+
 /* ============================================================================
    Feature: Logs (List & Detail)
    Files: Features/Logs/LogsView.swift, TextLogDetailView.swift
@@ -77,6 +90,9 @@
 "logs.action.new" = "Add log";
 "logs.action.deleteAll.confirm" = "Delete all logs?";
 "logs.action.export" = "Export";
+
+/* Additional logs keys (missing in EN, present only in DE) */
+"logs.action.filter" = "Filtern";
 
 /* MARK: - LogsView (header & subtitle) */
 "logs.header.title" = "Logs";
@@ -138,6 +154,9 @@
 "logDetail.preset.label" = "Preset";
 "logDetail.ai.empty" = "AI rewrite not executed yet.";
 
+/* Additional log detail keys (missing in EN, present only in DE) */
+"logDetail.label.status" = "Status";
+
 /* MARK: - Log Detail (actions & a11y) */
 "logDetail.action.aiRewrite" = "Start AI rewrite";
 "logDetail.action.refreshAI" = "Refresh AI text";
@@ -192,6 +211,9 @@
 "write.category.defaults.network" = "Network";
 "write.category.defaults.docs" = "Documentation";
 
+/* Additional write keys (missing in EN, present only in DE) */
+"write.action.clear" = "Leeren";
+
 /* ============================================================================
    Feature: Schreiben (Write)
    File: Features/Schreiben/SchreibenMailView.swift
@@ -202,6 +224,27 @@
 "mail.inbox.retry"   = "Retry";
 "mail.inbox.empty"   = "No messages";
 "mail.inbox.refresh" = "Refresh";
+
+"app.mail.no_messages" = "No messages";
+"app.mail.no_messages_description" = "There are no messages in this folder.";
+"app.mail.refresh" = "Refresh";
+
+"app.tab.mail" = "Mail";
+"app.mail.inbox" = "Inbox";
+"app.mail.filter.all" = "All";
+"app.mail.filter.unread" = "Unread";
+"app.mail.filter.flagged" = "Flagged";
+"app.mail.sync" = "Sync";
+"app.mail.mark_all_read" = "Mark all as read";
+"app.mail.mark_all_unread" = "Mark all as unread";
+"app.mail.sort_newest_first" = "Sort by newest";
+"app.mail.sort_by_sender" = "Sort by sender";
+
+"app.mail.folder.inbox"   = "Inbox";
+"app.mail.folder.sent"    = "Sent";
+"app.mail.folder.drafts"  = "Drafts";
+"app.mail.folder.trash"   = "Trash";
+"app.mail.folder.spam"    = "Spam";
 
 /* ============================================================================
    Feature: Sprechen (Speak)
@@ -222,6 +265,9 @@
 "speak.entry.title" = "Transcript";
 "speak.entry.titleWithName" = "Transcript: %@";
 
+/* Additional speak keys (missing in EN, present only in DE) */
+"speak.action.play" = "Abspielen";
+
 /* ============================================================================
    Feature: Configuration (Settings)
    Files: Configuration/ConfigView.swift
@@ -238,6 +284,9 @@
 "config.section.language" = "Language";
 "config.section.ai" = "AI";
 "config.section.privacy" = "Privacy";
+
+/* Additional config section keys (missing in EN, present only in DE) */
+"config.section.about" = "Über";
 
 /* MARK: - Rows / Controls */
 "config.categories.manage" = "Manage categories";
@@ -366,6 +415,9 @@
 "categories.action.delete" = "Delete category";
 "categories.hint.tapToEdit" = "Tap to edit";
 
+/* Additional categories keys (missing in EN, present only in DE) */
+"categories.action.clear" = "Leeren";
+
 /* ============================================================================
    Configuration – Mail Manager
    Files: Configuration/MailManager.swift
@@ -436,6 +488,56 @@
 "common.ok"     = "OK";
 
 /* ============================================================================
+   Feature: Mail – Message Detail
+   File: Views/Mail/MessageDetailView.swift
+   ========================================================================== */
+"app.mail.detail.title" = "Message";
+"app.mail.detail.from" = "From";
+"app.mail.detail.to" = "To";
+"app.mail.detail.cc" = "Cc";
+"app.mail.detail.bcc" = "Bcc";
+"app.mail.detail.date" = "Date";
+"app.mail.detail.attachments" = "Attachments";
+"app.mail.detail.openAttachment" = "Open attachment";
+"app.mail.detail.reply" = "Reply";
+"app.mail.detail.reply_all" = "Reply all";
+"app.mail.detail.forward" = "Forward";
+"app.mail.detail.delete" = "Delete";
+"app.mail.detail.more" = "More";
+"app.mail.detail.copy" = "Copy";
+"app.mail.detail.copy_email" = "Copy email";
+"app.mail.detail.copy_address" = "Copy address";
+"app.mail.detail.open_in_browser" = "Open in browser";
+"app.mail.detail.load_images" = "Load remote images";
+"app.mail.detail.blocked_images" = "Remote images blocked";
+"app.mail.detail.show_original" = "Show original";
+ "app.mail.detail.show_headers" = "Show headers";
+ "app.mail.detail.hide_headers" = "Hide headers";
+
+/* ============================================================================
+   Feature: Mail – Compose
+   File: Views/Mail/ComposeMailView.swift
+   ========================================================================== */
+"app.mail.compose.title" = "Compose";
+"app.mail.compose.from" = "From";
+"app.mail.compose.to" = "To";
+"app.mail.compose.to_placeholder" = "Recipient email…";
+"app.mail.compose.cc" = "Cc";
+"app.mail.compose.bcc" = "Bcc";
+"app.mail.compose.subject" = "Subject";
+"app.mail.compose.subject_placeholder" = "Subject…";
+"app.mail.compose.body" = "Message";
+"app.mail.compose.html" = "HTML";
+
+"app.mail.compose.attachments" = "Attachments";
+"app.mail.compose.no_attachments" = "No attachments";
+"app.mail.compose.add_photo" = "Add photo";
+"app.mail.compose.add_file" = "Add file";
+
+"app.mail.send" = "Send";
+"app.common.cancel" = "Cancel";
+
+/* ============================================================================
    Shared Components
    Files: Features/Shared/MailComposer.swift, MarkdownHelper.swift
    ========================================================================== */
@@ -461,6 +563,9 @@
 "store.error.save" = "Could not save data";
 "store.error.delete" = "Could not delete item";
 
+/* Additional storage keys (missing in EN, present only in DE) */
+"store.success.save" = "Erfolgreich gespeichert";
+
 /* ============================================================================
    System Permissions / Info.plist texts (keep short & clear)
    (Actual Info.plist localization lives in InfoPlist.strings per .lproj;
@@ -469,3 +574,6 @@
 "perm.microphone.tooltip" = "Enable microphone to record speech";
 "perm.speech.tooltip" = "Enable speech recognition for transcription";
 "perm.photos.tooltip" = "Allow photos access to share images";
+
+/* Additional permissions keys (missing in EN, present only in DE) */
+"perm.contacts.tooltip" = "Kontakte-Zugriff erlauben";
