@@ -8,6 +8,7 @@ struct CompactMessageListView: View {
     let onToggleRead: (MessageHeaderEntity) -> Void
     @Binding var searchText: String
     let onRefresh: () async -> Void
+    @EnvironmentObject var mailManager: MailViewModel
     
     init(mails: [MessageHeaderEntity], 
          onDelete: @escaping (MessageHeaderEntity) -> Void,
@@ -34,7 +35,10 @@ struct CompactMessageListView: View {
             }
             ForEach(filtered, id: \.uid) { mail in
                 NavigationLink(value: mail.uid) {
-                    EnhancedMailRowView(mail: mail)
+                    EnhancedMailRowView(
+                        mail: mail,
+                        hasAttachments: mailManager.attachmentStatus[mail.uid] ?? false  // NEU
+                    )
                 }
                 .swipeActions(edge: .trailing, allowsFullSwipe: true) {
                     Button(role: .destructive) { onDelete(mail) } label: { Label("app.common.delete", systemImage: "trash") }
@@ -87,6 +91,7 @@ struct CompactMessageListView: View {
     ]
     return NavigationStack {
         CompactMessageListView(mails: mails, onDelete: { _ in }, onToggleFlag: { _ in }, onToggleRead: { _ in }, searchText: .constant(""), onRefresh: {})
+            .environmentObject(MailViewModel())  // NEU: EnvironmentObject für Preview
     }
 }
 
@@ -94,6 +99,7 @@ struct CompactMessageListView: View {
 
 struct EnhancedMailRowView: View {
     let mail: MessageHeaderEntity
+    let hasAttachments: Bool  // NEU
     
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
@@ -152,18 +158,23 @@ struct EnhancedMailRowView: View {
                 }
             }
             
-            // Zeile 3: Betreff
-            HStack {
+            // Zeile 3: Betreff + Attachment-Icon
+            HStack(alignment: .center, spacing: 4) {
                 Spacer()
-                    .frame(width: 12) // Einrückung für Alignment
+                    .frame(width: 12)
                 
                 Text(mail.subject.isEmpty ? String(localized: "app.mail.no_subject") : mail.subject)
-                    .font(.footnote)
-                    .foregroundStyle(.primary)
-                    .lineLimit(2)
-                    .fontWeight(mail.flags.contains("\\Seen") ? .regular : .medium)
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
                 
                 Spacer()
+                
+                if hasAttachments {
+                    Image(systemName: "paperclip")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
             }
         }
         .padding(.vertical, 2)

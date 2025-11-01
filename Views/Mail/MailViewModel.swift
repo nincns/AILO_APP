@@ -19,6 +19,7 @@ import Foundation
     @Published var allServerFolders: [String] = []          // Alle Ordner vom Server
     @Published var isLoadingFolders: Bool = false           // Loading-State
     @Published var selectedFolder: String? = nil            // Aktuell gewählter Custom-Folder
+    @Published var attachmentStatus: [String: Bool] = [:]   // uid -> hasAttachments
     
     private var syncingAccounts: Set<UUID> = []
     private var accountsChangedObserver: AnyCancellable?
@@ -286,6 +287,11 @@ import Foundation
                 self.updateBadgeCounts(accountId: accountId)
             }
             
+            // Attachment-Status für Custom-Folder laden
+            Task {
+                await self.loadAttachmentStatus(accountId: accountId, folder: folder)
+            }
+            
         } catch {
             print("❌ loadMailsForFolder error: \(error)")
             
@@ -388,6 +394,23 @@ import Foundation
         return customFolders.sorted()
     }
     
+    /// Lädt Attachment-Status für effiziente UI-Anzeige
+    private func loadAttachmentStatus(accountId: UUID, folder: String) async {
+        do {
+            let statusMap = try MailRepository.shared.loadAttachmentStatus(accountId: accountId, folder: folder)
+            
+            await MainActor.run {
+                self.attachmentStatus = statusMap
+                print("📎 Loaded attachment status for \(statusMap.count) messages")
+            }
+        } catch {
+            print("❌ Failed to load attachment status: \(error)")
+            await MainActor.run {
+                self.attachmentStatus = [:]
+            }
+        }
+    }
+    
     /// 🚀 NEU: Lädt Mails sofort aus lokalem Cache ohne Sync-Wartezeit
     func loadCachedMails(for mailbox: MailboxType, accountId: UUID?) async {
         let accIdStr = accountId?.uuidString ?? "nil"
@@ -426,6 +449,11 @@ import Foundation
                 self.filteredMails = entities
                 print("📱 Cached mails loaded instantly: \(entities.count) messages")
                 self.updateBadgeCounts(accountId: accountId)
+            }
+            
+            // Attachment-Status parallel laden
+            Task {
+                await loadAttachmentStatus(accountId: accountId, folder: folder)
             }
             
         } catch {
@@ -474,6 +502,11 @@ import Foundation
                 print("📋 Updated filteredMails: \(entities.count) messages")
                 self.updateBadgeCounts(accountId: accountId)
                 self.isLoading = false
+            }
+            
+            // Attachment-Status parallel laden
+            Task {
+                await loadAttachmentStatus(accountId: accountId, folder: folder)
             }
         } catch {
             print("❌ refreshMails error: \(error)")
@@ -532,6 +565,11 @@ import Foundation
                 print("📋 Updated filteredMails: \(entities.count) messages from custom folder: \(folderName)")
                 self.updateBadgeCounts(accountId: accountId)
                 self.isLoading = false
+            }
+            
+            // Attachment-Status für Custom-Folder laden
+            Task {
+                await self.loadAttachmentStatus(accountId: accountId, folder: folderName)
             }
             
         } catch {

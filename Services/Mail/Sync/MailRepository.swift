@@ -747,6 +747,34 @@ public final class MailRepository: ObservableObject {
         return account
     }
     
+    /// Lädt Attachment-Status für effiziente UI-Anzeige über DAO-Interface
+    public func loadAttachmentStatus(accountId: UUID, folder: String) throws -> [String: Bool] {
+        guard let dao = self.dao else {
+            print("❌ No DAO available for loadAttachmentStatus")
+            return [:]
+        }
+        
+        print("📎 Loading attachment status for account: \(accountId), folder: \(folder)")
+        
+        // Verwende die bestehende DAO-Methode headers() um UIDs zu erhalten
+        let headers = try dao.headers(accountId: accountId, folder: folder, limit: 1000, offset: 0)
+        var statusMap: [String: Bool] = [:]
+        
+        // Für jede UID prüfen wir ob Attachments vorhanden sind
+        for header in headers {
+            do {
+                let attachments = try dao.attachments(accountId: accountId, folder: folder, uid: header.id)
+                statusMap[header.id] = !attachments.isEmpty
+            } catch {
+                print("❌ Failed to load attachments for UID \(header.id): \(error)")
+                statusMap[header.id] = false
+            }
+        }
+        
+        print("📎 Loaded attachment status for \(statusMap.count) messages")
+        return statusMap
+    }
+    
     // MARK: - Wiring from outside (so repository can emit change signals)
 
     public func notifyDataChanged(accountId: UUID) {
