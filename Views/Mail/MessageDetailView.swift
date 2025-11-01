@@ -351,34 +351,33 @@ struct MessageDetailView: View {
                         if MailBodyProcessor.needsProcessing(bodyEntity.html) {
                             print("⚠️ [MessageDetailView] HTML needs processing - triggering decode...")
                             
-                            // Process rawBody
+                            // ✅ NEU - zentrale Methode nutzen:
                             if let rawBody = bodyEntity.rawBody {
-                                let (text, html) = MailBodyProcessor.processRawBody(rawBody)
-                                
-                                // Update DB
-                                if let writeDAO = MailRepository.shared.writeDAO {
-                                    var updatedEntity = bodyEntity
-                                    updatedEntity.text = text
-                                    updatedEntity.html = html
-                                    updatedEntity.processedAt = Date()
-                                    
-                                    try? writeDAO.storeBody(
-                                        accountId: mail.accountId,
-                                        folder: mail.folder,
-                                        uid: mail.uid,
-                                        body: updatedEntity
+                                do {
+                                    let (displayText, displayIsHTML) = try await processAndStoreMailBody(
+                                        rawBody: rawBody,
+                                        bodyEntity: bodyEntity
                                     )
-                                    print("✅ [MessageDetailView] DB updated with processed content")
+                                    
+                                    await MainActor.run {
+                                        bodyText = displayText
+                                        isHTML = displayIsHTML
+                                        rawBodyText = rawBody
+                                        isLoadingBody = false
+                                    }
+                                    bodyLoaded = true
+                                    
+                                } catch {
+                                    print("❌ [loadMailBody] Processing failed: \(error)")
+                                    await MainActor.run {
+                                        errorMessage = error.localizedDescription
+                                        bodyText = ""
+                                        isHTML = false
+                                        rawBodyText = rawBody  // RAW trotzdem zeigen
+                                        isLoadingBody = false
+                                    }
+                                    bodyLoaded = true  // Trotzdem als geladen markieren (RAW ist da)
                                 }
-                                
-                                // Display processed
-                                await MainActor.run {
-                                    bodyText = html ?? text ?? ""
-                                    isHTML = html != nil
-                                    rawBodyText = rawBody
-                                    isLoadingBody = false
-                                }
-                                bodyLoaded = true
                             }
                         } else {
                             // ✅ Bereits dekodiert - direkt rendern
@@ -477,34 +476,34 @@ struct MessageDetailView: View {
                     if MailBodyProcessor.needsProcessing(bodyEntity.html) {
                         print("⚠️ [MessageDetailView] Post-sync HTML needs processing...")
                         
-                        // Process rawBody
+                        // ✅ NEU - zentrale Methode nutzen:
                         if let rawBody = bodyEntity.rawBody {
-                            let (text, html) = MailBodyProcessor.processRawBody(rawBody)
-                            
-                            // Update DB
-                            if let writeDAO = MailRepository.shared.writeDAO {
-                                var updatedEntity = bodyEntity
-                                updatedEntity.text = text
-                                updatedEntity.html = html
-                                updatedEntity.processedAt = Date()
-                                
-                                try? writeDAO.storeBody(
-                                    accountId: mail.accountId,
-                                    folder: mail.folder,
-                                    uid: mail.uid,
-                                    body: updatedEntity
+                            do {
+                                let (displayText, displayIsHTML) = try await processAndStoreMailBody(
+                                    rawBody: rawBody,
+                                    bodyEntity: bodyEntity
                                 )
-                                print("✅ [MessageDetailView] Post-sync DB updated with processed content")
+                                
+                                await MainActor.run {
+                                    bodyText = displayText
+                                    isHTML = displayIsHTML
+                                    rawBodyText = rawBody
+                                    isLoadingBody = false
+                                }
+                                print("✅ [loadMailBodyAfterSync] Processed content loaded")
+                                bodyLoaded = true
+                                
+                            } catch {
+                                print("❌ [loadMailBodyAfterSync] Processing failed: \(error)")
+                                await MainActor.run {
+                                    errorMessage = error.localizedDescription
+                                    bodyText = ""
+                                    isHTML = false
+                                    rawBodyText = rawBody
+                                    isLoadingBody = false
+                                }
+                                bodyLoaded = true
                             }
-                            
-                            await MainActor.run {
-                                bodyText = html ?? text ?? ""
-                                isHTML = html != nil
-                                rawBodyText = rawBody
-                                isLoadingBody = false
-                            }
-                            print("✅ [MessageDetailView] Post-sync processed content loaded")
-                            bodyLoaded = true
                         }
                     } else {
                         // ✅ Bereits dekodiert - direkt rendern
@@ -682,39 +681,110 @@ struct MessageDetailView: View {
     
     /// Re-processes mail body when toggling from RAW to Normal view
     private func reprocessMailBody() async {
-        print("🔄 [MessageDetailView] Re-processing mail body (toggle trigger)...")
+        print("🔄 [reprocessMailBody] Re-processing mail body (toggle trigger)...")
         
-        guard let dao = MailRepository.shared.dao,
-              let bodyEntity = try? dao.bodyEntity(accountId: mail.accountId, folder: mail.folder, uid: mail.uid),
-              let rawBody = bodyEntity.rawBody else {
-            print("❌ [MessageDetailView] No rawBody available for re-processing")
+        guard let dao = MailRepository.shared.dao else {
+            print("❌ [reprocessMailBody] DAO not available")
             return
         }
         
-        // Process
+        guard let bodyEntity = try? dao.bodyEntity(
+            accountId: mail.accountId,
+            folder: mail.folder,
+            uid: mail.uid
+        ) else {
+            print("❌ [reprocessMailBody] Could not load bodyEntity")
+            return
+        }
+        
+        guard let rawBody = bodyEntity.rawBody else {
+            print("❌ [reprocessMailBody] No rawBody available")
+            return
+        }
+        
+        do {
+            let (displayText, displayIsHTML) = try await processAndStoreMailBody(
+                rawBody: rawBody,
+                bodyEntity: bodyEntity
+            )
+            
+            await MainActor.run {
+                bodyText = displayText
+                isHTML = displayIsHTML
+            }
+            print("✅ [reprocessMailBody] Re-processing completed")
+            
+        } catch {
+            print("❌ [reprocessMailBody] Re-processing failed: \(error)")
+            await MainActor.run {
+                errorMessage = "Neuverarbeitung fehlgeschlagen: \(error.localizedDescription)"
+            }
+        }
+    }
+    
+    /// Zentrale Methode: Verarbeitet und speichert Mail-Body in DB
+    /// Wirft Fehler bei Problemen, damit Caller reagieren kann
+    private func processAndStoreMailBody(
+        rawBody: String,
+        bodyEntity: MessageBodyEntity
+    ) async throws -> (bodyText: String, isHTML: Bool) {
+        
+        print("🔄 [processAndStoreMailBody] Starting processing for UID: \(mail.uid)")
+        
+        // 1. Process rawBody mit MailBodyProcessor
         let (text, html) = MailBodyProcessor.processRawBody(rawBody)
         
-        // Update DB (drop old html)
-        if let writeDAO = MailRepository.shared.writeDAO {
-            var updatedEntity = bodyEntity
-            updatedEntity.text = text
-            updatedEntity.html = html
-            updatedEntity.processedAt = Date()
-            
-            try? writeDAO.storeBody(
-                accountId: mail.accountId,
-                folder: mail.folder,
-                uid: mail.uid,
-                body: updatedEntity
-            )
-            print("✅ [MessageDetailView] Re-processed and updated DB")
+        // 2. Validierung: Mindestens text ODER html muss vorhanden sein
+        guard text != nil || html != nil else {
+            print("❌ [processAndStoreMailBody] No content extracted!")
+            throw MailBodyError.noContentExtracted
         }
         
-        // Update UI
-        await MainActor.run {
-            bodyText = html ?? text ?? ""
-            isHTML = html != nil
+        // 3. DAO verfügbar?
+        guard let writeDAO = MailRepository.shared.writeDAO else {
+            print("❌ [processAndStoreMailBody] WriteDAO not available!")
+            throw MailBodyError.daoNotAvailable
         }
+        
+        // 4. Update Entity
+        var updatedEntity = bodyEntity
+        updatedEntity.text = text
+        updatedEntity.html = html
+        updatedEntity.processedAt = Date()
+        
+        // 5. Store in DB (OHNE try? - Fehler werden geworfen!)
+        try writeDAO.storeBody(
+            accountId: mail.accountId,
+            folder: mail.folder,
+            uid: mail.uid,
+            body: updatedEntity
+        )
+        
+        // 6. Logging mit Details
+        print("✅ [processAndStoreMailBody] DB updated successfully")
+        print("   - UID: \(mail.uid)")
+        print("   - text: \(text?.count ?? 0) chars")
+        print("   - html: \(html?.count ?? 0) chars")
+        print("   - processedAt: \(updatedEntity.processedAt?.description ?? "nil")")
+        
+        // 7. Optional: Verification durch Re-Read
+        if let dao = MailRepository.shared.dao,
+           let verifyEntity = try? dao.bodyEntity(
+               accountId: mail.accountId,
+               folder: mail.folder,
+               uid: mail.uid
+           ) {
+            print("✅ [processAndStoreMailBody] Verification successful")
+            print("   - DB html length: \(verifyEntity.html?.count ?? 0)")
+            print("   - DB text length: \(verifyEntity.text?.count ?? 0)")
+            print("   - DB processedAt: \(verifyEntity.processedAt != nil ? "set" : "nil")")
+        }
+        
+        // 8. Return Display-Content
+        let displayText = html ?? text ?? ""
+        let displayIsHTML = html != nil
+        
+        return (displayText, displayIsHTML)
     }
     
     // MARK: - Helper Functions
@@ -746,6 +816,25 @@ struct MessageDetailView: View {
         return (trimmed, nil)
     }
     
+}
+
+// MARK: - Errors
+
+enum MailBodyError: LocalizedError {
+    case processingFailed(String)
+    case daoNotAvailable
+    case noContentExtracted
+    
+    var errorDescription: String? {
+        switch self {
+        case .processingFailed(let reason):
+            return "Verarbeitung fehlgeschlagen: \(reason)"
+        case .daoNotAvailable:
+            return "Datenbankzugriff nicht verfügbar"
+        case .noContentExtracted:
+            return "Kein Inhalt aus Mail extrahiert"
+        }
+    }
 }
 
 // MARK: - Supporting Views
