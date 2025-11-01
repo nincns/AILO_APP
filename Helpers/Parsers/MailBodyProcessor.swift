@@ -7,21 +7,56 @@ import Foundation
 public class MailBodyProcessor {
     
     /// Prüft ob Body noch MIME-Kodierung enthält
+    /// Prüft SOWOHL Anfang (Header) ALS AUCH Ende (Boundary-Terminator)
     public static func needsProcessing(_ body: String?) -> Bool {
         guard let body = body, !body.isEmpty else { return true }
         
-        // Prüfe erste 10 Zeilen auf MIME-Header
-        let lines = body.components(separatedBy: .newlines).prefix(10)
-        for line in lines {
-            let lower = line.lowercased()
-            if lower.contains("content-type:") ||
-               lower.contains("content-transfer-encoding:") ||
-               lower.hasPrefix("--") { // Boundary
-                return true
+        let lines = body.components(separatedBy: .newlines)
+        
+        // Strategie: Prüfe Anfang UND Ende der Mail
+        
+        // 1. Prüfe erste 20 Zeilen auf MIME-Header
+        let firstLines = lines.prefix(20)
+        var hasMIMEHeaders = false
+        
+        for line in firstLines {
+            let lower = line.lowercased().trimmingCharacters(in: .whitespaces)
+            if lower.hasPrefix("content-type:") ||
+               lower.hasPrefix("content-transfer-encoding:") ||
+               lower.hasPrefix("mime-version:") {
+                hasMIMEHeaders = true
+                break
             }
         }
         
-        return false
+        // 2. Prüfe letzte 10 Zeilen auf End-Boundary (definitive RAW-Marker)
+        let lastLines = lines.suffix(10)
+        var hasEndBoundary = false
+        
+        for line in lastLines {
+            let trimmed = line.trimmingCharacters(in: .whitespaces)
+            // End-Boundary Pattern: --BOUNDARY-- (mit trailing --)
+            if trimmed.hasPrefix("--") && trimmed.hasSuffix("--") && trimmed.count > 4 {
+                // Prüfe ob es wirklich ein Boundary-Terminator ist (nicht nur --)
+                let withoutDashes = trimmed.dropFirst(2).dropLast(2)
+                if withoutDashes.count > 5 {
+                    hasEndBoundary = true
+                    print("🔍 [needsProcessing] Found end-boundary: \(trimmed.prefix(50))...")
+                    break
+                }
+            }
+        }
+        
+        // 3. Entscheidung
+        let needsProcessing = hasMIMEHeaders || hasEndBoundary
+        
+        if needsProcessing {
+            print("🔍 [needsProcessing] TRUE - hasMIMEHeaders: \(hasMIMEHeaders), hasEndBoundary: \(hasEndBoundary)")
+        } else {
+            print("🔍 [needsProcessing] FALSE - Content appears already processed")
+        }
+        
+        return needsProcessing
     }
     
     /// Dekodiert rawBody zu text/html
@@ -40,7 +75,6 @@ public class MailBodyProcessor {
         print("   - MIME parsed: text=\(mimeContent.text?.count ?? 0), html=\(mimeContent.html?.count ?? 0)")
         
         // Schritt 2: Minimale Nachbearbeitung für bereits geparstes MIME
-        // WICHTIG: MIMEParser hat bereits sauber extrahiert - nur finale Politur nötig
         var processedText: String? = nil
         var processedHtml: String? = nil
         
@@ -57,52 +91,27 @@ public class MailBodyProcessor {
         return (processedText, processedHtml)
     }
     
-    // MARK: - Minimale Cleanup-Methoden für bereits geparstes MIME
+    // MARK: - Minimale Cleanup-Methoden
     
-    /// Minimale HTML-Bereinigung für bereits durch MIMEParser extrahiertes HTML
     private static func cleanAlreadyParsedHTML(_ html: String) -> String {
         var content = html
-        
-        // Nur minimale Bereinigung - MIMEParser hat bereits die Hauptarbeit geleistet
-        
-        // 1. Entferne mögliche verbliebene E-Mail-Header am Anfang (selten, aber möglich)
         content = removeLeadingEmailHeaders(content)
-        
-        // 2. Trimme Whitespace
         content = content.trimmingCharacters(in: .whitespacesAndNewlines)
-        
         return content
     }
     
-    /// Minimale Text-Bereinigung für bereits durch MIMEParser extrahierten Text
     private static func cleanAlreadyParsedText(_ text: String) -> String {
         var content = text
-        
-        // Nur minimale Bereinigung - MIMEParser hat bereits die Hauptarbeit geleistet
-        
-        // 1. Entferne mögliche verbliebene E-Mail-Header am Anfang (selten, aber möglich)
         content = removeLeadingEmailHeaders(content)
+        content = content.replacingOccurrences(of: "\r\n", with: "\n")
+        content = content.replacingOccurrences(of: "\r", with: "\n")
         
-        // 2. Normalisiere Zeilenumbrüche
-        content = content
-            .replacingOccurrences(of: "\r\n", with: "\n")
-            .replacingOccurrences(of: "\r", with: "\n")
-        
-        // 3. Reduziere übermäßige Leerzeilen (mehr als 3 → 2)
         let multipleNewlines = "\n{4,}"
-        content = content.replacingOccurrences(
-            of: multipleNewlines,
-            with: "\n\n",
-            options: .regularExpression
-        )
-        
-        // 4. Trimme Whitespace
+        content = content.replacingOccurrences(of: multipleNewlines, with: "\n\n", options: .regularExpression)
         content = content.trimmingCharacters(in: .whitespacesAndNewlines)
-        
         return content
     }
     
-    /// Entfernt mögliche E-Mail-Header am Anfang des Contents
     private static func removeLeadingEmailHeaders(_ content: String) -> String {
         let lines = content.components(separatedBy: .newlines)
         var contentStartIndex = 0
@@ -111,7 +120,6 @@ public class MailBodyProcessor {
         for (index, line) in lines.enumerated() {
             let trimmed = line.trimmingCharacters(in: .whitespaces)
             
-            // Leere Zeile könnte Header-Ende markieren
             if trimmed.isEmpty && index > 0 {
                 if inHeaderSection {
                     contentStartIndex = index + 1
@@ -120,13 +128,11 @@ public class MailBodyProcessor {
             } else if isEmailHeaderLine(trimmed) {
                 inHeaderSection = true
             } else if inHeaderSection && !trimmed.isEmpty {
-                // Nicht-Header-Zeile gefunden - Header-Section endet
                 contentStartIndex = index
                 break
             }
         }
         
-        // Wenn Header gefunden, entferne sie
         if contentStartIndex > 0 && contentStartIndex < lines.count {
             let contentLines = Array(lines[contentStartIndex...])
             return contentLines.joined(separator: "\n")
