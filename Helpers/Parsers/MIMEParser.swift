@@ -31,30 +31,73 @@ public class MIMEParser {
         // ✨ ERWEITERT: Normalisiere Charset-Namen frühzeitig
         let normalizedCharset = normalizeCharsetName(charset)
         
+        // ✨ NEU: Wenn contentType/charset nil sind, versuche aus rawBody zu extrahieren
+        var effectiveContentType = contentType
+        var effectiveCharset = normalizedCharset
+
+        if effectiveContentType == nil || effectiveCharset == nil {
+            if let str = rawBodyString {
+                let extracted = extractContentTypeFromRawBody(str)
+                if effectiveContentType == nil { effectiveContentType = extracted.contentType }
+                if effectiveCharset == nil { effectiveCharset = normalizeCharsetName(extracted.charset) }
+                
+                print("🔍 [MIMEParser] Extracted from rawBody - contentType: \(effectiveContentType ?? "nil"), charset: \(effectiveCharset ?? "nil")")
+            }
+        }
+        
         // If we have raw bytes and charset info, try to decode properly first
-        if let bytes = rawBodyBytes, let cs = normalizedCharset {
+        if let bytes = rawBodyBytes, let cs = effectiveCharset {
             if let decoded = decodeDataWithCharset(bytes, charset: cs) {
-                return parseFromString(decoded, contentType: contentType, charset: cs)
+                return parseFromString(decoded, contentType: effectiveContentType, charset: cs)
             }
         }
         
         // Fallback to string-based parsing
         if let str = rawBodyString {
-            return parseFromString(str, contentType: contentType, charset: normalizedCharset)
+            return parseFromString(str, contentType: effectiveContentType, charset: effectiveCharset)
         }
         
         // If we have bytes but no charset, try smart detection
         if let bytes = rawBodyBytes {
             let detected = detectCharsetFromData(bytes)
             if let decoded = decodeDataWithCharset(bytes, charset: detected) {
-                return parseFromString(decoded, contentType: contentType, charset: detected)
+                return parseFromString(decoded, contentType: effectiveContentType, charset: detected)
             }
         }
         
+        // ✨ ERWEITERT: Debug-Logging am Ende
+        print("🔍 [MIMEParser] Result - text: 0, html: 0 (no valid input)")
         return MIMEContent()
     }
     
     // MARK: - Enhanced Charset Handling
+    
+    // MARK: - Content-Type Auto-Detection
+    
+    /// ✨ NEUE METHODE: Extrahiert Content-Type und Charset aus rawBody
+    private func extractContentTypeFromRawBody(_ rawBody: String) -> (contentType: String?, charset: String?) {
+        let lines = rawBody.components(separatedBy: "\n")
+        var contentType: String?
+        var charset: String?
+        
+        for line in lines.prefix(50) { // Nur ersten 50 Zeilen durchsuchen
+            let trimmed = line.trimmingCharacters(in: .whitespacesAndNewlines)
+            
+            if trimmed.lowercased().hasPrefix("content-type:") {
+                let value = trimmed.dropFirst("content-type:".count).trimmingCharacters(in: .whitespaces)
+                contentType = value.split(separator: ";").first.map(String.init)
+                
+                // Charset extrahieren
+                if let charsetRange = value.range(of: "charset=", options: .caseInsensitive) {
+                    let charsetPart = String(value[charsetRange.upperBound...]).trimmingCharacters(in: .whitespaces)
+                    charset = charsetPart.split(separator: ";").first.map(String.init)?.trimmingCharacters(in: CharacterSet(charactersIn: "\"' "))
+                }
+                break
+            }
+        }
+        
+        return (contentType, charset)
+    }
     
     /// ✨ NEUE METHODE: Normalisiert Charset-Namen zu standardisierten Werten
     private func normalizeCharsetName(_ charset: String?) -> String? {
@@ -289,18 +332,26 @@ public class MIMEParser {
     ) -> MIMEContent {
         guard let ct = contentType?.lowercased() else {
             // No content-type - treat as plain text
-            return MIMEContent(text: body, html: nil, attachments: [])
+            let result = MIMEContent(text: body, html: nil, attachments: [])
+            print("🔍 [MIMEParser] Result - text: \(result.text?.count ?? 0), html: 0 (no content-type)")
+            return result
         }
         
         if ct.contains("multipart/") {
             return parseMultipart(body, contentType: ct, params: extractParams(ct))
         } else if ct.contains("text/html") {
-            return MIMEContent(text: nil, html: body, attachments: [])
+            let result = MIMEContent(text: nil, html: body, attachments: [])
+            print("🔍 [MIMEParser] Result - text: 0, html: \(result.html?.count ?? 0)")
+            return result
         } else if ct.contains("text/plain") {
-            return MIMEContent(text: body, html: nil, attachments: [])
+            let result = MIMEContent(text: body, html: nil, attachments: [])
+            print("🔍 [MIMEParser] Result - text: \(result.text?.count ?? 0), html: 0")
+            return result
         } else {
             // Unknown content type - default to text
-            return MIMEContent(text: body, html: nil, attachments: [])
+            let result = MIMEContent(text: body, html: nil, attachments: [])
+            print("🔍 [MIMEParser] Result - text: \(result.text?.count ?? 0), html: 0 (unknown content-type)")
+            return result
         }
     }
     
@@ -348,7 +399,9 @@ public class MIMEParser {
         
         print("✅ PHASE 3: Multipart parsing complete - text: \(textPart?.count ?? 0), html: \(htmlPart?.count ?? 0), attachments: \(attachments.count)")
         
-        return MIMEContent(text: textPart, html: htmlPart, attachments: attachments)
+        let result = MIMEContent(text: textPart, html: htmlPart, attachments: attachments)
+        print("🔍 [MIMEParser] Result - text: \(result.text?.count ?? 0), html: \(result.html?.count ?? 0)")
+        return result
     }
     
     /// ✅ PHASE 3: Robuste Boundary-basierte Part-Extraktion

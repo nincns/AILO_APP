@@ -377,6 +377,8 @@ final class MailSendReceive {
             
             // ✅ PHASE 3: Einmaliges MIME-Parsing - speichere RAW-Daten
             print("🔍 PHASE 3: Starting MIME parsing for UID: \(uid)")
+            print("🔍 [MailTransportStubs] Raw body length: \(raw.count)")
+            print("🔍 [MailTransportStubs] Raw body preview: \(String(raw.prefix(300)))")
             let mime = MIMEParser().parse(rawBodyBytes: nil, rawBodyString: bodyOnly, contentType: nil, charset: nil)
             print("🔍 PHASE 3: MIME parsing complete - text: \(mime.text?.count ?? 0), html: \(mime.html?.count ?? 0)")
             
