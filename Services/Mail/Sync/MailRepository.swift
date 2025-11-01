@@ -97,8 +97,6 @@ public final class MailRepository: ObservableObject {
         return try dao.body(accountId: accountId, folder: folder, uid: uid)
     }
 
-    // MARK: - Folder Management
-
     /// 1.1 Alle konfigurierten SpecialFolders abrufen
     public func getAllConfiguredFolders(accountId: UUID) -> [String] {
         print("📁 getAllConfiguredFolders for account: \(accountId)")
@@ -193,6 +191,8 @@ public final class MailRepository: ObservableObject {
             return .failure(error)
         }
     }
+
+    // MARK: - Folder Management
 
     // Sync
     public func sync(accountId: UUID, folders: [String]? = nil) {

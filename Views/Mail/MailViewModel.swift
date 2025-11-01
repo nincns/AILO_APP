@@ -19,6 +19,7 @@ import Foundation
     @Published var allServerFolders: [String] = []          // Alle Ordner vom Server
     @Published var isLoadingFolders: Bool = false           // Loading-State
     @Published var selectedFolder: String? = nil            // Aktuell gewählter Custom-Folder
+    @Published var customFolderMails: [String: [MessageHeaderEntity]] = [:]  // Cache für Custom-Folder Mails
     
     private var syncingAccounts: Set<UUID> = []
     private var accountsChangedObserver: AnyCancellable?
@@ -140,6 +141,11 @@ import Foundation
         
         // PHASE 2: Zusätzlich alle Server-Ordner laden
         await loadAllServerFolders(accountId: accountId)
+        
+        // Task für Server-Folder-Discovery im Hintergrund
+        Task {
+            await loadAllServerFolders(accountId: accountId)
+        }
     }
     
     // MARK: - Phase 2: Folder Management
