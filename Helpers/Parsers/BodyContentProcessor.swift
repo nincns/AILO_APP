@@ -502,24 +502,42 @@ public class BodyContentProcessor {
         return cleaned
     }
     
-    /// Entfernt einzelne Sonderzeichen am Ende
+    /// Entfernt einzelne Sonderzeichen am Ende (z.B. einsame Klammern)
     private static func removeTrailingOrphans(_ text: String) -> String {
-        var cleaned = text
+        var cleaned = text.trimmingCharacters(in: .whitespacesAndNewlines)
         
         // Liste von Sonderzeichen die alleine am Ende nichts zu suchen haben
         let trailingOrphans = [")", "(", "]", "[", "}", "{", ">", "<", "|", "\\", "/", ";", ":", ","]
         
-        // Entferne trailing Orphans (wenn sie alleine in der letzten Zeile stehen)
+        // ✅ NEU: Prüfe die letzten 3 Zeilen, nicht nur die letzte
         let lines = cleaned.components(separatedBy: .newlines)
-        if let lastLine = lines.last {
+        var linesToKeep = lines
+        
+        // Entferne trailing orphan Zeilen (von hinten nach vorne)
+        for _ in 0..<min(3, lines.count) {
+            guard let lastLine = linesToKeep.last else { break }
             let trimmedLast = lastLine.trimmingCharacters(in: .whitespaces)
-            // Wenn letzte Zeile nur aus einem einzelnen Sonderzeichen besteht
-            if trimmedLast.count == 1 && trailingOrphans.contains(trimmedLast) {
-                // Entferne diese Zeile
-                let withoutLast = lines.dropLast()
-                cleaned = withoutLast.joined(separator: "\n").trimmingCharacters(in: .whitespacesAndNewlines)
+            
+            // ✅ NEU: Entferne auch leere Zeilen am Ende
+            if trimmedLast.isEmpty {
+                linesToKeep = Array(linesToKeep.dropLast())
+                continue
+            }
+            
+            // ✅ NEU: Prüfe ob Zeile NUR aus Orphan-Zeichen besteht (mehrere erlaubt)
+            let orphanChars = trimmedLast.filter { trailingOrphans.contains(String($0)) }
+            let isOnlyOrphans = orphanChars.count == trimmedLast.count && !trimmedLast.isEmpty
+            
+            if isOnlyOrphans && trimmedLast.count <= 3 {
+                // Zeile besteht nur aus 1-3 Orphan-Zeichen → entfernen
+                linesToKeep = Array(linesToKeep.dropLast())
+            } else {
+                // Normale Content-Zeile gefunden → stop
+                break
             }
         }
+        
+        cleaned = linesToKeep.joined(separator: "\n").trimmingCharacters(in: .whitespacesAndNewlines)
         
         return cleaned
     }
