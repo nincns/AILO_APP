@@ -23,6 +23,8 @@
 		C947E90E2EB414A6007634FC /* DAOFactory.swift in Sources */ = {isa = PBXBuildFile; fileRef = C947E90D2EB414A6007634FC /* DAOFactory.swift */; };
 		C947E9122EB414F3007634FC /* MigrationGuide.swift in Sources */ = {isa = PBXBuildFile; fileRef = C947E9112EB414F3007634FC /* MigrationGuide.swift */; };
 		C9492FE82EB617DC00F2EE4B /* MailBodyProcessor.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9492FE72EB617DC00F2EE4B /* MailBodyProcessor.swift */; };
+		C9492FEC2EB666B000F2EE4B /* de.lprojLocalizable.strings in Resources */ = {isa = PBXBuildFile; fileRef = C9492FEB2EB666B000F2EE4B /* de.lprojLocalizable.strings */; };
+		C9492FEE2EB666B500F2EE4B /* en.lprojLocalizable.strings in Resources */ = {isa = PBXBuildFile; fileRef = C9492FED2EB666B500F2EE4B /* en.lprojLocalizable.strings */; };
 		C949C3E52EB3F36200CB9D27 /* MailSyncEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = C949C3E42EB3F36200CB9D27 /* MailSyncEngine.swift */; };
 		C949C3E72EB3F52B00CB9D27 /* StructuredMailStorage.swift in Sources */ = {isa = PBXBuildFile; fileRef = C949C3E62EB3F52B00CB9D27 /* StructuredMailStorage.swift */; };
 		C96E33A92EAED61F0058CB0A /* EmailContentParser.swift in Sources */ = {isa = PBXBuildFile; fileRef = C96E33A82EAED61F0058CB0A /* EmailContentParser.swift */; };
@@ -138,6 +140,8 @@
 		C947E90D2EB414A6007634FC /* DAOFactory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DAOFactory.swift; sourceTree = "<group>"; };
 		C947E9112EB414F3007634FC /* MigrationGuide.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MigrationGuide.swift; sourceTree = "<group>"; };
 		C9492FE72EB617DC00F2EE4B /* MailBodyProcessor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MailBodyProcessor.swift; sourceTree = "<group>"; };
+		C9492FEB2EB666B000F2EE4B /* de.lprojLocalizable.strings */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; path = de.lprojLocalizable.strings; sourceTree = "<group>"; };
+		C9492FED2EB666B500F2EE4B /* en.lprojLocalizable.strings */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; path = en.lprojLocalizable.strings; sourceTree = "<group>"; };
 		C949C3E42EB3F36200CB9D27 /* MailSyncEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MailSyncEngine.swift; sourceTree = "<group>"; };
 		C949C3E62EB3F52B00CB9D27 /* StructuredMailStorage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StructuredMailStorage.swift; sourceTree = "<group>"; };
 		C96E33A82EAED61F0058CB0A /* EmailContentParser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EmailContentParser.swift; sourceTree = "<group>"; };
@@ -548,6 +552,8 @@
 				C9FB883B2EB2ABB3002359BA /* AttachmentView.swift */,
 				C9CF88552EB2BAF1006CC028 /* PlatformImage.swift */,
 				C949C3E62EB3F52B00CB9D27 /* StructuredMailStorage.swift */,
+				C9492FEB2EB666B000F2EE4B /* de.lprojLocalizable.strings */,
+				C9492FED2EB666B500F2EE4B /* en.lprojLocalizable.strings */,
 			);
 			path = Mail;
 			sourceTree = "<group>";
@@ -684,6 +690,8 @@
 				C9DEDFF02EAECC4D00C40B92 /* AILO-APP-Info.plist in Resources */,
 				C9DEDFF12EAECC4D00C40B92 /* Assets.xcassets in Resources */,
 				C9DEDFF52EAECC4D00C40B92 /* Localizable.strings in Resources */,
+				C9492FEE2EB666B500F2EE4B /* en.lprojLocalizable.strings in Resources */,
+				C9492FEC2EB666B000F2EE4B /* de.lprojLocalizable.strings in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

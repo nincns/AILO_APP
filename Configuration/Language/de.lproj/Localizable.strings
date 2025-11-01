@@ -514,6 +514,7 @@
 /* MessageDetailView - Status indicators */
 "app.mail.detail.unread" = "Ungelesen";
 "app.mail.detail.flagged" = "Markiert";
+"app.mail.detail.title" = "E-Mail Details";
 
 /* MessageDetailView - Actions */
 "app.mail.action.reply" = "Antworten";

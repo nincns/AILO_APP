@@ -1,0 +1,19 @@
+/* ComposeMailView - Complete */
+"app.mail.compose.title" = "Neue Nachricht";
+"app.mail.compose.from" = "Von";
+"app.mail.compose.to" = "An";
+"app.mail.compose.to_placeholder" = "E-Mail-Adresse";
+"app.mail.compose.cc" = "CC";
+"app.mail.compose.cc_placeholder" = "Kopie an";
+"app.mail.compose.bcc" = "BCC";
+"app.mail.compose.bcc_placeholder" = "Blindkopie an";
+"app.mail.compose.subject" = "Betreff";
+"app.mail.compose.subject_placeholder" = "Betreff eingeben";
+"app.mail.compose.body" = "Nachricht";
+"app.mail.compose.html" = "HTML-Modus";
+"app.mail.compose.attachments" = "Anhänge";
+"app.mail.compose.no_attachments" = "Keine Anhänge";
+"app.mail.compose.add_photo" = "Foto hinzufügen";
+"app.mail.compose.add_file" = "Datei hinzufügen";
+"app.mail.send" = "Senden";
+"app.common.cancel" = "Abbrechen";
