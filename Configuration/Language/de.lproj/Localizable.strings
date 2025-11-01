@@ -465,6 +465,36 @@
 
 /* Search */
 "app.mail.search_placeholder" = "Betreff oder Absender suchen";
+"app.mail.search" = "Suchen";
+
+/* Bulk actions */
+"app.mail.mark_all_read" = "Alle als gelesen markieren";
+"app.mail.mark_all_unread" = "Alle als ungelesen markieren";
+
+/* Sorting */
+"app.mail.sort_newest_first" = "Neueste zuerst";
+"app.mail.sort_by_sender" = "Nach Absender";
+
+/* Search */
+"app.mail.search_placeholder" = "Betreff oder Absender suchen";
+"app.mail.search" = "Suchen";
+
+/* Bulk actions */
+"app.mail.mark_all_read" = "Alle als gelesen markieren";
+"app.mail.mark_all_unread" = "Alle als ungelesen markieren";
+
+/* Sorting */
+"app.mail.sort_newest_first" = "Neueste zuerst";
+"app.mail.sort_by_sender" = "Nach Absender";
+"app.mail.search" = "Suchen";
+
+/* Bulk actions */
+"app.mail.mark_all_read" = "Alle als gelesen markieren";
+"app.mail.mark_all_unread" = "Alle als ungelesen markieren";
+
+/* Sorting */
+"app.mail.sort_newest_first" = "Neueste zuerst";
+"app.mail.sort_by_sender" = "Nach Absender";
 
 /* Empty & selection states */
 "app.mail.select_message" = "Keine E-Mail ausgewählt";

@@ -48,7 +48,7 @@ struct MessageDetailView: View {
                     HStack {
                         ProgressView()
                             .scaleEffect(0.8)
-                        Text("Inhalt wird geladen...")
+                        Text(String(localized: "app.mail.detail.content_loading"))
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
                     }
@@ -66,7 +66,7 @@ struct MessageDetailView: View {
                 // Show refresh action if no content available
                 if bodyText.trimmingCharacters(in: CharacterSet.whitespacesAndNewlines).isEmpty && !isLoadingBody {
                     VStack(spacing: 12) {
-                        Text("Der Mail-Inhalt ist noch nicht verfgbar. Versuchen Sie eine Aktualisierung.")
+                        Text(String(localized: "app.mail.detail.content_unavailable"))
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
                             .multilineTextAlignment(.center)
@@ -74,7 +74,7 @@ struct MessageDetailView: View {
                         Button(action: refreshBodyContent) {
                             HStack {
                                 Image(systemName: "arrow.clockwise")
-                                Text("Inhalt aktualisieren")
+                                Text(String(localized: "app.mail.detail.refresh_content"))
                             }
                         }
                         .buttonStyle(.borderedProminent)
@@ -96,27 +96,27 @@ struct MessageDetailView: View {
             .frame(minHeight: geometry.size.height)
             }
         }
-        .navigationTitle("Nachricht")
+        .navigationTitle(String(localized: "app.mail.detail.title"))
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
                 Menu {
                     Button(action: replyAction) {
-                        Label("Antworten", systemImage: "arrowshape.turn.up.left")
+                        Label(String(localized: "app.mail.action.reply"), systemImage: "arrowshape.turn.up.left")
                     }
                     Button(action: forwardAction) {
-                        Label("Weiterleiten", systemImage: "arrowshape.turn.up.right")
+                        Label(String(localized: "app.mail.action.forward"), systemImage: "arrowshape.turn.up.right")
                     }
                     Divider()
                     Button(action: toggleFlagAction) {
                         Label(
-                            mail.flags.contains("\\Flagged") ? "Markierung entfernen" : "Markieren",
+                            mail.flags.contains("\\Flagged") ? String(localized: "app.mail.action.unflag") : String(localized: "app.mail.action.flag"),
                             systemImage: mail.flags.contains("\\Flagged") ? "flag.slash" : "flag"
                         )
                     }
                     Button(action: toggleReadAction) {
                         Label(
-                            mail.flags.contains("\\Seen") ? "Als ungelesen markieren" : "Als gelesen markieren",
+                            mail.flags.contains("\\Seen") ? String(localized: "app.mail.action.mark_unread") : String(localized: "app.mail.action.mark_read"),
                             systemImage: mail.flags.contains("\\Seen") ? "envelope.badge" : "envelope.open"
                         )
                     }
@@ -133,12 +133,12 @@ struct MessageDetailView: View {
                         }
                     }) {
                         Label(
-                            showTechnicalHeaders ? "Technische Details ausblenden" : "Technische Details anzeigen",
+                            showTechnicalHeaders ? String(localized: "app.mail.action.hide_technical") : String(localized: "app.mail.action.show_technical"),
                             systemImage: "info.circle"
                         )
                     }
                     Button(role: .destructive, action: deleteAction) {
-                        Label("Lschen", systemImage: "trash")
+                        Label(String(localized: "common.delete"), systemImage: "trash")
                     }
                 } label: {
                     Image(systemName: "ellipsis.circle")
@@ -157,7 +157,7 @@ struct MessageDetailView: View {
     private var mailHeaderSection: some View {
         VStack(alignment: .leading, spacing: 12) {
             // Subject
-            Text(mail.subject.isEmpty ? "Kein Betreff" : mail.subject)
+            Text(mail.subject.isEmpty ? String(localized: "app.mail.detail.no_subject") : mail.subject)
                 .font(.title2)
                 .fontWeight(.semibold)
                 .foregroundStyle(.primary)
@@ -242,7 +242,7 @@ struct MessageDetailView: View {
                         Circle()
                             .fill(Color.accentColor)
                             .frame(width: 8, height: 8)
-                        Text("Ungelesen")
+                        Text(String(localized: "app.mail.detail.unread"))
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }
@@ -252,7 +252,7 @@ struct MessageDetailView: View {
                     HStack(spacing: 4) {
                         Image(systemName: "flag.fill")
                             .foregroundStyle(.orange)
-                        Text("Markiert")
+                        Text(String(localized: "app.mail.detail.flagged"))
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }
@@ -298,7 +298,7 @@ struct MessageDetailView: View {
             HStack {
                 Image(systemName: "paperclip")
                     .foregroundStyle(.secondary)
-                Text("Anhnge")
+                Text(String(localized: "app.mail.detail.attachments"))
                     .font(.headline)
                     .fontWeight(.medium)
             }
@@ -334,7 +334,7 @@ struct MessageDetailView: View {
                 guard let dao = MailRepository.shared.dao else {
                     print("❌ [MessageDetailView] DAO not available")
                     await MainActor.run {
-                        errorMessage = "Datenbankzugriff nicht verfügbar"
+                        errorMessage = String(localized: "app.mail.detail.database_unavailable")
                         isLoadingBody = false
                     }
                     return
@@ -407,7 +407,7 @@ struct MessageDetailView: View {
                     print("⚠️ No cached body - triggering ON-DEMAND fetch for UID: \(mail.uid)")
                     
                     await MainActor.run {
-                        bodyText = "Inhalt wird vom Server geladen..."
+                        bodyText = String(localized: "app.mail.detail.loading_from_server")
                         isHTML = false
                         isLoadingBody = true
                     }
@@ -431,7 +431,10 @@ struct MessageDetailView: View {
                     } catch {
                         print("❌ On-Demand fetch failed: \(error)")
                         await MainActor.run {
-                            errorMessage = "Fehler beim Laden: \(error.localizedDescription)"
+                            errorMessage = String.localizedStringWithFormat(
+                                String(localized: "app.mail.detail.error_loading"), 
+                                error.localizedDescription
+                            )
                             bodyText = ""
                             isLoadingBody = false
                         }
@@ -464,7 +467,7 @@ struct MessageDetailView: View {
             guard let dao = MailRepository.shared.dao else {
                 print("❌ [MessageDetailView] DAO not available after sync")
                 await MainActor.run {
-                    errorMessage = "Datenbankzugriff nicht verfügbar"
+                    errorMessage = String(localized: "app.mail.detail.database_unavailable")
                     isLoadingBody = false
                 }
                 return
@@ -529,7 +532,7 @@ struct MessageDetailView: View {
             
             if !bodyLoaded {
                 await MainActor.run {
-                    bodyText = "Mail-Inhalt konnte nicht geladen werden. Versuchen Sie 'Inhalt aktualisieren'."
+                    bodyText = String(localized: "app.mail.detail.content_could_not_load")
                     isHTML = false
                     isLoadingBody = false
                 }
@@ -539,7 +542,10 @@ struct MessageDetailView: View {
         } catch {
             print("❌ [MessageDetailView] Failed to load body after sync: \(error)")
             await MainActor.run {
-                errorMessage = "Fehler beim Laden des Inhalts: \(error.localizedDescription)"
+                errorMessage = String.localizedStringWithFormat(
+                    String(localized: "app.mail.detail.error_loading_content"), 
+                    error.localizedDescription
+                )
                 bodyText = ""
                 isHTML = false
                 isLoadingBody = false
@@ -577,7 +583,10 @@ struct MessageDetailView: View {
             } catch {
                 print("❌ Refresh failed: \(error)")
                 await MainActor.run {
-                    errorMessage = "Fehler beim Aktualisieren: \(error.localizedDescription)"
+                    errorMessage = String.localizedStringWithFormat(
+                        String(localized: "app.mail.detail.error_refreshing"), 
+                        error.localizedDescription
+                    )
                     isLoadingBody = false
                 }
             }
@@ -717,7 +726,10 @@ struct MessageDetailView: View {
         } catch {
             print("❌ [reprocessMailBody] Re-processing failed: \(error)")
             await MainActor.run {
-                errorMessage = "Neuverarbeitung fehlgeschlagen: \(error.localizedDescription)"
+                errorMessage = String.localizedStringWithFormat(
+                    String(localized: "app.mail.detail.error_reprocessing"), 
+                    error.localizedDescription
+                )
             }
         }
     }

@@ -118,7 +118,7 @@ struct RegularSplitView: View {
             // Lightweight search field (binds to parent searchText)
             HStack {
                 Image(systemName: "magnifyingglass").foregroundStyle(.secondary)
-                TextField(String(localized: "app.mail.search"), text: $searchText)
+                TextField(String(localized: "app.mail.search_placeholder"), text: $searchText)
                     .textInputAutocapitalization(.never)
                     .autocorrectionDisabled(true)
             }
@@ -153,9 +153,9 @@ struct RegularSplitView: View {
                     }
                     .buttonStyle(.plain)
                     .swipeActions(edge: .trailing, allowsFullSwipe: true) {
-                        Button(role: .destructive) { onDelete(mail) } label: { Label("app.common.delete", systemImage: "trash") }
-                        Button { onToggleFlag(mail) } label: { Label("app.mail.flag", systemImage: "flag") }
-                        Button { onToggleRead(mail) } label: { Label("app.mail.read_unread", systemImage: "envelope") }
+                        Button(role: .destructive) { onDelete(mail) } label: { Label(String(localized: "common.delete"), systemImage: "trash") }
+                        Button { onToggleFlag(mail) } label: { Label(String(localized: "app.mail.flag"), systemImage: "flag") }
+                        Button { onToggleRead(mail) } label: { Label(String(localized: "app.mail.read_unread"), systemImage: "envelope") }
                     }
                 }
             }
@@ -178,7 +178,7 @@ struct RegularSplitView: View {
                     .foregroundStyle(.secondary)
                 Divider()
                 if isLoadingBody {
-                    HStack(spacing: 8) { ProgressView(); Text(String(localized: "app.common.loading")).font(.caption).foregroundStyle(.secondary) }
+                    HStack(spacing: 8) { ProgressView(); Text(String(localized: "common.loading")).font(.caption).foregroundStyle(.secondary) }
                 } else if isHTML {
                     HTMLWebView(html: bodyText)
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -215,9 +215,9 @@ struct RegularSplitView: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         } else {
             ContentUnavailableView {
-                Label("app.mail.no_message_selected", systemImage: "envelope")
+                Label(String(localized: "app.mail.no_message_selected"), systemImage: "envelope")
             } description: {
-                Text("app.mail.no_message_selected_description")
+                Text(String(localized: "app.mail.no_message_selected_description"))
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
