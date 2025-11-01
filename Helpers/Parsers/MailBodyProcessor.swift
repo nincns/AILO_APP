@@ -7,56 +7,87 @@ import Foundation
 public class MailBodyProcessor {
     
     /// Prüft ob Body noch MIME-Kodierung enthält
-    /// Prüft SOWOHL Anfang (Header) ALS AUCH Ende (Boundary-Terminator)
+    /// WICHTIG: Unterscheidet zwischen RAW (mit Boundaries) und verarbeitetem Content
     public static func needsProcessing(_ body: String?) -> Bool {
-        guard let body = body, !body.isEmpty else { return true }
+        guard let body = body, !body.isEmpty else {
+            print("🔍 [needsProcessing] TRUE - Body is nil or empty")
+            return true
+        }
         
         let lines = body.components(separatedBy: .newlines)
+        let trimmedBody = body.trimmingCharacters(in: .whitespacesAndNewlines)
         
-        // Strategie: Prüfe Anfang UND Ende der Mail
-        
-        // 1. Prüfe erste 20 Zeilen auf MIME-Header
-        let firstLines = lines.prefix(20)
-        var hasMIMEHeaders = false
-        
-        for line in firstLines {
-            let lower = line.lowercased().trimmingCharacters(in: .whitespaces)
-            if lower.hasPrefix("content-type:") ||
-               lower.hasPrefix("content-transfer-encoding:") ||
-               lower.hasPrefix("mime-version:") {
-                hasMIMEHeaders = true
-                break
+        // KRITISCH: Prüfe auf End-Boundary (definitivstes Zeichen für RAW-Format)
+        // End-Boundary Pattern: --BOUNDARY-- (mit trailing --)
+        let lastLines = lines.suffix(10)
+        for line in lastLines {
+            let trimmed = line.trimmingCharacters(in: .whitespaces)
+            if trimmed.hasPrefix("--") && trimmed.hasSuffix("--") && trimmed.count > 4 {
+                let withoutDashes = trimmed.dropFirst(2).dropLast(2)
+                if withoutDashes.count > 5 {
+                    print("🔍 [needsProcessing] TRUE - End-boundary found: \(trimmed.prefix(40))...")
+                    return true
+                }
             }
         }
         
-        // 2. Prüfe letzte 10 Zeilen auf End-Boundary (definitive RAW-Marker)
-        let lastLines = lines.suffix(10)
-        var hasEndBoundary = false
+        // Prüfe auf isolierte MIME-Header am Anfang (ohne nachfolgenden Content)
+        let firstLines = lines.prefix(20)
+        var mimeHeaderCount = 0
+        var hasContentAfterHeaders = false
         
-        for line in lastLines {
-            let trimmed = line.trimmingCharacters(in: .whitespaces)
-            // End-Boundary Pattern: --BOUNDARY-- (mit trailing --)
-            if trimmed.hasPrefix("--") && trimmed.hasSuffix("--") && trimmed.count > 4 {
-                // Prüfe ob es wirklich ein Boundary-Terminator ist (nicht nur --)
-                let withoutDashes = trimmed.dropFirst(2).dropLast(2)
-                if withoutDashes.count > 5 {
-                    hasEndBoundary = true
-                    print("🔍 [needsProcessing] Found end-boundary: \(trimmed.prefix(50))...")
+        for (index, line) in firstLines.enumerated() {
+            let lower = line.lowercased().trimmingCharacters(in: .whitespaces)
+            
+            if lower.hasPrefix("content-type:") ||
+               lower.hasPrefix("content-transfer-encoding:") ||
+               lower.hasPrefix("mime-version:") {
+                mimeHeaderCount += 1
+            } else if !lower.isEmpty && mimeHeaderCount > 0 {
+                // Nicht-leere Zeile nach MIME-Headern gefunden
+                // Prüfe ob es echter Content ist (nicht nur weitere Header)
+                if !lower.contains(":") || lower.starts(with: "<") {
+                    hasContentAfterHeaders = true
                     break
                 }
             }
         }
         
-        // 3. Entscheidung
-        let needsProcessing = hasMIMEHeaders || hasEndBoundary
-        
-        if needsProcessing {
-            print("🔍 [needsProcessing] TRUE - hasMIMEHeaders: \(hasMIMEHeaders), hasEndBoundary: \(hasEndBoundary)")
-        } else {
-            print("🔍 [needsProcessing] FALSE - Content appears already processed")
+        // Wenn MIME-Header gefunden wurden UND danach echter Content kommt
+        // → Wahrscheinlich bereits verarbeitet (HTML kann Content-Type Meta-Tags haben)
+        if mimeHeaderCount > 0 && hasContentAfterHeaders {
+            print("🔍 [needsProcessing] FALSE - MIME headers found but followed by content (likely processed)")
+            return false
         }
         
-        return needsProcessing
+        // Wenn MIME-Header gefunden wurden OHNE Content danach
+        // → Noch nicht verarbeitet
+        if mimeHeaderCount >= 2 {
+            print("🔍 [needsProcessing] TRUE - Multiple MIME headers without content")
+            return true
+        }
+        
+        // Prüfe ob Content wie bereits verarbeitetes HTML aussieht
+        if trimmedBody.lowercased().hasPrefix("<html") ||
+           trimmedBody.lowercased().hasPrefix("<!doctype") ||
+           trimmedBody.lowercased().hasPrefix("<div") ||
+           trimmedBody.lowercased().hasPrefix("<p") {
+            print("🔍 [needsProcessing] FALSE - Content appears to be processed HTML")
+            return false
+        }
+        
+        // Prüfe ob Content wie normaler Text aussieht (keine MIME-Strukturen)
+        let hasBoundaryMarkers = trimmedBody.contains("--") &&
+                                 (trimmedBody.contains("Content-Type:") ||
+                                  trimmedBody.contains("boundary="))
+        
+        if !hasBoundaryMarkers {
+            print("🔍 [needsProcessing] FALSE - No boundary markers, appears processed")
+            return false
+        }
+        
+        print("🔍 [needsProcessing] TRUE - Default case, requires processing")
+        return true
     }
     
     /// Dekodiert rawBody zu text/html
