@@ -75,3 +75,4 @@ playground.xcworkspace
 # Explicitly keep project definitions
 !*.xcodeproj/project.pbxproj
 !*.xcscheme
+build_info.txt
