@@ -15,6 +15,11 @@ import Foundation
     
     @Published var availableMailboxes: Set<MailboxType> = [.inbox]
     
+    // MARK: - Phase 2: Folder-State Management
+    @Published var allServerFolders: [String] = []          // Alle Ordner vom Server
+    @Published var isLoadingFolders: Bool = false           // Loading-State
+    @Published var selectedFolder: String? = nil            // Aktuell gewählter Custom-Folder
+    
     private var syncingAccounts: Set<UUID> = []
     private var accountsChangedObserver: AnyCancellable?
     private var activeChangedObserver: AnyCancellable?
@@ -132,6 +137,209 @@ import Foundation
 
         print("✅ Verfügbare Mailboxen: \(set)")
         await MainActor.run { self.availableMailboxes = set }
+        
+        // PHASE 2: Zusätzlich alle Server-Ordner laden
+        await loadAllServerFolders(accountId: accountId)
+    }
+    
+    // MARK: - Phase 2: Folder Management
+    
+    /// 2.1 Lädt alle Ordner vom Server
+    func loadAllServerFolders(accountId: UUID) async {
+        print("📁 loadAllServerFolders called for accountId: \(accountId)")
+        
+        // Loading-State aktivieren
+        await MainActor.run { 
+            self.isLoadingFolders = true
+            self.lastError = nil
+        }
+        
+        do {
+            // Account-Konfiguration laden für Filter-Logik
+            guard let account = accountConfig(for: accountId) else {
+                await MainActor.run {
+                    self.lastError = "Account configuration not found"
+                    self.allServerFolders = []
+                    self.isLoadingFolders = false
+                }
+                return
+            }
+            
+            // Alle Server-Ordner via MailRepository laden
+            let result = await MailRepository.shared.getAllServerFolders(accountId: accountId)
+            
+            switch result {
+            case .success(let folders):
+                print("✅ Loaded \(folders.count) server folders: \(folders)")
+                
+                // Filter anwenden: Nur Custom-Ordner (keine SpecialFolders)
+                let customFolders = filterCustomFolders(folders, account: account)
+                
+                await MainActor.run {
+                    self.allServerFolders = customFolders  // Bereits in filterCustomFolders sortiert
+                    self.isLoadingFolders = false
+                }
+                
+            case .failure(let error):
+                print("❌ Failed to load server folders: \(error)")
+                
+                await MainActor.run {
+                    self.lastError = "Failed to load folders: \(error.localizedDescription)"
+                    self.allServerFolders = []  // Bei Fehler: leere Liste
+                    self.isLoadingFolders = false
+                }
+            }
+            
+        } catch {
+            print("❌ Unexpected error in loadAllServerFolders: \(error)")
+            
+            await MainActor.run {
+                self.lastError = "Unexpected error: \(error.localizedDescription)"
+                self.allServerFolders = []
+                self.isLoadingFolders = false
+            }
+        }
+    }
+    
+    /// 2.2 Lädt Mails für beliebigen Ordner
+    func loadMailsForFolder(folder: String, accountId: UUID) async {
+        print("📂 loadMailsForFolder called - folder: '\(folder)', accountId: \(accountId)")
+        
+        // Loading-State aktivieren
+        await MainActor.run { 
+            self.isLoading = true
+            self.lastError = nil
+        }
+        
+        do {
+            // 1. Zuerst Cache laden (sofortige UI-Anzeige)
+            print("📱 Loading cached headers for custom folder: \(folder)")
+            let cachedHeaders = try MailRepository.shared.loadCachedHeaders(
+                accountId: accountId,
+                folder: folder,
+                limit: 100,
+                offset: 0
+            )
+            
+            // Cache-Daten sofort in UI anzeigen
+            let cachedEntities: [MessageHeaderEntity] = cachedHeaders.map { header in
+                MessageHeaderEntity(
+                    accountId: accountId,
+                    folder: folder,
+                    uid: header.id,
+                    from: header.from,
+                    subject: header.subject,
+                    date: header.date,
+                    flags: header.flags
+                )
+            }
+            
+            await MainActor.run {
+                self.filteredMails = cachedEntities
+                self.selectedFolder = folder  // Aktuell gewählten Folder setzen
+                self.customFolderCache[folder] = cachedEntities  // Cache aktualisieren
+                print("📱 Loaded \(cachedEntities.count) cached messages for folder: \(folder)")
+            }
+            
+            // 2. Dann aktualisierte Daten vom Server laden (Hintergrund-Sync)
+            print("🔄 Triggering sync for custom folder: \(folder)")
+            MailRepository.shared.incrementalSync(accountId: accountId, folders: [folder])
+            
+            // Kurz warten auf Sync-Ergebnis
+            try? await Task.sleep(nanoseconds: 1_000_000_000) // 1 Sekunde
+            
+            // 3. Aktualisierte Daten aus DAO laden
+            print("📂 Loading fresh headers after sync for folder: \(folder)")
+            let freshHeaders = try MailRepository.shared.listHeaders(
+                accountId: accountId,
+                folder: folder,
+                limit: 100,
+                offset: 0
+            )
+            
+            let freshEntities: [MessageHeaderEntity] = freshHeaders.map { header in
+                MessageHeaderEntity(
+                    accountId: accountId,
+                    folder: folder,
+                    uid: header.id,
+                    from: header.from,
+                    subject: header.subject,
+                    date: header.date,
+                    flags: header.flags
+                )
+            }
+            
+            await MainActor.run {
+                self.filteredMails = freshEntities
+                self.customFolderCache[folder] = freshEntities  // Cache aktualisieren
+                self.isLoading = false
+                print("✅ Final result: \(freshEntities.count) messages in folder: \(folder)")
+                
+                // Badge-Counts für diesen Account aktualisieren
+                self.updateBadgeCounts(accountId: accountId)
+            }
+            
+        } catch {
+            print("❌ loadMailsForFolder error: \(error)")
+            
+            await MainActor.run {
+                self.lastError = "Failed to load folder '\(folder)': \(error.localizedDescription)"
+                self.isLoading = false
+                // filteredMails nicht leeren - behalte Cache-Daten falls vorhanden
+            }
+        }
+    }
+    
+    /// 2.3 Filter: Nur Custom-Ordner (keine SpecialFolders)
+    private func filterCustomFolders(_ allFolders: [String], account: MailAccountConfig) -> [String] {
+        print("🔍 filterCustomFolders called with \(allFolders.count) folders")
+        
+        // Standard-/Special-Folders die ausgeschlossen werden sollen
+        var excludedFolders = Set<String>()
+        
+        // Immer ausschließen: Standard IMAP-Folder
+        excludedFolders.insert("INBOX")
+        excludedFolders.insert("Inbox")
+        excludedFolders.insert("inbox")
+        
+        // Konfigurierte Special-Folders ausschließen
+        let specialFolders = [
+            account.folders.inbox,
+            account.folders.sent,
+            account.folders.drafts, 
+            account.folders.trash,
+            account.folders.spam
+        ]
+        
+        for folder in specialFolders {
+            if !folder.isEmpty {
+                excludedFolders.insert(folder)
+            }
+        }
+        
+        // Häufige Standard-Folder-Namen ausschließen (case-insensitive)
+        let commonSpecialFolders = [
+            "Sent", "SENT", "sent", "Sent Items", "Sent Messages",
+            "Drafts", "DRAFTS", "drafts", "Draft",
+            "Trash", "TRASH", "trash", "Deleted Items", "Deleted Messages",
+            "Spam", "SPAM", "spam", "Junk", "JUNK", "junk", "Junk E-mail",
+            "Archive", "ARCHIVE", "archive", "Archives",
+            "Outbox", "OUTBOX", "outbox"
+        ]
+        
+        for folder in commonSpecialFolders {
+            excludedFolders.insert(folder)
+        }
+        
+        // Filtern: Nur Ordner die NICHT in excludedFolders sind
+        let customFolders = allFolders.filter { folder in
+            !excludedFolders.contains(folder)
+        }
+        
+        print("🔍 Filtered to \(customFolders.count) custom folders: \(customFolders)")
+        print("🔍 Excluded \(excludedFolders.count) special folders: \(Array(excludedFolders).sorted())")
+        
+        return customFolders.sorted()
     }
     
     /// 🚀 NEU: Lädt Mails sofort aus lokalem Cache ohne Sync-Wartezeit
@@ -229,6 +437,65 @@ import Foundation
             }
         }
     }
+    
+    /// PHASE 2.3: Überladene refreshMails für Custom-Folders
+    func refreshMails(for folderName: String, accountId: UUID?) async {
+        let accIdStr = accountId?.uuidString ?? "nil"
+        print("📬 refreshMails called for custom folder: '\(folderName)', accountId: \(accIdStr)")
+        
+        await MainActor.run { 
+            self.isLoading = true
+            self.lastError = nil
+        }
+        
+        guard let accountId = accountId else {
+            print("❌ No accountId provided")
+            await MainActor.run { self.isLoading = false }
+            return
+        }
+        
+        print("📂 Loading from custom folder: \(folderName)")
+        
+        do {
+            // Fetch from DAO (which was populated by MailSyncEngine)
+            let headers = try MailRepository.shared.listHeaders(
+                accountId: accountId,
+                folder: folderName,
+                limit: 100,
+                offset: 0
+            )
+            
+            print("✅ Loaded \(headers.count) headers from DB for custom folder: \(folderName)")
+            
+            // Convert MailDAO.Header to MessageHeaderEntity
+            let entities = headers.map { h in
+                MessageHeaderEntity(
+                    accountId: accountId,
+                    folder: folderName,
+                    uid: h.id,
+                    from: h.from,
+                    subject: h.subject,
+                    date: h.date,
+                    flags: h.flags
+                )
+            }
+            
+            await MainActor.run {
+                self.filteredMails = entities
+                self.selectedFolder = folderName  // Custom Folder als aktuell gewählt markieren
+                print("📋 Updated filteredMails: \(entities.count) messages from custom folder: \(folderName)")
+                self.updateBadgeCounts(accountId: accountId)
+                self.isLoading = false
+            }
+            
+        } catch {
+            print("❌ refreshMails error for custom folder '\(folderName)': \(error)")
+            await MainActor.run {
+                self.lastError = "Failed to refresh folder '\(folderName)': \(error.localizedDescription)"
+                self.isLoading = false
+            }
+        }
+    }
 
     private func folderNameForMailbox(_ mailbox: MailboxType, accountId: UUID) async -> String {
         // Load account config to get folder mappings
@@ -267,14 +534,18 @@ import Foundation
         syncingAccounts.insert(accountId)
         defer { syncingAccounts.remove(accountId) }
         
-        // 🚀 NEU: Verwende inkrementelle Synchronisation
-        print("📈 Triggering incremental sync...")
-        MailRepository.shared.incrementalSync(accountId: accountId, folders: nil)
-        print("📧 Incremental sync triggered")
+        // PHASE 4: Alle konfigurierten Ordner synchronisieren
+        let allFolders = MailRepository.shared.getAllConfiguredFolders(accountId: accountId)
+        print("📁 Syncing account with all configured folders: \(allFolders)")
+        
+        // 🚀 NEU: Verwende inkrementelle Synchronisation für alle Ordner
+        print("📈 Triggering incremental sync for \(allFolders.count) folders...")
+        MailRepository.shared.incrementalSync(accountId: accountId, folders: allFolders)
+        print("📧 Incremental sync triggered for all folders")
         
         // Warte kürzer, da inkrementeller Sync effizienter ist
         try? await Task.sleep(nanoseconds: 1_500_000_000) // 1.5 Sekunden
-        print("📧 syncAccount finished waiting")
+        print("📧 syncAccount finished waiting - synced \(allFolders.count) folders")
     }
     
     func isAccountSyncing(_ accountId: UUID) -> Bool {
@@ -377,6 +648,8 @@ import Foundation
 
     private func applyFlagLocally(uids: [String], folder: String, flag: String, add: Bool) {
         let set = Set(uids)
+        
+        // Update filteredMails (for currently displayed mails)
         self.filteredMails = self.filteredMails.map { m in
             guard m.folder == folder, set.contains(m.uid) else { return m }
             var copy = m
@@ -386,6 +659,20 @@ import Foundation
                 copy.flags.removeAll { $0 == flag }
             }
             return copy
+        }
+        
+        // PHASE 6: Update customFolderCache (for cached custom folder mails)
+        if var cachedMails = customFolderCache[folder] {
+            customFolderCache[folder] = cachedMails.map { m in
+                guard set.contains(m.uid) else { return m }
+                var copy = m
+                if add {
+                    if !copy.flags.contains(flag) { copy.flags.append(flag) }
+                } else {
+                    copy.flags.removeAll { $0 == flag }
+                }
+                return copy
+            }
         }
     }
 
@@ -402,6 +689,77 @@ import Foundation
             }
             self.applyFlagLocally(uids: uids, folder: folder, flag: "\\Seen", add: add)
             self.updateBadgeCounts(accountId: accId)
+        }
+    }
+    
+    // MARK: - Phase 6: Custom Folder Support
+    
+    /// Cache für Custom-Folder Mails
+    private var customFolderCache: [String: [MessageHeaderEntity]] = [:]
+    
+    /// Gibt die Mails für einen Custom-Folder zurück
+    func customFolderMails(folder: String) -> [MessageHeaderEntity] {
+        return customFolderCache[folder] ?? []
+    }
+    
+    /// Prüft, ob ein Custom-Folder bereits Mails im Cache hat
+    func hasCustomFolderMails(folder: String) -> Bool {
+        return !customFolderCache[folder, default: []].isEmpty
+    }
+    
+    /// Gibt die Anzahl der Mails in einem Custom-Folder zurück
+    func customFolderMailCount(folder: String) -> Int {
+        return customFolderCache[folder, default: []].count
+    }
+    
+    /// Gibt die Anzahl der ungelesenen Mails in einem Custom-Folder zurück
+    func customFolderUnreadCount(folder: String) -> Int {
+        return customFolderCache[folder, default: []]
+            .filter { !$0.flags.contains("\\Seen") }
+            .count
+    }
+    
+    /// Löscht den Cache für einen spezifischen Custom-Folder
+    func clearCustomFolderCache(folder: String) {
+        customFolderCache.removeValue(forKey: folder)
+    }
+    
+    /// Löscht den gesamten Custom-Folder Cache
+    func clearAllCustomFolderCaches() {
+        customFolderCache.removeAll()
+    }
+    
+    /// Aktualisiert einen einzelnen Mail-Header in allen relevanten Caches
+    private func updateHeaderInCaches(updatedHeader: MessageHeaderEntity) {
+        // Update in filteredMails wenn es der aktuelle Folder ist
+        if let index = filteredMails.firstIndex(where: { $0.uid == updatedHeader.uid && $0.folder == updatedHeader.folder }) {
+            filteredMails[index] = updatedHeader
+        }
+        
+        // Update in customFolderCache
+        if var cachedMails = customFolderCache[updatedHeader.folder] {
+            if let index = cachedMails.firstIndex(where: { $0.uid == updatedHeader.uid }) {
+                cachedMails[index] = updatedHeader
+                customFolderCache[updatedHeader.folder] = cachedMails
+            }
+        }
+    }
+    
+    /// Entfernt gelöschte Nachrichten aus allen Caches
+    private func removeFromCaches(uids: [String], folder: String) {
+        let uidSet = Set(uids)
+        
+        // Remove from filteredMails
+        self.filteredMails.removeAll { m in
+            m.folder == folder && uidSet.contains(m.uid)
+        }
+        
+        // Remove from customFolderCache
+        if var cachedMails = customFolderCache[folder] {
+            cachedMails.removeAll { m in
+                uidSet.contains(m.uid)
+            }
+            customFolderCache[folder] = cachedMails
         }
     }
 }

@@ -1,4 +1,4 @@
-// MailView.swift - Zentrale Mail-Übersicht für AILO_APP
+// MailView.swift - Zentrale Mail-Übersicht für AILO_APP (Updated)
 import SwiftUI
 import Combine
 
@@ -19,32 +19,61 @@ struct MailView: View {
     
     @State private var quickFilter: QuickFilter = .all
     
+    // MARK: - Phase 3: State-Erweiterung für Custom Folders
+    @State private var selectedCustomFolder: String? = nil
+    enum MailViewMode {
+        case specialFolder(MailboxType)
+        case customFolder(String)
+    }
+    @State private var viewMode: MailViewMode = .specialFolder(.inbox)
+    
     @Environment(\.horizontalSizeClass) private var hSizeClass
 
 
     
     private var displayedMails: [MessageHeaderEntity] {
-        var list = mailManager.filteredMails
+        // PHASE 3.3: ViewMode-basierte Mail-Auswahl
+        var list: [MessageHeaderEntity]
+        
+        switch viewMode {
+        case .specialFolder(let type):
+            // Bestehende Logik: filteredMails aus MailViewModel für Special-Folders
+            list = mailManager.filteredMails
+        case .customFolder(let folder):
+            // Custom-Folder: Direkt aus separatem Cache laden
+            return applyFiltersAndSorting(to: mailManager.customFolderMails(folder: folder))
+        }
+        
+        // Für Special-Folders: Filter und Sortierung anwenden
+        return applyFiltersAndSorting(to: list)
+    }
+    
+    /// Wendet Filter und Sortierung auf eine Mail-Liste an
+    private func applyFiltersAndSorting(to list: [MessageHeaderEntity]) -> [MessageHeaderEntity] {
+        var filteredList = list
+        
         // Apply quick filter first
         switch quickFilter {
         case .all:
             break
         case .unread:
-            list = list.filter { $0.flags.contains("\\Seen") == false }
+            filteredList = filteredList.filter { $0.flags.contains("\\Seen") == false }
         case .flagged:
-            list = list.filter { $0.flags.contains("\\Flagged") }
+            filteredList = filteredList.filter { $0.flags.contains("\\Flagged") }
         }
+        
         // Lightweight local search on subject/from (visual only)
         let q = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
         if !q.isEmpty {
-            list = list.filter { header in
+            filteredList = filteredList.filter { header in
                 header.subject.localizedCaseInsensitiveContains(q) || header.from.localizedCaseInsensitiveContains(q)
             }
         }
+        
         // Apply sorting
         switch sortMode {
         case .dateDesc:
-            list = list.sorted { a, b in
+            filteredList = filteredList.sorted { a, b in
                 switch (a.date, b.date) {
                 case let (da?, db?):
                     return da > db
@@ -57,17 +86,61 @@ struct MailView: View {
                 }
             }
         case .sender:
-            list = list.sorted { a, b in
+            filteredList = filteredList.sorted { a, b in
                 a.from.localizedCaseInsensitiveCompare(b.from) == .orderedAscending
             }
         }
-        return list
+        
+        return filteredList
     }
 
     private var availableBoxesSorted: [MailboxType] {
         let order: [MailboxType] = [.inbox, .sent, .drafts, .trash, .spam, .outbox]
         return mailManager.availableMailboxes.sorted { a, b in
             (order.firstIndex(of: a) ?? Int.max) < (order.firstIndex(of: b) ?? Int.max)
+        }
+    }
+    
+    // MARK: - Phase 3: Hilfsmethoden für MailViewMode
+    
+    /// Prüft ob aktuell ein Custom-Folder ausgewählt ist
+    private var isCustomFolderSelected: Bool {
+        if case .customFolder = viewMode {
+            return true
+        }
+        return false
+    }
+    
+    /// Gibt den aktuell gewählten Folder-Namen zurück (für Special- und Custom-Folders)
+    private var currentFolderName: String? {
+        switch viewMode {
+        case .specialFolder(let mailbox):
+            return mailboxFolderName(for: mailbox)
+        case .customFolder(let folder):
+            return folder
+        }
+    }
+    
+    /// Gibt den aktuellen Titel für die View zurück
+    private var currentViewTitle: String {
+        switch viewMode {
+        case .specialFolder(let mailbox):
+            return mailboxTitle(for: mailbox)
+        case .customFolder(let folder):
+            return folder
+        }
+    }
+    
+    /// Konvertiert MailboxType zu Folder-Namen (Helper)
+    private func mailboxFolderName(for mailbox: MailboxType) -> String? {
+        // Diese Logik sollte von MailViewModel kommen, aber als Fallback:
+        switch mailbox {
+        case .inbox: return "INBOX"
+        case .sent: return "Sent"
+        case .drafts: return "Drafts"
+        case .trash: return "Trash"
+        case .spam: return "Spam"
+        case .outbox: return nil // Outbox ist lokal
         }
     }
 
@@ -80,7 +153,7 @@ struct MailView: View {
                 detail
                     .safeAreaInset(edge: .top, spacing: 0) {
                         VStack(spacing: 8) {
-                            Text(mailboxTitle(for: selectedMailbox))
+                            Text(currentViewTitle)
                                 .font(.headline)
                                 .multilineTextAlignment(.center)
                                 .lineLimit(2)
@@ -236,6 +309,10 @@ struct MailView: View {
             }
         }
         .onChange(of: selectedMailbox) { _, newMailbox in
+            // PHASE 3: Setze viewMode wenn selectedMailbox sich ändert  
+            self.viewMode = .specialFolder(newMailbox)
+            self.selectedCustomFolder = nil
+            
             Task {
                 // 🚀 Sofortiges Laden aus Cache bei Mailbox-Wechsel
                 await self.mailManager.loadCachedMails(for: newMailbox, accountId: self.selectedAccountId)
@@ -292,7 +369,11 @@ struct MailView: View {
                     // Mailbox icons
                     ForEach(availableBoxesSorted, id: \.self) { box in
                         Button {
+                            // PHASE 3: ViewMode-basierte Auswahl auch für Rail
                             self.selectedMailbox = box
+                            self.viewMode = .specialFolder(box)
+                            self.selectedCustomFolder = nil
+                            
                             Task {
                                 // 🚀 Sofortiges Laden aus Cache bei Mailbox-Wechsel über Rail
                                 await self.mailManager.loadCachedMails(for: box, accountId: self.selectedAccountId)
@@ -300,7 +381,13 @@ struct MailView: View {
                         } label: {
                             Image(systemName: mailboxIcon(for: box))
                                 .imageScale(.large)
-                                .foregroundColor(box == selectedMailbox ? .accentColor : .primary)
+                                .foregroundColor({
+                                    if case .specialFolder(let selectedBox) = viewMode, selectedBox == box {
+                                        return .accentColor
+                                    } else {
+                                        return .primary
+                                    }
+                                }())
                                 .frame(width: railWidth, height: 44)
                         }
                         .buttonStyle(.plain)
@@ -380,20 +467,104 @@ struct MailView: View {
 
     @ViewBuilder
     private var mailboxSection: some View {
-        Section("app.mail.mailboxes") {
+        // PHASE 3.2: SpecialFolders Section mit neuem Namen
+        Section("Standard-Ordner") {
             ForEach(availableBoxesSorted, id: \.self) { box in
-                MailboxRowButton(
-                    box: box,
-                    isSelected: selectedMailbox == box,
-                    badgeCount: badgeCount(for: box),
-                    onSelect: { 
-                        self.selectedMailbox = box
-                        Task {
-                            // 🚀 Sofortiges Laden aus Cache bei Mailbox-Wechsel
-                            await self.mailManager.loadCachedMails(for: box, accountId: self.selectedAccountId)
+                Button {
+                    // PHASE 3.2: Neues State Management mit viewMode
+                    self.selectedMailbox = box
+                    self.viewMode = .specialFolder(box)
+                    self.selectedCustomFolder = nil
+                    
+                    Task {
+                        // 🚀 Sofortiges Laden aus Cache bei Mailbox-Wechsel
+                        await self.mailManager.loadCachedMails(for: box, accountId: self.selectedAccountId)
+                    }
+                } label: {
+                    HStack {
+                        Image(systemName: mailboxIcon(for: box))
+                            .foregroundStyle(.secondary)
+                        Text(mailboxTitle(for: box))
+                            .foregroundStyle(.primary)
+                        Spacer()
+                        
+                        // Badge für ungelesene Nachrichten
+                        if let count = badgeCount(for: box), count > 0 {
+                            Text("\(count)")
+                                .font(.caption2)
+                                .padding(.horizontal, 6)
+                                .padding(.vertical, 2)
+                                .background(Color.red)
+                                .foregroundColor(.white)
+                                .clipShape(Capsule())
                         }
                     }
+                }
+                .buttonStyle(.plain)  // Für sauberes List-Design
+                .listRowBackground(
+                    // Highlight wenn dieser Mailbox gewählt ist
+                    {
+                        if case .specialFolder(let selectedBox) = viewMode, selectedBox == box {
+                            return Color.accentColor.opacity(0.15)
+                        } else {
+                            return Color.clear
+                        }
+                    }()
                 )
+            }
+        }
+        
+        // PHASE 3.2: Custom-Folders Section (nur wenn verfügbar)
+        if !mailManager.allServerFolders.isEmpty {
+            Section("Weitere Ordner") {
+                ForEach(mailManager.allServerFolders, id: \.self) { folder in
+                    Button {
+                        // PHASE 3.2: Custom-Folder auswählen
+                        selectedCustomFolder = folder
+                        viewMode = .customFolder(folder)
+                        selectedMailbox = .inbox  // Fallback für legacy code
+                        
+                        Task {
+                            // Custom-Folder laden - nur wenn accountId verfügbar ist
+                            guard let accountId = selectedAccountId else {
+                                print("❌ No accountId available for loading custom folder")
+                                return
+                            }
+                            await mailManager.loadMailsForFolder(folder: folder, accountId: accountId)
+                        }
+                    } label: {
+                        HStack {
+                            Image(systemName: "folder")
+                                .foregroundStyle(.secondary)
+                            Text(folder)
+                                .foregroundStyle(.primary)
+                            Spacer()
+                            
+                            // Optional: Badge für ungelesene Nachrichten in Custom-Folders
+                            // (Kann später implementiert werden)
+                        }
+                    }
+                    .buttonStyle(.plain)  // Für sauberes List-Design
+                    .listRowBackground(
+                        // Highlight wenn dieser Custom-Folder gewählt ist
+                        selectedCustomFolder == folder ? 
+                        Color.accentColor.opacity(0.15) : 
+                        Color.clear
+                    )
+                }
+            }
+        }
+        
+        // PHASE 3.2: Loading-Indicator für Folder-Discovery
+        if mailManager.isLoadingFolders {
+            Section {
+                HStack {
+                    ProgressView()
+                        .scaleEffect(0.8)
+                    Text("Ordner werden geladen…")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
             }
         }
     }
@@ -454,18 +625,14 @@ struct MailView: View {
                 )
                 Divider()
             
-            if let error = mailManager.lastError {
-                Text(error)
-                    .foregroundColor(.red)
-                    .font(.caption)
-                    .padding(.horizontal)
-                    .padding(.top, 4)
+                if let error = mailManager.lastError {
+                    Text(error)
+                        .foregroundColor(.red)
+                        .font(.caption)
+                        .padding(.horizontal)
+                        .padding(.top, 4)
+                }
             }
-            
-            
-            }
-            
-            
             
             // Mail-Liste
             if displayedMails.isEmpty && !isRefreshing && !isBackgroundSyncing {
@@ -527,42 +694,57 @@ struct MailView: View {
         }
     }
     
-    private func mailboxTitle(for type: MailboxType) -> LocalizedStringKey {
+    private func mailboxTitle(for type: MailboxType) -> String {
         switch type {
-        case .inbox: return "app.mail.inbox"
-        case .outbox: return "app.mail.outbox"
-        case .sent: return "app.mail.sent"
-        case .drafts: return "app.mail.drafts"
-        case .trash: return "app.mail.trash"
-        case .spam: return "app.mail.spam"
+        case .inbox: return String(localized: "app.mail.inbox")
+        case .outbox: return String(localized: "app.mail.outbox")
+        case .sent: return String(localized: "app.mail.sent")
+        case .drafts: return String(localized: "app.mail.drafts")
+        case .trash: return String(localized: "app.mail.trash")
+        case .spam: return String(localized: "app.mail.spam")
         }
     }
     
     private func refreshMails() async {
-        print("🔄 Refresh triggered for mailbox: \(selectedMailbox)")
+        print("🔄 Refresh triggered for viewMode: \(viewMode)")
         
-        // 🚀 SOFORT: Lokale Mails aus Cache laden (ohne Wartezeit)
-        print("📱 Loading cached mails immediately...")
-        await mailManager.loadCachedMails(for: selectedMailbox, accountId: selectedAccountId)
+        guard let accountId = selectedAccountId else {
+            print("❌ No accountId for refresh")
+            return
+        }
         
-        // 🔄 HINTERGRUND: Inkrementelle Sync parallel starten
-        if let accountId = selectedAccountId {
+        // PHASE 3.2: Behandle beide ViewMode Cases
+        switch viewMode {
+        case .specialFolder(let mailbox):
+            print("🔄 Refreshing special folder: \(mailbox)")
+            
+            // 🚀 SOFORT: Lokale Mails aus Cache laden (ohne Wartezeit)
+            print("📱 Loading cached mails immediately...")
+            await mailManager.loadCachedMails(for: mailbox, accountId: accountId)
+            
+            // 🔄 HINTERGRUND: Inkrementelle Sync parallel starten
             print("📈 Starting background incremental sync...")
             isBackgroundSyncing = true
             
-            Task { @MainActor [accountId, selectedMailbox] in
+            Task { @MainActor [accountId, mailbox] in
                 
                 // Hintergrund-Sync ohne UI zu blockieren
                 await performBackgroundSync(accountId: accountId)
                 
                 // Nach Sync: UI mit neuen Daten aktualisieren
-                await mailManager.refreshMails(for: selectedMailbox, accountId: accountId)
+                await mailManager.refreshMails(for: mailbox, accountId: accountId)
                 
-                isRefreshing = false
-                isBackgroundSyncing = false
+                self.isBackgroundSyncing = false
+                print("✅ Background sync completed for special folder: \(mailbox)")
             }
-        } else {
-            isRefreshing = false
+            
+        case .customFolder(let folder):
+            print("🔄 Refreshing custom folder: '\(folder)'")
+            
+            // Custom-Folder haben keinen separaten Cache-Loader, nutze direkte Methode
+            await mailManager.loadMailsForFolder(folder: folder, accountId: accountId)
+            
+            print("✅ Custom folder refresh completed: '\(folder)'")
         }
     }
     
@@ -570,13 +752,17 @@ struct MailView: View {
     private func performBackgroundSync(accountId: UUID) async {
         print("🔄 Performing background sync for account: \(accountId)")
         
-        // Inkrementelle Sync im Hintergrund
-        MailRepository.shared.incrementalSync(accountId: accountId, folders: nil)
+        // PHASE 4: Alle konfigurierten Ordner synchronisieren
+        let allFolders = MailRepository.shared.getAllConfiguredFolders(accountId: accountId)
+        print("📁 Syncing all configured folders: \(allFolders)")
+        
+        // Inkrementelle Sync im Hintergrund für alle Ordner
+        MailRepository.shared.incrementalSync(accountId: accountId, folders: allFolders)
         
         // Kurze Wartezeit für Sync-Initiation
         try? await Task.sleep(nanoseconds: 1_000_000_000) // 1 Sekunde
         
-        print("✅ Background sync completed for account: \(accountId)")
+        print("✅ Background sync completed for account: \(accountId) - synced \(allFolders.count) folders")
     }
     
     private func syncAccount(_ accountId: UUID) async {

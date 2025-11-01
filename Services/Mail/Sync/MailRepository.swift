@@ -97,10 +97,107 @@ public final class MailRepository: ObservableObject {
         return try dao.body(accountId: accountId, folder: folder, uid: uid)
     }
 
+    // MARK: - Folder Management
+
+    /// 1.1 Alle konfigurierten SpecialFolders abrufen
+    public func getAllConfiguredFolders(accountId: UUID) -> [String] {
+        print("📁 getAllConfiguredFolders for account: \(accountId)")
+        
+        // Standardordner: INBOX ist immer dabei
+        var folders: [String] = ["INBOX"]
+        
+        // SpecialFolders aus DAO hinzufügen (falls vorhanden)
+        if let dao = dao, 
+           let specialFolders = try? dao.specialFolders(accountId: accountId) {
+            print("📁 Found special folders from DAO: \(specialFolders)")
+            
+            // Füge alle nicht-leeren Special Folders hinzu
+            for (_, folderName) in specialFolders {
+                if !folderName.isEmpty && !folders.contains(folderName) {
+                    folders.append(folderName)
+                }
+            }
+        } else {
+            print("📁 No special folders found in DAO, using defaults")
+            // Fallback: Standard-Ordner hinzufügen
+            let defaultFolders = ["INBOX", "Sent", "Drafts", "Trash"]
+            for folder in defaultFolders {
+                if !folders.contains(folder) {
+                    folders.append(folder)
+                }
+            }
+        }
+        
+        print("📁 Configured folders: \(folders)")
+        return folders
+    }
+
+    /// 1.2 Alle Server-Ordner via IMAP LIST abrufen
+    public func getAllServerFolders(accountId: UUID) async -> Result<[String], Error> {
+        print("🌐 getAllServerFolders for account: \(accountId)")
+        
+        do {
+            // Account-Konfiguration laden
+            let account = try loadAccountConfig(accountId: accountId)
+            print("🌐 Loaded account config: \(account.accountName)")
+            
+            // IMAP-Verbindung aufbauen
+            let conn = IMAPConnection(label: "folders.\(accountId.uuidString.prefix(6))")
+            defer { conn.close() }
+            
+            let conf = IMAPConnectionConfig(
+                host: account.recvHost,
+                port: account.recvPort,
+                tls: (account.recvEncryption == .sslTLS),
+                sniHost: account.recvHost,
+                connectionTimeoutSec: account.connectionTimeoutSec,
+                commandTimeoutSec: max(5, account.connectionTimeoutSec/2),
+                idleTimeoutSec: 10
+            )
+            
+            print("🌐 Opening connection to \(conf.host):\(conf.port)")
+            try await conn.open(conf)
+            
+            let cmds = IMAPCommands()
+            _ = try await cmds.greeting(conn)
+            
+            if account.recvEncryption == .startTLS {
+                try await cmds.startTLS(conn)
+            }
+            
+            guard let pwd = account.recvPassword else {
+                throw RepositoryError.accountNotFound
+            }
+            
+            try await cmds.login(conn, user: account.recvUsername, pass: pwd)
+            
+            // LIST-Befehl ausführen
+            print("🌐 Executing LIST command...")
+            let listLines = try await cmds.listAll(conn, idleTimeout: 10.0)
+            
+            // Ordnernamen aus LIST-Response extrahieren
+            let parser = IMAPParsers()
+            var folderNames: [String] = []
+            
+            for line in listLines {
+                if let folderInfo = try? parser.parseListResponse(line) {
+                    folderNames.append(folderInfo.name)
+                }
+            }
+            
+            print("🌐 Found \(folderNames.count) folders on server: \(folderNames)")
+            return .success(folderNames)
+            
+        } catch {
+            print("❌ Failed to get server folders: \(error)")
+            return .failure(error)
+        }
+    }
+
     // Sync
     public func sync(accountId: UUID, folders: [String]? = nil) {
         print("🔥 MailRepository.sync() called for account: \(accountId)")
-        let folderList = folders ?? ["INBOX"]
+        let folderList = folders ?? getAllConfiguredFolders(accountId: accountId)
         print("🔥 Folders to sync: \(folderList)")
         
         // Check if this should be initial or incremental sync
@@ -219,7 +316,7 @@ public final class MailRepository: ObservableObject {
         isSyncing.insert(accountId)
         syncLock.unlock()
         
-        let folderList = folders ?? ["INBOX"]
+        let folderList = folders ?? getAllConfiguredFolders(accountId: accountId)
         
         // Check if we need initial sync vs incremental sync
         for folderName in folderList {
