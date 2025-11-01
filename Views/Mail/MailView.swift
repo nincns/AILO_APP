@@ -133,14 +133,24 @@ struct MailView: View {
     
     /// Konvertiert MailboxType zu Folder-Namen (Helper)
     private func mailboxFolderName(for mailbox: MailboxType) -> String? {
-        // Diese Logik sollte von MailViewModel kommen, aber als Fallback:
+        guard let accountId = selectedAccountId else { return nil }
+        
+        // Direkte synchrone Account-Konfiguration laden (gleiche Logik wie MailViewModel)
+        let key = "mail.accounts"
+        guard let data = UserDefaults.standard.data(forKey: key),
+              let list = try? JSONDecoder().decode([MailAccountConfig].self, from: data),
+              let acc = list.first(where: { $0.id == accountId }) else {
+            return "INBOX" // Fallback
+        }
+        
+        // WICHTIG: Trim whitespace! (Konsistent mit MailViewModel)
         switch mailbox {
-        case .inbox: return "INBOX"
-        case .sent: return "Sent"
-        case .drafts: return "Drafts"
-        case .trash: return "Trash"
-        case .spam: return "Spam"
-        case .outbox: return nil // Outbox ist lokal
+        case .inbox:  return acc.folders.inbox.trimmingCharacters(in: .whitespacesAndNewlines)
+        case .sent:   return acc.folders.sent.trimmingCharacters(in: .whitespacesAndNewlines)
+        case .drafts: return acc.folders.drafts.trimmingCharacters(in: .whitespacesAndNewlines)
+        case .trash:  return acc.folders.trash.trimmingCharacters(in: .whitespacesAndNewlines)
+        case .spam:   return acc.folders.spam.trimmingCharacters(in: .whitespacesAndNewlines)
+        case .outbox: return nil // Outbox is local-only
         }
     }
 

@@ -304,14 +304,14 @@ import Foundation
         // Set für schnelles Lookup
         var excludedFolders = Set<String>()
         
-        // 1. WICHTIG: Konfigurierte Special-Folders aus Account ausschließen (mit Trim!)
+        // 1. WICHTIG: Konfigurierte Special-Folders aus Account ausschließen
         //    Diese sind bereits vom Server abgerufen und gespeichert!
         let configuredSpecialFolders = [
-            account.folders.inbox.trimmingCharacters(in: .whitespacesAndNewlines),
-            account.folders.sent.trimmingCharacters(in: .whitespacesAndNewlines),
-            account.folders.drafts.trimmingCharacters(in: .whitespacesAndNewlines), 
-            account.folders.trash.trimmingCharacters(in: .whitespacesAndNewlines),
-            account.folders.spam.trimmingCharacters(in: .whitespacesAndNewlines)
+            account.folders.inbox,
+            account.folders.sent,
+            account.folders.drafts, 
+            account.folders.trash,
+            account.folders.spam
         ]
         
         for folder in configuredSpecialFolders {
@@ -324,29 +324,30 @@ import Foundation
         // 2. OPTIONAL: Häufige Varianten ausschließen (Fallback für alte Accounts)
         //    Nur als Sicherheitsnetz für Accounts die noch keine Discovery hatten
         let commonVariants = [
-            // Englisch
+            // Englisch - ALLE Case-Varianten
             "INBOX", "Inbox", "inbox",
-            "Sent", "Sent Items", "Sent Messages", "Sent Mail",
-            "Drafts", "Draft",
-            "Trash", "Deleted Items", "Deleted Messages", "Deleted",
-            "Spam", "Junk", "Junk E-mail", "Junk Email", "Junk Mail",
+            "Sent", "sent", "Sent Items", "Sent Messages", "Sent Mail",
+            "Drafts", "drafts", "Draft", "draft",
+            "Trash", "trash", "Deleted Items", "Deleted Messages", "Deleted", "deleted",
+            "Spam", "spam", "SPAM",
+            "Junk", "junk", "JUNK", "Junk E-mail", "Junk Email", "Junk Mail",
             
             // Deutsch
-            "Gesendet", "Gesendete Elemente", "Gesendete Objekte",
-            "Entwürfe", "Entwurf",
-            "Papierkorb", "Gelöscht", "Gelöschte Elemente",
-            "Unerwünscht",
+            "Gesendet", "gesendet", "Gesendete Elemente", "Gesendete Objekte",
+            "Entwürfe", "entwürfe", "Entwurf", "entwurf",
+            "Papierkorb", "papierkorb", "Gelöscht", "gelöscht", "Gelöschte Elemente",
+            "Unerwünscht", "unerwünscht",
             
             // Französisch
-            "Envoyés", "Éléments envoyés",
-            "Brouillons",
-            "Corbeille", "Éléments supprimés",
+            "Envoyés", "envoyés", "Éléments envoyés",
+            "Brouillons", "brouillons",
+            "Corbeille", "corbeille", "Éléments supprimés",
             "Courrier indésirable",
             
             // Spanisch
-            "Enviados", "Elementos enviados",
-            "Borradores",
-            "Papelera", "Elementos eliminados",
+            "Enviados", "enviados", "Elementos enviados",
+            "Borradores", "borradores",
+            "Papelera", "papelera", "Elementos eliminados",
             "Correo no deseado"
         ]
         
@@ -366,9 +367,19 @@ import Foundation
             excludedFolders.insert(folder)
         }
         
-        // 4. Filtern: Nur Ordner die NICHT in excludedFolders sind
+        // 4. ⭐️ CASE-INSENSITIVE Filtern!
+        // Erstelle lowercase Set für case-insensitive Vergleich
+        let excludedLowercase = Set(excludedFolders.map { $0.lowercased() })
+        
         let customFolders = allFolders.filter { folder in
-            !excludedFolders.contains(folder)
+            let folderLower = folder.lowercased()
+            let isExcluded = excludedLowercase.contains(folderLower)
+            
+            if isExcluded {
+                print("🔍 Filtering out: '\(folder)' (matched '\(folderLower)')")
+            }
+            
+            return !isExcluded
         }
         
         print("🔍 Filtered to \(customFolders.count) custom folders: \(customFolders)")
@@ -540,13 +551,12 @@ import Foundation
               let acc = list.first(where: { $0.id == accountId }) else {
             return "INBOX" // Fallback
         }
-        // WICHTIG: Trim whitespace!
         switch mailbox {
-        case .inbox:  return acc.folders.inbox.trimmingCharacters(in: .whitespacesAndNewlines)
-        case .sent:   return acc.folders.sent.trimmingCharacters(in: .whitespacesAndNewlines)
-        case .drafts: return acc.folders.drafts.trimmingCharacters(in: .whitespacesAndNewlines)
-        case .trash:  return acc.folders.trash.trimmingCharacters(in: .whitespacesAndNewlines)
-        case .spam:   return acc.folders.spam.trimmingCharacters(in: .whitespacesAndNewlines)
+        case .inbox:  return acc.folders.inbox
+        case .sent:   return acc.folders.sent
+        case .drafts: return acc.folders.drafts
+        case .trash:  return acc.folders.trash
+        case .spam:   return acc.folders.spam
         case .outbox: return "" // Outbox is local-only
         }
     }
