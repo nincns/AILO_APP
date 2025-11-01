@@ -396,10 +396,14 @@ final class MailSendReceive {
                 }
             }
             
-            // ✅ Finale Display-Verarbeitung durch BodyContentProcessor
-            let displayContent = BodyContentProcessor.selectDisplayContent(html: mime.html, text: mime.text)
-            let finalText = displayContent.isHTML ? nil : displayContent.content
-            let finalHTML = displayContent.isHTML ? displayContent.content : nil
+            // ✅ CRITICAL FIX: Clean content BEFORE storing in database
+            let cleanedText = mime.text.map { BodyContentProcessor.cleanPlainTextForDisplay($0) }
+            let cleanedHTML = mime.html.map { BodyContentProcessor.cleanHTMLForDisplay($0) }
+
+            // Select which to use for display
+            let displayContent = BodyContentProcessor.selectDisplayContent(html: cleanedHTML, text: cleanedText)
+            let finalText = displayContent.isHTML ? nil : cleanedText
+            let finalHTML = displayContent.isHTML ? cleanedHTML : nil
             
             // ✅ Speichere sowohl RAW als auch verarbeitete Daten
             if let writeDAO = MailRepository.shared.writeDAO {
