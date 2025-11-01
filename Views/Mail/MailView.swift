@@ -40,8 +40,8 @@ struct MailView: View {
             // Bestehende Logik: filteredMails aus MailViewModel für Special-Folders
             list = mailManager.filteredMails
         case .customFolder(let folder):
-            // Custom-Folder: Direkt aus separatem Cache laden
-            return applyFiltersAndSorting(to: mailManager.customFolderMails(folder: folder))
+            // Custom-Folder: Verwende filteredMails da ViewModel diese jetzt korrekt setzt
+            return applyFiltersAndSorting(to: mailManager.filteredMails)
         }
         
         // Für Special-Folders: Filter und Sortierung anwenden

@@ -19,7 +19,6 @@ import Foundation
     @Published var allServerFolders: [String] = []          // Alle Ordner vom Server
     @Published var isLoadingFolders: Bool = false           // Loading-State
     @Published var selectedFolder: String? = nil            // Aktuell gewählter Custom-Folder
-    @Published var customFolderMails: [String: [MessageHeaderEntity]] = [:]  // Cache für Custom-Folder Mails
     
     private var syncingAccounts: Set<UUID> = []
     private var accountsChangedObserver: AnyCancellable?
@@ -241,9 +240,10 @@ import Foundation
             }
             
             await MainActor.run {
-                self.filteredMails = cachedEntities
-                self.selectedFolder = folder  // Aktuell gewählten Folder setzen
+                // Sowohl Cache ALS AUCH filteredMails aktualisieren für konsistenten Zugriff
                 self.customFolderCache[folder] = cachedEntities  // Cache aktualisieren
+                self.filteredMails = cachedEntities              // Auch filteredMails setzen
+                self.selectedFolder = folder  // Aktuell gewählten Folder setzen
                 print("📱 Loaded \(cachedEntities.count) cached messages for folder: \(folder)")
             }
             
@@ -276,8 +276,9 @@ import Foundation
             }
             
             await MainActor.run {
-                self.filteredMails = freshEntities
-                self.customFolderCache[folder] = freshEntities  // Cache aktualisieren
+                // Sowohl Cache ALS AUCH filteredMails aktualisieren für konsistenten Zugriff
+                self.customFolderCache[folder] = freshEntities   // Cache aktualisieren
+                self.filteredMails = freshEntities               // Auch filteredMails setzen
                 self.isLoading = false
                 print("✅ Final result: \(freshEntities.count) messages in folder: \(folder)")
                 
