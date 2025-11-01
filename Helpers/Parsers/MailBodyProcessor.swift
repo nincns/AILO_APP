@@ -1,13 +1,15 @@
-// MailBodyProcessor.swift - Zentrale Helper-Funktion für RAW → HTML Dekodierung
-// Einmalig aufgerufen beim ersten Laden oder durch Toggle
+// MailBodyProcessor.swift - KOMPLETTE eigenständige Lösung für Mail-Dekodierung
+// Keine externen Abhängigkeiten außer Foundation - KORRIGIERTE VERSION
+// Verarbeitet RAW → Text/HTML vollständig in dieser Datei
 import Foundation
 
-/// Zentrale Helper-Funktion für RAW → HTML Dekodierung
-/// Einmalig aufgerufen beim ersten Laden oder durch Toggle
+/// Zentrale, eigenständige Helper-Klasse für RAW → HTML/Text Dekodierung
+/// WICHTIG: Diese Klasse ändert NIE die RAW-Daten in der DB!
 public class MailBodyProcessor {
     
+    // MARK: - Public API
+    
     /// Prüft ob Body noch MIME-Kodierung enthält
-    /// WICHTIG: Unterscheidet zwischen RAW (mit Boundaries) und verarbeitetem Content
     public static func needsProcessing(_ body: String?) -> Bool {
         guard let body = body, !body.isEmpty else {
             print("🔍 [needsProcessing] TRUE - Body is nil or empty")
@@ -90,159 +92,432 @@ public class MailBodyProcessor {
         return true
     }
     
-    /// Dekodiert rawBody zu text/html
+    /// Dekodiert rawBody zu text/html - KOMPLETT eigenständig mit allen FIXES
     public static func processRawBody(_ rawBody: String) -> (text: String?, html: String?) {
         print("🔄 [MailBodyProcessor] Processing rawBody (\(rawBody.count) chars)...")
         
-        // Schritt 1: MIMEParser nutzen
-        let mimeParser = MIMEParser()
-        let mimeContent = mimeParser.parse(
-            rawBodyBytes: nil,
-            rawBodyString: rawBody,
-            contentType: extractContentType(rawBody),
-            charset: extractCharset(rawBody)
-        )
+        // FIX 1: Normalisiere Zeilenendings ZUERST
+        let normalizedBody = normalizeLineEndings(rawBody)
         
-        print("   - MIME parsed: text=\(mimeContent.text?.count ?? 0), html=\(mimeContent.html?.count ?? 0)")
-        
-        // Schritt 2: Minimale Nachbearbeitung für bereits geparstes MIME
-        var processedText: String? = nil
-        var processedHtml: String? = nil
-        
-        if let html = mimeContent.html {
-            processedHtml = cleanAlreadyParsedHTML(html)
-            print("   - HTML cleaned: \(processedHtml?.count ?? 0) chars")
+        // Schritt 1: Extrahiere Content-Type Header
+        guard let contentTypeHeader = extractContentTypeHeader(normalizedBody) else {
+            print("   ⚠️ No Content-Type found, treating as plain text")
+            return (cleanText(normalizedBody), nil)
         }
         
-        if let text = mimeContent.text {
-            processedText = cleanAlreadyParsedText(text)
-            print("   - Text cleaned: \(processedText?.count ?? 0) chars")
+        print("   📋 Content-Type: \(contentTypeHeader)")
+        
+        // Schritt 2: Prüfe ob multipart
+        if contentTypeHeader.lowercased().contains("multipart") {
+            return processMultipart(normalizedBody, contentType: contentTypeHeader)
+        } else {
+            // Single part mail
+            return processSinglePart(normalizedBody, contentType: contentTypeHeader)
+        }
+    }
+    
+    // MARK: - FIX 1: Line Ending Normalization
+    
+    /// Normalisiert alle Zeilenendings zu \n
+    private static func normalizeLineEndings(_ content: String) -> String {
+        return content.replacingOccurrences(of: "\r\n", with: "\n")
+                     .replacingOccurrences(of: "\r", with: "\n")
+    }
+    
+    // MARK: - Multipart Processing
+    
+    private static func processMultipart(_ rawBody: String, contentType: String) -> (text: String?, html: String?) {
+        print("   🔀 Processing multipart mail...")
+        
+        // Extrahiere boundary
+        guard let boundary = extractBoundary(contentType) else {
+            print("   ❌ No boundary found in multipart!")
+            return (cleanText(rawBody), nil)
         }
         
-        return (processedText, processedHtml)
-    }
-    
-    // MARK: - Minimale Cleanup-Methoden
-    
-    private static func cleanAlreadyParsedHTML(_ html: String) -> String {
-        var content = html
-        content = removeLeadingEmailHeaders(content)
-        content = content.trimmingCharacters(in: .whitespacesAndNewlines)
-        return content
-    }
-    
-    private static func cleanAlreadyParsedText(_ text: String) -> String {
-        var content = text
-        content = removeLeadingEmailHeaders(content)
-        content = content.replacingOccurrences(of: "\r\n", with: "\n")
-        content = content.replacingOccurrences(of: "\r", with: "\n")
+        print("   🏷️  Boundary: \(boundary)")
         
-        let multipleNewlines = "\n{4,}"
-        content = content.replacingOccurrences(of: multipleNewlines, with: "\n\n", options: .regularExpression)
-        content = content.trimmingCharacters(in: .whitespacesAndNewlines)
-        return content
-    }
-    
-    private static func removeLeadingEmailHeaders(_ content: String) -> String {
-        let lines = content.components(separatedBy: .newlines)
-        var contentStartIndex = 0
-        var inHeaderSection = false
+        // Teile Body an Boundaries
+        let parts = splitByBoundary(rawBody, boundary: boundary)
+        print("   📦 Found \(parts.count) parts")
         
-        for (index, line) in lines.enumerated() {
-            let trimmed = line.trimmingCharacters(in: .whitespaces)
+        var textContent: String? = nil
+        var htmlContent: String? = nil
+        
+        // Verarbeite jeden Part
+        for (index, part) in parts.enumerated() {
+            print("   📝 Processing part \(index + 1)...")
             
-            if trimmed.isEmpty && index > 0 {
-                if inHeaderSection {
-                    contentStartIndex = index + 1
-                    break
-                }
-            } else if isEmailHeaderLine(trimmed) {
-                inHeaderSection = true
-            } else if inHeaderSection && !trimmed.isEmpty {
-                contentStartIndex = index
-                break
+            // FIX 3: Trimme Part BEVOR Header/Body-Trennung
+            let trimmedPart = part.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !trimmedPart.isEmpty else {
+                print("      ⚠️ Part is empty after trimming")
+                continue
+            }
+            
+            guard let (headers, body) = splitHeadersAndBody(trimmedPart) else {
+                print("      ⚠️ Could not split headers/body")
+                continue
+            }
+            
+            let partContentType = extractPartContentType(headers) ?? "text/plain"
+            let transferEncoding = extractTransferEncoding(headers) ?? "7bit"
+            
+            print("      - Content-Type: \(partContentType)")
+            print("      - Transfer-Encoding: \(transferEncoding)")
+            print("      - Body length: \(body.count)")
+            
+            // Dekodiere Body
+            let decodedBody = decodeBody(body, transferEncoding: transferEncoding)
+            
+            // Speichere je nach Content-Type
+            if partContentType.lowercased().contains("text/html") {
+                htmlContent = decodedBody
+                print("      ✅ HTML part decoded (\(decodedBody.count) chars)")
+            } else if partContentType.lowercased().contains("text/plain") {
+                textContent = decodedBody
+                print("      ✅ Text part decoded (\(decodedBody.count) chars)")
             }
         }
         
-        if contentStartIndex > 0 && contentStartIndex < lines.count {
-            let contentLines = Array(lines[contentStartIndex...])
-            return contentLines.joined(separator: "\n")
+        print("   ✅ Multipart processing complete")
+        print("      - Text: \(textContent?.count ?? 0) chars")
+        print("      - HTML: \(htmlContent?.count ?? 0) chars")
+        
+        return (textContent, htmlContent)
+    }
+    
+    // MARK: - Single Part Processing
+    
+    private static func processSinglePart(_ rawBody: String, contentType: String) -> (text: String?, html: String?) {
+        print("   📄 Processing single part mail...")
+        
+        // FIX 3: Trimme Body BEVOR Header/Body-Trennung
+        let trimmedBody = rawBody.trimmingCharacters(in: .whitespacesAndNewlines)
+        
+        guard let (headers, body) = splitHeadersAndBody(trimmedBody) else {
+            print("   ⚠️ Could not split headers/body, treating as text")
+            return (cleanText(trimmedBody), nil)
         }
         
-        return content
+        let transferEncoding = extractTransferEncoding(headers) ?? "7bit"
+        let decodedBody = decodeBody(body, transferEncoding: transferEncoding)
+        
+        if contentType.lowercased().contains("text/html") {
+            print("   ✅ Single HTML part decoded (\(decodedBody.count) chars)")
+            return (nil, decodedBody)
+        } else {
+            print("   ✅ Single text part decoded (\(decodedBody.count) chars)")
+            return (decodedBody, nil)
+        }
     }
     
-    private static func isEmailHeaderLine(_ line: String) -> Bool {
-        let headerPatterns = [
-            "Content-Type:", "Content-Transfer-Encoding:", "Content-Disposition:",
-            "MIME-Version:", "Date:", "From:", "To:", "Subject:", "Message-ID:",
-            "Return-Path:", "Received:", "Delivered-To:", "X-"
-        ]
-        return headerPatterns.contains { pattern in line.hasPrefix(pattern) }
-    }
+    // MARK: - Header Extraction
     
-    // MARK: - Content-Type/Charset Extraktion
-    
-    /// ✅ FIXED: Extrahiert vollständigen Content-Type inkl. boundary Parameter
-    private static func extractContentType(_ rawBody: String) -> String? {
-        let lines = rawBody.components(separatedBy: .newlines).prefix(50)
-        var contentTypeValue = ""
+    private static func extractContentTypeHeader(_ rawBody: String) -> String? {
+        let lines = rawBody.components(separatedBy: .newlines)
+        var contentType = ""
         var inContentType = false
         
         for line in lines {
             let trimmed = line.trimmingCharacters(in: .whitespaces)
             
-            // Start des Content-Type Headers
+            // Start of Content-Type header
             if trimmed.lowercased().hasPrefix("content-type:") {
-                contentTypeValue = line.dropFirst("content-type:".count).trimmingCharacters(in: .whitespaces)
+                contentType = String(trimmed.dropFirst("content-type:".count)).trimmingCharacters(in: .whitespaces)
                 inContentType = true
                 
-                // Wenn die Zeile nicht mit ; oder , endet, ist es komplett
+                // Check if multi-line
                 if !trimmed.hasSuffix(";") && !trimmed.hasSuffix(",") {
                     break
                 }
                 continue
             }
             
-            // Fortsetzung des Content-Type (mehrzeilige Header)
-            if inContentType {
-                // Header-Fortsetzung beginnt mit Whitespace oder Tab
-                if line.hasPrefix(" ") || line.hasPrefix("\t") {
-                    contentTypeValue += " " + trimmed
-                    
-                    // Wenn die Zeile nicht mit ; oder , endet, ist Header komplett
-                    if !trimmed.hasSuffix(";") && !trimmed.hasSuffix(",") {
-                        break
-                    }
-                    continue
-                } else {
-                    // Neuer Header beginnt, Content-Type ist komplett
+            // Continuation line (starts with whitespace)
+            if inContentType && (line.hasPrefix(" ") || line.hasPrefix("\t")) {
+                contentType += " " + trimmed
+                
+                if !trimmed.hasSuffix(";") && !trimmed.hasSuffix(",") {
                     break
                 }
+                continue
+            } else if inContentType {
+                // New header started
+                break
             }
         }
         
-        if contentTypeValue.isEmpty {
+        return contentType.isEmpty ? nil : contentType
+    }
+    
+    private static func extractBoundary(_ contentType: String) -> String? {
+        // Pattern: boundary="something" or boundary=something
+        guard let range = contentType.range(of: "boundary=", options: .caseInsensitive) else {
             return nil
         }
         
-        // ✅ KRITISCH: Gebe VOLLSTÄNDIGEN Content-Type zurück (inkl. boundary Parameter!)
-        print("🔍 [extractContentType] Extracted full Content-Type: \(contentTypeValue)")
-        return contentTypeValue
+        let afterBoundary = contentType[range.upperBound...]
+        let parts = afterBoundary.split(separator: ";", maxSplits: 1)
+        guard let boundaryValue = parts.first else {
+            return nil
+        }
+        
+        var boundary = String(boundaryValue).trimmingCharacters(in: .whitespaces)
+        
+        // Remove quotes if present
+        if boundary.hasPrefix("\"") && boundary.hasSuffix("\"") {
+            boundary = String(boundary.dropFirst().dropLast())
+        }
+        
+        return boundary
     }
     
-    private static func extractCharset(_ rawBody: String) -> String? {
-        let lines = rawBody.components(separatedBy: .newlines).prefix(50)
+    private static func splitByBoundary(_ content: String, boundary: String) -> [String] {
+        var parts: [String] = []
+        
+        // Content ist bereits normalisiert durch normalizeLineEndings()
+        let boundaryMarker = "--\(boundary)"
+        let closingBoundary = "--\(boundary)--"
+        
+        let lines = content.components(separatedBy: "\n")
+        var currentPart: [String] = []
+        var inPart = false
+        
         for line in lines {
-            if line.lowercased().contains("charset=") {
-                if let range = line.range(of: "charset=", options: .caseInsensitive) {
-                    let charsetPart = line[range.upperBound...].trimmingCharacters(in: .whitespaces)
-                    if let firstPart = charsetPart.split(separator: ";").first {
-                        return String(firstPart).trimmingCharacters(in: CharacterSet(charactersIn: "\"' "))
+            let trimmed = line.trimmingCharacters(in: .whitespaces)
+            
+            // Check for boundary
+            if trimmed == boundaryMarker || trimmed.hasPrefix(boundaryMarker + " ") {
+                // Save previous part
+                if inPart && !currentPart.isEmpty {
+                    let partContent = currentPart.joined(separator: "\n")
+                    if !partContent.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                        parts.append(partContent)
                     }
                 }
+                
+                // Start new part
+                currentPart = []
+                inPart = true
+                continue
+            }
+            
+            // Check for closing boundary
+            if trimmed == closingBoundary || trimmed.hasPrefix(closingBoundary + " ") {
+                // Save last part
+                if inPart && !currentPart.isEmpty {
+                    let partContent = currentPart.joined(separator: "\n")
+                    if !partContent.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                        parts.append(partContent)
+                    }
+                }
+                break
+            }
+            
+            // Collect part content
+            if inPart {
+                currentPart.append(line)
+            }
+        }
+        
+        return parts
+    }
+    
+    private static func splitHeadersAndBody(_ content: String) -> (headers: String, body: String)? {
+        let lines = content.components(separatedBy: "\n")
+        var headerLines: [String] = []
+        var bodyStartIndex = 0
+        
+        for (index, line) in lines.enumerated() {
+            // 1. Klassischer Trenner: Leere Zeile
+            if line.trimmingCharacters(in: .whitespaces).isEmpty {
+                bodyStartIndex = index + 1
+                break
+            }
+            
+            // 2. Header-Fortsetzung (beginnt mit Space/Tab)
+            if (line.hasPrefix(" ") || line.hasPrefix("\t")) && !headerLines.isEmpty {
+                // An vorherige Zeile anhängen (Header-Folding)
+                let trimmed = line.trimmingCharacters(in: .whitespaces)
+                headerLines[headerLines.count - 1] += " " + trimmed
+                continue
+            }
+            
+            // 3. Echte Header-Zeile (enthält ":")
+            if line.contains(":") {
+                headerLines.append(line)
+                continue
+            }
+            
+            // 4. FALLBACK: Erste Nicht-Headerzeile = Body beginnt hier
+            // (für Apple Mail ohne Leerzeile zwischen Headers und Body)
+            bodyStartIndex = index
+            break
+        }
+        
+        // Body-Zeilen ab bodyStartIndex sammeln
+        let bodyLines = Array(lines[bodyStartIndex...])
+        
+        let headers = headerLines.joined(separator: "\n")
+        let body = bodyLines.joined(separator: "\n")
+        
+        return (headers: headers, body: body)
+    }
+    
+    private static func extractPartContentType(_ headers: String) -> String? {
+        let lines = headers.components(separatedBy: .newlines)
+        for line in lines {
+            if line.lowercased().hasPrefix("content-type:") {
+                let value = String(line.dropFirst("content-type:".count))
+                    .trimmingCharacters(in: .whitespaces)
+                // Get only the type part (before semicolon)
+                return value.split(separator: ";").first.map(String.init)
             }
         }
         return nil
+    }
+    
+    private static func extractTransferEncoding(_ headers: String) -> String? {
+        let lines = headers.components(separatedBy: .newlines)
+        for line in lines {
+            if line.lowercased().hasPrefix("content-transfer-encoding:") {
+                return String(line.dropFirst("content-transfer-encoding:".count))
+                    .trimmingCharacters(in: .whitespaces)
+                    .lowercased()
+            }
+        }
+        return nil
+    }
+    
+    // MARK: - Body Decoding
+    
+    private static func decodeBody(_ body: String, transferEncoding: String) -> String {
+        switch transferEncoding.lowercased() {
+        case "quoted-printable":
+            return decodeQuotedPrintable(body)
+        case "base64":
+            return decodeBase64(body)
+        default:
+            return body
+        }
+    }
+    
+    /// Quoted-Printable Decoder - vollständig eigenständig mit Soft Wrap Support
+    private static func decodeQuotedPrintable(_ text: String) -> String {
+        // SCHRITT 1: Entferne alle Soft Line Breaks (=\n) ZUERST
+        let withoutSoftWraps = text.replacingOccurrences(of: "=\n", with: "")
+        
+        // SCHRITT 2: Dekodiere QP-Hexwerte (=XX)
+        var result = ""
+        var i = withoutSoftWraps.startIndex
+        
+        while i < withoutSoftWraps.endIndex {
+            let c = withoutSoftWraps[i]
+            
+            if c == "=" {
+                // Dekodiere Hex-Sequenz =XX
+                let nextIndex = withoutSoftWraps.index(after: i)
+                guard nextIndex < withoutSoftWraps.endIndex else {
+                    // = am Ende, ignorieren
+                    break
+                }
+                
+                let hex1Index = nextIndex
+                guard hex1Index < withoutSoftWraps.endIndex else { break }
+                
+                let hex2Index = withoutSoftWraps.index(after: hex1Index)
+                guard hex2Index < withoutSoftWraps.endIndex else { break }
+                
+                let hexString = String(withoutSoftWraps[hex1Index...hex2Index])
+                
+                if let byte = UInt8(hexString, radix: 16) {
+                    // Convert byte to character (UInt8 always creates valid UnicodeScalar)
+                    let scalar = UnicodeScalar(byte)
+                    result.append(Character(scalar))
+                    i = withoutSoftWraps.index(after: hex2Index)
+                } else {
+                    // Invalid hex - keep original
+                    result.append(c)
+                    i = withoutSoftWraps.index(after: i)
+                }
+            } else {
+                result.append(c)
+                i = withoutSoftWraps.index(after: i)
+            }
+        }
+        
+        return result
+    }
+    
+    /// Base64 Decoder - vollständig eigenständig
+    private static func decodeBase64(_ text: String) -> String {
+        // Remove whitespace
+        let cleaned = text.filter { !$0.isWhitespace }
+        
+        guard let data = Data(base64Encoded: cleaned),
+              let decoded = String(data: data, encoding: .utf8) else {
+            return text
+        }
+        
+        return decoded
+    }
+    
+    // MARK: - Text Cleanup
+    
+    private static func cleanText(_ text: String) -> String {
+        var content = text
+        
+        // Remove email headers at start
+        content = removeEmailHeaders(content)
+        
+        // Normalize line breaks
+        content = content.replacingOccurrences(of: "\r\n", with: "\n")
+        content = content.replacingOccurrences(of: "\r", with: "\n")
+        
+        // Remove excessive whitespace
+        content = content.replacingOccurrences(of: "\n{3,}", with: "\n\n", options: .regularExpression)
+        
+        return content.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+    
+    private static func removeEmailHeaders(_ content: String) -> String {
+        let lines = content.components(separatedBy: .newlines)
+        var contentStart = 0
+        var inHeaders = false
+        
+        for (index, line) in lines.enumerated() {
+            let trimmed = line.trimmingCharacters(in: .whitespaces)
+            
+            // Check for email header patterns
+            if isEmailHeaderLine(trimmed) {
+                inHeaders = true
+            } else if trimmed.isEmpty && inHeaders {
+                // Empty line after headers = start of content
+                contentStart = index + 1
+                break
+            } else if inHeaders && !trimmed.isEmpty && !line.hasPrefix(" ") && !line.hasPrefix("\t") {
+                // Non-header line after headers = start of content
+                contentStart = index
+                break
+            }
+        }
+        
+        if contentStart > 0 && contentStart < lines.count {
+            return Array(lines[contentStart...]).joined(separator: "\n")
+        }
+        
+        return content
+    }
+    
+    private static func isEmailHeaderLine(_ line: String) -> Bool {
+        let headerPrefixes = [
+            "Return-Path:", "Received:", "From:", "To:", "Subject:",
+            "Date:", "Message-ID:", "Message-Id:", "MIME-Version:",
+            "Content-Type:", "Content-Transfer-Encoding:",
+            "X-", "Delivered-To:"
+        ]
+        
+        return headerPrefixes.contains { line.hasPrefix($0) }
     }
 }
