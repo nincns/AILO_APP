@@ -757,54 +757,51 @@ public final class MailRepository: ObservableObject {
         
         // ✅ Cast zu BaseDAO für direkten SQL-Zugriff
         guard let baseDAO = dao as? BaseDAO else {
-            print("❌ DAO is not a BaseDAO, falling back to slow method")
-            // Fallback zur alten Methode
-            let headers = try dao.headers(accountId: accountId, folder: folder, limit: 1000, offset: 0)
-            var statusMap: [String: Bool] = [:]
-            for header in headers {
-                do {
-                    let attachments = try dao.attachments(accountId: accountId, folder: folder, uid: header.id)
-                    statusMap[header.id] = !attachments.isEmpty
-                } catch {
-                    statusMap[header.id] = false
-                }
-            }
-            return statusMap
+            print("❌ DAO is not a BaseDAO")
+            return [:]
         }
         
         print("📎 [OPTIMIZED] Loading attachment status for account: \(accountId), folder: \(folder)")
         
-        // ✅ OPTIMIERT: Eine einzige SQL-Query!
+        // ✅ FIX: BEIDE Tabellen prüfen mit COALESCE
         let sql = """
-            SELECT uid, has_attachments 
-            FROM \(MailSchema.tMsgBody) 
-            WHERE account_id = ? AND folder = ?
+            SELECT h.uid, 
+                   COALESCE(b.has_attachments, h.has_attachments, 0) as has_attachments
+            FROM \(MailSchema.tMsgHeader) h
+            LEFT JOIN \(MailSchema.tMsgBody) b 
+                ON h.account_id = b.account_id 
+                AND h.folder = b.folder 
+                AND h.uid = b.uid
+            WHERE h.account_id = ? AND h.folder = ?
         """
         
-        let stmt = try baseDAO.prepare(sql)
-        defer { baseDAO.finalize(stmt) }
-        
-        baseDAO.bindUUID(stmt, 1, accountId)
-        baseDAO.bindText(stmt, 2, folder)
-        
-        var statusMap: [String: Bool] = [:]
-        
-        while sqlite3_step(stmt) == SQLITE_ROW {
-            // Direkte SQLite-Funktion verwenden statt baseDAO.columnText
-            if let cString = sqlite3_column_text(stmt, 0) {
-                let uid = String(cString: cString)
-                let hasAttachments = sqlite3_column_int(stmt, 1) != 0
-                statusMap[uid] = hasAttachments
-                
-                // Debug ersten 3 Einträge
-                if statusMap.count <= 3 {
-                    print("📎 [DEBUG] UID: \(uid), hasAttachments: \(hasAttachments)")
+        do {
+            let stmt = try baseDAO.prepare(sql)
+            defer { baseDAO.finalize(stmt) }
+            
+            baseDAO.bindUUID(stmt, 1, accountId)
+            baseDAO.bindText(stmt, 2, folder)
+            
+            var statusMap: [String: Bool] = [:]
+            
+            while sqlite3_step(stmt) == SQLITE_ROW {
+                if let cString = sqlite3_column_text(stmt, 0) {
+                    let uid = String(cString: cString)
+                    let hasAttachments = sqlite3_column_int(stmt, 1) != 0
+                    statusMap[uid] = hasAttachments
                 }
             }
+            
+            print("📎 Loaded attachment status for \(statusMap.count) messages")
+            let withAttachments = statusMap.values.filter { $0 }.count
+            print("📎 → \(withAttachments) messages have attachments")
+            
+            return statusMap
+            
+        } catch {
+            print("❌ Failed to load attachment status: \(error)")
+            return [:]
         }
-        
-        print("📎 Loaded attachment status for \(statusMap.count) messages")
-        return statusMap
     }
     
     // MARK: - Wiring from outside (so repository can emit change signals)
