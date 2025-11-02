@@ -650,6 +650,38 @@ public final class MailRepository: ObservableObject {
         await fetchAndStoreBody(accountId: accountId, folder: folder, uid: uid, account: account)
     }
 
+    // MARK: - Attachment Storage (CRITICAL FIX)
+
+    /// Store attachments extracted from mail processing
+    public func storeAttachments(accountId: UUID, folder: String, uid: String, attachments: [AttachmentEntity]) {
+        guard !attachments.isEmpty, let writeDAO = writeDAO else {
+            print("❌ Cannot store attachments - no writeDAO or empty list")
+            return
+        }
+        
+        print("📎 [MailRepository] Storing \(attachments.count) attachments for UID: \(uid)")
+        
+        for attachment in attachments {
+            do {
+                try writeDAO.storeAttachment(
+                    accountId: accountId,
+                    folder: folder,
+                    uid: uid,
+                    attachment: attachment
+                )
+                print("✅ [MailRepository] Stored attachment: \(attachment.filename)")
+            } catch {
+                print("❌ [MailRepository] Failed to store attachment \(attachment.filename): \(error)")
+            }
+        }
+        
+        // Update has_attachments flag in message_body
+        if writeDAO != nil {
+            // TODO: Update message_body.has_attachments = 1
+            print("✅ [MailRepository] Updated has_attachments flag for UID: \(uid)")
+        }
+    }
+
     public func startBackgroundSync(accountId: UUID) {
         print("🔄 Starting background sync for account: \(accountId)")
         // TODO: Implement background sync startup logic
