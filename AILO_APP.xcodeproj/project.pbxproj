@@ -233,6 +233,11 @@
 			path = LogsList;
 			sourceTree = "<group>";
 		};
+		C9D84B1D2EC7E03100FD4962 /* NewFiles */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = NewFiles;
+			sourceTree = "<group>";
+		};
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -598,6 +603,7 @@
 		C9F2CC202E8873D300D5D965 = {
 			isa = PBXGroup;
 			children = (
+				C9D84B1D2EC7E03100FD4962 /* NewFiles */,
 				C9DEDF772EAECC4D00C40B92 /* AILO_APP */,
 				C9DEDF782EAECC4D00C40B92 /* AILO-APP-Info.plist */,
 				C9DEDF7C2EAECC4D00C40B92 /* App */,
@@ -636,6 +642,7 @@
 			);
 			fileSystemSynchronizedGroups = (
 				C981572A2EB52CB30016F2DC /* LogsList */,
+				C9D84B1D2EC7E03100FD4962 /* NewFiles */,
 			);
 			name = AILO_APP;
 			packageProductDependencies = (

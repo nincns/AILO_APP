@@ -70,6 +70,9 @@ public struct MessageBodyEntity: Sendable, Equatable {
     // ✅ V3: RAW mail storage for forensics, validation, and export
     public var rawBody: String?           // Original RFC822 message (headers + body)
     
+    // ✅ V4: Raw blob ID reference for external storage
+    public var rawBlobId: String?         // Reference to blob_store for RAW RFC822
+    
     // V2: Metadata fields for enhanced content processing
     public var contentType: String?       // e.g. "text/html", "text/plain"
     public var charset: String?           // e.g. "utf-8", "iso-8859-1"
@@ -87,6 +90,7 @@ public struct MessageBodyEntity: Sendable, Equatable {
         self.html = html
         self.hasAttachments = hasAttachments
         self.rawBody = nil
+        self.rawBlobId = nil
         self.contentType = nil
         self.charset = nil
         self.transferEncoding = nil
@@ -107,6 +111,7 @@ public struct MessageBodyEntity: Sendable, Equatable {
         self.html = html
         self.hasAttachments = hasAttachments
         self.rawBody = nil
+        self.rawBlobId = nil
         self.contentType = contentType
         self.charset = charset
         self.transferEncoding = transferEncoding
@@ -127,6 +132,28 @@ public struct MessageBodyEntity: Sendable, Equatable {
         self.html = html
         self.hasAttachments = hasAttachments
         self.rawBody = rawBody
+        self.rawBlobId = nil
+        self.contentType = contentType
+        self.charset = charset
+        self.transferEncoding = transferEncoding
+        self.isMultipart = isMultipart
+        self.rawSize = rawSize
+        self.processedAt = processedAt
+    }
+    
+    // ✅ V4: Complete initializer with rawBlobId
+    public init(accountId: UUID, folder: String, uid: String, text: String? = nil, html: String? = nil,
+                hasAttachments: Bool = false, rawBody: String? = nil, rawBlobId: String? = nil,
+                contentType: String? = nil, charset: String? = nil, transferEncoding: String? = nil,
+                isMultipart: Bool = false, rawSize: Int? = nil, processedAt: Date? = nil) {
+        self.accountId = accountId
+        self.folder = folder
+        self.uid = uid
+        self.text = text
+        self.html = html
+        self.hasAttachments = hasAttachments
+        self.rawBody = rawBody
+        self.rawBlobId = rawBlobId
         self.contentType = contentType
         self.charset = charset
         self.transferEncoding = transferEncoding
@@ -147,11 +174,25 @@ public struct AttachmentEntity: Sendable, Identifiable, Equatable {
     public var sizeBytes: Int
     public var data: Data?                // optional: lazy/external storage
     
-    // New fields for enhanced attachment management
+    // V2: Enhanced attachment metadata
     public var contentId: String?         // for inline attachments (cid:)
     public var isInline: Bool             // true for embedded images
     public var filePath: String?          // path to stored file
     public var checksum: String?          // SHA256 for deduplication
+    
+    // ✅ V4: Blob storage reference
+    public var blobId: String?            // Reference to blob_store
+    
+    // ✅ V6: Security fields
+    public var virusScanStatus: VirusScanStatus
+    public var scanDate: Date?
+    public var scanEngine: String?
+    public var threatName: String?
+    public var quarantined: Bool
+    public var contentTypeVerified: Bool
+    public var detectedContentType: String?
+    public var exceedsSizeLimit: Bool
+    public var sizeLimitBytes: Int?
     
     // Convenience initializer for backward compatibility
     public init(accountId: UUID, folder: String, uid: String, partId: String,
@@ -168,9 +209,19 @@ public struct AttachmentEntity: Sendable, Identifiable, Equatable {
         self.isInline = false
         self.filePath = nil
         self.checksum = nil
+        self.blobId = nil
+        self.virusScanStatus = .pending
+        self.scanDate = nil
+        self.scanEngine = nil
+        self.threatName = nil
+        self.quarantined = false
+        self.contentTypeVerified = false
+        self.detectedContentType = nil
+        self.exceedsSizeLimit = false
+        self.sizeLimitBytes = nil
     }
     
-    // Enhanced initializer with metadata
+    // Enhanced initializer with metadata (V2)
     public init(accountId: UUID, folder: String, uid: String, partId: String,
                 filename: String, mimeType: String, sizeBytes: Int, data: Data? = nil,
                 contentId: String? = nil, isInline: Bool = false, filePath: String? = nil,
@@ -187,11 +238,301 @@ public struct AttachmentEntity: Sendable, Identifiable, Equatable {
         self.isInline = isInline
         self.filePath = filePath
         self.checksum = checksum
+        self.blobId = nil
+        self.virusScanStatus = .pending
+        self.scanDate = nil
+        self.scanEngine = nil
+        self.threatName = nil
+        self.quarantined = false
+        self.contentTypeVerified = false
+        self.detectedContentType = nil
+        self.exceedsSizeLimit = false
+        self.sizeLimitBytes = nil
+    }
+    
+    // ✅ V4: Complete initializer with blob storage
+    public init(accountId: UUID, folder: String, uid: String, partId: String,
+                filename: String, mimeType: String, sizeBytes: Int, data: Data? = nil,
+                contentId: String? = nil, isInline: Bool = false, filePath: String? = nil,
+                checksum: String? = nil, blobId: String? = nil) {
+        self.accountId = accountId
+        self.folder = folder
+        self.uid = uid
+        self.partId = partId
+        self.filename = filename
+        self.mimeType = mimeType
+        self.sizeBytes = sizeBytes
+        self.data = data
+        self.contentId = contentId
+        self.isInline = isInline
+        self.filePath = filePath
+        self.checksum = checksum
+        self.blobId = blobId
+        self.virusScanStatus = .pending
+        self.scanDate = nil
+        self.scanEngine = nil
+        self.threatName = nil
+        self.quarantined = false
+        self.contentTypeVerified = false
+        self.detectedContentType = nil
+        self.exceedsSizeLimit = false
+        self.sizeLimitBytes = nil
+    }
+    
+    // ✅ V6: Complete initializer with security fields
+    public init(accountId: UUID, folder: String, uid: String, partId: String,
+                filename: String, mimeType: String, sizeBytes: Int, data: Data? = nil,
+                contentId: String? = nil, isInline: Bool = false, filePath: String? = nil,
+                checksum: String? = nil, blobId: String? = nil,
+                virusScanStatus: VirusScanStatus = .pending, scanDate: Date? = nil,
+                scanEngine: String? = nil, threatName: String? = nil, quarantined: Bool = false,
+                contentTypeVerified: Bool = false, detectedContentType: String? = nil,
+                exceedsSizeLimit: Bool = false, sizeLimitBytes: Int? = nil) {
+        self.accountId = accountId
+        self.folder = folder
+        self.uid = uid
+        self.partId = partId
+        self.filename = filename
+        self.mimeType = mimeType
+        self.sizeBytes = sizeBytes
+        self.data = data
+        self.contentId = contentId
+        self.isInline = isInline
+        self.filePath = filePath
+        self.checksum = checksum
+        self.blobId = blobId
+        self.virusScanStatus = virusScanStatus
+        self.scanDate = scanDate
+        self.scanEngine = scanEngine
+        self.threatName = threatName
+        self.quarantined = quarantined
+        self.contentTypeVerified = contentTypeVerified
+        self.detectedContentType = detectedContentType
+        self.exceedsSizeLimit = exceedsSizeLimit
+        self.sizeLimitBytes = sizeLimitBytes
+    }
+}
+
+// MARK: - New Entity Models (Phase 1 - V4)
+
+public struct MimePartEntity: Sendable, Identifiable, Equatable {
+    public let id: UUID
+    public let messageId: UUID           // FK to message
+    public let partId: String            // IMAP section path (e.g. "1.2")
+    public var parentPartId: String?     // For nested multipart
+    
+    // MIME Metadata
+    public var mediaType: String         // e.g. "image/png", "text/html"
+    public var charset: String?          // e.g. "utf-8"
+    public var transferEncoding: String? // e.g. "base64", "quoted-printable"
+    
+    // Disposition & Filename
+    public var disposition: String?      // "inline", "attachment", or nil
+    public var filenameOriginal: String? // Original filename from MIME
+    public var filenameNormalized: String? // Sanitized filename
+    
+    // Content References
+    public var contentId: String?        // For cid: references
+    public var contentMd5: String?       // MD5 from MIME header (if present)
+    public var contentSha256: String?    // Calculated SHA256
+    
+    // Size Information
+    public var sizeOctets: Int?          // Server-reported size
+    public var bytesStored: Int?         // Actual stored bytes
+    
+    // Processing Flags
+    public var isBodyCandidate: Bool     // true for text/plain, text/html
+    public var blobId: String?           // Reference to blob_store (SHA256)
+    
+    public init(id: UUID = UUID(), messageId: UUID, partId: String, parentPartId: String? = nil,
+                mediaType: String, charset: String? = nil, transferEncoding: String? = nil,
+                disposition: String? = nil, filenameOriginal: String? = nil, filenameNormalized: String? = nil,
+                contentId: String? = nil, contentMd5: String? = nil, contentSha256: String? = nil,
+                sizeOctets: Int? = nil, bytesStored: Int? = nil, isBodyCandidate: Bool = false,
+                blobId: String? = nil) {
+        self.id = id
+        self.messageId = messageId
+        self.partId = partId
+        self.parentPartId = parentPartId
+        self.mediaType = mediaType
+        self.charset = charset
+        self.transferEncoding = transferEncoding
+        self.disposition = disposition
+        self.filenameOriginal = filenameOriginal
+        self.filenameNormalized = filenameNormalized
+        self.contentId = contentId
+        self.contentMd5 = contentMd5
+        self.contentSha256 = contentSha256
+        self.sizeOctets = sizeOctets
+        self.bytesStored = bytesStored
+        self.isBodyCandidate = isBodyCandidate
+        self.blobId = blobId
+    }
+}
+
+public struct RenderCacheEntity: Sendable, Equatable {
+    public let messageId: UUID           // PK - one cache per message  
+    public let accountId: UUID           // For lookup and FK
+    public let folder: String            // For lookup and FK
+    public let uid: String               // For lookup and FK
+    public var htmlRendered: String?     // Finalized HTML (cid: rewritten, sanitized)
+    public var textRendered: String?     // Finalized plain text
+    public var generatedAt: Date         // Timestamp of generation
+    public var generatorVersion: Int     // Parser version (for invalidation)
+    
+    public init(messageId: UUID, accountId: UUID, folder: String, uid: String,
+                htmlRendered: String? = nil, textRendered: String? = nil,
+                generatedAt: Date = Date(), generatorVersion: Int = 1) {
+        self.messageId = messageId
+        self.accountId = accountId
+        self.folder = folder
+        self.uid = uid
+        self.htmlRendered = htmlRendered
+        self.textRendered = textRendered
+        self.generatedAt = generatedAt
+        self.generatorVersion = generatorVersion
+    }
+}
+
+public struct BlobStoreEntity: Sendable, Identifiable, Equatable {
+    public let id: String                // PK - SHA256 hash
+    public var storagePath: String       // Relative path (e.g. "aa/bb/aabbcc...")
+    public var sizeBytes: Int            // Actual file size
+    public var refCount: Int             // Reference counter for deduplication
+    public var createdAt: Date           // First created timestamp
+    
+    public init(id: String, storagePath: String, sizeBytes: Int, refCount: Int = 1, createdAt: Date = Date()) {
+        self.id = id
+        self.storagePath = storagePath
+        self.sizeBytes = sizeBytes
+        self.refCount = refCount
+        self.createdAt = createdAt
     }
 }
 
 public enum OutboxStatusEntity: String, Sendable {
     case pending, sending, sent, failed, cancelled
+}
+
+// MARK: - Security Entities (Phase 6)
+
+/// Status of virus scan for an attachment
+public enum VirusScanStatus: String, Codable, Sendable {
+    case pending    // Not yet scanned
+    case clean      // Scanned, no threats
+    case infected   // Threat detected
+    case error      // Scan failed
+    case skipped    // Too large or scan disabled
+    
+    public var description: String {
+        switch self {
+        case .pending: return "Pending scan"
+        case .clean: return "Clean"
+        case .infected: return "Infected"
+        case .error: return "Scan error"
+        case .skipped: return "Not scanned"
+        }
+    }
+    
+    public var isAllowedToDownload: Bool {
+        return self == .clean || self == .skipped
+    }
+}
+
+/// Security metadata for an attachment
+public struct AttachmentSecurityInfo: Codable, Sendable {
+    public let attachmentId: UUID
+    public let virusScanStatus: VirusScanStatus
+    public let scanDate: Date?
+    public let scanEngine: String?
+    public let threatName: String?
+    public let quarantined: Bool
+    public let contentTypeVerified: Bool
+    public let originalContentType: String
+    public let detectedContentType: String?
+    
+    public init(
+        attachmentId: UUID,
+        virusScanStatus: VirusScanStatus,
+        scanDate: Date? = nil,
+        scanEngine: String? = nil,
+        threatName: String? = nil,
+        quarantined: Bool = false,
+        contentTypeVerified: Bool = false,
+        originalContentType: String,
+        detectedContentType: String? = nil
+    ) {
+        self.attachmentId = attachmentId
+        self.virusScanStatus = virusScanStatus
+        self.scanDate = scanDate
+        self.scanEngine = scanEngine
+        self.threatName = threatName
+        self.quarantined = quarantined
+        self.contentTypeVerified = contentTypeVerified
+        self.originalContentType = originalContentType
+        self.detectedContentType = detectedContentType
+    }
+}
+
+public struct SecurityAuditLogEntity: Sendable, Identifiable, Equatable {
+    public let id: UUID
+    public let attachmentId: UUID
+    public let messageId: UUID
+    public let eventType: String
+    public let eventDate: Date
+    public var scanStatus: VirusScanStatus?
+    public var threatName: String?
+    public var actionTaken: String?
+    public var userAction: String?
+    public var details: String?
+    
+    public init(id: UUID = UUID(), attachmentId: UUID, messageId: UUID, 
+                eventType: String, eventDate: Date = Date(), 
+                scanStatus: VirusScanStatus? = nil, threatName: String? = nil,
+                actionTaken: String? = nil, userAction: String? = nil, details: String? = nil) {
+        self.id = id
+        self.attachmentId = attachmentId
+        self.messageId = messageId
+        self.eventType = eventType
+        self.eventDate = eventDate
+        self.scanStatus = scanStatus
+        self.threatName = threatName
+        self.actionTaken = actionTaken
+        self.userAction = userAction
+        self.details = details
+    }
+}
+
+public struct QuarantinedAttachmentEntity: Sendable, Identifiable, Equatable {
+    public let id: UUID
+    public let attachmentId: UUID
+    public let messageId: UUID
+    public let originalFilename: String
+    public let quarantineDate: Date
+    public var threatName: String?
+    public var threatSeverity: String?
+    public var originalBlobId: String?
+    public var quarantineBlobId: String?
+    public var canRestore: Bool
+    public var deleted: Bool
+    
+    public init(id: UUID = UUID(), attachmentId: UUID, messageId: UUID,
+                originalFilename: String, quarantineDate: Date = Date(),
+                threatName: String? = nil, threatSeverity: String? = nil,
+                originalBlobId: String? = nil, quarantineBlobId: String? = nil,
+                canRestore: Bool = false, deleted: Bool = false) {
+        self.id = id
+        self.attachmentId = attachmentId
+        self.messageId = messageId
+        self.originalFilename = originalFilename
+        self.quarantineDate = quarantineDate
+        self.threatName = threatName
+        self.threatSeverity = threatSeverity
+        self.originalBlobId = originalBlobId
+        self.quarantineBlobId = quarantineBlobId
+        self.canRestore = canRestore
+        self.deleted = deleted
+    }
 }
 
 public struct OutboxItemEntity: Sendable, Identifiable, Equatable {
@@ -217,15 +558,24 @@ public struct OutboxItemEntity: Sendable, Identifiable, Equatable {
 
 public enum MailSchema {
     /// Increase when schema changes; DAO should store this in SQLite PRAGMA user_version (or similar)
-    public static let currentVersion: Int = 3
+    public static let currentVersion: Int = 6
 
-    // Table names
+    // Original table names
     public static let tAccounts = "accounts"
     public static let tFolders = "folders"
     public static let tMsgHeader = "message_header"
     public static let tMsgBody = "message_body"
     public static let tAttachment = "attachment"
     public static let tOutbox = "outbox"
+    
+    // New table names for V4
+    public static let tMimeParts = "mime_parts"
+    public static let tRenderCache = "render_cache"
+    public static let tBlobStore = "blob_store"
+    
+    // New table names for V6 Security
+    public static let tSecurityAuditLog = "security_audit_log"
+    public static let tQuarantinedAttachments = "quarantined_attachments"
 
     // MARK: DDL v1
 
@@ -276,7 +626,7 @@ public enum MailSchema {
         ON \(tMsgHeader) (account_id, folder, date DESC);
         """,
 
-        // Message body (lazy) - V3 schema with raw_body
+        // Message body (lazy) - V4 schema with blob references
         """
         CREATE TABLE IF NOT EXISTS \(tMsgBody) (
             account_id TEXT NOT NULL,
@@ -286,6 +636,7 @@ public enum MailSchema {
             html_body TEXT,
             has_attachments INTEGER NOT NULL DEFAULT 0,
             raw_body TEXT,
+            raw_blob_id TEXT,
             content_type TEXT,
             charset TEXT,
             transfer_encoding TEXT,
@@ -296,7 +647,7 @@ public enum MailSchema {
         );
         """,
 
-        // Attachments
+        // Attachments - V6 schema with security fields
         """
         CREATE TABLE IF NOT EXISTS \(tAttachment) (
             account_id TEXT NOT NULL,
@@ -311,6 +662,16 @@ public enum MailSchema {
             is_inline INTEGER NOT NULL DEFAULT 0,
             file_path TEXT,
             checksum TEXT,
+            blob_id TEXT,
+            virus_scan_status TEXT DEFAULT 'pending',
+            scan_date INTEGER,
+            scan_engine TEXT,
+            threat_name TEXT,
+            quarantined INTEGER DEFAULT 0,
+            content_type_verified INTEGER DEFAULT 0,
+            detected_content_type TEXT,
+            exceeds_size_limit INTEGER DEFAULT 0,
+            size_limit_bytes INTEGER,
             PRIMARY KEY (account_id, folder, uid, part_id)
         );
         """,
@@ -408,6 +769,226 @@ public enum MailSchema {
         ALTER TABLE \(tMsgBody) ADD COLUMN raw_body TEXT;
         """
     ]
+    
+    // MARK: DDL v4 - MIME Parts, Render Cache, and Blob Store
+    
+    public static let ddl_v4_migrations: [String] = [
+        // 1. Add raw_blob_id to message_body for external RAW storage
+        """
+        ALTER TABLE \(tMsgBody) ADD COLUMN raw_blob_id TEXT;
+        """,
+        
+        """
+        CREATE INDEX IF NOT EXISTS idx_body_raw_blob
+        ON \(tMsgBody) (raw_blob_id) WHERE raw_blob_id IS NOT NULL;
+        """,
+        
+        // 2. Add blob_id to attachments for deduplication
+        """
+        ALTER TABLE \(tAttachment) ADD COLUMN blob_id TEXT;
+        """,
+        
+        """
+        CREATE INDEX IF NOT EXISTS idx_attachment_blob
+        ON \(tAttachment) (blob_id) WHERE blob_id IS NOT NULL;
+        """,
+        
+        // 3. MIME Parts - structured MIME tree storage
+        """
+        CREATE TABLE IF NOT EXISTS \(tMimeParts) (
+            id TEXT PRIMARY KEY,
+            message_id TEXT NOT NULL,
+            part_id TEXT NOT NULL,
+            parent_part_id TEXT,
+            media_type TEXT NOT NULL,
+            charset TEXT,
+            transfer_encoding TEXT,
+            disposition TEXT,
+            filename_original TEXT,
+            filename_normalized TEXT,
+            content_id TEXT,
+            content_md5 TEXT,
+            content_sha256 TEXT,
+            size_octets INTEGER,
+            bytes_stored INTEGER,
+            is_body_candidate INTEGER NOT NULL DEFAULT 0,
+            blob_id TEXT,
+            FOREIGN KEY (blob_id) REFERENCES \(tBlobStore)(id)
+        );
+        """,
+        
+        // Index for efficient message lookup
+        """
+        CREATE INDEX IF NOT EXISTS idx_mime_parts_message
+        ON \(tMimeParts) (message_id, part_id);
+        """,
+        
+        // Index for content-id lookup (cid: resolution)
+        """
+        CREATE INDEX IF NOT EXISTS idx_mime_parts_cid
+        ON \(tMimeParts) (message_id, content_id) WHERE content_id IS NOT NULL;
+        """,
+        
+        // Index for blob reference
+        """
+        CREATE INDEX IF NOT EXISTS idx_mime_parts_blob
+        ON \(tMimeParts) (blob_id) WHERE blob_id IS NOT NULL;
+        """,
+        
+        // 4. Render Cache - finalized display content
+        """
+        CREATE TABLE IF NOT EXISTS \(tRenderCache) (
+            message_id TEXT PRIMARY KEY,
+            account_id TEXT NOT NULL,
+            folder TEXT NOT NULL,
+            uid TEXT NOT NULL,
+            html_rendered TEXT,
+            text_rendered TEXT,
+            generated_at INTEGER NOT NULL,
+            generator_version INTEGER NOT NULL DEFAULT 1,
+            FOREIGN KEY (account_id, folder, uid) 
+                REFERENCES \(tMsgHeader)(account_id, folder, uid) ON DELETE CASCADE
+        );
+        """,
+        
+        """
+        CREATE INDEX IF NOT EXISTS idx_render_cache_lookup
+        ON \(tRenderCache) (account_id, folder, uid);
+        """,
+        
+        """
+        CREATE INDEX IF NOT EXISTS idx_render_cache_version
+        ON \(tRenderCache) (generator_version);
+        """,
+        
+        // 5. Blob Store - deduplicated binary storage
+        """
+        CREATE TABLE IF NOT EXISTS \(tBlobStore) (
+            id TEXT PRIMARY KEY,
+            storage_path TEXT NOT NULL,
+            size_bytes INTEGER NOT NULL,
+            ref_count INTEGER NOT NULL DEFAULT 1,
+            created_at INTEGER NOT NULL
+        );
+        """,
+        
+        // Index for orphan cleanup
+        """
+        CREATE INDEX IF NOT EXISTS idx_blob_store_refcount
+        ON \(tBlobStore) (ref_count);
+        """,
+        
+        // Index for storage path lookups
+        """
+        CREATE INDEX IF NOT EXISTS idx_blob_store_path
+        ON \(tBlobStore) (storage_path);
+        """
+    ]
+    
+    // MARK: DDL v6 - Security Features (Phase 6)
+    
+    public static let ddl_v6_migrations: [String] = [
+        // 1. Add security columns to attachments table
+        """
+        ALTER TABLE \(tAttachment) ADD COLUMN virus_scan_status TEXT DEFAULT 'pending';
+        """,
+        
+        """
+        ALTER TABLE \(tAttachment) ADD COLUMN scan_date INTEGER;
+        """,
+        
+        """
+        ALTER TABLE \(tAttachment) ADD COLUMN scan_engine TEXT;
+        """,
+        
+        """
+        ALTER TABLE \(tAttachment) ADD COLUMN threat_name TEXT;
+        """,
+        
+        """
+        ALTER TABLE \(tAttachment) ADD COLUMN quarantined INTEGER DEFAULT 0;
+        """,
+        
+        """
+        ALTER TABLE \(tAttachment) ADD COLUMN content_type_verified INTEGER DEFAULT 0;
+        """,
+        
+        """
+        ALTER TABLE \(tAttachment) ADD COLUMN detected_content_type TEXT;
+        """,
+        
+        """
+        ALTER TABLE \(tAttachment) ADD COLUMN exceeds_size_limit INTEGER DEFAULT 0;
+        """,
+        
+        """
+        ALTER TABLE \(tAttachment) ADD COLUMN size_limit_bytes INTEGER;
+        """,
+        
+        // 2. Create index for virus scan status
+        """
+        CREATE INDEX IF NOT EXISTS idx_attachments_virus_scan
+        ON \(tAttachment) (virus_scan_status, quarantined);
+        """,
+        
+        // 3. Security Audit Log table
+        """
+        CREATE TABLE IF NOT EXISTS \(tSecurityAuditLog) (
+            id TEXT PRIMARY KEY,
+            attachment_id TEXT NOT NULL,
+            message_id TEXT NOT NULL,
+            event_type TEXT NOT NULL,
+            event_date INTEGER NOT NULL,
+            scan_status TEXT,
+            threat_name TEXT,
+            action_taken TEXT,
+            user_action TEXT,
+            details TEXT
+        );
+        """,
+        
+        """
+        CREATE INDEX IF NOT EXISTS idx_security_audit_attachment
+        ON \(tSecurityAuditLog) (attachment_id);
+        """,
+        
+        """
+        CREATE INDEX IF NOT EXISTS idx_security_audit_date
+        ON \(tSecurityAuditLog) (event_date);
+        """,
+        
+        """
+        CREATE INDEX IF NOT EXISTS idx_security_audit_event
+        ON \(tSecurityAuditLog) (event_type);
+        """,
+        
+        // 4. Quarantined Attachments table
+        """
+        CREATE TABLE IF NOT EXISTS \(tQuarantinedAttachments) (
+            id TEXT PRIMARY KEY,
+            attachment_id TEXT NOT NULL UNIQUE,
+            message_id TEXT NOT NULL,
+            original_filename TEXT NOT NULL,
+            quarantine_date INTEGER NOT NULL,
+            threat_name TEXT,
+            threat_severity TEXT,
+            original_blob_id TEXT,
+            quarantine_blob_id TEXT,
+            can_restore INTEGER DEFAULT 0,
+            deleted INTEGER DEFAULT 0
+        );
+        """,
+        
+        """
+        CREATE INDEX IF NOT EXISTS idx_quarantine_date
+        ON \(tQuarantinedAttachments) (quarantine_date);
+        """,
+        
+        """
+        CREATE INDEX IF NOT EXISTS idx_quarantine_attachment
+        ON \(tQuarantinedAttachments) (attachment_id);
+        """
+    ]
 
     // MARK: - Migration API (storage-agnostic)
 
@@ -417,7 +998,10 @@ public enum MailSchema {
         case 1: return ddl_v1
         case 2: return ddl_v1 // v2 creates full schema with enhanced columns already in ddl_v1
         case 3: return ddl_v1 // v3 creates full schema with raw_body already in ddl_v1
-        default: return ddl_v1
+        case 4: return ddl_v1 + ddl_v4_migrations // v4 creates v1 schema plus new tables
+        case 5: return ddl_v1 + ddl_v4_migrations // v5 is same as v4
+        case 6: return ddl_v1 + ddl_v4_migrations + ddl_v6_migrations // v6 adds security
+        default: return ddl_v1 + ddl_v4_migrations + ddl_v6_migrations
         }
     }
 
@@ -430,7 +1014,7 @@ public enum MailSchema {
         while v < newVersion {
             switch v {
             case 0:
-                // Initial install → create all v3 tables (latest schema)
+                // Initial install → create all v4 tables (latest schema)
                 steps.append(ddl_v1)
             case 1:
                 // v1 → v2: Add enhanced metadata columns
@@ -438,6 +1022,15 @@ public enum MailSchema {
             case 2:
                 // v2 → v3: Add raw_body column
                 steps.append(ddl_v3_migrations)
+            case 3:
+                // v3 → v4: Add blob storage and render cache
+                steps.append(ddl_v4_migrations)
+            case 4:
+                // v4 → v5: No changes (placeholder version)
+                steps.append([])
+            case 5:
+                // v5 → v6: Add security features
+                steps.append(ddl_v6_migrations)
             default:
                 steps.append([])
             }

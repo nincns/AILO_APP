@@ -1,305 +1,265 @@
-// EmailContentParser.swift - Simplified parser for already processed email content
+// AILO_APP/Helpers/Parsers/EmailContentParser_Phase3.swift
+// PHASE 3: Simplified Email Content Parser
+// Orchestrates MIME parsing and render cache integration
+
 import Foundation
 
-/// Simplified parser class - emails are already processed and clean in database
-public class EmailContentParser {
+/// Phase 3: Simplified parser - delegates to EnhancedMIMEParser
+public class SimplifiedEmailContentParser {
     
-    // MARK: - Static Interface (maintains backward compatibility)
+    private let mimeParser = EnhancedMIMEParser()
     
-    /// Parse email content - simplified since emails are pre-processed
-    public static func parseEmailContent(_ rawContent: String) -> ParsedEmailContent {
-        let parser = EmailContentParser()
-        return parser.parse(rawContent)
-    }
+    // MARK: - Main Parse Method
     
-    // MARK: - Instance Interface
-    
-    /// Parse email content - simplified for pre-processed content
-    public func parse(_ rawContent: String) -> ParsedEmailContent {
-        // Step 1: Try MIME parsing first (preferred approach)
-        let mimeParser = MIMEParser()
-        let mimeContent = mimeParser.parse(
-            rawBodyBytes: nil,
-            rawBodyString: rawContent,
-            contentType: ContentDecoder.detectContentType(rawContent),
-            charset: ContentDecoder.detectCharset(rawContent)
-        )
+    /// Parse email with structure guidance (Phase 3 preferred method)
+    /// - Parameters:
+    ///   - structure: Pre-parsed BODYSTRUCTURE
+    ///   - sectionContents: Fetched section contents
+    ///   - messageId: Message UUID for cache lookup
+    ///   - dao: Optional DAO for cache access
+    /// - Returns: Complete parse result
+    public func parseWithStructure(
+        structure: EnhancedBodyStructure,
+        sectionContents: [String: Data],
+        messageId: UUID,
+        dao: MailReadDAO? = nil
+    ) -> MIMEParseResult {
         
-        // Step 2: Check if MIME parsing found structured content
-        if let mimeText = mimeContent.text, !mimeText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-            // MIME parser succeeded - use its output (handles multipart automatically)
-            let isHTML = mimeContent.html != nil
-            let finalContent = isHTML ? (mimeContent.html ?? mimeText) : mimeText
-            let encoding = ContentDecoder.detectOriginalEncoding(rawContent)
+        print("🔄 [EmailContentParser Phase3] Starting parse")
+        
+        // STEP 1: Check render cache (Phase 1)
+        if let dao = dao,
+           let cache = try? dao.getRenderCache(messageId: messageId) {
+            print("✅ [EmailContentParser Phase3] Using cached render")
             
-            // Minimal processing - content is already clean from database
-            let normalizedContent = normalizeLineBreaks(finalContent)
+            // Convert cache to result (no need to re-parse!)
+            let bodyCandidate = cache.htmlRendered != nil 
+                ? BodyCandidate(partId: "cached", contentType: .html, 
+                              charset: "utf-8", content: cache.htmlRendered!)
+                : (cache.textRendered != nil 
+                    ? BodyCandidate(partId: "cached", contentType: .plain,
+                                  charset: "utf-8", content: cache.textRendered!)
+                    : nil)
             
-            return ParsedEmailContent(
-                content: normalizedContent,
-                isHTML: isHTML,
-                encoding: encoding
+            return MIMEParseResult(
+                parts: [],
+                bestBodyCandidate: bodyCandidate,
+                attachments: [],
+                inlineReferences: []
             )
         }
         
-        // Step 3: Fallback to simple parsing if MIME failed
-        return parseSimple(rawContent)
-    }
-    
-    /// Simple parsing for pre-processed content
-    private func parseSimple(_ rawContent: String) -> ParsedEmailContent {
-        // Step 1: Detect the original encoding
-        let originalEncoding = ContentDecoder.detectOriginalEncoding(rawContent)
+        print("📝 [EmailContentParser Phase3] No cache - parsing MIME")
         
-        // Step 2: Decode content if needed
-        let decodedContent = ContentDecoder.decodeMultipleEncodings(rawContent)
-        
-        // Step 3: Detect if content is HTML or plain text
-        let isHTML = ContentAnalyzer.detectHTMLContent(decodedContent)
-        
-        // Step 4: Minimal cleanup - just normalize line breaks
-        let normalizedContent = normalizeLineBreaks(decodedContent)
-        
-        return ParsedEmailContent(
-            content: normalizedContent,
-            isHTML: isHTML,
-            encoding: originalEncoding
+        // STEP 2: Parse MIME (single pass)
+        let result = mimeParser.parseWithStructure(
+            structure: structure,
+            sectionContents: sectionContents,
+            defaultCharset: "utf-8"
         )
+        
+        // STEP 3: Store render cache for next time
+        if let dao = dao, let body = result.bestBodyCandidate {
+            do {
+                try dao.storeRenderCache(
+                    messageId: messageId,
+                    htmlRendered: body.contentType == .html ? body.content : nil,
+                    textRendered: body.contentType == .plain ? body.content : nil,
+                    generatorVersion: 1
+                )
+                print("✅ [EmailContentParser Phase3] Stored render cache")
+            } catch {
+                print("⚠️ [EmailContentParser Phase3] Failed to store cache: \(error)")
+            }
+        }
+        
+        return result
     }
     
-    // MARK: - Advanced Parsing Options
-    
-    /// Parse with custom options - simplified for pre-processed content
-    public func parseWithOptions(_ rawContent: String, options: ParsingOptions) -> ParsedEmailContent {
-        var content = rawContent
+    /// Legacy parse method (for backwards compatibility)
+    /// Prefer parseWithStructure() for new code
+    @available(*, deprecated, message: "Use parseWithStructure instead")
+    public func parse(_ rawContent: String) -> ParsedEmailContent {
+        print("⚠️ [EmailContentParser Phase3] Using legacy parse - consider upgrading")
         
-        // Apply custom decoding if specified
-        if options.useAdvancedDecoding {
-            content = ContentDecoder.decodeMultipleEncodings(content)
+        // Detect content type
+        let isHTML = rawContent.contains("<html") || rawContent.contains("<body")
+        
+        if isHTML {
+            return ParsedEmailContent(text: nil, html: rawContent)
         } else {
-            content = ContentDecoder.decodeQuotedPrintable(content)
+            return ParsedEmailContent(text: rawContent, html: nil)
         }
-        
-        // Minimal processing since content is already clean
-        content = normalizeLineBreaks(content)
-        
-        let isHTML = ContentAnalyzer.detectHTMLContent(content)
-        let encoding = ContentDecoder.detectOriginalEncoding(rawContent)
-        
-        return ParsedEmailContent(
-            content: content,
-            isHTML: isHTML,
-            encoding: encoding
-        )
-    }
-    
-    // MARK: - Helper Methods
-    
-    /// Normalize line breaks (minimal processing)
-    private func normalizeLineBreaks(_ content: String) -> String {
-        // Normalize different line break formats
-        return content
-            .replacingOccurrences(of: "\r\n", with: "\n")
-            .replacingOccurrences(of: "\r", with: "\n")
-    }
-    
-    /// Extract boundary from Content-Type header
-    private func extractBoundary(from contentType: String) -> String? {
-        let lowercased = contentType.lowercased()
-        
-        if let range = lowercased.range(of: "boundary=") {
-            let boundaryPart = String(contentType[range.upperBound...])
-                .trimmingCharacters(in: .whitespacesAndNewlines)
-            
-            // Handle quoted boundaries
-            if boundaryPart.hasPrefix("\"") && boundaryPart.count > 1 {
-                let withoutFirstQuote = String(boundaryPart.dropFirst())
-                if let endQuote = withoutFirstQuote.firstIndex(of: "\"") {
-                    return String(withoutFirstQuote[..<endQuote])
-                }
-            }
-            
-            // Handle unquoted boundaries
-            let boundary = boundaryPart.components(separatedBy: CharacterSet(charactersIn: " \t\r\n;\"'"))[0]
-            return boundary.isEmpty ? nil : boundary
-        }
-        
-        return nil
-    }
-    
-    /// Extract Content-Transfer-Encoding from headers  
-    private func extractTransferEncoding(from content: String) -> String? {
-        let lines = content.components(separatedBy: .newlines).prefix(30)
-        
-        for line in lines {
-            let trimmed = line.trimmingCharacters(in: .whitespacesAndNewlines)
-            let lowercased = trimmed.lowercased()
-            
-            if lowercased.hasPrefix("content-transfer-encoding:") {
-                let value = String(trimmed.dropFirst("content-transfer-encoding:".count))
-                    .trimmingCharacters(in: .whitespacesAndNewlines)
-                return value.isEmpty ? nil : value
-            }
-        }
-        
-        return nil
-    }
-    
-    /// Extract and decode email headers (simplified approach)
-    private func extractEmailHeaders(from content: String) -> (subject: String?, from: String?, to: String?) {
-        let lines = content.components(separatedBy: .newlines).prefix(50)
-        
-        var subject: String?
-        var from: String?
-        var to: String?
-        var currentHeader = ""
-        var currentValue = ""
-        
-        for line in lines {
-            let trimmed = line.trimmingCharacters(in: .whitespacesAndNewlines)
-            
-            if trimmed.isEmpty {
-                break // End of headers
-            }
-            
-            // Continuation line
-            if line.hasPrefix(" ") || line.hasPrefix("\t") {
-                currentValue += " " + trimmed
-                continue
-            }
-            
-            // Save previous header
-            if !currentHeader.isEmpty && !currentValue.isEmpty {
-                switch currentHeader.lowercased() {
-                case "subject":
-                    subject = decodeHeaderValue(currentValue)
-                case "from":
-                    from = decodeHeaderValue(currentValue)
-                case "to":
-                    to = decodeHeaderValue(currentValue)
-                default:
-                    break
-                }
-            }
-            
-            // Parse new header
-            if let colonIndex = trimmed.firstIndex(of: ":") {
-                currentHeader = String(trimmed[..<colonIndex]).trimmingCharacters(in: .whitespacesAndNewlines)
-                currentValue = String(trimmed[trimmed.index(after: colonIndex)...]).trimmingCharacters(in: .whitespacesAndNewlines)
-            } else {
-                currentHeader = ""
-                currentValue = ""
-            }
-        }
-        
-        // Handle final header
-        if !currentHeader.isEmpty && !currentValue.isEmpty {
-            switch currentHeader.lowercased() {
-            case "subject":
-                subject = decodeHeaderValue(currentValue)
-            case "from":
-                from = decodeHeaderValue(currentValue)
-            case "to":
-                to = decodeHeaderValue(currentValue)
-            default:
-                break
-            }
-        }
-        
-        return (subject: subject, from: from, to: to)
-    }
-    
-    /// Simple header value decoding (can be enhanced with RFC2047 later)
-    private func decodeHeaderValue(_ value: String) -> String {
-        // For now, just return the value as-is
-        // This can be enhanced with proper RFC2047 decoding later
-        return value.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 }
 
-/// Configuration options for email parsing
-public struct ParsingOptions {
-    public let useAdvancedDecoding: Bool
-    public let preferRenderedContent: Bool
-    public let aggressiveCleaning: Bool
+// MARK: - Static Interface (backwards compatibility)
+
+extension SimplifiedEmailContentParser {
     
-    public init(useAdvancedDecoding: Bool = true, 
-                preferRenderedContent: Bool = true, 
-                aggressiveCleaning: Bool = false) {
-        self.useAdvancedDecoding = useAdvancedDecoding
-        self.preferRenderedContent = preferRenderedContent
-        self.aggressiveCleaning = aggressiveCleaning
+    /// Static parse method for backwards compatibility
+    public static func parseEmailContent(_ rawContent: String) -> ParsedEmailContent {
+        let parser = SimplifiedEmailContentParser()
+        return parser.parse(rawContent)
     }
-    
-    /// Default parsing options
-    public static let `default` = ParsingOptions()
-    
-    /// Conservative parsing (minimal changes)
-    public static let conservative = ParsingOptions(
-        useAdvancedDecoding: false,
-        preferRenderedContent: false,
-        aggressiveCleaning: false
-    )
-    
-    /// Aggressive parsing (maximum cleaning)
-    public static let aggressive = ParsingOptions(
-        useAdvancedDecoding: true,
-        preferRenderedContent: true,
-        aggressiveCleaning: true
-    )
 }
 
-/// Represents parsed email content with metadata (enhanced with multipart support)
+// MARK: - Legacy Support Types
+
+/// Legacy parsed email content structure (for backwards compatibility)
 public struct ParsedEmailContent {
+    public let text: String?
+    public let html: String?
     
-    /// Multipart types for email content
-    public enum MultipartType: String, CaseIterable {
-        case alternative = "multipart/alternative"  // Different formats of same content
-        case mixed = "multipart/mixed"              // Text + attachments
-        case related = "multipart/related"          // HTML with embedded images
-        case signed = "multipart/signed"            // Digitally signed emails
-        case encrypted = "multipart/encrypted"      // Encrypted emails
-        case report = "multipart/report"            // Delivery/read receipts
-        case digest = "multipart/digest"            // Multiple messages
-        case parallel = "multipart/parallel"       // Parts to be viewed simultaneously
-        case unknown = "multipart/unknown"          // Unknown multipart type
-        
-        /// Create from Content-Type string
-        public static func from(_ contentType: String?) -> MultipartType {
-            guard let ct = contentType?.lowercased().trimmingCharacters(in: .whitespacesAndNewlines) else {
-                return .unknown
-            }
-            
-            for type in MultipartType.allCases {
-                if ct.hasPrefix(type.rawValue) {
-                    return type
-                }
-            }
-            return .unknown
+    public init(text: String?, html: String?) {
+        self.text = text
+        self.html = html
+    }
+    
+    // Legacy compatibility initializer
+    public init(content: String, isHTML: Bool, encoding: String, subject: String? = nil, from: String? = nil, to: String? = nil, multipartType: MultipartType? = nil, hasAttachments: Bool = false, hasInlineImages: Bool = false, attachmentCount: Int = 0) {
+        if isHTML {
+            self.text = nil
+            self.html = content
+        } else {
+            self.text = content
+            self.html = nil
         }
     }
     
-    public let content: String
-    public let isHTML: Bool
-    public let encoding: String
-    public let subject: String?
-    public let from: String?
-    public let to: String?
-    public let multipartType: MultipartType?
-    public let hasAttachments: Bool
-    public let hasInlineImages: Bool
-    public let attachmentCount: Int
-    
-    public init(content: String, isHTML: Bool, encoding: String, subject: String? = nil, from: String? = nil, to: String? = nil, multipartType: MultipartType? = nil, hasAttachments: Bool = false, hasInlineImages: Bool = false, attachmentCount: Int = 0) {
-        self.content = content
-        self.isHTML = isHTML  
-        self.encoding = encoding
-        self.subject = subject
-        self.from = from
-        self.to = to
-        self.multipartType = multipartType
-        self.hasAttachments = hasAttachments
-        self.hasInlineImages = hasInlineImages
-        self.attachmentCount = attachmentCount
+    /// Legacy multipart types (kept for compatibility)
+    public enum MultipartType: String, CaseIterable {
+        case alternative = "multipart/alternative"
+        case mixed = "multipart/mixed"
+        case related = "multipart/related"
+        case signed = "multipart/signed"
+        case encrypted = "multipart/encrypted"
+        case report = "multipart/report"
+        case digest = "multipart/digest"
+        case parallel = "multipart/parallel"
+        case unknown = "multipart/unknown"
     }
 }
+
+// MARK: - Phase 3 Required Types (stubs for dependencies)
+
+/// Stub for EnhancedMIMEParser dependency
+public class EnhancedMIMEParser {
+    public init() {}
+    
+    public func parseWithStructure(
+        structure: EnhancedBodyStructure,
+        sectionContents: [String: Data],
+        defaultCharset: String
+    ) -> MIMEParseResult {
+        // Stub implementation
+        return MIMEParseResult(parts: [], bestBodyCandidate: nil, attachments: [], inlineReferences: [])
+    }
+}
+
+/// Stub for EnhancedBodyStructure dependency
+public struct EnhancedBodyStructure {
+    // Stub implementation
+}
+
+/// Stub for MIMEParseResult dependency
+public struct MIMEParseResult {
+    public let parts: [MIMEPart]
+    public let bestBodyCandidate: BodyCandidate?
+    public let attachments: [AttachmentInfo]
+    public let inlineReferences: [InlineReference]
+    
+    public init(parts: [MIMEPart], bestBodyCandidate: BodyCandidate?, attachments: [AttachmentInfo], inlineReferences: [InlineReference]) {
+        self.parts = parts
+        self.bestBodyCandidate = bestBodyCandidate
+        self.attachments = attachments
+        self.inlineReferences = inlineReferences
+    }
+}
+
+/// Stub for BodyCandidate dependency
+public struct BodyCandidate {
+    public enum ContentType {
+        case html, plain
+    }
+    
+    public let partId: String
+    public let contentType: ContentType
+    public let charset: String
+    public let content: String
+    
+    public init(partId: String, contentType: ContentType, charset: String, content: String) {
+        self.partId = partId
+        self.contentType = contentType
+        self.charset = charset
+        self.content = content
+    }
+}
+
+/// Stub for MIMEPart dependency
+public struct MIMEPart {
+    // Stub implementation
+}
+
+/// Stub for AttachmentInfo dependency
+public struct AttachmentInfo {
+    // Stub implementation
+}
+
+/// Stub for InlineReference dependency
+public struct InlineReference {
+    // Stub implementation
+}
+
+/// Stub for MailReadDAO dependency
+public protocol MailReadDAO {
+    func getRenderCache(messageId: UUID) throws -> RenderCache?
+    func storeRenderCache(messageId: UUID, htmlRendered: String?, textRendered: String?, generatorVersion: Int) throws
+}
+
+/// Stub for RenderCache dependency
+public struct RenderCache {
+    public let htmlRendered: String?
+    public let textRendered: String?
+    
+    public init(htmlRendered: String?, textRendered: String?) {
+        self.htmlRendered = htmlRendered
+        self.textRendered = textRendered
+    }
+}
+
+// MARK: - Parse Flow Documentation
+
+/*
+ PHASE 3 PARSE FLOW
+ ==================
+ 
+ OLD (Phase 1 & 2):
+ ┌─────────────────────────────────────────────┐
+ │ 1. Fetch BODYSTRUCTURE                      │
+ │ 2. Fetch Section Contents                   │
+ │ 3. Parse MIME (EmailContentParser)          │
+ │ 4. Clean Body (BodyContentProcessor)        │ ← Multiple passes!
+ │ 5. Parse MIME again (MIMEParser)            │ ← Redundant!
+ │ 6. Store to DB                              │
+ └─────────────────────────────────────────────┘
+ 
+ NEW (Phase 3):
+ ┌─────────────────────────────────────────────┐
+ │ 1. Check render_cache → Use if exists       │ ← Fast path!
+ │                                              │
+ │ IF NO CACHE:                                │
+ │ 2. Fetch BODYSTRUCTURE                      │
+ │ 3. Fetch Section Contents                   │
+ │ 4. Parse MIME ONCE (EnhancedMIMEParser)    │ ← Single pass!
+ │ 5. Store render_cache + MIME parts          │
+ │                                              │
+ │ NEXT TIME: Use cache, skip parsing          │ ← Instant!
+ └─────────────────────────────────────────────┘
+ 
+ BENEFITS:
+ - Parse ONCE, not multiple times
+ - Render cache = instant display
+ - MIME parts = structured storage
+ - Clean separation of concerns
+ */
