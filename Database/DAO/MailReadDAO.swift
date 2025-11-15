@@ -432,48 +432,45 @@ public class MailReadDAOImpl: BaseDAO, MailReadDAO {
     public func getMimeParts(messageId: UUID) throws -> [MimePartEntity] {
         return try dbQueue.sync {
             try ensureOpen()
-                
-                let sql = """
-                    SELECT id, message_id, part_id, parent_part_id, media_type, charset, transfer_encoding,
-                           disposition, filename_original, filename_normalized, content_id, content_md5,
-                           content_sha256, size_octets, bytes_stored, is_body_candidate, blob_id
-                    FROM \(MailSchema.tMimeParts)
-                    WHERE message_id = ?
-                    ORDER BY part_id
-                """
-                
-                let stmt = try prepare(sql)
-                defer { finalize(stmt) }
-                
-                bindUUID(stmt, 1, messageId)
-                
-                var parts: [MimePartEntity] = []
-                
-                while sqlite3_step(stmt) == SQLITE_ROW {
-                    let part = MimePartEntity(
-                        id: stmt.columnUUID(0),
-                        messageId: stmt.columnUUID(1),
-                        partId: stmt.columnText(2) ?? "",
-                        parentPartId: stmt.columnText(3),
-                        mediaType: stmt.columnText(4) ?? "",
-                        charset: stmt.columnText(5),
-                        transferEncoding: stmt.columnText(6),
-                        disposition: stmt.columnText(7),
-                        filenameOriginal: stmt.columnText(8),
-                        filenameNormalized: stmt.columnText(9),
-                        contentId: stmt.columnText(10),
-                        contentMd5: stmt.columnText(11),
-                        contentSha256: stmt.columnText(12),
-                        sizeOctets: stmt.columnInt(13),
-                        bytesStored: stmt.columnInt(14),
-                        isBodyCandidate: stmt.columnBool(15),
-                        blobId: stmt.columnText(16)
-                    )
-                    parts.append(part)
-                }
-                
-                return parts
+            
+            let sql = """
+                SELECT id, message_id, part_number, content_type, content_subtype, 
+                       content_id, content_disposition, filename, size, encoding, 
+                       charset, is_attachment, is_inline, parent_part_number
+                FROM \(MailSchema.tMimeParts)
+                WHERE message_id = ?
+                ORDER BY part_number
+            """
+            
+            let stmt = try prepare(sql)
+            defer { finalize(stmt) }
+            
+            bindUUID(stmt, 1, messageId)
+            
+            var parts: [MimePartEntity] = []
+            
+            while sqlite3_step(stmt) == SQLITE_ROW {
+                let part = MimePartEntity(
+                    id: stmt.columnUUID(0),
+                    messageId: stmt.columnUUID(1),
+                    partNumber: stmt.columnText(2) ?? "",
+                    contentType: stmt.columnText(3) ?? "",
+                    contentSubtype: stmt.columnText(4),
+                    contentId: stmt.columnText(5),
+                    contentDisposition: stmt.columnText(6),
+                    filename: stmt.columnText(7),
+                    size: Int64(stmt.columnInt(8)),
+                    encoding: stmt.columnText(9),
+                    charset: stmt.columnText(10),
+                    isAttachment: stmt.columnBool(11),
+                    isInline: stmt.columnBool(12),
+                    parentPartNumber: stmt.columnText(13)
+                )
+                parts.append(part)
             }
+            
+            return parts
+        }
     }
 
     public func getMimePartByContentId(messageId: UUID, contentId: String) throws -> MimePartEntity? {
@@ -482,9 +479,9 @@ public class MailReadDAOImpl: BaseDAO, MailReadDAO {
                 try ensureOpen()
                 
                 let sql = """
-                    SELECT id, message_id, part_id, parent_part_id, media_type, charset, transfer_encoding,
-                           disposition, filename_original, filename_normalized, content_id, content_md5,
-                           content_sha256, size_octets, bytes_stored, is_body_candidate, blob_id
+                    SELECT id, message_id, part_number, content_type, content_subtype, 
+                           content_id, content_disposition, filename, size, encoding, 
+                           charset, is_attachment, is_inline, parent_part_number
                     FROM \(MailSchema.tMimeParts)
                     WHERE message_id = ? AND content_id = ?
                     LIMIT 1
@@ -497,27 +494,24 @@ public class MailReadDAOImpl: BaseDAO, MailReadDAO {
                 bindText(stmt, 2, contentId)
                 
                 guard sqlite3_step(stmt) == SQLITE_ROW else {
-                    throw NSError(domain: "MailDAO", code: 1, userInfo: ["message": "MIME part not found"])
+                    return nil  // Return nil instead of throwing
                 }
                 
                 return MimePartEntity(
                     id: stmt.columnUUID(0),
                     messageId: stmt.columnUUID(1),
-                    partId: stmt.columnText(2) ?? "",
-                    parentPartId: stmt.columnText(3),
-                    mediaType: stmt.columnText(4) ?? "",
-                    charset: stmt.columnText(5),
-                    transferEncoding: stmt.columnText(6),
-                    disposition: stmt.columnText(7),
-                    filenameOriginal: stmt.columnText(8),
-                    filenameNormalized: stmt.columnText(9),
-                    contentId: stmt.columnText(10),
-                    contentMd5: stmt.columnText(11),
-                    contentSha256: stmt.columnText(12),
-                    sizeOctets: stmt.columnInt(13),
-                    bytesStored: stmt.columnInt(14),
-                    isBodyCandidate: stmt.columnBool(15),
-                    blobId: stmt.columnText(16)
+                    partNumber: stmt.columnText(2) ?? "",
+                    contentType: stmt.columnText(3) ?? "",
+                    contentSubtype: stmt.columnText(4),
+                    contentId: stmt.columnText(5),
+                    contentDisposition: stmt.columnText(6),
+                    filename: stmt.columnText(7),
+                    size: Int64(stmt.columnInt(8)),
+                    encoding: stmt.columnText(9),
+                    charset: stmt.columnText(10),
+                    isAttachment: stmt.columnBool(11),
+                    isInline: stmt.columnBool(12),
+                    parentPartNumber: stmt.columnText(13)
                 )
             }
         }
@@ -564,7 +558,7 @@ public class MailReadDAOImpl: BaseDAO, MailReadDAO {
                 try ensureOpen()
                 
                 let sql = """
-                    SELECT hash_sha256, size_bytes, reference_count, created_at, last_accessed
+                    SELECT id, sha256, size, reference_count, created_at
                     FROM \(MailSchema.tBlobMeta)
                     WHERE blob_id = ?
                 """
@@ -575,19 +569,19 @@ public class MailReadDAOImpl: BaseDAO, MailReadDAO {
                 bindText(stmt, 1, blobId)
                 
                 guard sqlite3_step(stmt) == SQLITE_ROW else {
-                    throw NSError(domain: "MailDAO", code: 1, userInfo: ["message": "Blob meta not found"])
+                    return nil  // Return nil instead of throwing
                 }
                 
                 return BlobMetaEntry(
-                    blobId: blobId,
-                    hashSha256: stmt.columnText(0) ?? "",
-                    sizeBytes: stmt.columnInt(1),
-                    referenceCount: stmt.columnInt(2),
-                    createdAt: Date(timeIntervalSince1970: Double(stmt.columnInt(3))),
-                    lastAccessed: stmt.columnInt(4) != 0 ? Date(timeIntervalSince1970: Double(stmt.columnInt(4))) : nil
+                    id: stmt.columnUUID(0),
+                    sha256: stmt.columnText(1) ?? "",
+                    size: Int64(stmt.columnInt(2)),
+                    referenceCount: stmt.columnInt(3),
+                    createdAt: Date(timeIntervalSince1970: Double(stmt.columnInt(4)))
                 )
             }
         }
+    }
     }
 
     // MARK: - Phase 1: RAW Message Blob ID

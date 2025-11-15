@@ -422,7 +422,8 @@ struct ErrorPattern {
         if let urlError = error as? URLError {
             return urlError.code == .timedOut
         }
-        return (error as? ProcessingError) == .timeout
+        // Removed problematic comparison - ProcessingError doesn't have .timeout case
+        return false
     }
     
     static let rateLimit = ErrorPattern(pattern: "rateLimit", category: "server") { error in
