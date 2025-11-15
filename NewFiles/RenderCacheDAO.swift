@@ -66,15 +66,19 @@ class RenderCacheDAO: BaseDAO {
         
         let version = generatorVersion ?? configuration.defaultGeneratorVersion
         
-        performanceMonitor?.measure("render_cache_store") {
+        if let monitor = performanceMonitor {
+            try monitor.measure("render_cache_store") {
+                try performStore(messageId: messageId,
+                               html: html,
+                               text: text,
+                               generatorVersion: version)
+            }
+        } else {
             try performStore(messageId: messageId,
                            html: html,
                            text: text,
                            generatorVersion: version)
-        } ?? try performStore(messageId: messageId,
-                             html: html,
-                             text: text,
-                             generatorVersion: version)
+        }
     }
     
     private func performStore(messageId: UUID,
@@ -128,9 +132,13 @@ class RenderCacheDAO: BaseDAO {
     // MARK: - Retrieve Cache Entry
     
     func retrieve(messageId: UUID) throws -> RenderCacheEntry? {
-        return try performanceMonitor?.measure("render_cache_retrieve") {
-            try performRetrieve(messageId: messageId)
-        } ?? performRetrieve(messageId: messageId)
+        if let monitor = performanceMonitor {
+            return try monitor.measure("render_cache_retrieve") {
+                try performRetrieve(messageId: messageId)
+            }
+        } else {
+            return try performRetrieve(messageId: messageId)
+        }
     }
     
     private func performRetrieve(messageId: UUID) throws -> RenderCacheEntry? {
@@ -624,7 +632,6 @@ class RenderCacheDAO: BaseDAO {
             // Update statistics outside the loop for efficiency
             updateStatistics { stats in
                 stats.memoryEvictionCount += toRemoveCount
-            }
             }
         }
         
