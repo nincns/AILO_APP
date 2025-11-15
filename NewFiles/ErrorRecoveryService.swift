@@ -121,7 +121,7 @@ class ErrorRecoveryService {
         statistics.totalRetries += 1
         
         // Apply recovery action
-        let action = strategy.action(for: error, context: context)
+        let action = strategy.action(error, context)
         
         return .retry(delay: delay, action: action)
     }
@@ -140,7 +140,7 @@ class ErrorRecoveryService {
             canRecover: strategy.isRecoverable(error, state: RetryState()),
             suggestedAction: strategy.suggestedAction,
             estimatedRecoveryTime: strategy.estimatedRecoveryTime,
-            userMessage: strategy.userMessage(for: error)
+            userMessage: strategy.userMessage(error)
         )
     }
     
