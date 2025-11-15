@@ -5,46 +5,9 @@
 import Foundation
 import CryptoKit
 
-// MARK: - Supporting Types (matching MailReadDAO types)
-
-public struct BlobStorageMetrics {
-    public let totalBlobs: Int
-    public let totalSize: Int64
-    public let deduplicatedCount: Int
-    public let averageSize: Int
-    
-    public init(totalBlobs: Int, totalSize: Int64, deduplicatedCount: Int, averageSize: Int) {
-        self.totalBlobs = totalBlobs
-        self.totalSize = totalSize
-        self.deduplicatedCount = deduplicatedCount
-        self.averageSize = averageSize
-    }
-}
-
-// MARK: - Protocol Definition
-
-protocol BlobStoreProtocol {
-    func store(_ data: Data, messageId: UUID, partId: String) throws -> String
-    func retrieve(blobId: String) throws -> Data?
-    func delete(blobId: String) throws
-    func exists(blobId: String) -> Bool
-    func calculateHash(_ data: Data) -> String
-    func getStorageMetrics() throws -> BlobStorageMetrics  // Updated return type
-    
-    // Extended methods
-    func storeRawMessage(_ data: Data, messageId: UUID) throws -> String
-    func retrieveRawMessage(messageId: UUID) throws -> Data?
-    func storeMessagePart(_ data: Data, messageId: UUID, partId: String, mimeType: String) throws -> String
-    
-    // Maintenance methods
-    func cleanupOrphaned() throws -> Int
-    func cleanupOldBlobs(olderThanDays: Int) throws -> Int
-    func verifyIntegrity() throws -> [String]
-}
-
 // MARK: - Blob Store Implementation
 
-class BlobStore: BlobStoreProtocol {
+class BlobStore {
     
     private let basePath: URL
     private let writeDAO: MailWriteDAO
@@ -226,13 +189,14 @@ class BlobStore: BlobStoreProtocol {
         }
         return meta.referenceCount
     }
+    }
     
     private func incrementBlobReference(blobId: String) throws {
-        try writeDAO.incrementBlobReference(blobId: blobId)
+        try writeDAO.incrementBlobReference(blobId)
     }
     
     private func decrementBlobReference(blobId: String) throws {
-        try writeDAO.decrementBlobReference(blobId: blobId)
+        try writeDAO.decrementBlobReference(blobId)
     }
     
     private func updateBlobAccess(blobId: String) throws {
@@ -240,7 +204,7 @@ class BlobStore: BlobStoreProtocol {
     }
     
     private func deleteBlobMetadata(blobId: String) throws {
-        try writeDAO.deleteBlobMeta(blobId: blobId)
+        try writeDAO.deleteBlobMeta(blobId)
     }
 }
 
@@ -305,7 +269,7 @@ extension BlobStore {
     /// Remove blobs not accessed for specified days
     func cleanupOldBlobs(olderThanDays: Int) throws -> Int {
         let cutoffDate = Date().addingTimeInterval(TimeInterval(-olderThanDays * 24 * 60 * 60))
-        let oldBlobs = try readDAO.getBlobsOlderThan(date: cutoffDate)
+        let oldBlobs = try readDAO.getBlobsOlderThan(cutoffDate)
         
         var cleaned = 0
         for blobId in oldBlobs {

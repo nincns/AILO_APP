@@ -687,7 +687,7 @@ public class MailReadDAOImpl: BaseDAO, MailReadDAO {
                     totalBlobs: stmt.columnInt(0),
                     totalSize: Int64(stmt.columnInt(1)),
                     deduplicatedCount: stmt.columnInt(2),
-                    averageSize: stmt.columnInt(3)
+                    averageSize: Int(sqlite3_column_double(stmt, 3))
                 )
             }
         }
@@ -770,24 +770,3 @@ public class MailReadDAOImpl: BaseDAO, MailReadDAO {
         }
     }
 }
-
-// MARK: - Supporting Types
-
-public struct BlobStorageMetrics {
-    public let totalBlobs: Int
-    public let totalSize: Int64
-    public let deduplicatedCount: Int
-    public let averageSize: Int
-    
-    public init(totalBlobs: Int, totalSize: Int64, deduplicatedCount: Int, averageSize: Int) {
-        self.totalBlobs = totalBlobs
-        self.totalSize = totalSize
-        self.deduplicatedCount = deduplicatedCount
-        self.averageSize = averageSize
-    }
-
-
-
-
-
-

@@ -63,10 +63,18 @@ public struct FinalizedContent {
     let inlineImages: [String: Data]
 }
 
-public struct StorageMetrics {
-    let totalBlobs: Int
-    let totalSize: Int64
-    let deduplicatedCount: Int
+public struct BlobStorageMetrics {
+    public let totalBlobs: Int
+    public let totalSize: Int64
+    public let deduplicatedCount: Int
+    public let averageSize: Int
+    
+    public init(totalBlobs: Int, totalSize: Int64, deduplicatedCount: Int, averageSize: Int) {
+        self.totalBlobs = totalBlobs
+        self.totalSize = totalSize
+        self.deduplicatedCount = deduplicatedCount
+        self.averageSize = averageSize
+    }
 }
 
 public class CertificateInfo: NSObject {
