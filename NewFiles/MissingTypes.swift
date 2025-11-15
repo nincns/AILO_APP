@@ -53,11 +53,19 @@ public struct StorageMetrics {
     let deduplicatedCount: Int
 }
 
-public struct CertificateInfo {
-    let subject: String
-    let issuer: String
-    let validFrom: Date
-    let validTo: Date
+public class CertificateInfo: NSObject {
+    public let subject: String
+    public let issuer: String  
+    public let validFrom: Date
+    public let validTo: Date
+    
+    public init(subject: String, issuer: String, validFrom: Date, validTo: Date) {
+        self.subject = subject
+        self.issuer = issuer
+        self.validFrom = validFrom
+        self.validTo = validTo
+        super.init()
+    }
 }
 
 public enum TrustLevel: Int {

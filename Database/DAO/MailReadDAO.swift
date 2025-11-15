@@ -497,7 +497,7 @@ public class MailReadDAOImpl: BaseDAO, MailReadDAO {
                 bindText(stmt, 2, contentId)
                 
                 guard sqlite3_step(stmt) == SQLITE_ROW else {
-                    throw dbError(context: "getMimePartByContentId not found")
+                    throw NSError(domain: "MailDAO", code: 1, userInfo: ["message": "MIME part not found"])
                 }
                 
                 return MimePartEntity(
@@ -575,7 +575,7 @@ public class MailReadDAOImpl: BaseDAO, MailReadDAO {
                 bindText(stmt, 1, blobId)
                 
                 guard sqlite3_step(stmt) == SQLITE_ROW else {
-                    throw dbError(context: "getBlobMeta not found")
+                    throw NSError(domain: "MailDAO", code: 1, userInfo: ["message": "Blob meta not found"])
                 }
                 
                 return BlobMetaEntry(

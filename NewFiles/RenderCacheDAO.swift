@@ -391,7 +391,7 @@ extension RenderCacheDAO: NSCacheDelegate {
 
 // MARK: - Supporting Types
 
-class RenderCacheEntry: NSObject {
+public class RenderCacheEntry: NSObject {
     let messageId: UUID
     let htmlRendered: String?
     let textRendered: String?

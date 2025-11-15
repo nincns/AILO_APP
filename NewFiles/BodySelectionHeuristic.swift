@@ -118,6 +118,8 @@ class BodySelectionHeuristic {
     
     // MARK: - Advanced Selection for Complex Structures
     
+    // MARK: - Unused method commented out due to missing ParsedMessage type
+    /*
     func selectBodyForDisplay(from message: ParsedMessage) -> BodySelection {
         let allParts = message.mimeParts
         
@@ -134,6 +136,7 @@ class BodySelectionHeuristic {
             inlineAttachments: []
         )
     }
+    */
     
     private func processMessageStructure(rootPart: MimePartEntity,
                                         allParts: [MimePartEntity]) -> BodySelection {

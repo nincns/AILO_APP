@@ -441,6 +441,12 @@ struct ErrorPattern {
     }
 }
 
+extension ErrorPattern: Equatable {
+    static func == (lhs: ErrorPattern, rhs: ErrorPattern) -> Bool {
+        return lhs.pattern == rhs.pattern && lhs.category == rhs.category
+    }
+}
+
 extension ErrorPattern: Hashable {
     func hash(into hasher: inout Hasher) {
         hasher.combine(pattern)
