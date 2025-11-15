@@ -5,6 +5,9 @@
 import Foundation
 import CryptoKit
 
+// Verwende das BlobStoreProtocol aus dem Hauptprojekt
+typealias BlobStoreProtocol = BlobStore  // Falls BlobStore die Klasse ist
+
 // MARK: - Attachment Serving Service
 
 class AttachmentServingService {

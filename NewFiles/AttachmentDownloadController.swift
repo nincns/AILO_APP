@@ -154,11 +154,7 @@ extension AttachmentDownloadController {
     }
 }
 
-enum AttachmentError: Error {
-    case alreadyDownloading
-    case downloadFailed
-    case securityCheckFailed
-}
+
 
 extension Notification.Name {
     static let attachmentDownloadProgress = Notification.Name("attachmentDownloadProgress")

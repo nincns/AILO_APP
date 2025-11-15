@@ -627,19 +627,7 @@ private class PGPVerificationCache {
     }
 }
 
-enum TrustLevel: Int, Comparable {
-    case unknown = 0
-    case untrusted = 1
-    case marginal = 2
-    case full = 3
-    case ultimate = 4
-    case revoked = -1
-    case invalid = -2
-    
-    static func < (lhs: TrustLevel, rhs: TrustLevel) -> Bool {
-        return lhs.rawValue < rhs.rawValue
-    }
-}
+
 
 // MARK: - Keychain Helper
 

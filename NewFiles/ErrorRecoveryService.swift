@@ -321,68 +321,7 @@ class ErrorRecoveryService {
     }
 }
 
-// MARK: - Circuit Breaker
 
-private class CircuitBreaker {
-    enum State {
-        case closed
-        case open
-        case halfOpen
-    }
-    
-    private var state: State = .closed
-    private var failureCount: Int = 0
-    private var lastFailureTime: Date?
-    private let threshold: Int
-    private let timeout: TimeInterval
-    private let queue = DispatchQueue(label: "circuit.breaker")
-    
-    init(threshold: Int, timeout: TimeInterval) {
-        self.threshold = threshold
-        self.timeout = timeout
-    }
-    
-    var currentState: State {
-        return queue.sync {
-            // Check if we should transition from open to half-open
-            if state == .open,
-               let lastFailure = lastFailureTime,
-               Date().timeIntervalSince(lastFailure) > timeout {
-                state = .halfOpen
-            }
-            return state
-        }
-    }
-    
-    func recordSuccess() {
-        queue.sync {
-            failureCount = 0
-            state = .closed
-            lastFailureTime = nil
-        }
-    }
-    
-    func recordFailure() {
-        queue.sync {
-            failureCount += 1
-            lastFailureTime = Date()
-            
-            if failureCount >= threshold {
-                state = .open
-            } else if state == .halfOpen {
-                state = .open
-            }
-        }
-    }
-    
-    func reset() {
-        queue.sync {
-            state = .closed
-            failureCount = 0
-            lastFailureTime = nil
-        }
-    }
-}
 
 // MARK: - Supporting Types
 
@@ -504,9 +443,7 @@ struct DatabaseError: Error {
     let isTransient: Bool
 }
 
-struct StorageError: Error {
-    let isTemporary: Bool
-}
+
 
 enum CircuitBreakerError: Error {
     case open

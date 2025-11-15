@@ -5,6 +5,14 @@
 import Foundation
 import SQLite3
 
+// MARK: - OpaquePointer Extensions
+
+extension OpaquePointer {
+    func columnBool(_ index: Int32) -> Bool {
+        return sqlite3_column_int(self, index) != 0
+    }
+}
+
 // MARK: - Protocol Definition
 
 public protocol MailReadDAO {
@@ -657,82 +665,8 @@ public class MailReadDAOImpl: BaseDAO, MailReadDAO {
 
 // MARK: - Supporting Types
 
-public struct MimePartEntity {
-    public let id: UUID
-    public let messageId: UUID
-    public let partId: String
-    public let parentPartId: String?
-    public let mediaType: String
-    public let charset: String?
-    public let transferEncoding: String?
-    public let disposition: String?
-    public let filenameOriginal: String?
-    public let filenameNormalized: String?
-    public let contentId: String?
-    public let contentMd5: String?
-    public let contentSha256: String?
-    public let sizeOctets: Int
-    public let bytesStored: Int?
-    public let isBodyCandidate: Bool
-    public let blobId: String?
-    
-    public init(id: UUID, messageId: UUID, partId: String, parentPartId: String?, 
-                mediaType: String, charset: String?, transferEncoding: String?, 
-                disposition: String?, filenameOriginal: String?, filenameNormalized: String?,
-                contentId: String?, contentMd5: String?, contentSha256: String?,
-                sizeOctets: Int, bytesStored: Int?, isBodyCandidate: Bool, blobId: String?) {
-        self.id = id
-        self.messageId = messageId
-        self.partId = partId
-        self.parentPartId = parentPartId
-        self.mediaType = mediaType
-        self.charset = charset
-        self.transferEncoding = transferEncoding
-        self.disposition = disposition
-        self.filenameOriginal = filenameOriginal
-        self.filenameNormalized = filenameNormalized
-        self.contentId = contentId
-        self.contentMd5 = contentMd5
-        self.contentSha256 = contentSha256
-        self.sizeOctets = sizeOctets
-        self.bytesStored = bytesStored
-        self.isBodyCandidate = isBodyCandidate
-        self.blobId = blobId
-    }
-}
 
-public struct RenderCacheEntry {
-    public let messageId: UUID
-    public let htmlRendered: String?
-    public let textRendered: String?
-    public let generatedAt: Date
-    public let generatorVersion: Int
-    
-    public init(messageId: UUID, htmlRendered: String?, textRendered: String?, 
-                generatedAt: Date, generatorVersion: Int) {
-        self.messageId = messageId
-        self.htmlRendered = htmlRendered
-        self.textRendered = textRendered
-        self.generatedAt = generatedAt
-        self.generatorVersion = generatorVersion
-    }
-}
 
-public struct BlobMetaEntry {
-    public let blobId: String
-    public let hashSha256: String
-    public let sizeBytes: Int
-    public let referenceCount: Int
-    public let createdAt: Date
-    public let lastAccessed: Date?
-    
-    public init(blobId: String, hashSha256: String, sizeBytes: Int, 
-                referenceCount: Int, createdAt: Date, lastAccessed: Date?) {
-        self.blobId = blobId
-        self.hashSha256 = hashSha256
-        self.sizeBytes = sizeBytes
-        self.referenceCount = referenceCount
-        self.createdAt = createdAt
-        self.lastAccessed = lastAccessed
-    }
-}
+
+
+

@@ -492,8 +492,4 @@ struct ProcessedPart {
     let warnings: [String]
 }
 
-enum ProcessingError: Error {
-    case contentTooLarge
-    case invalidEncoding
-    case processingFailed(String)
-}
+

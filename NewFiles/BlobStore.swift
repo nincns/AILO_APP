@@ -5,25 +5,9 @@
 import Foundation
 import CryptoKit
 
-// MARK: - Blob Store Protocol
 
-protocol BlobStoreProtocol {
-    func store(_ data: Data, messageId: UUID, partId: String) throws -> String
-    func retrieve(blobId: String) throws -> Data?
-    func exists(blobId: String) -> Bool
-    func delete(blobId: String) throws
-    func calculateHash(_ data: Data) -> String
-    func getStorageMetrics() throws -> StorageMetrics
-}
 
-// MARK: - Storage Metrics
 
-struct StorageMetrics {
-    let totalBlobs: Int
-    let totalSize: Int64
-    let deduplicatedCount: Int
-    let savedSpace: Int64
-}
 
 // MARK: - Blob Store Implementation
 

@@ -501,12 +501,7 @@ struct FetchedMessageData {
     let bodyStructure: IMAPBodyStructure?
 }
 
-struct ProcessedMessage {
-    let messageId: UUID
-    let mimeParts: [MimePartEntity]
-    let hasAttachments: Bool
-    let renderCacheId: String?
-}
+
 
 struct AttachmentResult {
     let partId: String
@@ -569,12 +564,7 @@ enum ProcessingStatus {
     case failed
 }
 
-enum ProcessingError: Error {
-    case timeout
-    case validationFailed
-    case fetchFailed
-    case processingFailed
-}
+
 
 enum ProcessingOutcome {
     case success

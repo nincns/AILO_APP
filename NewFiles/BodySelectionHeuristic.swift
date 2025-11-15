@@ -353,13 +353,4 @@ enum BodyQualityLevel {
     case poor
 }
 
-struct ParsedMessage {
-    let mimeParts: [MimePartEntity]
-    let bodyParts: [String: Data]
-    let attachments: [AttachmentInfo]
-    let hasAttachments: Bool
-}
 
-struct AttachmentInfo {
-    let part: MimePartEntity
-}

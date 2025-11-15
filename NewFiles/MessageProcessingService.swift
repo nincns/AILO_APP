@@ -328,43 +328,4 @@ class MessageProcessingService {
     }
 }
 
-// MARK: - Supporting Types
 
-struct ProcessedContent {
-    let html: String?
-    let text: String?
-}
-
-struct FinalizedContent {
-    let html: String?
-    let text: String?
-    let generatorVersion: Int
-}
-
-enum MessageProcessingError: Error {
-    case contentNotAvailable(partId: String)
-    case invalidStructure
-    case processingFailed(String)
-}
-
-// MARK: - MimePartEntity
-
-struct MimePartEntity {
-    let id: UUID
-    let messageId: UUID
-    let partId: String
-    let parentPartId: String?
-    let mediaType: String
-    let charset: String?
-    let transferEncoding: String?
-    let disposition: String?
-    let filenameOriginal: String?
-    let filenameNormalized: String?
-    let contentId: String?
-    let contentMd5: String?
-    let contentSha256: String?
-    let sizeOctets: Int
-    let bytesStored: Int?
-    let isBodyCandidate: Bool
-    let blobId: String?
-}

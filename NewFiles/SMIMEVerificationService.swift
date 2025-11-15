@@ -465,15 +465,7 @@ struct DecryptionResult {
     let error: String?
 }
 
-struct CertificateInfo {
-    let subject: String
-    let issuer: String
-    let serialNumber: String
-    let validFrom: Date
-    let validUntil: Date
-    let emailAddress: String
-    let trustLevel: TrustLevel
-}
+
 
 struct CertificateInstallResult {
     let success: Bool
@@ -486,10 +478,4 @@ struct TrustValidationResult {
     let error: String?
 }
 
-enum TrustLevel {
-    case unknown
-    case untrusted
-    case trusted
-    case verified
-    case certifiedAuthority
-}
+
