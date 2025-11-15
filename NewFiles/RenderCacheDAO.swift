@@ -7,7 +7,7 @@ import SQLite3
 
 // MARK: - Render Cache DAO
 
-class RenderCacheDAO {
+class RenderCacheDAO: NSObject {
     
     // MARK: - Properties
     

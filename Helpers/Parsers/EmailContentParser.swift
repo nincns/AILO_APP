@@ -3,12 +3,7 @@ import Foundation
 
 // MARK: - MIME Parser Support Structures
 extension MIMEParser {
-    /// Information about a parsed MIME message
-    struct ParsedMessage {
-        let mimeParts: [MIMEPartInfo]
-        let bodyParts: [String: Data]
-        let attachments: [AttachmentInfo]
-    }
+
     
     /// Information about a MIME part
     struct MIMEPartInfo {
@@ -18,12 +13,7 @@ extension MIMEParser {
         let transferEncoding: String
     }
     
-    /// Information about an attachment
-    struct AttachmentInfo {
-        let filename: String?
-        let mediaType: String
-        let data: Data
-    }
+
 }
 
 /// Simplified parser class - emails are already processed and clean in database
@@ -417,24 +407,3 @@ extension EmailContentParser {
     }
 }
 
-/// Body selection heuristic for choosing the best content part
-private struct BodySelectionHeuristic {
-    
-    /// Select the best body part from available MIME parts
-    func selectBestBody(from parts: [MIMEParser.MIMEPartInfo]) -> MIMEParser.MIMEPartInfo? {
-        // Prefer HTML content if available
-        let htmlParts = parts.filter { $0.mediaType.lowercased().contains("html") }
-        if let htmlPart = htmlParts.first {
-            return htmlPart
-        }
-        
-        // Fall back to plain text
-        let textParts = parts.filter { $0.mediaType.lowercased().contains("text") }
-        if let textPart = textParts.first {
-            return textPart
-        }
-        
-        // Return first available part
-        return parts.first
-    }
-}

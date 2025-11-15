@@ -396,13 +396,21 @@ enum RecoveryActionType {
 // MARK: - Error Patterns
 
 struct ErrorPattern {
+    let pattern: String
+    let category: String
     let matcher: (Error) -> Bool
+    
+    init(pattern: String, category: String, matcher: @escaping (Error) -> Bool) {
+        self.pattern = pattern
+        self.category = category
+        self.matcher = matcher
+    }
     
     func matches(_ error: Error) -> Bool {
         return matcher(error)
     }
     
-    static let network = ErrorPattern { error in
+    static let network = ErrorPattern(pattern: "network", category: "connectivity") { error in
         if let urlError = error as? URLError {
             return [.notConnectedToInternet, .networkConnectionLost, .cannotConnectToHost]
                 .contains(urlError.code)
@@ -410,26 +418,33 @@ struct ErrorPattern {
         return false
     }
     
-    static let timeout = ErrorPattern { error in
+    static let timeout = ErrorPattern(pattern: "timeout", category: "connectivity") { error in
         if let urlError = error as? URLError {
             return urlError.code == .timedOut
         }
         return (error as? ProcessingError) == .timeout
     }
     
-    static let rateLimit = ErrorPattern { error in
+    static let rateLimit = ErrorPattern(pattern: "rateLimit", category: "server") { error in
         if let httpError = error as? HTTPError {
             return httpError.statusCode == 429
         }
         return false
     }
     
-    static let database = ErrorPattern { error in
+    static let database = ErrorPattern(pattern: "database", category: "storage") { error in
         return error is DatabaseError
     }
     
-    static let storage = ErrorPattern { error in
+    static let storage = ErrorPattern(pattern: "storage", category: "storage") { error in
         return error is StorageError
+    }
+}
+
+extension ErrorPattern: Hashable {
+    func hash(into hasher: inout Hasher) {
+        hasher.combine(pattern)
+        hasher.combine(category)
     }
 }
 
