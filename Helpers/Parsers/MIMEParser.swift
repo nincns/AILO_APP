@@ -20,6 +20,272 @@ public class MIMEParser {
     
     public init() {}
     
+    // MARK: - Single-Pass Parsing (Phase 3)
+    
+    /// Enhanced single-pass parsing for direct database integration
+    public func parseSinglePass(_ data: Data, messageId: UUID) throws -> ParsedMessage {
+        var parts: [MimePartEntity] = []
+        var bodyParts: [String: Data] = [:]
+        var attachments: [AttachmentInfo] = []
+        
+        // Parse headers first
+        let (headers, bodyStart) = parseMessageHeaders(data)
+        
+        // Parse MIME structure
+        if let contentType = headers["content-type"],
+           contentType.lowercased().contains("multipart") {
+            let boundary = extractBoundaryFromContentType(contentType)
+            parts = parseMimeParts(data, startIndex: bodyStart, boundary: boundary, messageId: messageId)
+        } else {
+            // Single part message
+            let part = createSinglePart(data, startIndex: bodyStart, headers: headers, messageId: messageId)
+            parts.append(part)
+        }
+        
+        // Identify attachments and body candidates
+        for part in parts {
+            if part.disposition?.lowercased() == "attachment" || 
+               (part.filenameOriginal != nil && !part.isBodyCandidate) {
+                attachments.append(AttachmentInfo(part: part))
+            }
+            
+            if part.isBodyCandidate {
+                if let content = extractContent(for: part, from: data) {
+                    bodyParts[part.partId] = content
+                }
+            }
+        }
+        
+        return ParsedMessage(
+            mimeParts: parts,
+            bodyParts: bodyParts,
+            attachments: attachments,
+            hasAttachments: !attachments.isEmpty
+        )
+    }
+    
+    // MARK: - Supporting Structures
+    
+    public struct ParsedMessage {
+        public let mimeParts: [MimePartEntity]
+        public let bodyParts: [String: Data]
+        public let attachments: [AttachmentInfo]
+        public let hasAttachments: Bool
+        
+        public init(mimeParts: [MimePartEntity], bodyParts: [String: Data], attachments: [AttachmentInfo], hasAttachments: Bool) {
+            self.mimeParts = mimeParts
+            self.bodyParts = bodyParts
+            self.attachments = attachments
+            self.hasAttachments = hasAttachments
+        }
+    }
+    
+    public struct AttachmentInfo {
+        public let part: MimePartEntity
+        
+        public init(part: MimePartEntity) {
+            self.part = part
+        }
+    }
+    
+    public struct MimePartEntity {
+        public let partId: String
+        public let contentType: String
+        public let charset: String?
+        public let encoding: String?
+        public let disposition: String?
+        public let filenameOriginal: String?
+        public let contentId: String?
+        public let isBodyCandidate: Bool
+        public let startIndex: Int
+        public let endIndex: Int
+        public let size: Int
+        
+        public init(partId: String, contentType: String, charset: String?, encoding: String?, 
+                   disposition: String?, filenameOriginal: String?, contentId: String?, 
+                   isBodyCandidate: Bool, startIndex: Int, endIndex: Int, size: Int) {
+            self.partId = partId
+            self.contentType = contentType
+            self.charset = charset
+            self.encoding = encoding
+            self.disposition = disposition
+            self.filenameOriginal = filenameOriginal
+            self.contentId = contentId
+            self.isBodyCandidate = isBodyCandidate
+            self.startIndex = startIndex
+            self.endIndex = endIndex
+            self.size = size
+        }
+    }
+    
+    // MARK: - Single-Pass Helper Methods
+    
+    private func parseMessageHeaders(_ data: Data) -> ([String: String], Int) {
+        guard let string = String(data: data, encoding: .utf8) ?? String(data: data, encoding: .isoLatin1) else {
+            return ([:], 0)
+        }
+        
+        var headers: [String: String] = [:]
+        let lines = string.components(separatedBy: .newlines)
+        var bodyStartLine = 0
+        var currentHeader = ""
+        
+        for (index, line) in lines.enumerated() {
+            if line.isEmpty {
+                // Empty line marks end of headers
+                bodyStartLine = index + 1
+                break
+            }
+            
+            if line.hasPrefix(" ") || line.hasPrefix("\t") {
+                // Continuation line
+                currentHeader += " " + line.trimmingCharacters(in: .whitespacesAndNewlines)
+            } else {
+                // Process previous header
+                if !currentHeader.isEmpty {
+                    processHeaderLine(currentHeader, into: &headers)
+                }
+                currentHeader = line
+            }
+        }
+        
+        // Process last header
+        if !currentHeader.isEmpty {
+            processHeaderLine(currentHeader, into: &headers)
+        }
+        
+        // Calculate byte offset for body start
+        let headerText = lines.prefix(bodyStartLine).joined(separator: "\n")
+        let bodyStart = headerText.data(using: .utf8)?.count ?? 0
+        
+        return (headers, bodyStart)
+    }
+    
+    private func processHeaderLine(_ line: String, into headers: inout [String: String]) {
+        guard let colonIndex = line.firstIndex(of: ":") else { return }
+        
+        let key = String(line[..<colonIndex]).trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        let value = String(line[line.index(after: colonIndex)...]).trimmingCharacters(in: .whitespacesAndNewlines)
+        
+        headers[key] = value
+    }
+    
+    private func extractBoundaryFromContentType(_ contentType: String) -> String? {
+        let params = extractParams(contentType)
+        return params["boundary"]
+    }
+    
+    private func parseMimeParts(_ data: Data, startIndex: Int, boundary: String?, messageId: UUID) -> [MimePartEntity] {
+        guard let boundary = boundary else { return [] }
+        
+        var parts: [MimePartEntity] = []
+        let boundaryMarker = "--\(boundary)"
+        let closingBoundary = "--\(boundary)--"
+        
+        guard let bodyString = String(data: data.dropFirst(startIndex), encoding: .utf8) ??
+                               String(data: data.dropFirst(startIndex), encoding: .isoLatin1) else {
+            return []
+        }
+        
+        let lines = bodyString.components(separatedBy: .newlines)
+        var currentPartLines: [String] = []
+        var partIndex = 0
+        
+        for line in lines {
+            let trimmed = line.trimmingCharacters(in: .whitespaces)
+            
+            if trimmed == boundaryMarker || trimmed.hasPrefix(boundaryMarker + " ") {
+                // Process previous part
+                if !currentPartLines.isEmpty {
+                    let part = createMimePartFromLines(currentPartLines, partIndex: partIndex, messageId: messageId, startIndex: startIndex)
+                    parts.append(part)
+                    partIndex += 1
+                }
+                currentPartLines = []
+            } else if trimmed == closingBoundary || trimmed.hasPrefix(closingBoundary + " ") {
+                // Process final part
+                if !currentPartLines.isEmpty {
+                    let part = createMimePartFromLines(currentPartLines, partIndex: partIndex, messageId: messageId, startIndex: startIndex)
+                    parts.append(part)
+                }
+                break
+            } else {
+                currentPartLines.append(line)
+            }
+        }
+        
+        return parts
+    }
+    
+    private func createSinglePart(_ data: Data, startIndex: Int, headers: [String: String], messageId: UUID) -> MimePartEntity {
+        let contentType = headers["content-type"] ?? "text/plain"
+        let (ctype, params) = parseContentType(contentType)
+        let charset = normalizeCharsetName(params["charset"])
+        let encoding = headers["content-transfer-encoding"]
+        let disposition = headers["content-disposition"]
+        let contentId = headers["content-id"]?.trimmingCharacters(in: CharacterSet(charactersIn: "<> "))
+        
+        let isBodyCandidate = ctype.type.lowercased().hasPrefix("text/") && disposition?.lowercased() != "attachment"
+        let size = data.count - startIndex
+        
+        return MimePartEntity(
+            partId: "\(messageId.uuidString)-single",
+            contentType: ctype.type,
+            charset: charset,
+            encoding: encoding,
+            disposition: disposition,
+            filenameOriginal: extractFilename(from: disposition),
+            contentId: contentId,
+            isBodyCandidate: isBodyCandidate,
+            startIndex: startIndex,
+            endIndex: data.count,
+            size: size
+        )
+    }
+    
+    private func createMimePartFromLines(_ lines: [String], partIndex: Int, messageId: UUID, startIndex: Int) -> MimePartEntity {
+        let partContent = lines.joined(separator: "\n")
+        
+        // Split headers and body
+        let parts = partContent.components(separatedBy: "\n\n")
+        let headerBlock = parts.first ?? ""
+        let bodyBlock = parts.dropFirst().joined(separator: "\n\n")
+        
+        let headers = parseHeaders(headerBlock)
+        let contentType = headers["content-type"] ?? "text/plain"
+        let (ctype, params) = parseContentType(contentType)
+        let charset = normalizeCharsetName(params["charset"])
+        let encoding = headers["content-transfer-encoding"]
+        let disposition = headers["content-disposition"]
+        let contentId = headers["content-id"]?.trimmingCharacters(in: CharacterSet(charactersIn: "<> "))
+        
+        let isBodyCandidate = ctype.type.lowercased().hasPrefix("text/") && disposition?.lowercased() != "attachment"
+        let bodySize = bodyBlock.data(using: .utf8)?.count ?? 0
+        
+        return MimePartEntity(
+            partId: "\(messageId.uuidString)-part\(partIndex)",
+            contentType: ctype.type,
+            charset: charset,
+            encoding: encoding,
+            disposition: disposition,
+            filenameOriginal: extractFilename(from: disposition),
+            contentId: contentId,
+            isBodyCandidate: isBodyCandidate,
+            startIndex: startIndex,
+            endIndex: startIndex + bodySize,
+            size: bodySize
+        )
+    }
+    
+    private func extractContent(for part: MimePartEntity, from data: Data) -> Data? {
+        guard part.startIndex < data.count && part.endIndex <= data.count else {
+            return nil
+        }
+        
+        let range = part.startIndex..<part.endIndex
+        return data.subdata(in: range)
+    }
+    
     /// Main parse method with enhanced charset handling
     public func parse(
         rawBodyBytes: Data?,

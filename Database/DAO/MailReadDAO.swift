@@ -21,6 +21,14 @@ public protocol MailReadDAO {
     func saveSpecialFolders(accountId: UUID, map: [String: String]) throws
     // UID management for sync
     func getLastSyncUID(accountId: UUID, folder: String) throws -> String?
+    
+    // MARK: - Phase 1: Extended Read Operations
+    func getMimeParts(messageId: UUID) throws -> [MimePartEntity]
+    func getMimePartByContentId(messageId: UUID, contentId: String) throws -> MimePartEntity?
+    func getRenderCache(messageId: UUID) throws -> RenderCacheEntry?
+    func getBlobMeta(blobId: String) throws -> BlobMetaEntry?
+    func getRawBlobId(messageId: UUID) throws -> String?
+    func getAttachmentsByStatus(accountId: UUID, status: String) throws -> [AttachmentEntity]
 }
 
 // MARK: - Implementation
@@ -409,5 +417,322 @@ public class MailReadDAOImpl: BaseDAO, MailReadDAO {
             
             return stmt.columnText(0)
         }
+    }
+    
+    // MARK: - Phase 1: MIME Parts Lese-Operationen
+
+    public func getMimeParts(messageId: UUID) throws -> [MimePartEntity] {
+        return try DAOPerformanceMonitor.measure("mime_parts_query") {
+            return try dbQueue.sync {
+                try ensureOpen()
+                
+                let sql = """
+                    SELECT id, message_id, part_id, parent_part_id, media_type, charset, transfer_encoding,
+                           disposition, filename_original, filename_normalized, content_id, content_md5,
+                           content_sha256, size_octets, bytes_stored, is_body_candidate, blob_id
+                    FROM \(MailSchema.tMimeParts)
+                    WHERE message_id = ?
+                    ORDER BY part_id
+                """
+                
+                let stmt = try prepare(sql)
+                defer { finalize(stmt) }
+                
+                bindUUID(stmt, 1, messageId)
+                
+                var parts: [MimePartEntity] = []
+                
+                while sqlite3_step(stmt) == SQLITE_ROW {
+                    let part = MimePartEntity(
+                        id: stmt.columnUUID(0),
+                        messageId: stmt.columnUUID(1),
+                        partId: stmt.columnText(2) ?? "",
+                        parentPartId: stmt.columnText(3),
+                        mediaType: stmt.columnText(4) ?? "",
+                        charset: stmt.columnText(5),
+                        transferEncoding: stmt.columnText(6),
+                        disposition: stmt.columnText(7),
+                        filenameOriginal: stmt.columnText(8),
+                        filenameNormalized: stmt.columnText(9),
+                        contentId: stmt.columnText(10),
+                        contentMd5: stmt.columnText(11),
+                        contentSha256: stmt.columnText(12),
+                        sizeOctets: stmt.columnInt(13),
+                        bytesStored: stmt.columnInt(14),
+                        isBodyCandidate: stmt.columnBool(15),
+                        blobId: stmt.columnText(16)
+                    )
+                    parts.append(part)
+                }
+                
+                return parts
+            }
+        }
+    }
+
+    public func getMimePartByContentId(messageId: UUID, contentId: String) throws -> MimePartEntity? {
+        return try DAOPerformanceMonitor.measure("mime_part_by_content_id_query") {
+            return try dbQueue.sync {
+                try ensureOpen()
+                
+                let sql = """
+                    SELECT id, message_id, part_id, parent_part_id, media_type, charset, transfer_encoding,
+                           disposition, filename_original, filename_normalized, content_id, content_md5,
+                           content_sha256, size_octets, bytes_stored, is_body_candidate, blob_id
+                    FROM \(MailSchema.tMimeParts)
+                    WHERE message_id = ? AND content_id = ?
+                    LIMIT 1
+                """
+                
+                let stmt = try prepare(sql)
+                defer { finalize(stmt) }
+                
+                bindUUID(stmt, 1, messageId)
+                bindText(stmt, 2, contentId)
+                
+                guard sqlite3_step(stmt) == SQLITE_ROW else {
+                    return nil
+                }
+                
+                return MimePartEntity(
+                    id: stmt.columnUUID(0),
+                    messageId: stmt.columnUUID(1),
+                    partId: stmt.columnText(2) ?? "",
+                    parentPartId: stmt.columnText(3),
+                    mediaType: stmt.columnText(4) ?? "",
+                    charset: stmt.columnText(5),
+                    transferEncoding: stmt.columnText(6),
+                    disposition: stmt.columnText(7),
+                    filenameOriginal: stmt.columnText(8),
+                    filenameNormalized: stmt.columnText(9),
+                    contentId: stmt.columnText(10),
+                    contentMd5: stmt.columnText(11),
+                    contentSha256: stmt.columnText(12),
+                    sizeOctets: stmt.columnInt(13),
+                    bytesStored: stmt.columnInt(14),
+                    isBodyCandidate: stmt.columnBool(15),
+                    blobId: stmt.columnText(16)
+                )
+            }
+        }
+    }
+
+    // MARK: - Phase 1: Render Cache Lese-Operationen
+
+    public func getRenderCache(messageId: UUID) throws -> RenderCacheEntry? {
+        return try DAOPerformanceMonitor.measure("render_cache_query") {
+            return try dbQueue.sync {
+                try ensureOpen()
+                
+                let sql = """
+                    SELECT html_rendered, text_rendered, generated_at, generator_version
+                    FROM \(MailSchema.tRenderCache)
+                    WHERE message_id = ?
+                """
+                
+                let stmt = try prepare(sql)
+                defer { finalize(stmt) }
+                
+                bindUUID(stmt, 1, messageId)
+                
+                guard sqlite3_step(stmt) == SQLITE_ROW else {
+                    return nil
+                }
+                
+                return RenderCacheEntry(
+                    messageId: messageId,
+                    htmlRendered: stmt.columnText(0),
+                    textRendered: stmt.columnText(1),
+                    generatedAt: Date(timeIntervalSince1970: Double(stmt.columnInt(2))),
+                    generatorVersion: stmt.columnInt(3)
+                )
+            }
+        }
+    }
+
+    // MARK: - Phase 1: Blob Meta Lese-Operationen
+
+    public func getBlobMeta(blobId: String) throws -> BlobMetaEntry? {
+        return try DAOPerformanceMonitor.measure("blob_meta_query") {
+            return try dbQueue.sync {
+                try ensureOpen()
+                
+                let sql = """
+                    SELECT hash_sha256, size_bytes, reference_count, created_at, last_accessed
+                    FROM \(MailSchema.tBlobMeta)
+                    WHERE blob_id = ?
+                """
+                
+                let stmt = try prepare(sql)
+                defer { finalize(stmt) }
+                
+                bindText(stmt, 1, blobId)
+                
+                guard sqlite3_step(stmt) == SQLITE_ROW else {
+                    return nil
+                }
+                
+                return BlobMetaEntry(
+                    blobId: blobId,
+                    hashSha256: stmt.columnText(0) ?? "",
+                    sizeBytes: stmt.columnInt(1),
+                    referenceCount: stmt.columnInt(2),
+                    createdAt: Date(timeIntervalSince1970: Double(stmt.columnInt(3))),
+                    lastAccessed: stmt.columnInt(4) != 0 ? Date(timeIntervalSince1970: Double(stmt.columnInt(4))) : nil
+                )
+            }
+        }
+    }
+
+    // MARK: - Phase 1: RAW Message Blob ID
+
+    public func getRawBlobId(messageId: UUID) throws -> String? {
+        return try DAOPerformanceMonitor.measure("raw_blob_id_query") {
+            return try dbQueue.sync {
+                try ensureOpen()
+                
+                let sql = """
+                    SELECT raw_rfc822_blob_id FROM messages WHERE id = ?
+                """
+                
+                let stmt = try prepare(sql)
+                defer { finalize(stmt) }
+                
+                bindUUID(stmt, 1, messageId)
+                
+                guard sqlite3_step(stmt) == SQLITE_ROW else {
+                    return nil
+                }
+                
+                return stmt.columnText(0)
+            }
+        }
+    }
+
+    // MARK: - Phase 6: Erweiterte Attachment-Abfragen
+
+    public func getAttachmentsByStatus(accountId: UUID, status: String) throws -> [AttachmentEntity] {
+        return try DAOPerformanceMonitor.measure("attachments_by_status_query") {
+            return try dbQueue.sync {
+                try ensureOpen()
+                
+                let sql = """
+                    SELECT account_id, folder, uid, part_id, filename, mime_type, size_bytes, data, content_id, 
+                           is_inline, file_path, checksum
+                    FROM \(MailSchema.tAttachment)
+                    WHERE account_id = ?
+                    ORDER BY filename
+                """
+                
+                let stmt = try prepare(sql)
+                defer { finalize(stmt) }
+                
+                bindUUID(stmt, 1, accountId)
+                
+                var attachments: [AttachmentEntity] = []
+                
+                while sqlite3_step(stmt) == SQLITE_ROW {
+                    let attachment = AttachmentEntity(
+                        accountId: accountId,
+                        folder: stmt.columnText(1) ?? "",
+                        uid: stmt.columnText(2) ?? "",
+                        partId: stmt.columnText(3) ?? "",
+                        filename: stmt.columnText(4) ?? "",
+                        mimeType: stmt.columnText(5) ?? "",
+                        sizeBytes: stmt.columnInt(6),
+                        data: stmt.columnBlob(7),
+                        contentId: stmt.columnText(8),
+                        isInline: stmt.columnBool(9),
+                        filePath: stmt.columnText(10),
+                        checksum: stmt.columnText(11)
+                    )
+                    attachments.append(attachment)
+                }
+                
+                return attachments
+            }
+        }
+    }
+}
+
+// MARK: - Supporting Types
+
+public struct MimePartEntity {
+    public let id: UUID
+    public let messageId: UUID
+    public let partId: String
+    public let parentPartId: String?
+    public let mediaType: String
+    public let charset: String?
+    public let transferEncoding: String?
+    public let disposition: String?
+    public let filenameOriginal: String?
+    public let filenameNormalized: String?
+    public let contentId: String?
+    public let contentMd5: String?
+    public let contentSha256: String?
+    public let sizeOctets: Int
+    public let bytesStored: Int?
+    public let isBodyCandidate: Bool
+    public let blobId: String?
+    
+    public init(id: UUID, messageId: UUID, partId: String, parentPartId: String?, 
+                mediaType: String, charset: String?, transferEncoding: String?, 
+                disposition: String?, filenameOriginal: String?, filenameNormalized: String?,
+                contentId: String?, contentMd5: String?, contentSha256: String?,
+                sizeOctets: Int, bytesStored: Int?, isBodyCandidate: Bool, blobId: String?) {
+        self.id = id
+        self.messageId = messageId
+        self.partId = partId
+        self.parentPartId = parentPartId
+        self.mediaType = mediaType
+        self.charset = charset
+        self.transferEncoding = transferEncoding
+        self.disposition = disposition
+        self.filenameOriginal = filenameOriginal
+        self.filenameNormalized = filenameNormalized
+        self.contentId = contentId
+        self.contentMd5 = contentMd5
+        self.contentSha256 = contentSha256
+        self.sizeOctets = sizeOctets
+        self.bytesStored = bytesStored
+        self.isBodyCandidate = isBodyCandidate
+        self.blobId = blobId
+    }
+}
+
+public struct RenderCacheEntry {
+    public let messageId: UUID
+    public let htmlRendered: String?
+    public let textRendered: String?
+    public let generatedAt: Date
+    public let generatorVersion: Int
+    
+    public init(messageId: UUID, htmlRendered: String?, textRendered: String?, 
+                generatedAt: Date, generatorVersion: Int) {
+        self.messageId = messageId
+        self.htmlRendered = htmlRendered
+        self.textRendered = textRendered
+        self.generatedAt = generatedAt
+        self.generatorVersion = generatorVersion
+    }
+}
+
+public struct BlobMetaEntry {
+    public let blobId: String
+    public let hashSha256: String
+    public let sizeBytes: Int
+    public let referenceCount: Int
+    public let createdAt: Date
+    public let lastAccessed: Date?
+    
+    public init(blobId: String, hashSha256: String, sizeBytes: Int, 
+                referenceCount: Int, createdAt: Date, lastAccessed: Date?) {
+        self.blobId = blobId
+        self.hashSha256 = hashSha256
+        self.sizeBytes = sizeBytes
+        self.referenceCount = referenceCount
+        self.createdAt = createdAt
+        self.lastAccessed = lastAccessed
     }
 }

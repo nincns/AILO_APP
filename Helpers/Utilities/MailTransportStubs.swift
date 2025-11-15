@@ -493,3 +493,179 @@ final class MailSendReceive {
         }
     }
 }
+
+// MARK: - Extension: Optimized Message Fetching
+
+extension MailSendReceive {
+    
+    // Phase 2: Enhanced fetch with BODYSTRUCTURE
+    func fetchMessageOptimized(uid: String, folder: String, using account: MailAccountConfig) async throws -> OptimizedMessage {
+        let conn = IMAPConnection(label: "optimized.\(account.id.uuidString.prefix(6))")
+        defer { conn.close() }
+        
+        let conf = IMAPConnectionConfig(
+            host: account.recvHost,
+            port: account.recvPort,
+            tls: (account.recvEncryption == .sslTLS),
+            sniHost: account.recvHost,
+            connectionTimeoutSec: account.connectionTimeoutSec,
+            commandTimeoutSec: max(5, account.connectionTimeoutSec/2),
+            idleTimeoutSec: 15
+        )
+        
+        try await conn.open(conf)
+        let cmds = IMAPCommands()
+        _ = try await cmds.greeting(conn)
+        if account.recvEncryption == .startTLS { try await cmds.startTLS(conn) }
+        guard let pwd = account.recvPassword else { throw ServiceError.invalidAccount }
+        try await cmds.login(conn, user: account.recvUsername, pass: pwd)
+        _ = try await cmds.select(conn, folder: folder, readOnly: true)
+        
+        // 1. Fetch BODYSTRUCTURE first
+        let structureResponse = try await cmds.uidFetchBodyStructure(conn, uid: uid)
+        guard let bodyStructure = parseBodyStructure(structureResponse) else {
+            throw ServiceError.protocolErr("Failed to parse BODYSTRUCTURE")
+        }
+        
+        // 2. Create fetch plan based on body structure
+        let fetchPlan = createSimpleFetchPlan(from: bodyStructure)
+        
+        // 3. Fetch immediate sections
+        var sectionData: [String: Data] = [:]
+        for section in fetchPlan.sections {
+            let sectionResponse = try await cmds.uidFetchSection(conn, uid: uid, section: section.section)
+            if let bodyText = IMAPParsers().parseBodySection(sectionResponse),
+               let data = bodyText.data(using: .utf8) {
+                sectionData[section.partId] = data
+            }
+        }
+        
+        return OptimizedMessage(
+            uid: uid,
+            bodyStructure: bodyStructure,
+            sectionData: sectionData,
+            deferredSections: fetchPlan.deferredSections
+        )
+    }
+    
+    // Helper to parse BODYSTRUCTURE from response lines
+    private func parseBodyStructure(_ lines: [String]) -> IMAPBodyStructure? {
+        for line in lines {
+            if line.contains("BODYSTRUCTURE") {
+                return IMAPParsers().parseBodyStructure(line)
+            }
+        }
+        return nil
+    }
+    
+    // Simplified fetch plan creation directly from IMAPBodyStructure
+    private func createSimpleFetchPlan(from bodyStructure: IMAPBodyStructure) -> FetchPlan {
+        var immediateSections: [FetchPlan.FetchSection] = []
+        var deferredSections: [FetchPlan.FetchSection] = []
+        
+        switch bodyStructure {
+        case .text(let subtype, _):
+            // Text parts are immediate
+            let section = FetchPlan.FetchSection(
+                partId: "1",
+                section: "1",
+                expectedSize: 8192, // Estimate for text
+                mimeType: "text/\(subtype)",
+                priority: .immediate,
+                isBodyCandidate: true
+            )
+            immediateSections.append(section)
+            
+        case .multipart(let subtype, let parts):
+            // For multipart, create basic sections
+            // This is a simplified approach - in production, you'd traverse the parts array
+            if subtype == "alternative" {
+                // Prefer HTML over plain
+                let section = FetchPlan.FetchSection(
+                    partId: "1.1",
+                    section: "1.1", 
+                    expectedSize: 16384,
+                    mimeType: "text/html",
+                    priority: .immediate,
+                    isBodyCandidate: true
+                )
+                immediateSections.append(section)
+            } else {
+                // Mixed content - get first part immediately
+                let section = FetchPlan.FetchSection(
+                    partId: "1.1",
+                    section: "1.1",
+                    expectedSize: 8192,
+                    mimeType: "text/plain",
+                    priority: .immediate,
+                    isBodyCandidate: true
+                )
+                immediateSections.append(section)
+            }
+            
+        case .application(let subtype):
+            // Applications are typically attachments - defer them
+            let section = FetchPlan.FetchSection(
+                partId: "1",
+                section: "1",
+                expectedSize: 65536, // Larger estimate for attachments
+                mimeType: "application/\(subtype)",
+                priority: .deferred,
+                isBodyCandidate: false
+            )
+            deferredSections.append(section)
+            
+        case .image(let subtype), .audio(let subtype), .video(let subtype):
+            // Media files are typically attachments - defer them
+            let section = FetchPlan.FetchSection(
+                partId: "1",
+                section: "1", 
+                expectedSize: 131072, // Larger estimate for media
+                mimeType: "\(bodyStructure.mimeType)",
+                priority: .deferred,
+                isBodyCandidate: false
+            )
+            deferredSections.append(section)
+            
+        case .message(let subtype):
+            // Embedded messages - could be immediate or deferred depending on use case
+            let section = FetchPlan.FetchSection(
+                partId: "1",
+                section: "1",
+                expectedSize: 32768,
+                mimeType: "message/\(subtype)",
+                priority: .deferred,
+                isBodyCandidate: false
+            )
+            deferredSections.append(section)
+            
+        case .other(let type, let subtype):
+            // Unknown types - defer by default
+            let section = FetchPlan.FetchSection(
+                partId: "1",
+                section: "1",
+                expectedSize: 32768,
+                mimeType: "\(type)/\(subtype)",
+                priority: .deferred,
+                isBodyCandidate: false
+            )
+            deferredSections.append(section)
+        }
+        
+        return FetchPlan(sections: immediateSections, deferredSections: deferredSections)
+    }
+    
+    struct OptimizedMessage {
+        let uid: String
+        let bodyStructure: IMAPBodyStructure
+        let sectionData: [String: Data]
+        let deferredSections: [FetchPlan.FetchSection]
+        
+        init(uid: String, bodyStructure: IMAPBodyStructure, sectionData: [String: Data], deferredSections: [FetchPlan.FetchSection]) {
+            self.uid = uid
+            self.bodyStructure = bodyStructure
+            self.sectionData = sectionData
+            self.deferredSections = deferredSections
+        }
+    }
+}

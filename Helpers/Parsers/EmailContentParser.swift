@@ -1,6 +1,31 @@
 // EmailContentParser.swift - Simplified parser for already processed email content
 import Foundation
 
+// MARK: - MIME Parser Support Structures
+extension MIMEParser {
+    /// Information about a parsed MIME message
+    struct ParsedMessage {
+        let mimeParts: [MIMEPartInfo]
+        let bodyParts: [String: Data]
+        let attachments: [AttachmentInfo]
+    }
+    
+    /// Information about a MIME part
+    struct MIMEPartInfo {
+        let partId: String
+        let mediaType: String
+        let charset: String
+        let transferEncoding: String
+    }
+    
+    /// Information about an attachment
+    struct AttachmentInfo {
+        let filename: String?
+        let mediaType: String
+        let data: Data
+    }
+}
+
 /// Simplified parser class - emails are already processed and clean in database
 public class EmailContentParser {
     
@@ -301,5 +326,115 @@ public struct ParsedEmailContent {
         self.hasAttachments = hasAttachments
         self.hasInlineImages = hasInlineImages
         self.attachmentCount = attachmentCount
+    }
+}
+
+// MARK: - Enhanced Content Extraction Extension
+extension EmailContentParser {
+    
+    /// Phase 3: Enhanced content extraction from parsed message
+    func extractContent(from parsedMessage: MIMEParser.ParsedMessage) -> ExtractedContent {
+        // Select best body part using heuristic
+        let bodySelector = BodySelectionHeuristic()
+        let bestBodyPart = bodySelector.selectBestBody(from: parsedMessage.mimeParts)
+        
+        var htmlContent: String?
+        var textContent: String?
+        
+        if let bodyPart = bestBodyPart,
+           let data = parsedMessage.bodyParts[bodyPart.partId] {
+            
+            // Decode content based on transfer encoding
+            let decoded = decodeContent(data, encoding: bodyPart.transferEncoding)
+            
+            // Convert to string based on charset
+            let text = convertToString(decoded, charset: bodyPart.charset)
+            
+            // Determine content type and assign appropriately
+            if bodyPart.mediaType.lowercased().contains("html") {
+                htmlContent = text
+            } else {
+                textContent = text
+            }
+        }
+        
+        return ExtractedContent(
+            html: htmlContent,
+            text: textContent,
+            attachments: parsedMessage.attachments
+        )
+    }
+    
+    /// Helper method to decode content based on transfer encoding
+    private func decodeContent(_ data: Data, encoding: String?) -> Data {
+        guard let encoding = encoding?.lowercased() else { return data }
+        
+        switch encoding {
+        case "base64":
+            if let decoded = Data(base64Encoded: data) {
+                return decoded
+            }
+        case "quoted-printable":
+            // Convert data to string and decode quoted-printable
+            if let string = String(data: data, encoding: .utf8) {
+                let decoded = ContentDecoder.decodeQuotedPrintable(string)
+                return decoded.data(using: .utf8) ?? data
+            }
+        case "7bit", "8bit", "binary":
+            return data
+        default:
+            return data
+        }
+        
+        return data
+    }
+    
+    /// Helper method to convert data to string based on charset
+    private func convertToString(_ data: Data, charset: String?) -> String {
+        let encoding: String.Encoding
+        
+        switch charset?.lowercased() {
+        case "utf-8", "utf8":
+            encoding = .utf8
+        case "iso-8859-1", "latin1":
+            encoding = .isoLatin1
+        case "windows-1252", "cp1252":
+            encoding = .windowsCP1252
+        case "ascii", "us-ascii":
+            encoding = .ascii
+        default:
+            encoding = .utf8
+        }
+        
+        return String(data: data, encoding: encoding) ?? String(data: data, encoding: .utf8) ?? ""
+    }
+    
+    /// Structure to hold extracted content
+    struct ExtractedContent {
+        let html: String?
+        let text: String?
+        let attachments: [MIMEParser.AttachmentInfo]
+    }
+}
+
+/// Body selection heuristic for choosing the best content part
+private struct BodySelectionHeuristic {
+    
+    /// Select the best body part from available MIME parts
+    func selectBestBody(from parts: [MIMEParser.MIMEPartInfo]) -> MIMEParser.MIMEPartInfo? {
+        // Prefer HTML content if available
+        let htmlParts = parts.filter { $0.mediaType.lowercased().contains("html") }
+        if let htmlPart = htmlParts.first {
+            return htmlPart
+        }
+        
+        // Fall back to plain text
+        let textParts = parts.filter { $0.mediaType.lowercased().contains("text") }
+        if let textPart = textParts.first {
+            return textPart
+        }
+        
+        // Return first available part
+        return parts.first
     }
 }

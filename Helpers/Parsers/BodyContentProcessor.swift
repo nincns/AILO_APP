@@ -170,6 +170,90 @@ public class BodyContentProcessor {
         return content
     }
     
+    // MARK: - PHASE 3: HTML Finalization with CID rewriting
+    
+    /// Finale HTML-Verarbeitung mit CID-Rewriting für Inline-Bilder
+    /// - Parameters:
+    ///   - html: Der zu verarbeitende HTML-Content
+    ///   - messageId: Die Message-ID für URL-Generierung
+    ///   - mimeParts: Array der MIME-Parts für CID-Lookup
+    /// - Returns: Finalisierter HTML mit umgeschriebenen CID-Referenzen
+    public static func finalizeHtml(_ html: String, messageId: UUID, mimeParts: [MIMEParser.MimePartEntity]) -> String {
+        var result = html
+        
+        // Phase 1: Rewrite CID references für Inline-Bilder
+        let pattern = #"cid:([^"\s]+)"#
+        guard let regex = try? NSRegularExpression(pattern: pattern) else {
+            print("⚠️ BodyContentProcessor: Failed to create CID regex")
+            return sanitizeHtml(result)
+        }
+        
+        let matches = regex.matches(in: html, range: NSRange(html.startIndex..., in: html))
+        print("🔍 BodyContentProcessor: Found \(matches.count) CID references")
+        
+        for match in matches.reversed() {
+            if let range = Range(match.range(at: 1), in: html) {
+                let contentId = String(html[range])
+                
+                // Find part with this content-id
+                if let part = mimeParts.first(where: { $0.contentId == contentId }) {
+                    let newUrl = "/mail/\(messageId)/cid/\(contentId)"
+                    let fullRange = Range(match.range, in: html)!
+                    result.replaceSubrange(fullRange, with: newUrl)
+                    print("✅ BodyContentProcessor: Rewrote CID \(contentId) → \(newUrl)")
+                } else {
+                    print("⚠️ BodyContentProcessor: CID not found in parts: \(contentId)")
+                }
+            }
+        }
+        
+        // Phase 2: Sanitize HTML
+        result = sanitizeHtml(result)
+        
+        return result
+    }
+    
+    /// Sanitisiert HTML für sichere Anzeige
+    /// - Parameter html: Der zu bereinigende HTML-Content
+    /// - Returns: Sanitisierter HTML-Content
+    private static func sanitizeHtml(_ html: String) -> String {
+        var sanitized = html
+        
+        // Entferne script tags (Sicherheit)
+        sanitized = sanitized.replacingOccurrences(
+            of: #"<script[^>]*>.*?</script>"#,
+            with: "",
+            options: [.regularExpression, .caseInsensitive]
+        )
+        
+        // Blockiere externe Ressourcen (Privacy)
+        sanitized = sanitized.replacingOccurrences(
+            of: #"https?://[^"\s]+"#,
+            with: "#blocked",
+            options: .regularExpression
+        )
+        
+        // Entferne potentiell gefährliche Event-Handler
+        let dangerousEvents = ["onclick", "onload", "onerror", "onmouseover", "onmouseout"]
+        for event in dangerousEvents {
+            let pattern = "\(event)\\s*=\\s*[\"'][^\"']*[\"']"
+            sanitized = sanitized.replacingOccurrences(
+                of: pattern,
+                with: "",
+                options: [.regularExpression, .caseInsensitive]
+            )
+        }
+        
+        // Entferne javascript: URLs
+        sanitized = sanitized.replacingOccurrences(
+            of: #"javascript:[^"\s]*"#,
+            with: "#blocked",
+            options: [.regularExpression, .caseInsensitive]
+        )
+        
+        return sanitized
+    }
+    
     /// Finale Bereinigung für bereits verarbeiteten Plain-Text (minimaler Overhead)
     /// - Parameter text: Bereits durch MIME-Parsing und cleanPlainTextForDisplay verarbeiteter Text
     /// - Returns: Final bereinigter Plain-Text-Content für Anzeige

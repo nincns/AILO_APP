@@ -17,6 +17,25 @@ public protocol MailWriteDAO {
     
     // Attachment operations
     func storeAttachment(accountId: UUID, folder: String, uid: String, attachment: AttachmentEntity) throws
+    func updateAttachmentStatus(accountId: UUID, folder: String, uid: String, partId: String, status: String) throws
+    func updateVirusScanStatus(accountId: UUID, folder: String, uid: String, partId: String, scanResult: String) throws
+    
+    // MIME Parts operations
+    func storeMimeParts(messageId: UUID, parts: [MimePartEntity]) throws
+    func deleteMimeParts(messageId: UUID) throws
+    func updateMimePartBlobId(messageId: UUID, partId: String, blobId: String) throws
+    
+    // Render Cache operations
+    func storeRenderCache(messageId: UUID, html: String?, text: String?, generatorVersion: Int) throws
+    func invalidateRenderCache(messageId: UUID) throws
+    
+    // Blob Meta operations
+    func storeBlobMeta(blobId: String, hashSha256: String, sizeBytes: Int) throws
+    func updateBlobAccess(blobId: String) throws
+    
+    // Message Updates
+    func updateRawBlobId(messageId: UUID, blobId: String) throws
+    func updateMessageMetadata(messageId: UUID, hasAttachments: Bool, sizeTotal: Int) throws
     
     // Sync management
     func updateLastSyncUID(accountId: UUID, folder: String, uid: String) throws
@@ -351,6 +370,273 @@ public class MailWriteDAOImpl: BaseDAO, MailWriteDAO {
             guard sqlite3_step(stmt) == SQLITE_DONE else {
                 throw DAOError.sqlError("Failed to store attachment: \(attachment.partId)")
             }
+        }
+    }
+    
+    // MARK: - Phase 1: MIME Parts Schreib-Operationen
+    
+    public func storeMimeParts(messageId: UUID, parts: [MimePartEntity]) throws {
+        try ensureOpen()
+        
+        let sql = """
+            INSERT OR REPLACE INTO \(MailSchema.tMimeParts)
+            (id, message_id, part_id, parent_part_id, media_type, charset, transfer_encoding,
+             disposition, filename_original, filename_normalized, content_id, content_md5,
+             content_sha256, size_octets, bytes_stored, is_body_candidate, blob_id)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """
+        
+        let stmt = try prepare(sql)
+        defer { finalize(stmt) }
+        
+        for part in parts {
+            bindUUID(stmt, 1, part.id)
+            bindUUID(stmt, 2, messageId)
+            bindText(stmt, 3, part.partId)
+            bindText(stmt, 4, part.parentPartId)
+            bindText(stmt, 5, part.mediaType)
+            bindText(stmt, 6, part.charset)
+            bindText(stmt, 7, part.transferEncoding)
+            bindText(stmt, 8, part.disposition)
+            bindText(stmt, 9, part.filenameOriginal)
+            bindText(stmt, 10, part.filenameNormalized)
+            bindText(stmt, 11, part.contentId)
+            bindText(stmt, 12, part.contentMd5)
+            bindText(stmt, 13, part.contentSha256)
+            bindInt(stmt, 14, part.sizeOctets)
+            bindInt(stmt, 15, part.bytesStored ?? 0)
+            bindBool(stmt, 16, part.isBodyCandidate)
+            bindText(stmt, 17, part.blobId)
+            
+            guard sqlite3_step(stmt) == SQLITE_DONE else {
+                throw dbError(context: "storeMimeParts")
+            }
+            sqlite3_reset(stmt)
+        }
+        
+        print("✅ [MailWriteDAO] Stored \(parts.count) MIME parts for message \(messageId)")
+    }
+    
+    public func deleteMimeParts(messageId: UUID) throws {
+        try ensureOpen()
+        
+        let sql = "DELETE FROM \(MailSchema.tMimeParts) WHERE message_id = ?"
+        
+        let stmt = try prepare(sql)
+        defer { finalize(stmt) }
+        
+        bindUUID(stmt, 1, messageId)
+        
+        guard sqlite3_step(stmt) == SQLITE_DONE else {
+            throw dbError(context: "deleteMimeParts")
+        }
+    }
+    
+    // MARK: - Phase 1: Render Cache Schreib-Operationen
+    
+    public func storeRenderCache(messageId: UUID, html: String?, text: String?, generatorVersion: Int) throws {
+        try ensureOpen()
+        
+        let sql = """
+            INSERT OR REPLACE INTO \(MailSchema.tRenderCache)
+            (message_id, html_rendered, text_rendered, generated_at, generator_version)
+            VALUES (?, ?, ?, ?, ?)
+        """
+        
+        let stmt = try prepare(sql)
+        defer { finalize(stmt) }
+        
+        bindUUID(stmt, 1, messageId)
+        bindText(stmt, 2, html)
+        bindText(stmt, 3, text)
+        bindInt(stmt, 4, Int(Date().timeIntervalSince1970))
+        bindInt(stmt, 5, generatorVersion)
+        
+        guard sqlite3_step(stmt) == SQLITE_DONE else {
+            throw dbError(context: "storeRenderCache")
+        }
+        
+        print("✅ [MailWriteDAO] Stored render cache for message \(messageId)")
+    }
+    
+    public func invalidateRenderCache(messageId: UUID) throws {
+        try ensureOpen()
+        
+        let sql = "DELETE FROM \(MailSchema.tRenderCache) WHERE message_id = ?"
+        
+        let stmt = try prepare(sql)
+        defer { finalize(stmt) }
+        
+        bindUUID(stmt, 1, messageId)
+        
+        guard sqlite3_step(stmt) == SQLITE_DONE else {
+            throw dbError(context: "invalidateRenderCache")
+        }
+    }
+    
+    // MARK: - Phase 1: Blob Meta Schreib-Operationen
+    
+    public func storeBlobMeta(blobId: String, hashSha256: String, sizeBytes: Int) throws {
+        try ensureOpen()
+        
+        let sql = """
+            INSERT OR REPLACE INTO \(MailSchema.tBlobMeta)
+            (blob_id, hash_sha256, size_bytes, reference_count, created_at)
+            VALUES (?, ?, ?, 1, ?)
+            ON CONFLICT(blob_id) DO UPDATE SET
+            reference_count = reference_count + 1,
+            last_accessed = ?
+        """
+        
+        let stmt = try prepare(sql)
+        defer { finalize(stmt) }
+        
+        let now = Int(Date().timeIntervalSince1970)
+        
+        bindText(stmt, 1, blobId)
+        bindText(stmt, 2, hashSha256)
+        bindInt(stmt, 3, sizeBytes)
+        bindInt(stmt, 4, now)
+        bindInt(stmt, 5, now)
+        
+        guard sqlite3_step(stmt) == SQLITE_DONE else {
+            throw dbError(context: "storeBlobMeta")
+        }
+    }
+    
+    public func updateBlobAccess(blobId: String) throws {
+        try ensureOpen()
+        
+        let sql = """
+            UPDATE \(MailSchema.tBlobMeta)
+            SET last_accessed = ?
+            WHERE blob_id = ?
+        """
+        
+        let stmt = try prepare(sql)
+        defer { finalize(stmt) }
+        
+        bindInt(stmt, 1, Int(Date().timeIntervalSince1970))
+        bindText(stmt, 2, blobId)
+        
+        guard sqlite3_step(stmt) == SQLITE_DONE else {
+            throw dbError(context: "updateBlobAccess")
+        }
+    }
+    
+    // MARK: - Phase 1: RAW Message Blob Updates
+    
+    public func updateRawBlobId(messageId: UUID, blobId: String) throws {
+        try ensureOpen()
+        
+        let sql = """
+            UPDATE messages 
+            SET raw_rfc822_blob_id = ?
+            WHERE id = ?
+        """
+        
+        let stmt = try prepare(sql)
+        defer { finalize(stmt) }
+        
+        bindText(stmt, 1, blobId)
+        bindUUID(stmt, 2, messageId)
+        
+        guard sqlite3_step(stmt) == SQLITE_DONE else {
+            throw dbError(context: "updateRawBlobId")
+        }
+    }
+    
+    // MARK: - Phase 1: Message Metadata Updates
+    
+    public func updateMessageMetadata(messageId: UUID, hasAttachments: Bool, sizeTotal: Int) throws {
+        try ensureOpen()
+        
+        let sql = """
+            UPDATE messages 
+            SET has_attachments = ?, size_total = ?
+            WHERE id = ?
+        """
+        
+        let stmt = try prepare(sql)
+        defer { finalize(stmt) }
+        
+        bindBool(stmt, 1, hasAttachments)
+        bindInt(stmt, 2, sizeTotal)
+        bindUUID(stmt, 3, messageId)
+        
+        guard sqlite3_step(stmt) == SQLITE_DONE else {
+            throw dbError(context: "updateMessageMetadata")
+        }
+    }
+    
+    // MARK: - Phase 6: Erweiterte Attachment-Updates
+    
+    public func updateAttachmentStatus(accountId: UUID, folder: String, uid: String, partId: String, status: String) throws {
+        try ensureOpen()
+        
+        let sql = """
+            UPDATE \(MailSchema.tAttachment)
+            SET status = ?
+            WHERE account_id = ? AND folder = ? AND uid = ? AND part_id = ?
+        """
+        
+        let stmt = try prepare(sql)
+        defer { finalize(stmt) }
+        
+        bindText(stmt, 1, status)
+        bindUUID(stmt, 2, accountId)
+        bindText(stmt, 3, folder)
+        bindText(stmt, 4, uid)
+        bindText(stmt, 5, partId)
+        
+        guard sqlite3_step(stmt) == SQLITE_DONE else {
+            throw dbError(context: "updateAttachmentStatus")
+        }
+    }
+    
+    public func updateVirusScanStatus(accountId: UUID, folder: String, uid: String, partId: String, scanResult: String) throws {
+        try ensureOpen()
+        
+        let sql = """
+            UPDATE \(MailSchema.tAttachment)
+            SET virus_scanned = ?
+            WHERE account_id = ? AND folder = ? AND uid = ? AND part_id = ?
+        """
+        
+        let stmt = try prepare(sql)
+        defer { finalize(stmt) }
+        
+        bindText(stmt, 1, scanResult)
+        bindUUID(stmt, 2, accountId)
+        bindText(stmt, 3, folder)
+        bindText(stmt, 4, uid)
+        bindText(stmt, 5, partId)
+        
+        guard sqlite3_step(stmt) == SQLITE_DONE else {
+            throw dbError(context: "updateVirusScanStatus")
+        }
+    }
+    
+    // MARK: - Phase 3: Batch Operations
+    
+    public func updateMimePartBlobId(messageId: UUID, partId: String, blobId: String) throws {
+        try ensureOpen()
+        
+        let sql = """
+            UPDATE \(MailSchema.tMimeParts)
+            SET blob_id = ?
+            WHERE message_id = ? AND part_id = ?
+        """
+        
+        let stmt = try prepare(sql)
+        defer { finalize(stmt) }
+        
+        bindText(stmt, 1, blobId)
+        bindUUID(stmt, 2, messageId)
+        bindText(stmt, 3, partId)
+        
+        guard sqlite3_step(stmt) == SQLITE_DONE else {
+            throw dbError(context: "updateMimePartBlobId")
         }
     }
     

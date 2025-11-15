@@ -77,6 +77,39 @@ public enum BodyStructure: Sendable, Equatable {
     }
 }
 
+// MARK: - IMAPBodyStructure Extension
+
+public enum IMAPBodyStructure: Sendable, Equatable {
+    case text(subtype: String, charset: String?)
+    case multipart(subtype: String, parts: [IMAPBodyStructure])
+    case application(subtype: String)
+    case image(subtype: String)
+    case audio(subtype: String)
+    case video(subtype: String)
+    case message(subtype: String)
+    case other(type: String, subtype: String)
+    
+    var mimeType: String {
+        switch self {
+        case .text(let subtype, _): return "text/\(subtype)"
+        case .application(let subtype): return "application/\(subtype)"
+        case .image(let subtype): return "image/\(subtype)"
+        case .audio(let subtype): return "audio/\(subtype)"
+        case .video(let subtype): return "video/\(subtype)"
+        case .message(let subtype): return "message/\(subtype)"
+        case .other(let type, let subtype): return "\(type)/\(subtype)"
+        case .multipart(let subtype, _): return "multipart/\(subtype)"
+        }
+    }
+    
+    var charset: String? {
+        if case .text(_, let charset) = self {
+            return charset
+        }
+        return nil
+    }
+}
+
 public struct FetchResult: Sendable, Equatable {
     public let uid: String?
     public let flags: [String]
@@ -613,4 +646,71 @@ private func trimTrailingParens(_ s: String) -> String {
     var out = s
     while out.last == ")" { out.removeLast() }
     return out
+}
+
+// MARK: - IMAPBodyStructure Parser
+
+public func parseBodyStructure(_ response: String) -> IMAPBodyStructure? {
+    // Parse BODYSTRUCTURE response into IMAPBodyStructure enum
+    let trimmed = response.trimmingCharacters(in: .whitespacesAndNewlines)
+    
+    // Look for BODYSTRUCTURE keyword
+    guard let range = trimmed.range(of: "BODYSTRUCTURE ") else { return nil }
+    let bodyData = String(trimmed[range.upperBound...])
+    
+    // Simple parsing logic - this would need to be more robust for production
+    if bodyData.lowercased().contains("multipart") {
+        // Extract subtype
+        if let subtypeRange = bodyData.range(of: "\"") {
+            let afterQuote = bodyData[subtypeRange.upperBound...]
+            if let endQuote = afterQuote.firstIndex(of: "\"") {
+                let subtype = String(afterQuote[..<endQuote]).lowercased()
+                return .multipart(subtype: subtype, parts: []) // Simplified
+            }
+        }
+        return .multipart(subtype: "mixed", parts: [])
+    } else if bodyData.lowercased().contains("text") {
+        // Extract charset if present
+        var charset: String? = nil
+        if let charsetRange = bodyData.lowercased().range(of: "charset") {
+            let afterCharset = bodyData[charsetRange.upperBound...]
+            if let quoteStart = afterCharset.firstIndex(of: "\"") {
+                let afterQuote = afterCharset[afterCharset.index(after: quoteStart)...]
+                if let quoteEnd = afterQuote.firstIndex(of: "\"") {
+                    charset = String(afterQuote[..<quoteEnd])
+                }
+            }
+        }
+        
+        // Extract subtype
+        if let subtypeRange = bodyData.range(of: "\"") {
+            let afterQuote = bodyData[subtypeRange.upperBound...]
+            if let endQuote = afterQuote.firstIndex(of: "\"") {
+                let subtype = String(afterQuote[..<endQuote]).lowercased()
+                return .text(subtype: subtype, charset: charset)
+            }
+        }
+        return .text(subtype: "plain", charset: charset)
+    } else if bodyData.lowercased().contains("application") {
+        if let subtypeRange = bodyData.range(of: "\"application/") {
+            let afterType = bodyData[subtypeRange.upperBound...]
+            if let endQuote = afterType.firstIndex(of: "\"") {
+                let subtype = String(afterType[..<endQuote]).lowercased()
+                return .application(subtype: subtype)
+            }
+        }
+        return .application(subtype: "octet-stream")
+    } else if bodyData.lowercased().contains("image") {
+        if let subtypeRange = bodyData.range(of: "\"image/") {
+            let afterType = bodyData[subtypeRange.upperBound...]
+            if let endQuote = afterType.firstIndex(of: "\"") {
+                let subtype = String(afterType[..<endQuote]).lowercased()
+                return .image(subtype: subtype)
+            }
+        }
+        return .image(subtype: "jpeg")
+    }
+    
+    // Fallback to other type
+    return .other(type: "unknown", subtype: "unknown")
 }

@@ -147,6 +147,22 @@ public struct IMAPCommands {
     public func search(_ conn: IMAPConnection, criteria: SearchCriteria, idleTimeout: TimeInterval = 12.0) async throws -> [String] {
         return try await search(conn, criteria: criteria.toIMAPQuery(), idleTimeout: idleTimeout)
     }
+    
+    // MARK: - Enhanced Fetch Commands for Optimized Fetching
+    
+    /// Fetch BODYSTRUCTURE for a specific UID
+    public func uidFetchBodyStructure(_ conn: IMAPConnection, uid: String, idleTimeout: TimeInterval = 12.0) async throws -> [String] {
+        let t = Tagger().next()
+        try await conn.send(line: "\(t) UID FETCH \(uid) (BODYSTRUCTURE)")
+        return try await conn.receiveLines(untilTag: t, idleTimeout: idleTimeout)
+    }
+    
+    /// Fetch specific section for a UID
+    public func uidFetchSection(_ conn: IMAPConnection, uid: String, section: String, idleTimeout: TimeInterval = 20.0) async throws -> [String] {
+        let t = Tagger().next()
+        try await conn.send(line: "\(t) UID FETCH \(uid) (BODY.PEEK[\(section)])")
+        return try await conn.receiveLines(untilTag: t, idleTimeout: idleTimeout)
+    }
 
     /// High-level FETCH that issues a generic UID FETCH for the given item list and returns raw response lines.
     /// For typed parsing, use IMAPParsers to interpret the returned lines into models.
