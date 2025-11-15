@@ -73,10 +73,19 @@ enum ProcessingError: Error {
 }
 
 // IMAP Types (falls nicht vorhanden)
-struct IMAPBodyPart {
+public struct IMAPBodyPart {
     let partNumber: String
     let type: String
     let subtype: String
     let parameters: [String: String]
     let size: Int64
+}
+
+public struct RenderCacheEntry {
+    public let messageId: UUID
+    public let cacheKey: String
+    public let html: String?
+    public let plainText: String?
+    public let createdAt: Date
+    public let compressed: Bool
 }

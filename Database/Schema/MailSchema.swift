@@ -226,6 +226,9 @@ public enum MailSchema {
     public static let tMsgBody = "message_body"
     public static let tAttachment = "attachment"
     public static let tOutbox = "outbox"
+    public static let tMimeParts = "mime_parts"
+    public static let tRenderCache = "render_cache"
+    public static let tBlobMeta = "blob_meta"
 
     // MARK: DDL v1
 
