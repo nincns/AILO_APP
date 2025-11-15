@@ -5,18 +5,6 @@
 import Foundation
 import SQLite3
 
-// MARK: - Schema Constants
-
-private struct MailSchema {
-    static let tRenderCache = "render_cache"
-}
-
-// MARK: - Supporting Protocol
-
-protocol PerformanceMonitor {
-    func measure<T>(_ name: String, operation: () throws -> T) rethrows -> T
-}
-
 // MARK: - Render Cache DAO
 
 class RenderCacheDAO: BaseDAO {
@@ -28,8 +16,10 @@ class RenderCacheDAO: BaseDAO {
     // Cache configuration
     private let configuration: CacheConfiguration
     
-    // In-memory cache for frequently accessed items
-    private var memoryCache = NSCache<NSString, RenderCacheEntry>()
+    // In-memory cache for frequently accessed items (thread-safe Dictionary)
+    private var memoryCache: [UUID: RenderCacheEntry] = [:]
+    private var memoryCacheCosts: [UUID: Int] = [:]
+    private var memoryCacheAccess: [UUID: Date] = [:]
     
     // Statistics
     private var statistics = CacheStatistics()
@@ -65,13 +55,6 @@ class RenderCacheDAO: BaseDAO {
         self.performanceMonitor = performanceMonitor
         
         super.init(dbPath: dbPath)
-        
-        // Configure memory cache
-        memoryCache.countLimit = configuration.maxMemoryCacheItems
-        memoryCache.totalCostLimit = configuration.maxMemoryCacheSizeBytes
-        
-        // Set up cache delegate
-        memoryCache.delegate = self
     }
     
     // MARK: - Store Cache Entry
@@ -113,7 +96,7 @@ class RenderCacheDAO: BaseDAO {
             generatorVersion: generatorVersion
         )
         
-        // Update memory cache
+        // Update memory cache (thread-safe)
         let entry = RenderCacheEntry(
             messageId: messageId,
             htmlRendered: html,
@@ -123,7 +106,15 @@ class RenderCacheDAO: BaseDAO {
         )
         
         let cost = (html?.count ?? 0) + (text?.count ?? 0)
-        memoryCache.setObject(entry, forKey: messageId.uuidString as NSString, cost: cost)
+        
+        queue.async(flags: .barrier) {
+            self.memoryCache[messageId] = entry
+            self.memoryCacheCosts[messageId] = cost
+            self.memoryCacheAccess[messageId] = Date()
+            
+            // Cleanup if cache is too large
+            self.cleanupMemoryCacheIfNeeded()
+        }
         
         // Update statistics
         updateStatistics { stats in
@@ -143,8 +134,16 @@ class RenderCacheDAO: BaseDAO {
     }
     
     private func performRetrieve(messageId: UUID) throws -> RenderCacheEntry? {
-        // Check memory cache first
-        if let cached = memoryCache.object(forKey: messageId.uuidString as NSString) {
+        // Check memory cache first (thread-safe read)
+        let cachedEntry = queue.sync {
+            if let entry = memoryCache[messageId] {
+                memoryCacheAccess[messageId] = Date() // Update access time
+                return entry
+            }
+            return nil
+        }
+        
+        if let cached = cachedEntry {
             print("💨 [RenderCache] Retrieved from memory: \(messageId)")
             
             updateStatistics { stats in
@@ -177,9 +176,17 @@ class RenderCacheDAO: BaseDAO {
             generatorVersion: dbEntry.generatorVersion
         )
         
-        // Add to memory cache
+        // Add to memory cache (thread-safe)
         let cost = (html?.count ?? 0) + (text?.count ?? 0)
-        memoryCache.setObject(entry, forKey: messageId.uuidString as NSString, cost: cost)
+        
+        queue.async(flags: .barrier) {
+            self.memoryCache[messageId] = entry
+            self.memoryCacheCosts[messageId] = cost
+            self.memoryCacheAccess[messageId] = Date()
+            
+            // Cleanup if cache is too large
+            self.cleanupMemoryCacheIfNeeded()
+        }
         
         print("📁 [RenderCache] Retrieved from database: \(messageId)")
         
@@ -196,8 +203,12 @@ class RenderCacheDAO: BaseDAO {
     func invalidate(messageId: UUID) throws {
         print("🗑 [RenderCache] Invalidating: \(messageId)")
         
-        // Remove from memory cache
-        memoryCache.removeObject(forKey: messageId.uuidString as NSString)
+        // Remove from memory cache (thread-safe)
+        queue.async(flags: .barrier) {
+            self.memoryCache.removeValue(forKey: messageId)
+            self.memoryCacheCosts.removeValue(forKey: messageId)
+            self.memoryCacheAccess.removeValue(forKey: messageId)
+        }
         
         // Remove from database
         try invalidateRenderCacheDirect(messageId: messageId)
@@ -210,8 +221,12 @@ class RenderCacheDAO: BaseDAO {
     func invalidateAll() throws {
         print("🗑 [RenderCache] Invalidating all caches")
         
-        // Clear memory cache
-        memoryCache.removeAllObjects()
+        // Clear memory cache (thread-safe)
+        queue.async(flags: .barrier) {
+            self.memoryCache.removeAll()
+            self.memoryCacheCosts.removeAll()
+            self.memoryCacheAccess.removeAll()
+        }
         
         // Clear database
         try invalidateAllRenderCachesDirect()
@@ -227,8 +242,12 @@ class RenderCacheDAO: BaseDAO {
         
         let invalidated = try invalidateRenderCachesOlderThanDirect(version: olderThanVersion)
         
-        // Clear affected items from memory cache
-        memoryCache.removeAllObjects() // Simplest approach
+        // Clear affected items from memory cache (thread-safe)
+        queue.async(flags: .barrier) {
+            self.memoryCache.removeAll() // Simplest approach
+            self.memoryCacheCosts.removeAll()
+            self.memoryCacheAccess.removeAll()
+        }
         
         updateStatistics { stats in
             stats.invalidationCount += invalidated
@@ -579,18 +598,66 @@ class RenderCacheDAO: BaseDAO {
             newestEntry: newest
         )
     }
-}
-
-// MARK: - NSCacheDelegate
-
-extension RenderCacheDAO: NSCacheDelegate {
+    // MARK: - Memory Cache Management
     
-    func cache(_ cache: NSCache<AnyObject, AnyObject>, willEvictObject obj: Any) {
-        if let entry = obj as? RenderCacheEntry {
-            print("♻️ [RenderCache] Evicting from memory: \(entry.messageId)")
+    private func cleanupMemoryCacheIfNeeded() {
+        // This method is called within a barrier block, so no additional locking needed
+        
+        // Check if we exceed max items limit
+        let itemCount = memoryCache.count
+        let maxItems = configuration.maxMemoryCacheItems
+        
+        if itemCount > maxItems {
+            // Sort by last access time and remove oldest items
+            let sortedByAccess = memoryCacheAccess.sorted { $0.value < $1.value }
+            let toRemoveCount = itemCount - maxItems
             
+            for i in 0..<min(toRemoveCount, sortedByAccess.count) {
+                let messageIdToRemove = sortedByAccess[i].key
+                memoryCache.removeValue(forKey: messageIdToRemove)
+                memoryCacheCosts.removeValue(forKey: messageIdToRemove)
+                memoryCacheAccess.removeValue(forKey: messageIdToRemove)
+                
+                print("♻️ [RenderCache] Evicting from memory: \(messageIdToRemove)")
+            }
+            
+            // Update statistics outside the loop for efficiency
             updateStatistics { stats in
-                stats.memoryEvictionCount += 1
+                stats.memoryEvictionCount += toRemoveCount
+            }
+            }
+        }
+        
+        // Check if we exceed max size limit
+        let totalSize = memoryCacheCosts.values.reduce(0, +)
+        let maxSize = configuration.maxMemoryCacheSizeBytes
+        
+        if totalSize > maxSize {
+            // Sort by last access time and remove until under size limit
+            let sortedByAccess = memoryCacheAccess.sorted { $0.value < $1.value }
+            var currentSize = totalSize
+            var removedCount = 0
+            
+            for (messageId, _) in sortedByAccess {
+                guard currentSize > maxSize else { break }
+                
+                if let cost = memoryCacheCosts[messageId] {
+                    currentSize -= cost
+                }
+                
+                memoryCache.removeValue(forKey: messageId)
+                memoryCacheCosts.removeValue(forKey: messageId)
+                memoryCacheAccess.removeValue(forKey: messageId)
+                removedCount += 1
+                
+                print("♻️ [RenderCache] Evicting from memory (size): \(messageId)")
+            }
+            
+            // Update statistics
+            if removedCount > 0 {
+                updateStatistics { stats in
+                    stats.memoryEvictionCount += removedCount
+                }
             }
         }
     }

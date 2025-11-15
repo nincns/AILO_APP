@@ -490,6 +490,7 @@ public enum AttachmentError: LocalizedError {
     case extendedAttributeFailed(String)
     case fileNotFound(String)
     case insufficientSpace
+    case alreadyDownloading
     
     public var errorDescription: String? {
         switch self {
@@ -499,6 +500,8 @@ public enum AttachmentError: LocalizedError {
             return "Attachment file not found: \(path)"
         case .insufficientSpace:
             return "Insufficient storage space for attachment"
+        case .alreadyDownloading:
+            return "Attachment is already being downloaded"
         }
     }
 }

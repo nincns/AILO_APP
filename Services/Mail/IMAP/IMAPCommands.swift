@@ -519,6 +519,58 @@ public final class IMAPClient {
 
     // MARK: - Helpers
 
+    // MARK: - Attachment Download Methods
+    
+    /// Fetch a specific body section (for attachment downloads)
+    /// Uses the existing uidFetchSection method from IMAPCommands
+    func fetchSection(section: String) async throws -> Data {
+        // Parse section to extract UID and section part
+        // Expected format: "uid.section" e.g., "123.1.2" means UID=123, section=1.2
+        let parts = section.split(separator: ".", maxSplits: 1)
+        guard parts.count == 2,
+              let uid = String(parts[0]).isEmpty ? nil : String(parts[0]),
+              !String(parts[1]).isEmpty else {
+            throw IMAPError.protocolError("Invalid section format. Expected 'uid.section'")
+        }
+        
+        let sectionPart = String(parts[1])
+        let lines = try await commands.uidFetchSection(conn, uid: uid, section: sectionPart)
+        
+        // Parse the body data from IMAP response
+        if let bodyString = parsers.parseBodySection(lines) {
+            return Data(bodyString.utf8)
+        }
+        
+        throw IMAPError.protocolError("Failed to parse body section from IMAP response")
+    }
+    
+    /// Fetch partial data from a body section (for large attachment downloads)
+    /// Implements IMAP BODY.PEEK[section]<offset.length> for chunked downloads
+    func fetchPartial(section: String, offset: Int, length: Int) async throws -> Data {
+        // Parse section to extract UID and section part
+        let parts = section.split(separator: ".", maxSplits: 1)
+        guard parts.count == 2,
+              let uid = String(parts[0]).isEmpty ? nil : String(parts[0]),
+              !String(parts[1]).isEmpty else {
+            throw IMAPError.protocolError("Invalid section format. Expected 'uid.section'")
+        }
+        
+        let sectionPart = String(parts[1])
+        let tag = tagger.next()
+        
+        // Send IMAP command for partial fetch: BODY.PEEK[section]<offset.length>
+        let cmd = "\(tag) UID FETCH \(uid) (BODY.PEEK[\(sectionPart)]<\(offset).\(length)>)"
+        try await conn.send(line: cmd)
+        let lines = try await conn.receiveLines(untilTag: tag, idleTimeout: 20.0)
+        
+        // Parse the partial body data from IMAP response
+        if let bodyString = parsers.parseBodySection(lines) {
+            return Data(bodyString.utf8)
+        }
+        
+        throw IMAPError.protocolError("Failed to parse partial body section from IMAP response")
+    }
+    
     private func parseIdleEvent(_ line: String) -> IMAPEvent? {
         let trimmed = line.trimmingCharacters(in: .whitespacesAndNewlines)
         guard trimmed.hasPrefix("* ") else { return nil }
