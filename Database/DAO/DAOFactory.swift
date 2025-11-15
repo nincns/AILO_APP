@@ -220,6 +220,54 @@ private class MailFullAccessDAOImpl: MailFullAccessDAO {
                                                 uid: uid, attachment: attachment)
     }
     
+    func updateAttachmentStatus(accountId: UUID, folder: String, uid: String, partId: String, status: String) throws {
+        try factory.mailWriteDAO.updateAttachmentStatus(accountId: accountId, folder: folder, uid: uid, partId: partId, status: status)
+    }
+    
+    func updateVirusScanStatus(accountId: UUID, folder: String, uid: String, partId: String, scanResult: String) throws {
+        try factory.mailWriteDAO.updateVirusScanStatus(accountId: accountId, folder: folder, uid: uid, partId: partId, scanResult: scanResult)
+    }
+    
+    func storeMimeParts(_ parts: [MimePartEntity]) throws {
+        // Delegate to factory implementation
+        try factory.mailWriteDAO.storeMimeParts(parts)
+        
+        // Alternative dummy implementation:
+        // // No-op for now - could store to temporary cache or ignore
+    }
+    
+    func deleteMimeParts(messageId: UUID) throws {
+        try factory.mailWriteDAO.deleteMimeParts(messageId: messageId)
+    }
+    
+    func updateMimePartBlobId(messageId: UUID, partId: String, blobId: String) throws {
+        try factory.mailWriteDAO.updateMimePartBlobId(messageId: messageId, partId: partId, blobId: blobId)
+    }
+    
+    func storeRenderCache(messageId: UUID, html: String?, text: String?, generatorVersion: Int) throws {
+        try factory.mailWriteDAO.storeRenderCache(messageId: messageId, html: html, text: text, generatorVersion: generatorVersion)
+    }
+    
+    func invalidateRenderCache(messageId: UUID) throws {
+        try factory.mailWriteDAO.invalidateRenderCache(messageId: messageId)
+    }
+    
+    func storeBlobMeta(blobId: String, hashSha256: String, sizeBytes: Int) throws {
+        try factory.mailWriteDAO.storeBlobMeta(blobId: blobId, hashSha256: hashSha256, sizeBytes: sizeBytes)
+    }
+    
+    func updateBlobAccess(blobId: String) throws {
+        try factory.mailWriteDAO.updateBlobAccess(blobId: blobId)
+    }
+    
+    func updateRawBlobId(messageId: UUID, blobId: String) throws {
+        try factory.mailWriteDAO.updateRawBlobId(messageId: messageId, blobId: blobId)
+    }
+    
+    func updateMessageMetadata(messageId: UUID, hasAttachments: Bool, sizeTotal: Int) throws {
+        try factory.mailWriteDAO.updateMessageMetadata(messageId: messageId, hasAttachments: hasAttachments, sizeTotal: sizeTotal)
+    }
+    
     func updateLastSyncUID(accountId: UUID, folder: String, uid: String) throws {
         try factory.mailWriteDAO.updateLastSyncUID(accountId: accountId, folder: folder, uid: uid)
     }
@@ -230,6 +278,92 @@ private class MailFullAccessDAOImpl: MailFullAccessDAO {
     
     func purgeFolder(accountId: UUID, folder: String) throws {
         try factory.mailWriteDAO.purgeFolder(accountId: accountId, folder: folder)
+    }
+    
+    // MARK: - Blob Reference Management (using factory delegation)
+    
+    func incrementBlobReference(_ blobId: String) throws {
+        // Delegate to factory implementation
+        try factory.mailWriteDAO.incrementBlobReference(blobId)
+        
+        // Alternative dummy implementation:
+        // // No-op for now
+    }
+    
+    func decrementBlobReference(_ blobId: String) throws {
+        // Delegate to factory implementation
+        try factory.mailWriteDAO.decrementBlobReference(blobId)
+        
+        // Alternative dummy implementation:
+        // // No-op for now
+    }
+    
+    func deleteBlobMeta(_ blobId: String) throws {
+        // Delegate to factory implementation
+        try factory.mailWriteDAO.deleteBlobMeta(blobId)
+        
+        // Alternative dummy implementation:
+        // // No-op for now
+    }
+    
+    // MARK: - Additional MailReadDAO methods that were missing
+    
+    func getMimeParts(messageId: UUID) throws -> [MimePartEntity] {
+        return try factory.mailReadDAO.getMimeParts(messageId: messageId)
+    }
+    
+    func getMimePartByContentId(messageId: UUID, contentId: String) throws -> MimePartEntity? {
+        return try factory.mailReadDAO.getMimePartByContentId(messageId: messageId, contentId: contentId)
+    }
+    
+    func getRenderCache(messageId: UUID) throws -> RenderCacheEntry? {
+        return try factory.mailReadDAO.getRenderCache(messageId: messageId)
+    }
+    
+    func getBlobMeta(blobId: String) throws -> BlobMetaEntry? {
+        return try factory.mailReadDAO.getBlobMeta(blobId: blobId)
+    }
+    
+    func getRawBlobId(messageId: UUID) throws -> String? {
+        return try factory.mailReadDAO.getRawBlobId(messageId: messageId)
+    }
+    
+    func getAttachmentsByStatus(accountId: UUID, status: String) throws -> [AttachmentEntity] {
+        return try factory.mailReadDAO.getAttachmentsByStatus(accountId: accountId, status: status)
+    }
+    
+    // MARK: - Blob Storage Analytics (using factory delegation)
+    
+    func getBlobStorageMetrics() throws -> BlobStorageMetrics {
+        // Delegate to factory implementation
+        return try factory.mailReadDAO.getBlobStorageMetrics()
+        
+        // Alternative dummy implementation if needed:
+        // return BlobStorageMetrics(totalBlobs: 0, totalSize: 0, deduplicatedCount: 0, averageSize: 0)
+    }
+    
+    func getOrphanedBlobs() throws -> [String] {
+        // Delegate to factory implementation
+        return try factory.mailReadDAO.getOrphanedBlobs()
+        
+        // Alternative dummy implementation:
+        // return []
+    }
+    
+    func getBlobsOlderThan(_ date: Date) throws -> [String] {
+        // Delegate to factory implementation
+        return try factory.mailReadDAO.getBlobsOlderThan(date)
+        
+        // Alternative dummy implementation:
+        // return []
+    }
+    
+    func getAllBlobIds() throws -> [String] {
+        // Delegate to factory implementation
+        return try factory.mailReadDAO.getAllBlobIds()
+        
+        // Alternative dummy implementation:
+        // return []
     }
 }
 

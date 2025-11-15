@@ -27,6 +27,22 @@ public struct BlobMetaEntry {
     let createdAt: Date
 }
 
+public struct RenderCacheEntry {
+    let messageId: UUID
+    let htmlRendered: String?
+    let textRendered: String?
+    let generatedAt: Date
+    let generatorVersion: Int
+    
+    public init(messageId: UUID, htmlRendered: String?, textRendered: String?, generatedAt: Date, generatorVersion: Int) {
+        self.messageId = messageId
+        self.htmlRendered = htmlRendered
+        self.textRendered = textRendered
+        self.generatedAt = generatedAt
+        self.generatorVersion = generatorVersion
+    }
+}
+
 public struct ProcessedMessage {
     let messageId: UUID
     let htmlBody: String?

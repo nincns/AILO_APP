@@ -37,6 +37,12 @@ public protocol MailReadDAO {
     func getBlobMeta(blobId: String) throws -> BlobMetaEntry?
     func getRawBlobId(messageId: UUID) throws -> String?
     func getAttachmentsByStatus(accountId: UUID, status: String) throws -> [AttachmentEntity]
+    
+    // MARK: - Blob Storage Analytics
+    func getBlobStorageMetrics() throws -> BlobStorageMetrics
+    func getOrphanedBlobs() throws -> [String]
+    func getBlobsOlderThan(_ date: Date) throws -> [String]
+    func getAllBlobIds() throws -> [String]
 }
 
 // MARK: - Implementation
@@ -653,9 +659,132 @@ public class MailReadDAOImpl: BaseDAO, MailReadDAO {
             }
         }
     }
+    
+    // MARK: - Blob Storage Analytics
+    
+    public func getBlobStorageMetrics() throws -> BlobStorageMetrics {
+        return try DAOPerformanceMonitor.measure("blob_storage_metrics_query") {
+            return try dbQueue.sync {
+                try ensureOpen()
+                
+                let sql = """
+                    SELECT 
+                        COUNT(*) as total_blobs,
+                        SUM(size_bytes) as total_size,
+                        SUM(CASE WHEN reference_count > 1 THEN 1 ELSE 0 END) as deduplicated_count,
+                        AVG(size_bytes) as average_size
+                    FROM \(MailSchema.tBlobMeta)
+                """
+                
+                let stmt = try prepare(sql)
+                defer { finalize(stmt) }
+                
+                guard sqlite3_step(stmt) == SQLITE_ROW else {
+                    return BlobStorageMetrics(totalBlobs: 0, totalSize: 0, deduplicatedCount: 0, averageSize: 0)
+                }
+                
+                return BlobStorageMetrics(
+                    totalBlobs: stmt.columnInt(0),
+                    totalSize: Int64(stmt.columnInt(1)),
+                    deduplicatedCount: stmt.columnInt(2),
+                    averageSize: stmt.columnInt(3)
+                )
+            }
+        }
+    }
+    
+    public func getOrphanedBlobs() throws -> [String] {
+        return try DAOPerformanceMonitor.measure("orphaned_blobs_query") {
+            return try dbQueue.sync {
+                try ensureOpen()
+                
+                let sql = """
+                    SELECT blob_id FROM \(MailSchema.tBlobMeta)
+                    WHERE reference_count = 0
+                """
+                
+                let stmt = try prepare(sql)
+                defer { finalize(stmt) }
+                
+                var orphaned: [String] = []
+                
+                while sqlite3_step(stmt) == SQLITE_ROW {
+                    if let blobId = stmt.columnText(0) {
+                        orphaned.append(blobId)
+                    }
+                }
+                
+                return orphaned
+            }
+        }
+    }
+    
+    public func getBlobsOlderThan(_ date: Date) throws -> [String] {
+        return try DAOPerformanceMonitor.measure("old_blobs_query") {
+            return try dbQueue.sync {
+                try ensureOpen()
+                
+                let sql = """
+                    SELECT blob_id FROM \(MailSchema.tBlobMeta)
+                    WHERE last_accessed < ?
+                """
+                
+                let stmt = try prepare(sql)
+                defer { finalize(stmt) }
+                
+                bindInt(stmt, 1, Int(date.timeIntervalSince1970))
+                
+                var oldBlobs: [String] = []
+                
+                while sqlite3_step(stmt) == SQLITE_ROW {
+                    if let blobId = stmt.columnText(0) {
+                        oldBlobs.append(blobId)
+                    }
+                }
+                
+                return oldBlobs
+            }
+        }
+    }
+    
+    public func getAllBlobIds() throws -> [String] {
+        return try DAOPerformanceMonitor.measure("all_blob_ids_query") {
+            return try dbQueue.sync {
+                try ensureOpen()
+                
+                let sql = "SELECT blob_id FROM \(MailSchema.tBlobMeta)"
+                
+                let stmt = try prepare(sql)
+                defer { finalize(stmt) }
+                
+                var blobIds: [String] = []
+                
+                while sqlite3_step(stmt) == SQLITE_ROW {
+                    if let blobId = stmt.columnText(0) {
+                        blobIds.append(blobId)
+                    }
+                }
+                
+                return blobIds
+            }
+        }
+    }
 }
 
 // MARK: - Supporting Types
+
+public struct BlobStorageMetrics {
+    public let totalBlobs: Int
+    public let totalSize: Int64
+    public let deduplicatedCount: Int
+    public let averageSize: Int
+    
+    public init(totalBlobs: Int, totalSize: Int64, deduplicatedCount: Int, averageSize: Int) {
+        self.totalBlobs = totalBlobs
+        self.totalSize = totalSize
+        self.deduplicatedCount = deduplicatedCount
+        self.averageSize = averageSize
+    }
 
 
 

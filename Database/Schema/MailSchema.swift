@@ -338,6 +338,49 @@ public enum MailSchema {
         );
         """,
 
+        // MIME Parts (structured message parts)
+        """
+        CREATE TABLE IF NOT EXISTS \(tMimeParts) (
+            id TEXT PRIMARY KEY,
+            message_id TEXT NOT NULL,
+            part_number TEXT NOT NULL,
+            content_type TEXT NOT NULL,
+            content_subtype TEXT,
+            content_id TEXT,
+            content_disposition TEXT,
+            filename TEXT,
+            size INTEGER,
+            encoding TEXT,
+            charset TEXT,
+            is_attachment INTEGER NOT NULL DEFAULT 0,
+            is_inline INTEGER NOT NULL DEFAULT 0,
+            parent_part_number TEXT
+        );
+        """,
+
+        // Render Cache (for complex message rendering)
+        """
+        CREATE TABLE IF NOT EXISTS \(tRenderCache) (
+            message_id TEXT PRIMARY KEY,
+            html_rendered TEXT,
+            text_rendered TEXT,
+            generated_at INTEGER NOT NULL,
+            generator_version INTEGER NOT NULL
+        );
+        """,
+
+        // Blob Meta (for deduplication and reference counting)
+        """
+        CREATE TABLE IF NOT EXISTS \(tBlobMeta) (
+            blob_id TEXT PRIMARY KEY,
+            hash_sha256 TEXT NOT NULL,
+            size_bytes INTEGER NOT NULL,
+            reference_count INTEGER NOT NULL DEFAULT 1,
+            created_at INTEGER NOT NULL,
+            last_accessed INTEGER
+        );
+        """,
+
         // Helpful indices for outbox processing
         """
         CREATE INDEX IF NOT EXISTS idx_outbox_pending

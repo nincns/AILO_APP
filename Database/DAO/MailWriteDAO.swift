@@ -21,7 +21,7 @@ public protocol MailWriteDAO {
     func updateVirusScanStatus(accountId: UUID, folder: String, uid: String, partId: String, scanResult: String) throws
     
     // MIME Parts operations
-    func storeMimeParts(messageId: UUID, parts: [MimePartEntity]) throws
+    func storeMimeParts(_ parts: [MimePartEntity]) throws
     func deleteMimeParts(messageId: UUID) throws
     func updateMimePartBlobId(messageId: UUID, partId: String, blobId: String) throws
     
@@ -44,6 +44,11 @@ public protocol MailWriteDAO {
     // Cleanup operations
     func deleteMessage(accountId: UUID, folder: String, uid: String) throws
     func purgeFolder(accountId: UUID, folder: String) throws
+    
+    // Blob reference management
+    func incrementBlobReference(_ blobId: String) throws
+    func decrementBlobReference(_ blobId: String) throws
+    func deleteBlobMeta(_ blobId: String) throws
 }
 
 // Combined protocol for full access
@@ -375,15 +380,16 @@ public class MailWriteDAOImpl: BaseDAO, MailWriteDAO {
     
     // MARK: - Phase 1: MIME Parts Schreib-Operationen
     
-    public func storeMimeParts(messageId: UUID, parts: [MimePartEntity]) throws {
+    public func storeMimeParts(_ parts: [MimePartEntity]) throws {
+        guard !parts.isEmpty else { return }
+        
         try ensureOpen()
         
         let sql = """
             INSERT OR REPLACE INTO \(MailSchema.tMimeParts)
-            (id, message_id, part_id, parent_part_id, media_type, charset, transfer_encoding,
-             disposition, filename_original, filename_normalized, content_id, content_md5,
-             content_sha256, size_octets, bytes_stored, is_body_candidate, blob_id)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            (id, message_id, part_number, content_type, content_subtype, content_id, content_disposition, 
+             filename, size, encoding, charset, is_attachment, is_inline, parent_part_number)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """
         
         let stmt = try prepare(sql)
@@ -391,22 +397,19 @@ public class MailWriteDAOImpl: BaseDAO, MailWriteDAO {
         
         for part in parts {
             bindUUID(stmt, 1, part.id)
-            bindUUID(stmt, 2, messageId)
-            bindText(stmt, 3, part.partId)
-            bindText(stmt, 4, part.parentPartId)
-            bindText(stmt, 5, part.mediaType)
-            bindText(stmt, 6, part.charset)
-            bindText(stmt, 7, part.transferEncoding)
-            bindText(stmt, 8, part.disposition)
-            bindText(stmt, 9, part.filenameOriginal)
-            bindText(stmt, 10, part.filenameNormalized)
-            bindText(stmt, 11, part.contentId)
-            bindText(stmt, 12, part.contentMd5)
-            bindText(stmt, 13, part.contentSha256)
-            bindInt(stmt, 14, part.sizeOctets)
-            bindInt(stmt, 15, part.bytesStored ?? 0)
-            bindBool(stmt, 16, part.isBodyCandidate)
-            bindText(stmt, 17, part.blobId)
+            bindUUID(stmt, 2, part.messageId)
+            bindText(stmt, 3, part.partNumber)
+            bindText(stmt, 4, part.contentType)
+            bindText(stmt, 5, part.contentSubtype)
+            bindText(stmt, 6, part.contentId)
+            bindText(stmt, 7, part.contentDisposition)
+            bindText(stmt, 8, part.filename)
+            bindInt64(stmt, 9, part.size)
+            bindText(stmt, 10, part.encoding)
+            bindText(stmt, 11, part.charset)
+            bindBool(stmt, 12, part.isAttachment)
+            bindBool(stmt, 13, part.isInline)
+            bindText(stmt, 14, part.parentPartNumber)
             
             guard sqlite3_step(stmt) == SQLITE_DONE else {
                 throw dbError(context: "storeMimeParts")
@@ -414,7 +417,7 @@ public class MailWriteDAOImpl: BaseDAO, MailWriteDAO {
             sqlite3_reset(stmt)
         }
         
-        print("✅ [MailWriteDAO] Stored \(parts.count) MIME parts for message \(messageId)")
+        print("✅ [MailWriteDAO] Stored \(parts.count) MIME parts")
     }
     
     public func deleteMimeParts(messageId: UUID) throws {
@@ -775,6 +778,63 @@ public class MailWriteDAOImpl: BaseDAO, MailWriteDAO {
                     throw DAOError.sqlError("Failed to purge folder: \(folder)")
                 }
             }
+        }
+    }
+    
+    // MARK: - Blob Reference Management
+    
+    public func incrementBlobReference(_ blobId: String) throws {
+        try ensureOpen()
+        
+        let sql = """
+            UPDATE \(MailSchema.tBlobMeta)
+            SET reference_count = reference_count + 1,
+                last_accessed = ?
+            WHERE blob_id = ?
+        """
+        
+        let stmt = try prepare(sql)
+        defer { finalize(stmt) }
+        
+        bindInt(stmt, 1, Int(Date().timeIntervalSince1970))
+        bindText(stmt, 2, blobId)
+        
+        guard sqlite3_step(stmt) == SQLITE_DONE else {
+            throw dbError(context: "incrementBlobReference")
+        }
+    }
+    
+    public func decrementBlobReference(_ blobId: String) throws {
+        try ensureOpen()
+        
+        let sql = """
+            UPDATE \(MailSchema.tBlobMeta)
+            SET reference_count = reference_count - 1
+            WHERE blob_id = ? AND reference_count > 0
+        """
+        
+        let stmt = try prepare(sql)
+        defer { finalize(stmt) }
+        
+        bindText(stmt, 1, blobId)
+        
+        guard sqlite3_step(stmt) == SQLITE_DONE else {
+            throw dbError(context: "decrementBlobReference")
+        }
+    }
+    
+    public func deleteBlobMeta(_ blobId: String) throws {
+        try ensureOpen()
+        
+        let sql = "DELETE FROM \(MailSchema.tBlobMeta) WHERE blob_id = ?"
+        
+        let stmt = try prepare(sql)
+        defer { finalize(stmt) }
+        
+        bindText(stmt, 1, blobId)
+        
+        guard sqlite3_step(stmt) == SQLITE_DONE else {
+            throw dbError(context: "deleteBlobMeta")
         }
     }
 }

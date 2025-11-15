@@ -5,13 +5,46 @@
 import Foundation
 import CryptoKit
 
+// MARK: - Supporting Types (matching MailReadDAO types)
 
+public struct BlobStorageMetrics {
+    public let totalBlobs: Int
+    public let totalSize: Int64
+    public let deduplicatedCount: Int
+    public let averageSize: Int
+    
+    public init(totalBlobs: Int, totalSize: Int64, deduplicatedCount: Int, averageSize: Int) {
+        self.totalBlobs = totalBlobs
+        self.totalSize = totalSize
+        self.deduplicatedCount = deduplicatedCount
+        self.averageSize = averageSize
+    }
+}
 
+// MARK: - Protocol Definition
 
+protocol BlobStoreProtocol {
+    func store(_ data: Data, messageId: UUID, partId: String) throws -> String
+    func retrieve(blobId: String) throws -> Data?
+    func delete(blobId: String) throws
+    func exists(blobId: String) -> Bool
+    func calculateHash(_ data: Data) -> String
+    func getStorageMetrics() throws -> BlobStorageMetrics  // Updated return type
+    
+    // Extended methods
+    func storeRawMessage(_ data: Data, messageId: UUID) throws -> String
+    func retrieveRawMessage(messageId: UUID) throws -> Data?
+    func storeMessagePart(_ data: Data, messageId: UUID, partId: String, mimeType: String) throws -> String
+    
+    // Maintenance methods
+    func cleanupOrphaned() throws -> Int
+    func cleanupOldBlobs(olderThanDays: Int) throws -> Int
+    func verifyIntegrity() throws -> [String]
+}
 
 // MARK: - Blob Store Implementation
 
-class BlobStore {
+class BlobStore: BlobStoreProtocol {
     
     private let basePath: URL
     private let writeDAO: MailWriteDAO
@@ -155,19 +188,11 @@ class BlobStore {
     
     // MARK: - Storage Metrics
     
-    func getStorageMetrics() throws -> StorageMetrics {
+    func getStorageMetrics() throws -> BlobStorageMetrics {
         // Query database for metrics
         let metrics = try readDAO.getBlobStorageMetrics()
         
-        // Calculate saved space from deduplication
-        let savedSpace = Int64(metrics.deduplicatedCount) * Int64(metrics.averageSize)
-        
-        return StorageMetrics(
-            totalBlobs: metrics.totalBlobs,
-            totalSize: metrics.totalSize,
-            deduplicatedCount: metrics.deduplicatedCount,
-            savedSpace: savedSpace
-        )
+        return metrics  // Return the metrics directly since it's already the right type
     }
     
     // MARK: - Private Helpers
