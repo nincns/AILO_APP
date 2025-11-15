@@ -5,14 +5,24 @@
 import Foundation
 import SQLite3
 
+// MARK: - Schema Constants
+
+private struct MailSchema {
+    static let tRenderCache = "render_cache"
+}
+
+// MARK: - Supporting Protocol
+
+protocol PerformanceMonitor {
+    func measure<T>(_ name: String, operation: () throws -> T) rethrows -> T
+}
+
 // MARK: - Render Cache DAO
 
-class RenderCacheDAO: NSObject {
+class RenderCacheDAO: BaseDAO {
     
     // MARK: - Properties
     
-    private let writeDAO: MailWriteDAO
-    private let readDAO: MailReadDAO
     private let performanceMonitor: PerformanceMonitor?
     
     // Cache configuration
@@ -47,15 +57,14 @@ class RenderCacheDAO: NSObject {
     
     // MARK: - Initialization
     
-    init(writeDAO: MailWriteDAO,
-         readDAO: MailReadDAO,
+    init(dbPath: String,
          configuration: CacheConfiguration = .default,
          performanceMonitor: PerformanceMonitor? = nil) {
         
-        self.writeDAO = writeDAO
-        self.readDAO = readDAO
         self.configuration = configuration
         self.performanceMonitor = performanceMonitor
+        
+        super.init(dbPath: dbPath)
         
         // Configure memory cache
         memoryCache.countLimit = configuration.maxMemoryCacheItems
@@ -97,7 +106,7 @@ class RenderCacheDAO: NSObject {
         let processedText = try processForStorage(text, type: "text")
         
         // Store in database
-        try writeDAO.storeRenderCache(
+        try storeRenderCacheDirect(
             messageId: messageId,
             html: processedHtml,
             text: processedText,
@@ -110,8 +119,7 @@ class RenderCacheDAO: NSObject {
             htmlRendered: html,
             textRendered: text,
             generatedAt: Date(),
-            generatorVersion: generatorVersion,
-            compressed: processedHtml != html || processedText != text
+            generatorVersion: generatorVersion
         )
         
         let cost = (html?.count ?? 0) + (text?.count ?? 0)
@@ -147,7 +155,7 @@ class RenderCacheDAO: NSObject {
         }
         
         // Fetch from database
-        guard let dbEntry = try readDAO.getRenderCache(messageId: messageId) else {
+        guard let dbEntry = try getRenderCacheDirect(messageId: messageId) else {
             print("❌ [RenderCache] Not found: \(messageId)")
             
             updateStatistics { stats in
@@ -166,8 +174,7 @@ class RenderCacheDAO: NSObject {
             htmlRendered: html,
             textRendered: text,
             generatedAt: dbEntry.generatedAt,
-            generatorVersion: dbEntry.generatorVersion,
-            compressed: false
+            generatorVersion: dbEntry.generatorVersion
         )
         
         // Add to memory cache
@@ -193,7 +200,7 @@ class RenderCacheDAO: NSObject {
         memoryCache.removeObject(forKey: messageId.uuidString as NSString)
         
         // Remove from database
-        try writeDAO.invalidateRenderCache(messageId: messageId)
+        try invalidateRenderCacheDirect(messageId: messageId)
         
         updateStatistics { stats in
             stats.invalidationCount += 1
@@ -207,7 +214,7 @@ class RenderCacheDAO: NSObject {
         memoryCache.removeAllObjects()
         
         // Clear database
-        try writeDAO.invalidateAllRenderCaches()
+        try invalidateAllRenderCachesDirect()
         
         updateStatistics { stats in
             stats.invalidationCount += stats.storeCount
@@ -218,7 +225,7 @@ class RenderCacheDAO: NSObject {
     func invalidateOldCaches(olderThanVersion: Int) throws {
         print("🗑 [RenderCache] Invalidating caches older than version: \(olderThanVersion)")
         
-        let invalidated = try writeDAO.invalidateRenderCachesOlderThan(version: olderThanVersion)
+        let invalidated = try invalidateRenderCachesOlderThanDirect(version: olderThanVersion)
         
         // Clear affected items from memory cache
         memoryCache.removeAllObjects() // Simplest approach
@@ -237,7 +244,7 @@ class RenderCacheDAO: NSObject {
         
         print("🗑 [RenderCache] Invalidating caches older than: \(expirationDate)")
         
-        let invalidated = try writeDAO.invalidateRenderCachesOlderThan(date: expirationDate)
+        let invalidated = try invalidateRenderCachesOlderThanDirect(date: expirationDate)
         
         updateStatistics { stats in
             stats.expiredCount += invalidated
@@ -261,7 +268,7 @@ class RenderCacheDAO: NSObject {
     }
     
     func getCacheSizes() throws -> [UUID: Int] {
-        return try readDAO.getRenderCacheSizes()
+        return try getRenderCacheSizesDirect()
     }
     
     // MARK: - Compression
@@ -357,12 +364,12 @@ class RenderCacheDAO: NSObject {
     }
     
     private func optimizeDatabase() throws {
-        try writeDAO.executeSQL("VACUUM render_cache")
-        try writeDAO.executeSQL("ANALYZE render_cache")
+        try executeDirectSQL("VACUUM render_cache")
+        try executeDirectSQL("ANALYZE render_cache")
     }
     
     private func getDatabaseStatistics() throws -> DatabaseStatistics {
-        return try readDAO.getRenderCacheStatistics()
+        return try getRenderCacheStatisticsDirect()
     }
     
     // MARK: - Utilities
@@ -371,6 +378,206 @@ class RenderCacheDAO: NSObject {
         let formatter = ByteCountFormatter()
         formatter.countStyle = .binary
         return formatter.string(fromByteCount: Int64(bytes))
+    }
+    
+    // MARK: - Database Helper Methods
+    
+    private func dbError(context: String) -> Error {
+        let message = String(cString: sqlite3_errmsg(db))
+        return DAOError.sqlError("\(context): \(message)")
+    }
+    
+    // MARK: - Render Cache Database Operations
+    
+    private func storeRenderCacheDirect(messageId: UUID, html: String?, text: String?, generatorVersion: Int) throws {
+        try ensureOpen()
+        
+        let sql = """
+            INSERT OR REPLACE INTO \(MailSchema.tRenderCache)
+            (message_id, html_rendered, text_rendered, generated_at, generator_version)
+            VALUES (?, ?, ?, ?, ?)
+        """
+        
+        let stmt = try prepare(sql)
+        defer { finalize(stmt) }
+        
+        bindUUID(stmt, 1, messageId)
+        bindText(stmt, 2, html)
+        bindText(stmt, 3, text)
+        bindDate(stmt, 4, Date())
+        bindInt(stmt, 5, generatorVersion)
+        
+        guard sqlite3_step(stmt) == SQLITE_DONE else {
+            throw dbError(context: "storeRenderCache")
+        }
+    }
+    
+    private func getRenderCacheDirect(messageId: UUID) throws -> RenderCacheEntry? {
+        try ensureOpen()
+        
+        let sql = """
+            SELECT html_rendered, text_rendered, generated_at, generator_version
+            FROM \(MailSchema.tRenderCache)
+            WHERE message_id = ?
+        """
+        
+        let stmt = try prepare(sql)
+        defer { finalize(stmt) }
+        
+        bindUUID(stmt, 1, messageId)
+        
+        guard sqlite3_step(stmt) == SQLITE_ROW else {
+            return nil
+        }
+        
+        let html = sqlite3_column_text(stmt, 0).map { String(cString: $0) }
+        let text = sqlite3_column_text(stmt, 1).map { String(cString: $0) }
+        let generatedAt = Date(timeIntervalSince1970: sqlite3_column_double(stmt, 2))
+        let generatorVersion = Int(sqlite3_column_int(stmt, 3))
+        
+        return RenderCacheEntry(
+            messageId: messageId,
+            htmlRendered: html,
+            textRendered: text,
+            generatedAt: generatedAt,
+            generatorVersion: generatorVersion
+        )
+    }
+    
+    private func invalidateRenderCacheDirect(messageId: UUID) throws {
+        try ensureOpen()
+        
+        let sql = "DELETE FROM \(MailSchema.tRenderCache) WHERE message_id = ?"
+        
+        let stmt = try prepare(sql)
+        defer { finalize(stmt) }
+        
+        bindUUID(stmt, 1, messageId)
+        
+        guard sqlite3_step(stmt) == SQLITE_DONE else {
+            throw dbError(context: "invalidateRenderCache")
+        }
+    }
+    
+    private func invalidateAllRenderCachesDirect() throws {
+        try ensureOpen()
+        
+        let sql = "DELETE FROM \(MailSchema.tRenderCache)"
+        
+        guard sqlite3_exec(db, sql, nil, nil, nil) == SQLITE_OK else {
+            throw dbError(context: "invalidateAllRenderCaches")
+        }
+    }
+    
+    private func invalidateRenderCachesOlderThanDirect(version: Int) throws -> Int {
+        try ensureOpen()
+        
+        let sql = """
+            DELETE FROM \(MailSchema.tRenderCache)
+            WHERE generator_version < ?
+        """
+        
+        let stmt = try prepare(sql)
+        defer { finalize(stmt) }
+        
+        sqlite3_bind_int(stmt, 1, Int32(version))
+        
+        guard sqlite3_step(stmt) == SQLITE_DONE else {
+            throw dbError(context: "invalidateRenderCachesOlderThan")
+        }
+        
+        return Int(sqlite3_changes(db))
+    }
+    
+    private func invalidateRenderCachesOlderThanDirect(date: Date) throws -> Int {
+        try ensureOpen()
+        
+        let sql = """
+            DELETE FROM \(MailSchema.tRenderCache)
+            WHERE generated_at < ?
+        """
+        
+        let stmt = try prepare(sql)
+        defer { finalize(stmt) }
+        
+        sqlite3_bind_int64(stmt, 1, Int64(date.timeIntervalSince1970))
+        
+        guard sqlite3_step(stmt) == SQLITE_DONE else {
+            throw dbError(context: "invalidateRenderCachesOlderThan")
+        }
+        
+        return Int(sqlite3_changes(db))
+    }
+    
+    private func executeDirectSQL(_ sql: String) throws {
+        try ensureOpen()
+        
+        guard sqlite3_exec(db, sql, nil, nil, nil) == SQLITE_OK else {
+            throw dbError(context: "executeSQL")
+        }
+    }
+    
+    private func getRenderCacheSizesDirect() throws -> [UUID: Int] {
+        try ensureOpen()
+        
+        let sql = """
+            SELECT message_id, 
+                   LENGTH(COALESCE(html_rendered, '')) + LENGTH(COALESCE(text_rendered, '')) as size
+            FROM \(MailSchema.tRenderCache)
+        """
+        
+        let stmt = try prepare(sql)
+        defer { finalize(stmt) }
+        
+        var sizes: [UUID: Int] = [:]
+        
+        while sqlite3_step(stmt) == SQLITE_ROW {
+            if let messageIdText = sqlite3_column_text(stmt, 0),
+               let messageId = UUID(uuidString: String(cString: messageIdText)) {
+                let size = Int(sqlite3_column_int(stmt, 1))
+                sizes[messageId] = size
+            }
+        }
+        
+        return sizes
+    }
+    
+    private func getRenderCacheStatisticsDirect() throws -> DatabaseStatistics {
+        try ensureOpen()
+        
+        let sql = """
+            SELECT COUNT(*) as count,
+                   SUM(LENGTH(COALESCE(html_rendered, '')) + LENGTH(COALESCE(text_rendered, ''))) as total_size,
+                   MIN(generated_at) as oldest,
+                   MAX(generated_at) as newest
+            FROM \(MailSchema.tRenderCache)
+        """
+        
+        let stmt = try prepare(sql)
+        defer { finalize(stmt) }
+        
+        guard sqlite3_step(stmt) == SQLITE_ROW else {
+            return DatabaseStatistics(
+                totalEntries: 0,
+                totalSizeBytes: 0,
+                oldestEntry: nil,
+                newestEntry: nil
+            )
+        }
+        
+        let count = Int(sqlite3_column_int(stmt, 0))
+        let totalSize = sqlite3_column_int64(stmt, 1)
+        let oldest = sqlite3_column_int64(stmt, 2) > 0 ?
+            Date(timeIntervalSince1970: Double(sqlite3_column_int64(stmt, 2))) : nil
+        let newest = sqlite3_column_int64(stmt, 3) > 0 ?
+            Date(timeIntervalSince1970: Double(sqlite3_column_int64(stmt, 3))) : nil
+        
+        return DatabaseStatistics(
+            totalEntries: count,
+            totalSizeBytes: totalSize,
+            oldestEntry: oldest,
+            newestEntry: newest
+        )
     }
 }
 
@@ -390,39 +597,6 @@ extension RenderCacheDAO: NSCacheDelegate {
 }
 
 // MARK: - Supporting Types
-
-public class RenderCacheEntry: NSObject {
-    let messageId: UUID
-    let htmlRendered: String?
-    let textRendered: String?
-    let generatedAt: Date
-    let generatorVersion: Int
-    let compressed: Bool
-    
-    init(messageId: UUID,
-         htmlRendered: String?,
-         textRendered: String?,
-         generatedAt: Date,
-         generatorVersion: Int,
-         compressed: Bool = false) {
-        
-        self.messageId = messageId
-        self.htmlRendered = htmlRendered
-        self.textRendered = textRendered
-        self.generatedAt = generatedAt
-        self.generatorVersion = generatorVersion
-        self.compressed = compressed
-        super.init()
-    }
-    
-    var isEmpty: Bool {
-        return htmlRendered == nil && textRendered == nil
-    }
-    
-    var sizeBytes: Int {
-        return (htmlRendered?.count ?? 0) + (textRendered?.count ?? 0)
-    }
-}
 
 struct CacheStatistics {
     var storeCount: Int = 0
@@ -462,130 +636,4 @@ enum CacheError: Error {
     case invalidData
 }
 
-// MARK: - DAO Extensions for RenderCache
 
-extension MailWriteDAO {
-    
-    func invalidateAllRenderCaches() throws {
-        try ensureOpen()
-        
-        let sql = "DELETE FROM \(MailSchema.tRenderCache)"
-        
-        guard sqlite3_exec(db, sql, nil, nil, nil) == SQLITE_OK else {
-            throw dbError(context: "invalidateAllRenderCaches")
-        }
-    }
-    
-    func invalidateRenderCachesOlderThan(version: Int) throws -> Int {
-        try ensureOpen()
-        
-        let sql = """
-            DELETE FROM \(MailSchema.tRenderCache)
-            WHERE generator_version < ?
-        """
-        
-        let stmt = try prepare(sql)
-        defer { finalize(stmt) }
-        
-        sqlite3_bind_int(stmt, 1, Int32(version))
-        
-        guard sqlite3_step(stmt) == SQLITE_DONE else {
-            throw dbError(context: "invalidateRenderCachesOlderThan")
-        }
-        
-        return Int(sqlite3_changes(db))
-    }
-    
-    func invalidateRenderCachesOlderThan(date: Date) throws -> Int {
-        try ensureOpen()
-        
-        let sql = """
-            DELETE FROM \(MailSchema.tRenderCache)
-            WHERE generated_at < ?
-        """
-        
-        let stmt = try prepare(sql)
-        defer { finalize(stmt) }
-        
-        sqlite3_bind_int64(stmt, 1, Int64(date.timeIntervalSince1970))
-        
-        guard sqlite3_step(stmt) == SQLITE_DONE else {
-            throw dbError(context: "invalidateRenderCachesOlderThan")
-        }
-        
-        return Int(sqlite3_changes(db))
-    }
-    
-    func executeSQL(_ sql: String) throws {
-        try ensureOpen()
-        
-        guard sqlite3_exec(db, sql, nil, nil, nil) == SQLITE_OK else {
-            throw dbError(context: "executeSQL")
-        }
-    }
-}
-
-extension MailReadDAO {
-    
-    func getRenderCacheSizes() throws -> [UUID: Int] {
-        try ensureOpen()
-        
-        let sql = """
-            SELECT message_id, 
-                   LENGTH(html_rendered) + LENGTH(text_rendered) as size
-            FROM \(MailSchema.tRenderCache)
-        """
-        
-        let stmt = try prepare(sql)
-        defer { finalize(stmt) }
-        
-        var sizes: [UUID: Int] = [:]
-        
-        while sqlite3_step(stmt) == SQLITE_ROW {
-            if let messageId = stmt.columnUUID(0) {
-                let size = Int(sqlite3_column_int(stmt, 1))
-                sizes[messageId] = size
-            }
-        }
-        
-        return sizes
-    }
-    
-    func getRenderCacheStatistics() throws -> DatabaseStatistics {
-        try ensureOpen()
-        
-        let sql = """
-            SELECT COUNT(*) as count,
-                   SUM(LENGTH(html_rendered) + LENGTH(text_rendered)) as total_size,
-                   MIN(generated_at) as oldest,
-                   MAX(generated_at) as newest
-            FROM \(MailSchema.tRenderCache)
-        """
-        
-        let stmt = try prepare(sql)
-        defer { finalize(stmt) }
-        
-        guard sqlite3_step(stmt) == SQLITE_ROW else {
-            return DatabaseStatistics(
-                totalEntries: 0,
-                totalSizeBytes: 0,
-                oldestEntry: nil,
-                newestEntry: nil
-            )
-        }
-        
-        let count = Int(sqlite3_column_int(stmt, 0))
-        let totalSize = sqlite3_column_int64(stmt, 1)
-        let oldest = sqlite3_column_int64(stmt, 2) > 0 ?
-            Date(timeIntervalSince1970: Double(sqlite3_column_int64(stmt, 2))) : nil
-        let newest = sqlite3_column_int64(stmt, 3) > 0 ?
-            Date(timeIntervalSince1970: Double(sqlite3_column_int64(stmt, 3))) : nil
-        
-        return DatabaseStatistics(
-            totalEntries: count,
-            totalSizeBytes: totalSize,
-            oldestEntry: oldest,
-            newestEntry: newest
-        )
-    }
-}

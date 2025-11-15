@@ -1,7 +1,11 @@
 // MissingTypes.swift
+// Konsolidierte Type-Definitionen für das Mail-System
+// KEINE DUPLIKATE - nur eine Definition pro Typ
+
 import Foundation
 
-// MIME Entities
+// MARK: - MIME Part Entity
+
 public struct MimePartEntity {
     public let id: UUID
     public let messageId: UUID
@@ -17,8 +21,6 @@ public struct MimePartEntity {
     public let isAttachment: Bool
     public let isInline: Bool
     public let parentPartNumber: String?
-    
-    // FEHLENDE PROPERTIES HINZUGEFÜGT:
     public let partId: String
     public let parentPartId: String?
     public let mediaType: String
@@ -29,7 +31,10 @@ public struct MimePartEntity {
     public let isBodyCandidate: Bool
     public let blobId: String?
     
-    // Initializer
+    public var disposition: String? {
+        return contentDisposition
+    }
+    
     public init(id: UUID, messageId: UUID, partNumber: String, contentType: String,
                 contentSubtype: String? = nil, contentId: String? = nil,
                 contentDisposition: String? = nil, filename: String? = nil,
@@ -65,13 +70,42 @@ public struct MimePartEntity {
     }
 }
 
+// MARK: - Blob Storage
+
 public struct BlobMetaEntry {
-    let id: UUID
-    let sha256: String
-    let size: Int64
-    let referenceCount: Int
-    let createdAt: Date
+    public let id: UUID
+    public let sha256: String
+    public let size: Int64
+    public let referenceCount: Int
+    public let createdAt: Date
+    public let lastAccessedAt: Date?
+    
+    public init(id: UUID, sha256: String, size: Int64, referenceCount: Int, 
+                createdAt: Date, lastAccessedAt: Date? = nil) {
+        self.id = id
+        self.sha256 = sha256
+        self.size = size
+        self.referenceCount = referenceCount
+        self.createdAt = createdAt
+        self.lastAccessedAt = lastAccessedAt
+    }
 }
+
+public struct BlobStorageMetrics {
+    public let totalBlobs: Int
+    public let totalSize: Int64
+    public let deduplicatedCount: Int
+    public let averageSize: Int
+    
+    public init(totalBlobs: Int, totalSize: Int64, deduplicatedCount: Int, averageSize: Int) {
+        self.totalBlobs = totalBlobs
+        self.totalSize = totalSize
+        self.deduplicatedCount = deduplicatedCount
+        self.averageSize = averageSize
+    }
+}
+
+// MARK: - Attachment Entity
 
 public struct AttachmentEntity {
     public let id: UUID
@@ -99,21 +133,34 @@ public struct AttachmentEntity {
     }
 }
 
+// MARK: - Render Cache
+
 public struct RenderCacheEntry {
-    let messageId: UUID
-    let htmlRendered: String?
-    let textRendered: String?
-    let generatedAt: Date
-    let generatorVersion: Int
+    public let messageId: UUID
+    public let htmlRendered: String?
+    public let textRendered: String?
+    public let generatedAt: Date
+    public let generatorVersion: Int
     
-    public init(messageId: UUID, htmlRendered: String?, textRendered: String?, generatedAt: Date, generatorVersion: Int) {
+    public init(messageId: UUID, htmlRendered: String?, textRendered: String?, 
+                generatedAt: Date, generatorVersion: Int) {
         self.messageId = messageId
         self.htmlRendered = htmlRendered
         self.textRendered = textRendered
         self.generatedAt = generatedAt
         self.generatorVersion = generatorVersion
     }
+    
+    public var isEmpty: Bool {
+        return htmlRendered == nil && textRendered == nil
+    }
+    
+    public var sizeBytes: Int {
+        return (htmlRendered?.count ?? 0) + (textRendered?.count ?? 0)
+    }
 }
+
+// MARK: - Processed Message
 
 public struct ProcessedMessage {
     public let messageId: UUID
@@ -138,58 +185,30 @@ public struct ProcessedMessage {
 }
 
 public struct ProcessedContent {
-    let html: String?
-    let plainText: String?
-    let attachmentRefs: [String]
+    public let html: String?
+    public let plainText: String?
+    public let attachmentRefs: [String]
+    
+    public init(html: String?, plainText: String?, attachmentRefs: [String]) {
+        self.html = html
+        self.plainText = plainText
+        self.attachmentRefs = attachmentRefs
+    }
 }
 
 public struct FinalizedContent {
-    let html: String?
-    let plainText: String?
-    let inlineImages: [String: Data]
-}
-
-public struct BlobStorageMetrics {
-    public let totalBlobs: Int
-    public let totalSize: Int64
-    public let deduplicatedCount: Int
-    public let averageSize: Int
+    public let html: String?
+    public let plainText: String?
+    public let inlineImages: [String: Data]
     
-    public init(totalBlobs: Int, totalSize: Int64, deduplicatedCount: Int, averageSize: Int) {
-        self.totalBlobs = totalBlobs
-        self.totalSize = totalSize
-        self.deduplicatedCount = deduplicatedCount
-        self.averageSize = averageSize
+    public init(html: String?, plainText: String?, inlineImages: [String: Data]) {
+        self.html = html
+        self.plainText = plainText
+        self.inlineImages = inlineImages
     }
 }
 
-public class CertificateInfo: NSObject {
-    public let subject: String
-    public let issuer: String  
-    public let validFrom: Date
-    public let validTo: Date
-    
-    public init(subject: String, issuer: String, validFrom: Date, validTo: Date) {
-        self.subject = subject
-        self.issuer = issuer
-        self.validFrom = validFrom
-        self.validTo = validTo
-        super.init()
-    }
-}
-
-public enum TrustLevel: Int {
-    case untrusted = 0
-    case partial = 1
-    case trusted = 2
-}
-
-public enum ProcessingError: Error {
-    case invalidData
-    case networkError
-    case parsingError
-    case timeout
-}
+// MARK: - Errors
 
 public struct StorageError: Error {
     public let isTemporary: Bool
@@ -200,7 +219,6 @@ public struct StorageError: Error {
         self.reason = reason
     }
     
-    // Convenience static factory methods
     public static let notFound = StorageError(isTemporary: false, reason: "Not found")
     public static let invalidData = StorageError(isTemporary: false, reason: "Invalid data")
     public static let networkError = StorageError(isTemporary: true, reason: "Network error")
@@ -215,15 +233,68 @@ public enum AttachmentError: Error {
     case alreadyDownloading
     case tooLarge
     case invalidData
+    case contentTooLarge
+    case invalidEncoding
 }
 
-// IMAP Types (falls nicht vorhanden)
+public enum ProcessingError: Error {
+    case invalidData
+    case networkError
+    case parsingError
+    case timeout
+}
+
+// MARK: - S/MIME & PGP Types
+
+public class CertificateInfo: NSObject {
+    public let subject: String
+    public let issuer: String
+    public let serialNumber: String
+    public let validFrom: Date
+    public let validUntil: Date
+    public let emailAddress: String
+    public let trustLevel: TrustLevel
+    
+    public init(subject: String, issuer: String, serialNumber: String,
+                validFrom: Date, validUntil: Date, emailAddress: String,
+                trustLevel: TrustLevel) {
+        self.subject = subject
+        self.issuer = issuer
+        self.serialNumber = serialNumber
+        self.validFrom = validFrom
+        self.validUntil = validUntil
+        self.emailAddress = emailAddress
+        self.trustLevel = trustLevel
+        super.init()
+    }
+}
+
+public enum TrustLevel: Int {
+    case unknown = 0
+    case untrusted = 1
+    case marginal = 2
+    case trusted = 3
+    case invalid = 4
+    case revoked = 5
+}
+
+// MARK: - IMAP Types
+
 public struct IMAPBodyPart {
-    let partNumber: String
-    let type: String
-    let subtype: String
-    let parameters: [String: String]
-    let size: Int64
+    public let partNumber: String
+    public let type: String
+    public let subtype: String
+    public let parameters: [String: String]
+    public let size: Int64
+    
+    public init(partNumber: String, type: String, subtype: String, 
+                parameters: [String: String], size: Int64) {
+        self.partNumber = partNumber
+        self.type = type
+        self.subtype = subtype
+        self.parameters = parameters
+        self.size = size
+    }
 }
 
 public struct IMAPBodyStructure {
@@ -236,7 +307,8 @@ public struct IMAPBodyStructure {
     }
 }
 
-// MIME Content Types
+// MARK: - MIME Content Types
+
 public enum MimeContentType {
     case text
     case image  
@@ -261,7 +333,8 @@ public enum MimeContentType {
     }
 }
 
-// Notification Types
+// MARK: - Notification Types
+
 public enum NotificationType {
     case message
     case attachment
@@ -269,22 +342,49 @@ public enum NotificationType {
     case error
 }
 
-// Circuit Breaker (Placeholder)
+// MARK: - Circuit Breaker
+
 public class CircuitBreaker {
+    private var isOpen = false
+    private var failureCount = 0
+    private var lastFailureTime: Date?
+    
     public func reset() {
-        // Implementation
+        isOpen = false
+        failureCount = 0
+        lastFailureTime = nil
     }
     
     public func recordSuccess() {
-        // Implementation
+        failureCount = 0
+        lastFailureTime = nil
+        isOpen = false
+    }
+    
+    public func recordFailure() {
+        failureCount += 1
+        lastFailureTime = Date()
+        if failureCount >= 3 {
+            isOpen = true
+        }
     }
     
     public func open(until date: Date) {
-        // Implementation
+        isOpen = true
+        lastFailureTime = date
+    }
+    
+    public var canExecute: Bool {
+        if !isOpen { return true }
+        
+        guard let lastFailure = lastFailureTime else { return true }
+        let timeout = TimeInterval(60) // 60 seconds
+        return Date().timeIntervalSince(lastFailure) > timeout
     }
 }
 
-// IMAP Client Extensions (Placeholder)
+// MARK: - IMAP Client Extensions
+
 public class IMAPClient {
     public func fetchPartial(messageId: String, partId: String, range: Range<Int>) throws -> Data {
         // Implementation placeholder
@@ -294,5 +394,82 @@ public class IMAPClient {
     public func fetchSection(messageId: String, section: String) throws -> Data {
         // Implementation placeholder
         return Data()
+    }
+    
+    public func fetchBodyStructure(messageId: String) throws -> IMAPBodyStructure {
+        // Implementation placeholder
+        let rootPart = IMAPBodyPart(partNumber: "1", type: "text", subtype: "plain", parameters: [:], size: 0)
+        return IMAPBodyStructure(rootPart: rootPart, parts: [])
+    }
+}
+
+// MARK: - Performance Monitoring
+
+public class PerformanceMonitor {
+    public func measure<T>(_ operation: String, block: () throws -> T) rethrows -> T {
+        let start = Date()
+        defer {
+            let duration = Date().timeIntervalSince(start)
+            print("⏱ [\(operation)] took \(String(format: "%.3f", duration))s")
+        }
+        return try block()
+    }
+}
+
+// MARK: - Mail Schema
+
+public class MailSchema {
+    public static let tMsgHeader = "msg_header"
+    public static let tMimeParts = "mime_parts"
+    public static let tAttachment = "attachments"
+    public static let tRenderCache = "render_cache"
+    public static let tBlobMeta = "blob_meta"
+    public static let tBlobStore = "blob_store"
+    
+    public static let ddl_v1: [String] = []
+}
+
+// MARK: - DAO Error
+
+public enum DAOError: Error {
+    case databaseError(String)
+    case sqlError(String)
+    case notFound
+    case invalidData
+}
+
+// MARK: - Message Body Entity
+
+public struct MessageBodyEntity {
+    public let messageId: UUID
+    public let htmlBody: String?
+    public let textBody: String?
+    public let hasAttachments: Bool
+    
+    public init(messageId: UUID, htmlBody: String? = nil, 
+                textBody: String? = nil, hasAttachments: Bool = false) {
+        self.messageId = messageId
+        self.htmlBody = htmlBody
+        self.textBody = textBody
+        self.hasAttachments = hasAttachments
+    }
+}
+
+// MARK: - Mail Header
+
+public struct MailHeader {
+    public let uid: String
+    public let from: String
+    public let subject: String
+    public let date: Date
+    public let flags: [String]
+    
+    public init(uid: String, from: String, subject: String, 
+                date: Date, flags: [String]) {
+        self.uid = uid
+        self.from = from
+        self.subject = subject
+        self.date = date
+        self.flags = flags
     }
 }
