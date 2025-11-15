@@ -278,7 +278,7 @@ extension AttachmentServingService {
                 partId: part.partId,
                 filename: part.filenameNormalized ?? "attachment",
                 mimeType: part.mediaType,
-                size: part.sizeOctets,
+                size: Int(part.sizeOctets),
                 url: url
             ))
         }

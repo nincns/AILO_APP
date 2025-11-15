@@ -53,19 +53,19 @@ class FetchStrategy {
         let currentPath = partPath.isEmpty ? "1" : partPath
         
         switch part.type {
-        case .text(let subtype, let charset):
+        case MimeContentType.text(let subtype, let charset):
             // Text parts are usually body candidates
             let section = FetchPlan.FetchSection(
                 partId: currentPath,
                 section: "BODY[\(currentPath)]",
-                expectedSize: part.size ?? 0,
+                expectedSize: Int(part.size ?? 0),
                 mimeType: "text/\(subtype)",
                 priority: .immediate,
                 isBodyCandidate: true
             )
             immediate.append(section)
             
-        case .multipart(let subtype, let parts):
+        case MimeContentType.multipart(let subtype, let parts):
             // Process multipart containers
             if subtype == "alternative" {
                 // For alternative, pick the best part
@@ -84,14 +84,14 @@ class FetchStrategy {
                 }
             }
             
-        case .image(let subtype, let contentId):
+        case MimeContentType.image(let subtype, let contentId):
             // Images with Content-ID are inline, fetch immediately
             let priority: FetchPriority = contentId != nil ? .immediate : .deferred
             
             let section = FetchPlan.FetchSection(
                 partId: currentPath,
                 section: "BODY[\(currentPath)]",
-                expectedSize: part.size ?? 0,
+                expectedSize: Int(part.size ?? 0),
                 mimeType: "image/\(subtype)",
                 priority: priority,
                 isBodyCandidate: false
@@ -103,24 +103,24 @@ class FetchStrategy {
                 deferred.append(section)
             }
             
-        case .attachment(let mimeType, let filename):
+        case MimeContentType.attachment(let mimeType, let filename):
             // Regular attachments are deferred
             let section = FetchPlan.FetchSection(
                 partId: currentPath,
                 section: "BODY[\(currentPath)]",
-                expectedSize: part.size ?? 0,
+                expectedSize: Int(part.size ?? 0),
                 mimeType: mimeType,
                 priority: .deferred,
                 isBodyCandidate: false
             )
             deferred.append(section)
             
-        case .message:
+        case MimeContentType.message:
             // Embedded messages might need special handling
             let section = FetchPlan.FetchSection(
                 partId: currentPath,
                 section: "BODY[\(currentPath)]",
-                expectedSize: part.size ?? 0,
+                expectedSize: Int(part.size ?? 0),
                 mimeType: "message/rfc822",
                 priority: .deferred,
                 isBodyCandidate: false
@@ -140,7 +140,7 @@ class FetchStrategy {
         var bestPart: (index: Int, part: IMAPBodyPart)?
         
         for (index, part) in parts.enumerated() {
-            if case .text(let subtype, _) = part.type {
+            if case let MimeContentType.text(subtype, _) = part.type {
                 if subtype == "html" {
                     bestPart = (index, part)
                     break  // HTML found, use it

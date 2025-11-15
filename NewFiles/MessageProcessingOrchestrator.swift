@@ -255,21 +255,25 @@ class MessageProcessingOrchestrator {
         
         // Process attachments concurrently with limit
         await withTaskGroup(of: AttachmentResult.self) { group in
+            var activeTaskCount = 0
+            
             for part in message.mimeParts {
                 if !part.isBodyCandidate && part.sizeOctets > 0 {
+                    // Limit concurrent downloads
+                    while activeTaskCount >= 5 {
+                        if let result = await group.next() {
+                            results.append(result)
+                            activeTaskCount -= 1
+                        }
+                    }
+                    
                     group.addTask {
                         await self.processAttachment(
                             messageId: message.messageId,
                             part: part
                         )
                     }
-                }
-                
-                // Limit concurrent downloads
-                if group.count >= 5 {
-                    if let result = await group.next() {
-                        results.append(result)
-                    }
+                    activeTaskCount += 1
                 }
             }
             
@@ -299,7 +303,7 @@ class MessageProcessingOrchestrator {
                 messageId: messageId,
                 partId: part.partId,
                 section: "BODY[\(part.partId)]",
-                expectedSize: part.sizeOctets
+                expectedSize: Int(part.sizeOctets)
             )
             
             // Store in blob store

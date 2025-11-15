@@ -82,7 +82,7 @@ class ErrorRecoveryService {
         // Check circuit breaker
         if configuration.enableCircuitBreaker {
             if let breaker = getCircuitBreaker(for: contextKey) {
-                if breaker.state == .open {
+                if case .open = breaker.state {
                     print("⚡ [Recovery] Circuit breaker OPEN for: \(contextKey)")
                     statistics.circuitBreakerTrips += 1
                     return .fail(CircuitBreakerError.open)
@@ -97,7 +97,7 @@ class ErrorRecoveryService {
         guard state.attemptCount < configuration.maxRetries else {
             print("❌ [Recovery] Max retries reached for: \(contextKey)")
             statistics.maxRetriesReached += 1
-            recordFailure(for: contextKey)
+            recordFailure(for: contextKey, error: error)
             return .fail(error)
         }
         
@@ -149,7 +149,13 @@ class ErrorRecoveryService {
     func reset(context: String) {
         queue.sync(flags: .barrier) {
             retryState[context] = nil
-            circuitBreakers[context]?.reset()
+            // Reset circuit breaker to closed state
+            if circuitBreakers[context] != nil {
+                circuitBreakers[context] = CircuitBreaker(
+                    openAfterFailures: configuration.circuitBreakerThreshold,
+                    baseOpenDuration: configuration.circuitBreakerTimeout
+                )
+            }
         }
         
         print("♻️ [Recovery] Reset state for: \(context)")
@@ -158,22 +164,25 @@ class ErrorRecoveryService {
     func recordSuccess(for context: String) {
         queue.sync(flags: .barrier) {
             retryState[context] = nil
-            circuitBreakers[context]?.recordSuccess()
+            // Record success in circuit breaker
+            if circuitBreakers[context] != nil {
+                circuitBreakers[context]?.record(.success(()))
+            }
         }
         
         statistics.successfulRecoveries += 1
     }
     
-    private func recordFailure(for context: String) {
+    private func recordFailure(for context: String, error: Error) {
         queue.sync(flags: .barrier) {
             if configuration.enableCircuitBreaker {
                 if circuitBreakers[context] == nil {
                     circuitBreakers[context] = CircuitBreaker(
-                        threshold: configuration.circuitBreakerThreshold,
-                        timeout: configuration.circuitBreakerTimeout
+                        openAfterFailures: configuration.circuitBreakerThreshold,
+                        baseOpenDuration: configuration.circuitBreakerTimeout
                     )
                 }
-                circuitBreakers[context]?.recordFailure()
+                circuitBreakers[context]?.record(.failure(error))
             }
         }
     }
