@@ -174,71 +174,71 @@ class MessageProcessingOrchestrator {
     // MARK: - Phase 3: Process Message
     
     private func processMessage(_ data: FetchedMessageData) async throws -> ProcessedMessage {
-        return try await performanceMonitor.measure("process_message") {
-            print("⚙️ [Orchestrator] Processing message...")
-            
-            // Check processing time limit
-            let timeoutTask = Task {
-                try await Task.sleep(nanoseconds: 30_000_000_000) // 30 seconds
-                throw ProcessingError.timeout
-            }
-            
-            let processingTask = Task {
-                try await messageService.processMessage(
-                    messageId: data.messageId,
-                    accountId: data.accountId,
-                    folder: data.folder,
-                    uid: data.uid,
-                    rawMessage: data.rawMessage,
-                    bodyStructure: data.bodyStructure
-                )
-            }
-            
-            // Race between processing and timeout
-            let result = await withTaskGroup(of: ProcessingOutcome.self) { group in
-                group.addTask {
-                    do {
-                        try await processingTask.value
-                        return .success
-                    } catch {
-                        return .failure(error)
-                    }
+        print("⚙️ [Orchestrator] Processing message...")
+        
+        // Check processing time limit
+        let timeoutTask = Task {
+            try await Task.sleep(nanoseconds: 30_000_000_000) // 30 seconds
+            throw ProcessingError.timeout
+        }
+        
+        let processingTask = Task {
+            try await messageService.processMessage(
+                messageId: data.messageId,
+                accountId: data.accountId,
+                folder: data.folder,
+                uid: data.uid,
+                rawMessage: data.rawMessage,
+                bodyStructure: data.bodyStructure
+            )
+        }
+        
+        // Race between processing and timeout
+        let result = await withTaskGroup(of: ProcessingOutcome.self) { group in
+            group.addTask {
+                do {
+                    try await processingTask.value
+                    return .success
+                } catch {
+                    return .failure(error)
                 }
-                
-                group.addTask {
-                    do {
-                        try await timeoutTask.value
-                        return .timeout
-                    } catch {
-                        return .cancelled
-                    }
-                }
-                
-                let firstResult = await group.next()!
-                group.cancelAll()
-                return firstResult
             }
             
-            switch result {
-            case .success:
-                return ProcessedMessage(
-                    messageId: data.messageId,
-                    mimeParts: [],  // Retrieved from service
-                    hasAttachments: false,
-                    renderCacheId: nil
-                )
-            case .timeout:
-                throw ProcessingError.timeout
-            case .failure(let error):
-                throw error
-            case .cancelled:
-                return ProcessedMessage(
-                    messageId: data.messageId,
-                    mimeParts: [],
-                    hasAttachments: false,
-                    renderCacheId: nil
-                )
+            group.addTask {
+                do {
+                    try await timeoutTask.value
+                    return .timeout
+                } catch {
+                    return .cancelled
+                }
             }
+            
+            let firstResult = await group.next()!
+            group.cancelAll()
+            return firstResult
+        }
+        
+        switch result {
+        case .success:
+            return ProcessedMessage(
+                messageId: data.messageId,
+                attachments: [],  // Retrieved from service
+                mimeParts: [],  // Retrieved from service
+                hasAttachments: false,
+                renderCacheId: nil
+            )
+        case .timeout:
+            throw ProcessingError.timeout
+        case .failure(let error):
+            throw error
+        case .cancelled:
+            return ProcessedMessage(
+                messageId: data.messageId,
+                attachments: [],  // Empty for cancelled processing
+                mimeParts: [],
+                hasAttachments: false,
+                renderCacheId: nil
+            )
         }
     }
     

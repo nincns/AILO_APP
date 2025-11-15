@@ -166,7 +166,10 @@ class ErrorRecoveryService {
             retryState[context] = nil
             // Record success in circuit breaker
             if circuitBreakers[context] != nil {
-                circuitBreakers[context]?.record(.success(()))
+                // CircuitBreaker is struct, need copy-modify-reassign
+                var breaker = circuitBreakers[context]!
+                breaker.record(.success(()))
+                circuitBreakers[context] = breaker
             }
         }
         
@@ -182,7 +185,10 @@ class ErrorRecoveryService {
                         baseOpenDuration: configuration.circuitBreakerTimeout
                     )
                 }
-                circuitBreakers[context]?.record(.failure(error))
+                // CircuitBreaker is struct, need copy-modify-reassign
+                var breaker = circuitBreakers[context]!
+                breaker.record(.failure(error))
+                circuitBreakers[context] = breaker
             }
         }
     }
