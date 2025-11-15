@@ -255,3 +255,41 @@ public struct IMAPBodyPart {
         self.parameters = parameters
     }
 }
+
+// MARK: - Error Extensions
+
+extension StorageError {
+    public var isTemporary: Bool {
+        switch self {
+        case .diskFull, .ioError, .timeout:
+            return true
+        case .corrupted, .invalidData, .notFound:
+            return false
+        default:
+            return false
+        }
+    }
+}
+
+// MARK: - Processing Error
+
+public enum ProcessingError: Error {
+    case invalidMessage
+    case parsingFailed
+    case storageFailed
+    case securityCheckFailed
+    case timeout
+    case cancelled
+    case unknownError(Error)
+    
+    public var isRecoverable: Bool {
+        switch self {
+        case .timeout, .storageFailed:
+            return true
+        case .invalidMessage, .parsingFailed, .securityCheckFailed, .cancelled:
+            return false
+        case .unknownError:
+            return false
+        }
+    }
+}

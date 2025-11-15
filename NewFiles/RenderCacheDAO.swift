@@ -143,7 +143,7 @@ class RenderCacheDAO: BaseDAO {
     
     private func performRetrieve(messageId: UUID) throws -> RenderCacheEntry? {
         // Check memory cache first (thread-safe read)
-        let cachedEntry = queue.sync {
+        let cachedEntry: RenderCacheEntry? = queue.sync {
             if let entry = memoryCache[messageId] {
                 memoryCacheAccess[messageId] = Date() // Update access time
                 return entry
