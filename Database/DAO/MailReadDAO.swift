@@ -430,9 +430,8 @@ public class MailReadDAOImpl: BaseDAO, MailReadDAO {
     // MARK: - Phase 1: MIME Parts Lese-Operationen
 
     public func getMimeParts(messageId: UUID) throws -> [MimePartEntity] {
-        return try DAOPerformanceMonitor.measure("mime_parts_query") {
-            return try dbQueue.sync {
-                try ensureOpen()
+        return try dbQueue.sync {
+            try ensureOpen()
                 
                 let sql = """
                     SELECT id, message_id, part_id, parent_part_id, media_type, charset, transfer_encoding,
@@ -475,7 +474,6 @@ public class MailReadDAOImpl: BaseDAO, MailReadDAO {
                 
                 return parts
             }
-        }
     }
 
     public func getMimePartByContentId(messageId: UUID, contentId: String) throws -> MimePartEntity? {
@@ -499,7 +497,7 @@ public class MailReadDAOImpl: BaseDAO, MailReadDAO {
                 bindText(stmt, 2, contentId)
                 
                 guard sqlite3_step(stmt) == SQLITE_ROW else {
-                    return nil
+                    throw dbError(context: "getMimePartByContentId not found")
                 }
                 
                 return MimePartEntity(
@@ -577,7 +575,7 @@ public class MailReadDAOImpl: BaseDAO, MailReadDAO {
                 bindText(stmt, 1, blobId)
                 
                 guard sqlite3_step(stmt) == SQLITE_ROW else {
-                    return nil
+                    throw dbError(context: "getBlobMeta not found")
                 }
                 
                 return BlobMetaEntry(

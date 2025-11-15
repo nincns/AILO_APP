@@ -2,7 +2,7 @@
 import Foundation
 
 // MIME Entities
-struct MimePartEntity {
+public struct MimePartEntity {
     let id: UUID
     let messageId: UUID
     let partNumber: String
@@ -19,7 +19,7 @@ struct MimePartEntity {
     let parentPartNumber: String?
 }
 
-struct BlobMetaEntry {
+public struct BlobMetaEntry {
     let id: UUID
     let sha256: String
     let size: Int64
@@ -27,7 +27,7 @@ struct BlobMetaEntry {
     let createdAt: Date
 }
 
-struct ProcessedMessage {
+public struct ProcessedMessage {
     let messageId: UUID
     let htmlBody: String?
     let plainTextBody: String?
@@ -35,38 +35,38 @@ struct ProcessedMessage {
     let mimeParts: [MimePartEntity]
 }
 
-struct ProcessedContent {
+public struct ProcessedContent {
     let html: String?
     let plainText: String?
     let attachmentRefs: [String]
 }
 
-struct FinalizedContent {
+public struct FinalizedContent {
     let html: String?
     let plainText: String?
     let inlineImages: [String: Data]
 }
 
-struct StorageMetrics {
+public struct StorageMetrics {
     let totalBlobs: Int
     let totalSize: Int64
     let deduplicatedCount: Int
 }
 
-struct CertificateInfo {
+public struct CertificateInfo {
     let subject: String
     let issuer: String
     let validFrom: Date
     let validTo: Date
 }
 
-enum TrustLevel: Int {
+public enum TrustLevel: Int {
     case untrusted = 0
     case partial = 1
     case trusted = 2
 }
 
-enum ProcessingError: Error {
+public enum ProcessingError: Error {
     case invalidData
     case networkError
     case parsingError
@@ -79,13 +79,4 @@ public struct IMAPBodyPart {
     let subtype: String
     let parameters: [String: String]
     let size: Int64
-}
-
-public struct RenderCacheEntry {
-    public let messageId: UUID
-    public let cacheKey: String
-    public let html: String?
-    public let plainText: String?
-    public let createdAt: Date
-    public let compressed: Bool
 }
