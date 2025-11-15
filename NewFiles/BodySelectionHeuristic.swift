@@ -53,7 +53,7 @@ class BodySelectionHeuristic {
     
     private func selectBestAlternative(from parts: [MimePartEntity]) -> MimePartEntity? {
         // Sort by preference score
-        let sorted = parts.sorted { part1, part2 in
+        let sorted = parts.sorted { (part1: MimePartEntity, part2: MimePartEntity) in
             let score1 = typePreferences[part1.mediaType] ?? 0
             let score2 = typePreferences[part2.mediaType] ?? 0
             

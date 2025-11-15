@@ -232,7 +232,7 @@ extension BlobStore {
         
         // Compress text content if beneficial
         if mimeType.hasPrefix("text/") && data.count > 1024 {
-            if let compressed = compress(data), compressed.count < data.count * 0.8 {
+            if let compressed = compress(data), compressed.count < Int(Double(data.count) * 0.8) {
                 dataToStore = compressed
                 print("🗜 [BlobStore] Compressed text part: \(data.count) → \(compressed.count) bytes")
             }
