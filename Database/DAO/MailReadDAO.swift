@@ -769,4 +769,4 @@ public class MailReadDAOImpl: BaseDAO, MailReadDAO {
             }
         }
     }
-}
+

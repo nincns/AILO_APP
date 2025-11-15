@@ -189,7 +189,6 @@ class BlobStore {
         }
         return meta.referenceCount
     }
-    }
     
     private func incrementBlobReference(blobId: String) throws {
         try writeDAO.incrementBlobReference(blobId)
@@ -268,7 +267,7 @@ extension BlobStore {
     
     /// Remove blobs not accessed for specified days
     func cleanupOldBlobs(olderThanDays: Int) throws -> Int {
-        let cutoffDate = Date().addingTimeInterval(TimeInterval(-olderThanDays * 24 * 60 * 60))
+        let cutoffDate = Date().addingTimeInterval(-TimeInterval(olderThanDays * 24 * 60 * 60))
         let oldBlobs = try readDAO.getBlobsOlderThan(cutoffDate)
         
         var cleaned = 0
