@@ -746,27 +746,32 @@ struct MessageDetailView: View {
         rawBody: String,
         bodyEntity: MessageBodyEntity
     ) async throws -> (bodyText: String, isHTML: Bool) {
-        
+
         print("🔄 [processAndStoreMailBody] Starting processing for UID: \(mail.uid)")
-        
-        // 1. Process rawBody mit MailBodyProcessor
-        let (text, html) = MailBodyProcessor.processRawBody(rawBody)
-        
+
+        // 1. Process rawBody mit MailBodyProcessor (erweiterte Version für hasAttachments)
+        let processingResult = MailBodyProcessor.processRawBodyExtended(rawBody)
+        let text = processingResult.text
+        let html = processingResult.html
+        let hasAttachments = processingResult.hasAttachments
+
+        print("   📋 Processing result: text=\(text?.count ?? 0), html=\(html?.count ?? 0), hasAttachments=\(hasAttachments)")
+
         // 2. Validierung: Mindestens text ODER html muss vorhanden sein
         guard text != nil || html != nil else {
             print("❌ [processAndStoreMailBody] No content extracted!")
             throw MailBodyError.noContentExtracted
         }
-        
+
         // 3. DAO verfügbar?
         guard let writeDAO = MailRepository.shared.writeDAO else {
             print("❌ [processAndStoreMailBody] WriteDAO not available!")
             throw MailBodyError.daoNotAvailable
         }
-        
+
         // 4. Update Entity MIT DEFENSIVE MERGE
         var updatedEntity = bodyEntity
-        
+
         // ✅ KRITISCHER FIX: Nur setzen wenn nicht-nil, sonst bestehenden Wert behalten
         // Dies verhindert dass INSERT OR REPLACE bestehende Werte mit NULL überschreibt
         if let newText = text {
@@ -776,7 +781,7 @@ struct MessageDetailView: View {
             print("   → Preserving existing text (\(bodyEntity.text!.count) chars)")
             // updatedEntity.text bleibt bodyEntity.text (bereits durch var updatedEntity = bodyEntity)
         }
-        
+
         if let newHtml = html {
             updatedEntity.html = newHtml
             print("   → Setting new html (\(newHtml.count) chars)")
@@ -784,9 +789,15 @@ struct MessageDetailView: View {
             print("   → Preserving existing html (\(bodyEntity.html!.count) chars)")
             // updatedEntity.html bleibt bodyEntity.html (bereits durch var updatedEntity = bodyEntity)
         }
-        
+
+        // ✅ NEU: hasAttachments aus Processing-Ergebnis setzen
+        if hasAttachments {
+            updatedEntity.hasAttachments = true
+            print("   → Setting hasAttachments = true (detected during processing)")
+        }
+
         updatedEntity.processedAt = Date()
-        
+
         // 5. Store in DB (OHNE try? - Fehler werden geworfen!)
         try writeDAO.storeBody(
             accountId: mail.accountId,
@@ -794,14 +805,15 @@ struct MessageDetailView: View {
             uid: mail.uid,
             body: updatedEntity
         )
-        
+
         // 6. Logging mit Details
         print("✅ [processAndStoreMailBody] DB updated successfully (defensive merge)")
         print("   - UID: \(mail.uid)")
         print("   - Final text: \(updatedEntity.text?.count ?? 0) chars")
         print("   - Final html: \(updatedEntity.html?.count ?? 0) chars")
+        print("   - hasAttachments: \(updatedEntity.hasAttachments)")
         print("   - processedAt: \(updatedEntity.processedAt?.description ?? "nil")")
-        
+
         // 7. Optional: Verification durch Re-Read
         if let dao = MailRepository.shared.dao,
            let verifyEntity = try? dao.bodyEntity(
@@ -812,13 +824,14 @@ struct MessageDetailView: View {
             print("✅ [processAndStoreMailBody] Verification successful")
             print("   - DB html length: \(verifyEntity.html?.count ?? 0)")
             print("   - DB text length: \(verifyEntity.text?.count ?? 0)")
+            print("   - DB hasAttachments: \(verifyEntity.hasAttachments)")
             print("   - DB processedAt: \(verifyEntity.processedAt != nil ? "set" : "nil")")
         }
-        
+
         // 8. Return Display-Content (bevorzuge html wenn vorhanden)
         let displayText = updatedEntity.html ?? updatedEntity.text ?? ""
         let displayIsHTML = updatedEntity.html != nil
-        
+
         return (displayText, displayIsHTML)
     }
     

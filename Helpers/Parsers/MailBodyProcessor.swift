@@ -6,7 +6,22 @@ import Foundation
 /// Zentrale, eigenständige Helper-Klasse für RAW → HTML/Text Dekodierung
 /// WICHTIG: Diese Klasse ändert NIE die RAW-Daten in der DB!
 public class MailBodyProcessor {
-    
+
+    // MARK: - Result Type für erweiterte Verarbeitung
+
+    /// Ergebnis der Mail-Body-Verarbeitung mit Attachment-Info
+    public struct ProcessingResult {
+        public let text: String?
+        public let html: String?
+        public let hasAttachments: Bool
+
+        public init(text: String?, html: String?, hasAttachments: Bool = false) {
+            self.text = text
+            self.html = html
+            self.hasAttachments = hasAttachments
+        }
+    }
+
     // MARK: - Public API
     
     /// Prüft ob Body noch MIME-Kodierung enthält
@@ -94,25 +109,32 @@ public class MailBodyProcessor {
     
     /// Dekodiert rawBody zu text/html - KOMPLETT eigenständig mit allen FIXES
     public static func processRawBody(_ rawBody: String) -> (text: String?, html: String?) {
+        let result = processRawBodyExtended(rawBody)
+        return (result.text, result.html)
+    }
+
+    /// Erweiterte Version: Dekodiert rawBody und erkennt Anhänge
+    public static func processRawBodyExtended(_ rawBody: String) -> ProcessingResult {
         print("🔄 [MailBodyProcessor] Processing rawBody (\(rawBody.count) chars)...")
-        
+
         // FIX 1: Normalisiere Zeilenendings ZUERST
         let normalizedBody = normalizeLineEndings(rawBody)
-        
+
         // Schritt 1: Extrahiere Content-Type Header
         guard let contentTypeHeader = extractContentTypeHeader(normalizedBody) else {
             print("   ⚠️ No Content-Type found, treating as plain text")
-            return (cleanText(normalizedBody), nil)
+            return ProcessingResult(text: cleanText(normalizedBody), html: nil, hasAttachments: false)
         }
-        
+
         print("   📋 Content-Type: \(contentTypeHeader)")
-        
+
         // Schritt 2: Prüfe ob multipart
         if contentTypeHeader.lowercased().contains("multipart") {
-            return processMultipart(normalizedBody, contentType: contentTypeHeader)
+            return processMultipartExtended(normalizedBody, contentType: contentTypeHeader)
         } else {
             // Single part mail
-            return processSinglePart(normalizedBody, contentType: contentTypeHeader)
+            let result = processSinglePart(normalizedBody, contentType: contentTypeHeader)
+            return ProcessingResult(text: result.text, html: result.html, hasAttachments: false)
         }
     }
     
@@ -125,66 +147,186 @@ public class MailBodyProcessor {
     }
     
     // MARK: - Multipart Processing
-    
+
+    /// Alte Methode für Abwärtskompatibilität
     private static func processMultipart(_ rawBody: String, contentType: String) -> (text: String?, html: String?) {
+        let result = processMultipartExtended(rawBody, contentType: contentType)
+        return (result.text, result.html)
+    }
+
+    /// Erweiterte Multipart-Verarbeitung mit rekursiver Unterstützung für verschachtelte Multiparts
+    private static func processMultipartExtended(_ rawBody: String, contentType: String) -> ProcessingResult {
         print("   🔀 Processing multipart mail...")
-        
+
         // Extrahiere boundary
         guard let boundary = extractBoundary(contentType) else {
             print("   ❌ No boundary found in multipart!")
-            return (cleanText(rawBody), nil)
+            return ProcessingResult(text: cleanText(rawBody), html: nil, hasAttachments: false)
         }
-        
+
         print("   🏷️  Boundary: \(boundary)")
-        
+
         // Teile Body an Boundaries
         let parts = splitByBoundary(rawBody, boundary: boundary)
         print("   📦 Found \(parts.count) parts")
-        
+
         var textContent: String? = nil
         var htmlContent: String? = nil
-        
+        var hasAttachments = false
+
         // Verarbeite jeden Part
         for (index, part) in parts.enumerated() {
             print("   📝 Processing part \(index + 1)...")
-            
+
             // FIX 3: Trimme Part BEVOR Header/Body-Trennung
             let trimmedPart = part.trimmingCharacters(in: .whitespacesAndNewlines)
             guard !trimmedPart.isEmpty else {
                 print("      ⚠️ Part is empty after trimming")
                 continue
             }
-            
+
             guard let (headers, body) = splitHeadersAndBody(trimmedPart) else {
                 print("      ⚠️ Could not split headers/body")
                 continue
             }
-            
+
             let partContentType = extractPartContentType(headers) ?? "text/plain"
+            let fullContentType = extractFullContentType(headers) ?? "text/plain"
             let transferEncoding = extractTransferEncoding(headers) ?? "7bit"
-            
+            let contentDisposition = extractContentDisposition(headers)
+
             print("      - Content-Type: \(partContentType)")
+            print("      - Full Content-Type: \(fullContentType)")
             print("      - Transfer-Encoding: \(transferEncoding)")
+            print("      - Content-Disposition: \(contentDisposition ?? "none")")
             print("      - Body length: \(body.count)")
-            
-            // Dekodiere Body
+
+            // ✅ KRITISCHER FIX: Prüfe auf Attachment ZUERST
+            if isAttachmentPart(contentDisposition: contentDisposition, contentType: partContentType) {
+                hasAttachments = true
+                print("      📎 Attachment detected!")
+                continue  // Anhänge werden hier nicht verarbeitet (nur erkannt)
+            }
+
+            // ✅ KRITISCHER FIX: Rekursive Verarbeitung verschachtelter Multiparts
+            if partContentType.lowercased().contains("multipart") {
+                print("      🔁 Found nested multipart, processing recursively...")
+                let nestedResult = processMultipartExtended(body, contentType: fullContentType)
+
+                // Merge nested results (erste gefundene Werte behalten)
+                if textContent == nil, let nestedText = nestedResult.text {
+                    textContent = nestedText
+                    print("      ✅ Nested text part merged (\(nestedText.count) chars)")
+                }
+                if htmlContent == nil, let nestedHtml = nestedResult.html {
+                    htmlContent = nestedHtml
+                    print("      ✅ Nested HTML part merged (\(nestedHtml.count) chars)")
+                }
+                if nestedResult.hasAttachments {
+                    hasAttachments = true
+                }
+                continue
+            }
+
+            // Dekodiere Body für Text/HTML Parts
             let decodedBody = decodeBody(body, transferEncoding: transferEncoding)
-            
+
             // Speichere je nach Content-Type
             if partContentType.lowercased().contains("text/html") {
-                htmlContent = decodedBody
-                print("      ✅ HTML part decoded (\(decodedBody.count) chars)")
+                if htmlContent == nil {
+                    htmlContent = decodedBody
+                    print("      ✅ HTML part decoded (\(decodedBody.count) chars)")
+                }
             } else if partContentType.lowercased().contains("text/plain") {
-                textContent = decodedBody
-                print("      ✅ Text part decoded (\(decodedBody.count) chars)")
+                if textContent == nil {
+                    textContent = decodedBody
+                    print("      ✅ Text part decoded (\(decodedBody.count) chars)")
+                }
             }
         }
-        
+
         print("   ✅ Multipart processing complete")
         print("      - Text: \(textContent?.count ?? 0) chars")
         print("      - HTML: \(htmlContent?.count ?? 0) chars")
-        
-        return (textContent, htmlContent)
+        print("      - Has Attachments: \(hasAttachments)")
+
+        return ProcessingResult(text: textContent, html: htmlContent, hasAttachments: hasAttachments)
+    }
+
+    /// Prüft, ob ein Part ein Anhang ist
+    private static func isAttachmentPart(contentDisposition: String?, contentType: String) -> Bool {
+        // Explizit als Attachment markiert
+        if let disposition = contentDisposition?.lowercased() {
+            if disposition.contains("attachment") {
+                return true
+            }
+        }
+
+        // Content-Types die typischerweise Anhänge sind
+        let attachmentTypes = [
+            "application/", "image/", "audio/", "video/",
+            "application/pdf", "application/zip", "application/octet-stream"
+        ]
+
+        let lowerContentType = contentType.lowercased()
+        for attachmentType in attachmentTypes {
+            if lowerContentType.hasPrefix(attachmentType) {
+                // Ausnahme: inline images in HTML-Mails (text/html related)
+                if contentDisposition?.lowercased().contains("inline") == true {
+                    return false
+                }
+                return true
+            }
+        }
+
+        return false
+    }
+
+    /// Extrahiert den vollständigen Content-Type Header (mit Parametern wie boundary)
+    private static func extractFullContentType(_ headers: String) -> String? {
+        let lines = headers.components(separatedBy: .newlines)
+        var fullContentType = ""
+        var inContentType = false
+
+        for line in lines {
+            let trimmed = line.trimmingCharacters(in: .whitespaces)
+
+            if trimmed.lowercased().hasPrefix("content-type:") {
+                fullContentType = String(trimmed.dropFirst("content-type:".count)).trimmingCharacters(in: .whitespaces)
+                inContentType = true
+
+                // Prüfe ob Fortsetzung folgt
+                if !trimmed.hasSuffix(";") {
+                    break
+                }
+                continue
+            }
+
+            // Continuation line
+            if inContentType && (line.hasPrefix(" ") || line.hasPrefix("\t")) {
+                fullContentType += " " + trimmed
+
+                if !trimmed.hasSuffix(";") {
+                    break
+                }
+            } else if inContentType {
+                break
+            }
+        }
+
+        return fullContentType.isEmpty ? nil : fullContentType
+    }
+
+    /// Extrahiert Content-Disposition Header
+    private static func extractContentDisposition(_ headers: String) -> String? {
+        let lines = headers.components(separatedBy: .newlines)
+        for line in lines {
+            if line.lowercased().hasPrefix("content-disposition:") {
+                return String(line.dropFirst("content-disposition:".count))
+                    .trimmingCharacters(in: .whitespaces)
+            }
+        }
+        return nil
     }
     
     // MARK: - Single Part Processing

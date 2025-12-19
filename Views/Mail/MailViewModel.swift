@@ -412,17 +412,14 @@ import Foundation
             }
             
             print("📎 [DEBUG] Total status map: \(statusMap.count) entries")
-            
-            // 🧪 TEMP DEBUG: Setze ersten Entry auf true für Test
-            var finalStatusMap = statusMap
-            if let firstUID = statusMap.keys.first {
-                finalStatusMap[firstUID] = true
-                print("🧪 [DEBUG] TEMP: Set first UID (\(firstUID)) to hasAttachments=true for testing")
-            }
-            
+
+            // Log wie viele tatsächlich Attachments haben
+            let withAttachments = statusMap.filter { $0.value }.count
+            print("📎 [DEBUG] Messages with attachments: \(withAttachments)/\(statusMap.count)")
+
             await MainActor.run {
-                self.attachmentStatus = finalStatusMap
-                print("📎 Loaded attachment status for \(finalStatusMap.count) messages (DEBUG mode)")
+                self.attachmentStatus = statusMap
+                print("📎 Loaded attachment status for \(statusMap.count) messages")
             }
         } catch {
             print("❌ [DEBUG] Outer catch - Failed to load attachment status: \(error)")

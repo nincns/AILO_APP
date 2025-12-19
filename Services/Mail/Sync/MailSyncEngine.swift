@@ -656,8 +656,37 @@ public actor MailSyncEngine {
     }
     
     private func detectAttachments(in rawBody: String) -> Bool {
-        return rawBody.contains("Content-Disposition: attachment") ||
-               rawBody.contains("Content-Type: multipart/mixed")
+        let lowerBody = rawBody.lowercased()
+
+        // Explizit als Attachment markiert
+        if lowerBody.contains("content-disposition: attachment") {
+            return true
+        }
+
+        // Multipart/mixed enthält typischerweise Anhänge
+        if lowerBody.contains("content-type: multipart/mixed") {
+            return true
+        }
+
+        // Content-Types die typischerweise Anhänge sind (außer wenn inline)
+        let attachmentTypes = [
+            "content-type: application/pdf",
+            "content-type: application/zip",
+            "content-type: application/octet-stream",
+            "content-type: application/msword",
+            "content-type: application/vnd."
+        ]
+
+        for attachmentType in attachmentTypes {
+            if lowerBody.contains(attachmentType) {
+                // Prüfe ob es nicht inline ist
+                if !lowerBody.contains("content-disposition: inline") {
+                    return true
+                }
+            }
+        }
+
+        return false
     }
     
     private func extractContentType(from rawBody: String) -> String? {
