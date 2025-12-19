@@ -274,7 +274,7 @@ public class BaseDAO {
     internal func bindStringArray(_ statement: OpaquePointer, _ index: Int32, _ array: [String]) {
         let joined = array.joined(separator: ",")
         let finalValue = joined.isEmpty ? nil : joined
-        print("🔍 [BIND-STRINGARRAY] Index: \(index), Array: \(array), Joined: '\(finalValue ?? \"NULL\")'")
+        print("🔍 [BIND-STRINGARRAY] Index: \(index), Array: \(array), Joined: '\(finalValue ?? "NULL")'")
         bindText(statement, index, finalValue)
     }
 
