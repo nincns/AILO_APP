@@ -42,6 +42,7 @@ struct MessageDetailView: View {
                 mailHeaderSection
 
                 // Attachments section - NEUE POSITION
+                let _ = print("📎 [VIEW] attachments.isEmpty = \(attachments.isEmpty), count = \(attachments.count)")
                 if !attachments.isEmpty {
                     attachmentsSection
                         .padding(.top, 8)
@@ -378,6 +379,10 @@ struct MessageDetailView: View {
                                         isLoadingBody = false
                                         if !extractedAttachments.isEmpty {
                                             self.attachments = extractedAttachments
+                                            print("📎 [UI] attachments state updated: \(self.attachments.count) items")
+                                            for att in self.attachments {
+                                                print("📎 [UI] - \(att.filename)")
+                                            }
                                         }
                                     }
                                     bodyLoaded = true
