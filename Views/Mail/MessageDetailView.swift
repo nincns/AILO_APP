@@ -983,55 +983,49 @@ struct MessageDetailView: View {
                     continue
                 }
 
-                // Robustes Header/Body-Parsing (Apple Mail liefert oft keine Leerzeile!)
-                // Variante 1: Zeilenweise parsen - Header haben ":", Body ist Base64
-                let lines = cleanPart.components(separatedBy: .newlines)
-                var bodyLines: [String] = []
-                var inBody = false
-                var headerLineCount = 0
+                // ✅ ROBUSTE VARIANTE: Alles nach "Content-Transfer-Encoding: base64" roh extrahieren
+                // Suche case-insensitive nach dem Header
+                let searchPatterns = [
+                    "Content-Transfer-Encoding: base64",
+                    "Content-Transfer-Encoding:base64",
+                    "content-transfer-encoding: base64",
+                    "content-transfer-encoding:base64"
+                ]
 
-                for line in lines {
-                    let trimmedLine = line.trimmingCharacters(in: .whitespaces)
-
-                    // Boundary-Marker überspringen (auch am Ende)
-                    if trimmedLine.hasPrefix("--") {
-                        break  // Ende des Parts erreicht
-                    }
-
-                    if !inBody {
-                        // Header-Zeilen: enthalten ":" oder beginnen mit Whitespace (Continuation)
-                        if trimmedLine.contains(":") || (line.hasPrefix("\t") || line.hasPrefix(" ")) {
-                            headerLineCount += 1
-                            continue
-                        }
-                        // Leere Zeile überspringen
-                        if trimmedLine.isEmpty {
-                            continue
-                        }
-                        // Alles andere ist Body (Base64-Daten beginnen mit Buchstaben/Zahlen)
-                        inBody = true
-                        bodyLines.append(trimmedLine)
-                    } else {
-                        // Im Body: leere Zeilen überspringen, Rest ist Base64
-                        if !trimmedLine.isEmpty {
-                            bodyLines.append(trimmedLine)
-                        }
+                var base64StartRange: Range<String.Index>? = nil
+                for pattern in searchPatterns {
+                    if let range = cleanPart.range(of: pattern, options: .caseInsensitive) {
+                        base64StartRange = range
+                        break
                     }
                 }
 
-                print("📎 [extractAttachmentsWithData] Parsed \(headerLineCount) header lines, \(bodyLines.count) body lines")
-
-                guard !bodyLines.isEmpty else {
-                    print("❌ [extractAttachmentsWithData] Part \(index): No body lines found")
+                guard let startRange = base64StartRange else {
+                    print("❌ [extractAttachmentsWithData] Part \(index): No Content-Transfer-Encoding: base64 found")
                     continue
                 }
 
-                // Extrahiere Base64-Body (bereits zeilenweise bereinigt)
-                let cleanBase64 = bodyLines.joined()
-                    .trimmingCharacters(in: .whitespacesAndNewlines)
+                // Alles NACH dem Header extrahieren (roh, unverändert)
+                let afterHeader = String(cleanPart[startRange.upperBound...])
+
+                // Finde das Ende (nächste Boundary oder Ende des Strings)
+                var base64Raw = afterHeader
+                if let boundaryStart = afterHeader.range(of: "\n--") {
+                    base64Raw = String(afterHeader[..<boundaryStart.lowerBound])
+                } else if let boundaryStart = afterHeader.range(of: "\r\n--") {
+                    base64Raw = String(afterHeader[..<boundaryStart.lowerBound])
+                }
+
+                // Nur Whitespace/Newlines entfernen, NICHTS anderes!
+                let cleanBase64 = base64Raw
+                    .replacingOccurrences(of: "\r", with: "")
+                    .replacingOccurrences(of: "\n", with: "")
+                    .replacingOccurrences(of: " ", with: "")
+                    .replacingOccurrences(of: "\t", with: "")
 
                 print("📎 [extractAttachmentsWithData] Base64 length: \(cleanBase64.count) chars")
                 print("📎 [extractAttachmentsWithData] Base64 preview: \(String(cleanBase64.prefix(80)))...")
+                print("📎 [extractAttachmentsWithData] Base64 end: ...\(String(cleanBase64.suffix(40)))")
 
                 // Dekodiere Base64
                 if let data = Data(base64Encoded: cleanBase64, options: .ignoreUnknownCharacters), data.count > 0 {
@@ -1040,7 +1034,6 @@ struct MessageDetailView: View {
                     processedFilenames.insert(foundFilename.lowercased())
                 } else {
                     print("❌ [extractAttachmentsWithData] Failed to decode Base64 for \(foundFilename)")
-                    // Debug: Zeige die ersten/letzten Zeichen
                     print("   First 50 chars: '\(String(cleanBase64.prefix(50)))'")
                     print("   Last 50 chars: '\(String(cleanBase64.suffix(50)))'")
                 }
