@@ -22,7 +22,10 @@ struct MessageDetailView: View {
     @State private var tempFiles: [URL] = []
     @State private var errorMessage: String? = nil
     @State private var showTechnicalHeaders: Bool = false
-    @State private var rawBodyText: String = ""  // NEU
+    @State private var rawBodyText: String = ""
+    @State private var showShareSheet: Bool = false
+    @State private var shareItems: [URL] = []
+    @State private var savingAttachments: Bool = false
     
     @Environment(\.dismiss) private var dismiss
     
@@ -125,7 +128,7 @@ struct MessageDetailView: View {
                     Button(action: {
                         let oldValue = showTechnicalHeaders
                         showTechnicalHeaders.toggle()
-                        
+
                         // Wechsel von ON (RAW) → OFF (Normal) triggert Re-Processing
                         if oldValue == true && showTechnicalHeaders == false {
                             Task {
@@ -138,6 +141,16 @@ struct MessageDetailView: View {
                             systemImage: "info.circle"
                         )
                     }
+
+                    // Anhänge speichern - nur anzeigen wenn hasAttachments true ist
+                    if mail.hasAttachments {
+                        Divider()
+                        Button(action: saveAllAttachments) {
+                            Label("Anhänge speichern", systemImage: "square.and.arrow.down")
+                        }
+                    }
+
+                    Divider()
                     Button(role: .destructive, action: deleteAction) {
                         Label(String(localized: "common.delete"), systemImage: "trash")
                     }
@@ -151,6 +164,29 @@ struct MessageDetailView: View {
         }
         .onDisappear {
             cleanupTempFiles()
+        }
+        .sheet(isPresented: $showShareSheet) {
+            if !shareItems.isEmpty {
+                ShareSheet(items: shareItems)
+            }
+        }
+        .overlay {
+            if savingAttachments {
+                ZStack {
+                    Color.black.opacity(0.3)
+                    VStack(spacing: 12) {
+                        ProgressView()
+                            .scaleEffect(1.5)
+                        Text("Anhänge werden extrahiert...")
+                            .font(.subheadline)
+                            .foregroundStyle(.white)
+                    }
+                    .padding(24)
+                    .background(.ultraThinMaterial)
+                    .clipShape(RoundedRectangle(cornerRadius: 12))
+                }
+                .ignoresSafeArea()
+            }
         }
     }
     
@@ -780,7 +816,182 @@ struct MessageDetailView: View {
         print(" Delete mail: \(mail.subject)")
         dismiss()
     }
-    
+
+    /// Speichert alle Anhänge aus dem rawBody
+    private func saveAllAttachments() {
+        print("📎 [saveAllAttachments] Starting attachment extraction...")
+
+        guard !rawBodyText.isEmpty else {
+            print("❌ [saveAllAttachments] rawBodyText is empty")
+            return
+        }
+
+        Task {
+            await MainActor.run { savingAttachments = true }
+
+            var savedFiles: [URL] = []
+            let extractedAttachments = extractAttachmentsWithData(from: rawBodyText)
+
+            print("📎 [saveAllAttachments] Found \(extractedAttachments.count) attachments with data")
+
+            for (filename, data) in extractedAttachments {
+                let tempDir = FileManager.default.temporaryDirectory
+                let fileURL = tempDir.appendingPathComponent(filename)
+
+                do {
+                    try data.write(to: fileURL)
+                    savedFiles.append(fileURL)
+                    print("📎 [saveAllAttachments] Saved: \(filename) (\(data.count) bytes)")
+                } catch {
+                    print("❌ [saveAllAttachments] Failed to save \(filename): \(error)")
+                }
+            }
+
+            await MainActor.run {
+                savingAttachments = false
+                if !savedFiles.isEmpty {
+                    shareItems = savedFiles
+                    showShareSheet = true
+                    print("📎 [saveAllAttachments] Showing share sheet with \(savedFiles.count) files")
+                } else {
+                    print("❌ [saveAllAttachments] No files to share")
+                }
+            }
+        }
+    }
+
+    /// Extrahiert Anhänge MIT den tatsächlichen Base64-Daten aus dem rawBody
+    private func extractAttachmentsWithData(from rawBody: String) -> [(filename: String, data: Data)] {
+        print("📎 [extractAttachmentsWithData] Starting extraction from \(rawBody.count) chars")
+        var results: [(String, Data)] = []
+
+        // Finde alle MIME-Parts mit Content-Disposition: attachment oder application/pdf etc.
+        // Suche nach Boundaries
+        let boundaryPattern = "boundary=\"?([^\"\\s\\r\\n]+)\"?"
+        guard let boundaryRegex = try? NSRegularExpression(pattern: boundaryPattern, options: .caseInsensitive) else {
+            print("❌ [extractAttachmentsWithData] Failed to create boundary regex")
+            return results
+        }
+
+        let range = NSRange(rawBody.startIndex..., in: rawBody)
+        let boundaryMatches = boundaryRegex.matches(in: rawBody, options: [], range: range)
+
+        var boundaries: [String] = []
+        for match in boundaryMatches {
+            if match.numberOfRanges > 1, let boundaryRange = Range(match.range(at: 1), in: rawBody) {
+                boundaries.append(String(rawBody[boundaryRange]))
+            }
+        }
+        print("📎 [extractAttachmentsWithData] Found \(boundaries.count) boundaries: \(boundaries)")
+
+        // Für jede Boundary, finde die Parts
+        for boundary in boundaries {
+            let delimiter = "--" + boundary
+            let parts = rawBody.components(separatedBy: delimiter)
+
+            for (index, part) in parts.enumerated() {
+                // Überspringe ersten und letzten Part (Header und Terminator)
+                if index == 0 || part.hasPrefix("--") { continue }
+
+                // Prüfe ob dieser Part ein Anhang ist
+                let lowerPart = part.lowercased()
+                let isAttachment = lowerPart.contains("content-disposition: attachment") ||
+                                   lowerPart.contains("content-disposition:attachment") ||
+                                   (lowerPart.contains("application/pdf") && lowerPart.contains("name=")) ||
+                                   (lowerPart.contains("application/") && lowerPart.contains("filename="))
+
+                if !isAttachment { continue }
+
+                // Extrahiere Dateiname
+                var filename: String? = nil
+                let filenamePatterns = [
+                    "filename\\*?\\s*=\\s*\"([^\"]+)\"",
+                    "filename\\*?\\s*=\\s*'([^']+)'",
+                    "filename\\*?\\s*=\\s*[^']*'[^']*'([^;\\s\\r\\n]+)",
+                    "filename\\*?\\s*=\\s*([^;\\s\\r\\n]+)",
+                    "name\\s*=\\s*\"([^\"]+)\"",
+                    "name\\s*=\\s*([^;\\s\\r\\n]+)"
+                ]
+
+                for pattern in filenamePatterns {
+                    if let regex = try? NSRegularExpression(pattern: pattern, options: .caseInsensitive),
+                       let match = regex.firstMatch(in: part, options: [], range: NSRange(part.startIndex..., in: part)),
+                       match.numberOfRanges > 1,
+                       let fnRange = Range(match.range(at: 1), in: part) {
+                        var fn = String(part[fnRange]).trimmingCharacters(in: .whitespaces)
+                        // URL-Dekodierung
+                        if fn.contains("%") {
+                            fn = fn.removingPercentEncoding ?? fn
+                        }
+                        // MIME-Dekodierung
+                        fn = decodeFilename(fn)
+                        if !fn.isEmpty {
+                            filename = fn
+                            break
+                        }
+                    }
+                }
+
+                guard let foundFilename = filename else {
+                    print("📎 [extractAttachmentsWithData] Part \(index): No filename found")
+                    continue
+                }
+
+                // Finde Base64-Daten (nach der leeren Zeile)
+                let partLines = part.components(separatedBy: "\r\n")
+                var dataStartIndex = 0
+                var foundEmptyLine = false
+
+                for (lineIndex, line) in partLines.enumerated() {
+                    if line.trimmingCharacters(in: .whitespaces).isEmpty && lineIndex > 0 {
+                        dataStartIndex = lineIndex + 1
+                        foundEmptyLine = true
+                        break
+                    }
+                }
+
+                if !foundEmptyLine {
+                    // Versuche mit \n statt \r\n
+                    let altLines = part.components(separatedBy: "\n")
+                    for (lineIndex, line) in altLines.enumerated() {
+                        if line.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && lineIndex > 0 {
+                            dataStartIndex = lineIndex + 1
+                            foundEmptyLine = true
+                            break
+                        }
+                    }
+                }
+
+                guard foundEmptyLine else {
+                    print("📎 [extractAttachmentsWithData] Part \(index): No data section found")
+                    continue
+                }
+
+                // Extrahiere und dekodiere Base64-Daten
+                let dataLines = partLines.dropFirst(dataStartIndex)
+                let base64String = dataLines
+                    .joined()
+                    .replacingOccurrences(of: "\r", with: "")
+                    .replacingOccurrences(of: "\n", with: "")
+                    .replacingOccurrences(of: " ", with: "")
+
+                // Entferne trailing boundary markers
+                let cleanBase64 = base64String.components(separatedBy: "--").first ?? base64String
+
+                if let data = Data(base64Encoded: cleanBase64, options: .ignoreUnknownCharacters) {
+                    print("📎 [extractAttachmentsWithData] Decoded \(foundFilename): \(data.count) bytes")
+                    results.append((foundFilename, data))
+                } else {
+                    print("❌ [extractAttachmentsWithData] Failed to decode Base64 for \(foundFilename)")
+                    print("   Base64 preview: \(String(cleanBase64.prefix(100)))...")
+                }
+            }
+        }
+
+        print("📎 [extractAttachmentsWithData] Total extracted: \(results.count) attachments")
+        return results
+    }
+
     /// Re-processes mail body when toggling from RAW to Normal view
     private func reprocessMailBody() async {
         print("🔄 [reprocessMailBody] Re-processing mail body (toggle trigger)...")
@@ -1302,5 +1513,24 @@ private struct AttachmentRowView: View {
                 flags: []
             )
         )
+    }
+}
+
+// MARK: - Share Sheet
+
+/// UIKit-basiertes Share Sheet für iOS
+struct ShareSheet: UIViewControllerRepresentable {
+    let items: [URL]
+
+    func makeUIViewController(context: Context) -> UIActivityViewController {
+        let controller = UIActivityViewController(
+            activityItems: items,
+            applicationActivities: nil
+        )
+        return controller
+    }
+
+    func updateUIViewController(_ uiViewController: UIActivityViewController, context: Context) {
+        // Keine Updates nötig
     }
 }
