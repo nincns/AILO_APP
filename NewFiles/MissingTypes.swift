@@ -376,14 +376,7 @@ public protocol BlobStoreProtocol {
     func retrieveRawMessage(messageId: UUID) throws -> Data?
 }
 
-// MARK: - RenderCache DAO Protocol
-
-public protocol RenderCacheDAO {
-    func store(messageId: UUID, html: String?, text: String?, generatorVersion: Int) throws
-    func get(messageId: UUID) -> RenderCacheEntry?
-    func invalidate(messageId: UUID) throws
-}
-
+// Note: RenderCacheDAO is defined as a class in RenderCacheDAO.swift
 // Note: IMAPBodyStructure is defined in Services/Mail/IMAP/IMAPParsers.swift
 // Note: AttachmentEntity is defined in Database/Schema/MailSchema.swift
 
