@@ -786,50 +786,15 @@ public final class MailRepository: ObservableObject {
             print("❌ No DAO available for loadAttachmentStatus")
             return [:]
         }
-        
-        // ✅ Cast zu BaseDAO für direkten SQL-Zugriff
-        guard let baseDAO = dao as? BaseDAO else {
-            print("❌ DAO is not a BaseDAO")
-            return [:]
-        }
-        
+
         print("📎 [OPTIMIZED] Loading attachment status for account: \(accountId), folder: \(folder)")
-        
-        // ✅ FIX: BEIDE Tabellen prüfen mit COALESCE
-        let sql = """
-            SELECT h.uid, 
-                   COALESCE(b.has_attachments, h.has_attachments, 0) as has_attachments
-            FROM \(MailSchema.tMsgHeader) h
-            LEFT JOIN \(MailSchema.tMsgBody) b 
-                ON h.account_id = b.account_id 
-                AND h.folder = b.folder 
-                AND h.uid = b.uid
-            WHERE h.account_id = ? AND h.folder = ?
-        """
-        
+
         do {
-            let stmt = try baseDAO.prepare(sql)
-            defer { baseDAO.finalize(stmt) }
-            
-            baseDAO.bindUUID(stmt, 1, accountId)
-            baseDAO.bindText(stmt, 2, folder)
-            
-            var statusMap: [String: Bool] = [:]
-            
-            while sqlite3_step(stmt) == SQLITE_ROW {
-                if let cString = sqlite3_column_text(stmt, 0) {
-                    let uid = String(cString: cString)
-                    let hasAttachments = sqlite3_column_int(stmt, 1) != 0
-                    statusMap[uid] = hasAttachments
-                }
-            }
-            
+            let statusMap = try dao.attachmentStatus(accountId: accountId, folder: folder)
             print("📎 Loaded attachment status for \(statusMap.count) messages")
             let withAttachments = statusMap.values.filter { $0 }.count
             print("📎 → \(withAttachments) messages have attachments")
-            
             return statusMap
-            
         } catch {
             print("❌ Failed to load attachment status: \(error)")
             return [:]

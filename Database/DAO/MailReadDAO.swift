@@ -43,6 +43,9 @@ public protocol MailReadDAO {
     func getOrphanedBlobs() throws -> [String]
     func getBlobsOlderThan(_ date: Date) throws -> [String]
     func getAllBlobIds() throws -> [String]
+
+    // MARK: - Attachment Status
+    func attachmentStatus(accountId: UUID, folder: String) throws -> [String: Bool]
 }
 
 // MARK: - Implementation
@@ -795,6 +798,48 @@ public class MailReadDAOImpl: BaseDAO, MailReadDAO {
                 }
                 
                 return blobIds
+            }
+        }
+    }
+
+    // MARK: - Attachment Status
+
+    public func attachmentStatus(accountId: UUID, folder: String) throws -> [String: Bool] {
+        return try DAOPerformanceMonitor.measure("attachment_status_query") {
+            return try dbQueue.sync {
+                try ensureOpen()
+
+                let sql = """
+                    SELECT h.uid,
+                           COALESCE(b.has_attachments, h.has_attachments, 0) as has_attachments
+                    FROM \(MailSchema.tMsgHeader) h
+                    LEFT JOIN \(MailSchema.tMsgBody) b
+                        ON h.account_id = b.account_id
+                        AND h.folder = b.folder
+                        AND h.uid = b.uid
+                    WHERE h.account_id = ? AND h.folder = ?
+                """
+
+                let stmt = try prepare(sql)
+                defer { finalize(stmt) }
+
+                bindUUID(stmt, 1, accountId)
+                bindText(stmt, 2, folder)
+
+                var statusMap: [String: Bool] = [:]
+
+                while sqlite3_step(stmt) == SQLITE_ROW {
+                    if let uid = stmt.columnText(0) {
+                        let hasAttachments = stmt.columnBool(1)
+                        statusMap[uid] = hasAttachments
+                        if hasAttachments {
+                            print("📎 [ATTACHMENT] UID \(uid) has attachments")
+                        }
+                    }
+                }
+
+                print("📎 [attachmentStatus] Found \(statusMap.filter { $0.value }.count) messages with attachments")
+                return statusMap
             }
         }
     }
