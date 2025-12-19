@@ -26,6 +26,7 @@ struct MessageDetailView: View {
     @State private var showShareSheet: Bool = false
     @State private var shareItems: [URL] = []
     @State private var savingAttachments: Bool = false
+    @State private var hasDetectedAttachments: Bool = false
     
     @Environment(\.dismiss) private var dismiss
     
@@ -142,8 +143,8 @@ struct MessageDetailView: View {
                         )
                     }
 
-                    // Anhänge speichern - nur anzeigen wenn hasAttachments true ist
-                    if mail.hasAttachments {
+                    // Anhänge speichern - anzeigen wenn Anhänge erkannt wurden
+                    if mail.hasAttachments || hasDetectedAttachments {
                         Divider()
                         Button(action: saveAllAttachments) {
                             Label("Anhänge speichern", systemImage: "square.and.arrow.down")
@@ -415,6 +416,7 @@ struct MessageDetailView: View {
                                         isLoadingBody = false
                                         if !extractedAttachments.isEmpty {
                                             self.attachments = extractedAttachments
+                                            self.hasDetectedAttachments = true
                                             print("📎 [UI] attachments state updated: \(self.attachments.count) items")
                                             for att in self.attachments {
                                                 print("📎 [UI] - \(att.filename)")
@@ -467,6 +469,7 @@ struct MessageDetailView: View {
                                         print("📎 [PATH-A] Extracted \(extractedAttachments.count) attachment(s)")
                                         await MainActor.run {
                                             self.attachments = extractedAttachments
+                                            self.hasDetectedAttachments = true
                                             print("📎 [PATH-A UI] attachments set: \(self.attachments.count)")
                                         }
                                     }
@@ -590,6 +593,7 @@ struct MessageDetailView: View {
                                     isLoadingBody = false
                                     if !extractedAttachments.isEmpty {
                                         self.attachments = extractedAttachments
+                                        self.hasDetectedAttachments = true
                                     }
                                 }
                                 print("✅ [loadMailBodyAfterSync] Processed content loaded")
@@ -636,6 +640,7 @@ struct MessageDetailView: View {
                                     print("📎 [MessageDetailView] Extracted \(extractedAttachments.count) attachment(s) (post-sync)")
                                     await MainActor.run {
                                         self.attachments = extractedAttachments
+                                        self.hasDetectedAttachments = true
                                     }
                                 }
                             }
