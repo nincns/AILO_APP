@@ -523,7 +523,7 @@ extension MailSendReceive {
         
         // 1. Fetch BODYSTRUCTURE first
         let structureResponse = try await cmds.uidFetchBodyStructure(conn, uid: uid)
-        guard let bodyStructure = parseBodyStructure(structureResponse) else {
+        guard let bodyStructure = parseIMAPBodyStructure(structureResponse) else {
             throw ServiceError.protocolErr("Failed to parse BODYSTRUCTURE")
         }
         
@@ -549,10 +549,11 @@ extension MailSendReceive {
     }
     
     // Helper to parse BODYSTRUCTURE from response lines
-    private func parseBodyStructure(_ lines: [String]) -> IMAPBodyStructure? {
+    private func parseIMAPBodyStructure(_ lines: [String]) -> IMAPBodyStructure? {
         for line in lines {
             if line.contains("BODYSTRUCTURE") {
-                return IMAPParsers().parseBodyStructure(line)
+                // Use the free function parseBodyStructure which returns IMAPBodyStructure
+                return parseBodyStructure(line)
             }
         }
         return nil
