@@ -983,52 +983,51 @@ struct MessageDetailView: View {
                     continue
                 }
 
-                // Finde die Grenze zwischen Header und Body (doppelte Newline)
-                // Versuche verschiedene Newline-Kombinationen
-                var headerEndIndex: String.Index? = nil
+                // Robustes Header/Body-Parsing (Apple Mail liefert oft keine Leerzeile!)
+                // Variante 1: Zeilenweise parsen - Header haben ":", Body ist Base64
+                let lines = cleanPart.components(separatedBy: .newlines)
+                var bodyLines: [String] = []
+                var inBody = false
+                var headerLineCount = 0
 
-                if let range = cleanPart.range(of: "\r\n\r\n") {
-                    headerEndIndex = range.upperBound
-                    print("📎 [extractAttachmentsWithData] Found header/body boundary with \\r\\n\\r\\n")
-                } else if let range = cleanPart.range(of: "\n\n") {
-                    headerEndIndex = range.upperBound
-                    print("📎 [extractAttachmentsWithData] Found header/body boundary with \\n\\n")
-                } else if let range = cleanPart.range(of: "\r\n \r\n") {
-                    headerEndIndex = range.upperBound
-                    print("📎 [extractAttachmentsWithData] Found header/body boundary with \\r\\n \\r\\n")
+                for line in lines {
+                    let trimmedLine = line.trimmingCharacters(in: .whitespaces)
+
+                    // Boundary-Marker überspringen (auch am Ende)
+                    if trimmedLine.hasPrefix("--") {
+                        break  // Ende des Parts erreicht
+                    }
+
+                    if !inBody {
+                        // Header-Zeilen: enthalten ":" oder beginnen mit Whitespace (Continuation)
+                        if trimmedLine.contains(":") || (line.hasPrefix("\t") || line.hasPrefix(" ")) {
+                            headerLineCount += 1
+                            continue
+                        }
+                        // Leere Zeile überspringen
+                        if trimmedLine.isEmpty {
+                            continue
+                        }
+                        // Alles andere ist Body (Base64-Daten beginnen mit Buchstaben/Zahlen)
+                        inBody = true
+                        bodyLines.append(trimmedLine)
+                    } else {
+                        // Im Body: leere Zeilen überspringen, Rest ist Base64
+                        if !trimmedLine.isEmpty {
+                            bodyLines.append(trimmedLine)
+                        }
+                    }
                 }
 
-                guard let bodyStart = headerEndIndex else {
-                    // Debug: Zeige die ersten 500 Zeichen des Parts
-                    let preview = String(cleanPart.prefix(500))
-                        .replacingOccurrences(of: "\r", with: "\\r")
-                        .replacingOccurrences(of: "\n", with: "\\n")
-                        .replacingOccurrences(of: "\t", with: "\\t")
-                    print("❌ [extractAttachmentsWithData] Part \(index): Could not find header/body boundary")
-                    print("   Part preview: \(preview)")
-                    // Debug: Prüfe ob \n\n irgendwo existiert
-                    let hasDoubleN = cleanPart.contains("\n\n")
-                    let hasDoubleCRLF = cleanPart.contains("\r\n\r\n")
-                    print("   Contains \\n\\n: \(hasDoubleN), Contains \\r\\n\\r\\n: \(hasDoubleCRLF)")
+                print("📎 [extractAttachmentsWithData] Parsed \(headerLineCount) header lines, \(bodyLines.count) body lines")
+
+                guard !bodyLines.isEmpty else {
+                    print("❌ [extractAttachmentsWithData] Part \(index): No body lines found")
                     continue
                 }
 
-                // Extrahiere Base64-Body
-                var base64Body = String(cleanPart[bodyStart...])
-
-                // Entferne trailing boundary markers und Whitespace
-                if let boundaryIdx = base64Body.range(of: "\r\n--") {
-                    base64Body = String(base64Body[..<boundaryIdx.lowerBound])
-                } else if let boundaryIdx = base64Body.range(of: "\n--") {
-                    base64Body = String(base64Body[..<boundaryIdx.lowerBound])
-                }
-
-                // Bereinige Base64-String
-                let cleanBase64 = base64Body
-                    .replacingOccurrences(of: "\r\n", with: "")
-                    .replacingOccurrences(of: "\r", with: "")
-                    .replacingOccurrences(of: "\n", with: "")
-                    .replacingOccurrences(of: " ", with: "")
+                // Extrahiere Base64-Body (bereits zeilenweise bereinigt)
+                let cleanBase64 = bodyLines.joined()
                     .trimmingCharacters(in: .whitespacesAndNewlines)
 
                 print("📎 [extractAttachmentsWithData] Base64 length: \(cleanBase64.count) chars")
