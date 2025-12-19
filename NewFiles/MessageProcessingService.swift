@@ -6,15 +6,14 @@ import Foundation
 // MARK: - Message Processing Service
 
 class MessageProcessingService {
-    
+
     private let blobStore: BlobStoreProtocol
     private let renderCache: RenderCacheDAO
     private let writeDAO: MailWriteDAO
     private let readDAO: MailReadDAO
     private let mimeParser: MIMEParser
-    private let bodyProcessor: BodyContentProcessor
     private let fetchStrategy: FetchStrategy
-    
+
     init(blobStore: BlobStoreProtocol,
          renderCache: RenderCacheDAO,
          writeDAO: MailWriteDAO,
@@ -24,7 +23,6 @@ class MessageProcessingService {
         self.writeDAO = writeDAO
         self.readDAO = readDAO
         self.mimeParser = MIMEParser()
-        self.bodyProcessor = BodyContentProcessor()
         self.fetchStrategy = FetchStrategy()
     }
     
@@ -85,17 +83,45 @@ class MessageProcessingService {
     private func parseMimeStructure(messageId: UUID,
                                    rawMessage: Data?,
                                    bodyStructure: IMAPBodyStructure?) throws -> [MimePartEntity] {
-        
+
         var parts: [MimePartEntity] = []
-        
+
         if let structure = bodyStructure {
             // Use BODYSTRUCTURE for metadata
             parts = convertBodyStructureToMimeParts(structure, messageId: messageId)
         } else if let raw = rawMessage {
-            // Fallback to parsing RAW message
-            parts = try mimeParser.parse(raw, messageId: messageId)
+            // Fallback to parsing RAW message using parseSinglePass
+            let parsedMessage = try mimeParser.parseSinglePass(raw, messageId: messageId)
+            // Convert MIMEParser.MimePartEntity to our MimePartEntity
+            parts = parsedMessage.mimeParts.map { parserPart in
+                MimePartEntity(
+                    id: UUID(),
+                    messageId: messageId,
+                    partNumber: parserPart.partId,
+                    contentType: parserPart.contentType,
+                    contentSubtype: nil,
+                    contentId: parserPart.contentId,
+                    contentDisposition: parserPart.disposition,
+                    filename: parserPart.filenameOriginal,
+                    size: Int64(parserPart.size),
+                    encoding: parserPart.encoding,
+                    charset: parserPart.charset,
+                    isAttachment: parserPart.disposition?.lowercased() == "attachment",
+                    isInline: parserPart.contentId != nil,
+                    parentPartNumber: nil,
+                    partId: parserPart.partId,
+                    parentPartId: nil,
+                    mediaType: parserPart.contentType,
+                    transferEncoding: parserPart.encoding,
+                    filenameOriginal: parserPart.filenameOriginal,
+                    filenameNormalized: parserPart.filenameOriginal,
+                    sizeOctets: Int64(parserPart.size),
+                    isBodyCandidate: parserPart.isBodyCandidate,
+                    blobId: nil
+                )
+            }
         }
-        
+
         return parts
     }
     
@@ -166,28 +192,39 @@ class MessageProcessingService {
     }
     
     // MARK: - Body Processing
-    
+
     private func processBodyParts(messageId: UUID,
                                  parts: [MimePartEntity],
                                  fetchPlan: FetchPlan?) throws -> ProcessedContent {
-        
+
         // Find body candidates
         let bodyCandidates = parts.filter { $0.isBodyCandidate }
-        
+
         // Select best body part
         let selectedBody = selectBestBodyPart(from: bodyCandidates)
-        
+
         guard let bodyPart = selectedBody else {
             return ProcessedContent(html: nil, text: nil)
         }
-        
+
         // Get content for the selected part
         let content = try retrievePartContent(bodyPart)
-        
-        // Process content
-        return bodyProcessor.process(content,
-                                    mimeType: bodyPart.mediaType,
-                                    charset: bodyPart.charset)
+
+        // Decode content to string
+        let charset = bodyPart.charset ?? "utf-8"
+        let encoding: String.Encoding = charset.lowercased() == "utf-8" ? .utf8 :
+                                         charset.lowercased() == "iso-8859-1" ? .isoLatin1 :
+                                         charset.lowercased() == "windows-1252" ? .windowsCP1252 : .utf8
+        let decodedString = String(data: content, encoding: encoding) ?? String(data: content, encoding: .utf8) ?? ""
+
+        // Process content using static methods from BodyContentProcessor
+        if bodyPart.mediaType.lowercased().contains("html") {
+            let cleanedHtml = BodyContentProcessor.cleanHTMLForDisplay(decodedString)
+            return ProcessedContent(html: cleanedHtml, text: nil)
+        } else {
+            let cleanedText = BodyContentProcessor.cleanPlainTextForDisplay(decodedString)
+            return ProcessedContent(html: nil, text: cleanedText)
+        }
     }
     
     private func selectBestBodyPart(from candidates: [MimePartEntity]) -> MimePartEntity? {
@@ -199,31 +236,35 @@ class MessageProcessingService {
     }
     
     // MARK: - Attachment Processing
-    
+
     private func processAttachments(messageId: UUID,
                                    accountId: UUID,
                                    folder: String,
                                    uid: String,
                                    parts: [MimePartEntity]) throws {
-        
+
         let attachmentParts = parts.filter {
             $0.disposition?.lowercased() == "attachment" ||
             (!$0.isBodyCandidate && $0.filenameOriginal != nil)
         }
-        
+
         for part in attachmentParts {
-            // Store attachment metadata
+            // Store attachment metadata using correct initializer
             let attachment = AttachmentEntity(
+                accountId: accountId,
+                folder: folder,
+                uid: uid,
                 partId: part.partId,
                 filename: part.filenameNormalized ?? "unnamed",
                 mimeType: part.mediaType,
-                sizeBytes: part.sizeOctets,
+                sizeBytes: Int(part.sizeOctets),  // Convert Int64 to Int
                 data: nil,  // Data stored in blob store
                 contentId: part.contentId,
                 isInline: part.contentId != nil,
+                filePath: nil,
                 checksum: part.contentSha256
             )
-            
+
             try writeDAO.storeAttachment(accountId: accountId,
                                         folder: folder,
                                         uid: uid,
@@ -310,9 +351,10 @@ class MessageProcessingService {
     }
     
     // MARK: - Storage Operations
-    
+
     private func storeMimeParts(messageId: UUID, parts: [MimePartEntity]) throws {
-        try writeDAO.storeMimeParts(messageId: messageId, parts: parts)
+        // The MailWriteDAO protocol expects just the parts array
+        try writeDAO.storeMimeParts(parts)
     }
     
     private func storeRenderCache(messageId: UUID, content: FinalizedContent) throws {
