@@ -987,138 +987,102 @@ struct MessageDetailView: View {
         return false
     }
 
-    /// Extrahiert Anhang-Metadaten aus dem rawBody
+    /// Extrahiert Anhang-Metadaten aus dem rawBody - Regex-basiert für bessere Erkennung
     private func extractAttachmentMetadata(from rawBody: String) -> [AttachmentEntity] {
         print("📎 [extractAttachmentMetadata] Starting extraction from rawBody (\(rawBody.count) chars)")
         var attachments: [AttachmentEntity] = []
         var partCounter = 1
 
-        // Debug: Suche nach Anhang-Indikatoren
         let lowerBody = rawBody.lowercased()
-        print("📎 [extractAttachmentMetadata] Quick scan:")
-        print("   - Contains 'content-disposition: attachment': \(lowerBody.contains("content-disposition: attachment"))")
-        print("   - Contains 'application/pdf': \(lowerBody.contains("application/pdf"))")
-        print("   - Contains 'filename=': \(lowerBody.contains("filename="))")
-        print("   - Contains 'name=': \(lowerBody.contains("name="))")
 
-        // Split by MIME boundary to find parts
-        let lines = rawBody.components(separatedBy: "\n")
-        var currentPart: [String: String] = [:]
-        var inHeaders = false
-        var boundaryFound = false
-        var boundaryCount = 0
+        // Debug-Ausgabe
+        let hasAttachmentDisp = lowerBody.contains("content-disposition: attachment") ||
+                                lowerBody.contains("content-disposition:attachment")
+        let hasPdf = lowerBody.contains("application/pdf")
+        let hasFilename = lowerBody.contains("filename=") || lowerBody.contains("filename*=")
+        let hasName = lowerBody.contains("name=")
 
-        for line in lines {
-            let trimmedLine = line.trimmingCharacters(in: .whitespacesAndNewlines)
+        print("📎 Quick scan: disposition=\(hasAttachmentDisp), pdf=\(hasPdf), filename=\(hasFilename), name=\(hasName)")
 
-            // Check for MIME boundary
-            if trimmedLine.hasPrefix("--") && trimmedLine.count > 10 && !trimmedLine.hasSuffix("--") {
-                // Save previous part if it was an attachment
-                if let filename = currentPart["filename"], !filename.isEmpty {
-                    let mimeType = currentPart["content-type"] ?? "application/octet-stream"
-                    let sizeStr = currentPart["size"] ?? "0"
-                    let size = Int(sizeStr) ?? 0
+        // Regex-basierte Suche nach filename (auch über Zeilenumbrüche hinweg)
+        // Suche nach: filename="...", filename*="...", name="..."
+        let patterns = [
+            "filename\\s*=\\s*\"([^\"]+)\"",           // filename="value"
+            "filename\\s*=\\s*'([^']+)'",              // filename='value'
+            "filename\\s*=\\s*([^;\\s\\r\\n]+)",       // filename=value (ohne Quotes)
+            "filename\\*\\s*=\\s*[^']*'[^']*'([^;\\s\\r\\n]+)", // filename*=utf-8''value
+            "name\\s*=\\s*\"([^\"]+)\"",               // name="value"
+            "name\\s*=\\s*'([^']+)'",                  // name='value'
+            "name\\s*=\\s*([^;\\s\\r\\n]+)"            // name=value
+        ]
 
-                    let attachment = AttachmentEntity(
-                        accountId: mail.accountId,
-                        folder: mail.folder,
-                        uid: mail.uid,
-                        partId: "part\(partCounter)",
-                        filename: filename,
-                        mimeType: mimeType,
-                        sizeBytes: size,
-                        data: nil
-                    )
-                    attachments.append(attachment)
-                    partCounter += 1
-                }
+        var foundFilenames: Set<String> = []
 
-                // Reset for new part
-                currentPart = [:]
-                inHeaders = true
-                boundaryFound = true
-                continue
-            }
+        for pattern in patterns {
+            if let regex = try? NSRegularExpression(pattern: pattern, options: [.caseInsensitive]) {
+                let range = NSRange(rawBody.startIndex..., in: rawBody)
+                let matches = regex.matches(in: rawBody, options: [], range: range)
 
-            // Parse headers within a part
-            if inHeaders {
-                if trimmedLine.isEmpty {
-                    inHeaders = false
-                    continue
-                }
+                for match in matches {
+                    if match.numberOfRanges > 1,
+                       let filenameRange = Range(match.range(at: 1), in: rawBody) {
+                        var filename = String(rawBody[filenameRange])
+                            .trimmingCharacters(in: .whitespaces)
 
-                let lowerLine = trimmedLine.lowercased()
-
-                // Extract Content-Type
-                if lowerLine.hasPrefix("content-type:") {
-                    let value = String(trimmedLine.dropFirst("content-type:".count)).trimmingCharacters(in: .whitespaces)
-                    // Get just the mime type (before any ;)
-                    if let semiIndex = value.firstIndex(of: ";") {
-                        currentPart["content-type"] = String(value[..<semiIndex]).trimmingCharacters(in: .whitespaces)
-                    } else {
-                        currentPart["content-type"] = value
-                    }
-
-                    // Check for name= parameter
-                    if let nameRange = lowerLine.range(of: "name=") {
-                        let afterName = String(trimmedLine[nameRange.upperBound...])
-                        let filename = extractQuotedValue(afterName)
-                        if !filename.isEmpty && currentPart["filename"] == nil {
-                            currentPart["filename"] = decodeFilename(filename)
+                        // URL-Dekodierung für filename*=
+                        if filename.contains("%") {
+                            filename = filename.removingPercentEncoding ?? filename
                         }
-                    }
-                }
 
-                // Extract Content-Disposition
-                if lowerLine.hasPrefix("content-disposition:") {
-                    // Check for attachment
-                    if lowerLine.contains("attachment") {
-                        currentPart["is-attachment"] = "true"
-                    }
+                        // MIME-Dekodierung
+                        filename = decodeFilename(filename)
 
-                    // Extract filename
-                    if let filenameRange = lowerLine.range(of: "filename=") {
-                        let afterFilename = String(trimmedLine[filenameRange.upperBound...])
-                        let filename = extractQuotedValue(afterFilename)
-                        if !filename.isEmpty {
-                            currentPart["filename"] = decodeFilename(filename)
+                        // Nur Dateien mit bekannten Erweiterungen
+                        let validExts = [".pdf", ".doc", ".docx", ".xls", ".xlsx", ".ppt", ".pptx",
+                                        ".zip", ".rar", ".png", ".jpg", ".jpeg", ".gif", ".txt",
+                                        ".csv", ".rtf", ".odt", ".ods"]
+                        let hasValidExt = validExts.contains { filename.lowercased().hasSuffix($0) }
+
+                        if hasValidExt && !foundFilenames.contains(filename.lowercased()) {
+                            foundFilenames.insert(filename.lowercased())
+
+                            // MIME-Type aus Erweiterung ableiten
+                            var mimeType = "application/octet-stream"
+                            let ext = (filename as NSString).pathExtension.lowercased()
+                            switch ext {
+                            case "pdf": mimeType = "application/pdf"
+                            case "doc": mimeType = "application/msword"
+                            case "docx": mimeType = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                            case "xls": mimeType = "application/vnd.ms-excel"
+                            case "xlsx": mimeType = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                            case "png": mimeType = "image/png"
+                            case "jpg", "jpeg": mimeType = "image/jpeg"
+                            case "gif": mimeType = "image/gif"
+                            case "zip": mimeType = "application/zip"
+                            case "txt": mimeType = "text/plain"
+                            default: break
+                            }
+
+                            let attachment = AttachmentEntity(
+                                accountId: mail.accountId,
+                                folder: mail.folder,
+                                uid: mail.uid,
+                                partId: "part\(partCounter)",
+                                filename: filename,
+                                mimeType: mimeType,
+                                sizeBytes: 0,
+                                data: nil
+                            )
+                            attachments.append(attachment)
+                            partCounter += 1
+                            print("📎 Found: \(filename) (\(mimeType))")
                         }
-                    }
-
-                    // Extract size if present
-                    if let sizeRange = lowerLine.range(of: "size=") {
-                        let afterSize = String(trimmedLine[sizeRange.upperBound...])
-                        let sizeStr = afterSize.components(separatedBy: CharacterSet(charactersIn: ";, \t")).first ?? ""
-                        currentPart["size"] = sizeStr
                     }
                 }
             }
         }
 
-        // Don't forget the last part
-        if let filename = currentPart["filename"], !filename.isEmpty {
-            let mimeType = currentPart["content-type"] ?? "application/octet-stream"
-            let sizeStr = currentPart["size"] ?? "0"
-            let size = Int(sizeStr) ?? 0
-
-            let attachment = AttachmentEntity(
-                accountId: mail.accountId,
-                folder: mail.folder,
-                uid: mail.uid,
-                partId: "part\(partCounter)",
-                filename: filename,
-                mimeType: mimeType,
-                sizeBytes: size,
-                data: nil
-            )
-            attachments.append(attachment)
-        }
-
-        print("📎 [extractAttachmentMetadata] Found \(attachments.count) attachments:")
-        for att in attachments {
-            print("   - \(att.filename) (\(att.mimeType), \(att.sizeBytes) bytes)")
-        }
-
+        print("📎 [extractAttachmentMetadata] Found \(attachments.count) attachments total")
         return attachments
     }
 
