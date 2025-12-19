@@ -999,12 +999,17 @@ struct MessageDetailView: View {
                 }
 
                 guard let bodyStart = headerEndIndex else {
-                    // Debug: Zeige die ersten 200 Zeichen des Parts
-                    let preview = String(cleanPart.prefix(200))
+                    // Debug: Zeige die ersten 500 Zeichen des Parts
+                    let preview = String(cleanPart.prefix(500))
                         .replacingOccurrences(of: "\r", with: "\\r")
                         .replacingOccurrences(of: "\n", with: "\\n")
+                        .replacingOccurrences(of: "\t", with: "\\t")
                     print("❌ [extractAttachmentsWithData] Part \(index): Could not find header/body boundary")
                     print("   Part preview: \(preview)")
+                    // Debug: Prüfe ob \n\n irgendwo existiert
+                    let hasDoubleN = cleanPart.contains("\n\n")
+                    let hasDoubleCRLF = cleanPart.contains("\r\n\r\n")
+                    print("   Contains \\n\\n: \(hasDoubleN), Contains \\r\\n\\r\\n: \(hasDoubleCRLF)")
                     continue
                 }
 
