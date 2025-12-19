@@ -384,40 +384,20 @@ public protocol RenderCacheDAO {
     func invalidate(messageId: UUID) throws
 }
 
-// MARK: - IMAP Body Structure
+// MARK: - IMAP Body Structure (Recursive Enum for FetchStrategy compatibility)
 
-public struct IMAPBodyStructure {
-    public let rootPart: IMAPBodyPart
-
-    public init(rootPart: IMAPBodyPart) {
-        self.rootPart = rootPart
-    }
+public indirect enum IMAPBodyStructure {
+    case text(String, String?)                    // subtype, charset
+    case multipart(String, [IMAPBodyStructure])   // subtype, parts
+    case image(String)                            // subtype
+    case application(String)                      // subtype
+    case message(String)                          // subtype
+    case audio(String)                            // subtype
+    case video(String)                            // subtype
+    case other(String, String)                    // type, subtype
 }
 
-// MARK: - Attachment Entity (if not defined elsewhere)
-
-public struct AttachmentEntity {
-    public let partId: String
-    public let filename: String
-    public let mimeType: String
-    public let sizeBytes: Int64
-    public let data: Data?
-    public let contentId: String?
-    public let isInline: Bool
-    public let checksum: String?
-
-    public init(partId: String, filename: String, mimeType: String, sizeBytes: Int64,
-                data: Data?, contentId: String?, isInline: Bool, checksum: String?) {
-        self.partId = partId
-        self.filename = filename
-        self.mimeType = mimeType
-        self.sizeBytes = sizeBytes
-        self.data = data
-        self.contentId = contentId
-        self.isInline = isInline
-        self.checksum = checksum
-    }
-}
+// Note: AttachmentEntity is defined in Database/Schema/MailSchema.swift
 
 // MARK: - MimePartEntity Extensions
 

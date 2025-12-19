@@ -310,8 +310,10 @@ class ErrorRecoveryService {
             // Storage errors
             ErrorPattern.storage: RecoveryStrategy(
                 isRecoverableCheck: { error, state in
-                    if let storageError = error as? StorageError {
-                        return storageError.isTemporary && state.attemptCount < 2
+                    // StorageError cases (initializationFailed, tableCreationFailed, indexCreationFailed)
+                    // are generally not recoverable, but we allow one retry
+                    if error is StorageError {
+                        return state.attemptCount < 1
                     }
                     return false
                 },

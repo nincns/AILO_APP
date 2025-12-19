@@ -102,36 +102,67 @@ class MessageProcessingService {
     private func convertBodyStructureToMimeParts(_ structure: IMAPBodyStructure,
                                                 messageId: UUID) -> [MimePartEntity] {
         var parts: [MimePartEntity] = []
-        
-        func traverse(_ part: IMAPBodyPart, partId: String, parentId: String?) {
+
+        func traverse(_ part: IMAPBodyStructure, partId: String, parentId: String?) {
+            let (mediaType, charset, isBody, subparts) = extractPartInfo(part)
+
             let entity = MimePartEntity(
                 id: UUID(),
                 messageId: messageId,
+                partNumber: partId,
+                contentType: mediaType,
+                contentSubtype: nil,
+                contentId: nil,
+                contentDisposition: nil,
+                filename: nil,
+                size: 0,
+                encoding: nil,
+                charset: charset,
+                isAttachment: !isBody,
+                isInline: false,
+                parentPartNumber: parentId,
                 partId: partId,
                 parentPartId: parentId,
-                mediaType: part.mediaType,
-                charset: part.charset,
-                transferEncoding: part.encoding,
-                disposition: part.disposition,
-                filenameOriginal: part.filename,
-                filenameNormalized: normalizeFilename(part.filename),
-                contentId: part.contentId,
-                sizeOctets: part.size ?? 0,
-                isBodyCandidate: isBodyCandidate(part)
+                mediaType: mediaType,
+                transferEncoding: nil,
+                filenameOriginal: nil,
+                filenameNormalized: nil,
+                sizeOctets: 0,
+                isBodyCandidate: isBody,
+                blobId: nil
             )
             parts.append(entity)
-            
-            // Traverse subparts
-            if case .multipart(_, let subparts) = part.type {
-                for (index, subpart) in subparts.enumerated() {
-                    let subPartId = "\(partId).\(index + 1)"
-                    traverse(subpart, partId: subPartId, parentId: partId)
-                }
+
+            // Traverse subparts for multipart
+            for (index, subpart) in subparts.enumerated() {
+                let subPartId = "\(partId).\(index + 1)"
+                traverse(subpart, partId: subPartId, parentId: partId)
             }
         }
-        
-        traverse(structure.rootPart, partId: "1", parentId: nil)
+
+        traverse(structure, partId: "1", parentId: nil)
         return parts
+    }
+
+    private func extractPartInfo(_ part: IMAPBodyStructure) -> (mediaType: String, charset: String?, isBody: Bool, subparts: [IMAPBodyStructure]) {
+        switch part {
+        case .text(let subtype, let charset):
+            return ("text/\(subtype)", charset, subtype == "plain" || subtype == "html", [])
+        case .multipart(let subtype, let parts):
+            return ("multipart/\(subtype)", nil, false, parts)
+        case .image(let subtype):
+            return ("image/\(subtype)", nil, false, [])
+        case .application(let subtype):
+            return ("application/\(subtype)", nil, false, [])
+        case .message(let subtype):
+            return ("message/\(subtype)", nil, false, [])
+        case .audio(let subtype):
+            return ("audio/\(subtype)", nil, false, [])
+        case .video(let subtype):
+            return ("video/\(subtype)", nil, false, [])
+        case .other(let type, let subtype):
+            return ("\(type)/\(subtype)", nil, false, [])
+        }
     }
     
     // MARK: - Body Processing
@@ -318,14 +349,6 @@ class MessageProcessingService {
             .replacingOccurrences(of: ":", with: "_")
     }
     
-    private func isBodyCandidate(_ part: IMAPBodyPart) -> Bool {
-        switch part.type {
-        case .text(let subtype, _):
-            return subtype == "plain" || subtype == "html"
-        default:
-            return false
-        }
-    }
 }
 
 

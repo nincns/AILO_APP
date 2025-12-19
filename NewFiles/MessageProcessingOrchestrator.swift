@@ -225,7 +225,7 @@ class MessageProcessingOrchestrator {
                 attachments: [],  // Retrieved from service
                 mimeParts: [],  // Retrieved from service
                 hasAttachments: false,
-                renderCacheId: nil
+                renderCacheId: nil as String?
             )
         case .timeout:
             throw ProcessingError.timeout
@@ -237,7 +237,7 @@ class MessageProcessingOrchestrator {
                 attachments: [],  // Empty for cancelled processing
                 mimeParts: [],
                 hasAttachments: false,
-                renderCacheId: nil
+                renderCacheId: nil as String?
             )
         }
     }
@@ -579,15 +579,15 @@ enum ProcessingOutcome {
 
 // MARK: - Processing Operation
 
-class ProcessingOperation: Operation {
+class ProcessingOperation: Operation, @unchecked Sendable {
     let message: MessageRequest
     let processor: (MessageRequest) -> Void
-    
+
     init(message: MessageRequest, processor: @escaping (MessageRequest) -> Void) {
         self.message = message
         self.processor = processor
     }
-    
+
     override func main() {
         guard !isCancelled else { return }
         processor(message)
