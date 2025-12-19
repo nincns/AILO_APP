@@ -384,19 +384,7 @@ public protocol RenderCacheDAO {
     func invalidate(messageId: UUID) throws
 }
 
-// MARK: - IMAP Body Structure (Recursive Enum for FetchStrategy compatibility)
-
-public indirect enum IMAPBodyStructure {
-    case text(String, String?)                    // subtype, charset
-    case multipart(String, [IMAPBodyStructure])   // subtype, parts
-    case image(String)                            // subtype
-    case application(String)                      // subtype
-    case message(String)                          // subtype
-    case audio(String)                            // subtype
-    case video(String)                            // subtype
-    case other(String, String)                    // type, subtype
-}
-
+// Note: IMAPBodyStructure is defined in Services/Mail/IMAP/IMAPParsers.swift
 // Note: AttachmentEntity is defined in Database/Schema/MailSchema.swift
 
 // MARK: - MimePartEntity Extensions
