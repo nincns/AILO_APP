@@ -407,13 +407,6 @@ class RenderCacheDAO: BaseDAO {
         return formatter.string(fromByteCount: Int64(bytes))
     }
     
-    // MARK: - Database Helper Methods
-    
-    private func dbError(context: String) -> Error {
-        let message = String(cString: sqlite3_errmsg(db))
-        return DAOError.sqlError("\(context): \(message)")
-    }
-    
     // MARK: - Render Cache Database Operations
     
     private func storeRenderCacheDirect(messageId: UUID, html: String?, text: String?, generatorVersion: Int) throws {
