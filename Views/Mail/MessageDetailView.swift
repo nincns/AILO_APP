@@ -900,8 +900,20 @@ struct MessageDetailView: View {
                 if index == 0 || part.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { continue }
                 if part.hasPrefix("--") { continue }
 
+                // Bereinige Part von führenden Newlines (nach dem Boundary kommt oft \r\n)
+                var cleanPart = part
+                while cleanPart.hasPrefix("\r\n") {
+                    cleanPart = String(cleanPart.dropFirst(2))
+                }
+                while cleanPart.hasPrefix("\n") {
+                    cleanPart = String(cleanPart.dropFirst(1))
+                }
+                while cleanPart.hasPrefix("\r") {
+                    cleanPart = String(cleanPart.dropFirst(1))
+                }
+
                 // Prüfe ob dieser Part ein Anhang ist (PDF oder andere Dateitypen)
-                let lowerPart = part.lowercased()
+                let lowerPart = cleanPart.lowercased()
                 let hasPdfType = lowerPart.contains("application/pdf")
                 let hasAttachmentDisp = lowerPart.contains("content-disposition") &&
                                         (lowerPart.contains("attachment") || lowerPart.contains("filename"))
@@ -927,10 +939,10 @@ struct MessageDetailView: View {
 
                 for pattern in filenamePatterns {
                     if let regex = try? NSRegularExpression(pattern: pattern, options: .caseInsensitive),
-                       let match = regex.firstMatch(in: part, options: [], range: NSRange(part.startIndex..., in: part)),
+                       let match = regex.firstMatch(in: cleanPart, options: [], range: NSRange(cleanPart.startIndex..., in: cleanPart)),
                        match.numberOfRanges > 1,
-                       let fnRange = Range(match.range(at: 1), in: part) {
-                        var fn = String(part[fnRange]).trimmingCharacters(in: .whitespaces)
+                       let fnRange = Range(match.range(at: 1), in: cleanPart) {
+                        var fn = String(cleanPart[fnRange]).trimmingCharacters(in: .whitespaces)
                         if fn.contains("%") {
                             fn = fn.removingPercentEncoding ?? fn
                         }
@@ -957,26 +969,30 @@ struct MessageDetailView: View {
                 // Finde die Grenze zwischen Header und Body (doppelte Newline)
                 // Versuche verschiedene Newline-Kombinationen
                 var headerEndIndex: String.Index? = nil
-                var bodyStartOffset = 0
 
-                if let range = part.range(of: "\r\n\r\n") {
+                if let range = cleanPart.range(of: "\r\n\r\n") {
                     headerEndIndex = range.upperBound
-                    bodyStartOffset = 4
-                } else if let range = part.range(of: "\n\n") {
+                    print("📎 [extractAttachmentsWithData] Found header/body boundary with \\r\\n\\r\\n")
+                } else if let range = cleanPart.range(of: "\n\n") {
                     headerEndIndex = range.upperBound
-                    bodyStartOffset = 2
-                } else if let range = part.range(of: "\r\n \r\n") {
+                    print("📎 [extractAttachmentsWithData] Found header/body boundary with \\n\\n")
+                } else if let range = cleanPart.range(of: "\r\n \r\n") {
                     headerEndIndex = range.upperBound
-                    bodyStartOffset = 5
+                    print("📎 [extractAttachmentsWithData] Found header/body boundary with \\r\\n \\r\\n")
                 }
 
                 guard let bodyStart = headerEndIndex else {
+                    // Debug: Zeige die ersten 200 Zeichen des Parts
+                    let preview = String(cleanPart.prefix(200))
+                        .replacingOccurrences(of: "\r", with: "\\r")
+                        .replacingOccurrences(of: "\n", with: "\\n")
                     print("❌ [extractAttachmentsWithData] Part \(index): Could not find header/body boundary")
+                    print("   Part preview: \(preview)")
                     continue
                 }
 
                 // Extrahiere Base64-Body
-                var base64Body = String(part[bodyStart...])
+                var base64Body = String(cleanPart[bodyStart...])
 
                 // Entferne trailing boundary markers und Whitespace
                 if let boundaryIdx = base64Body.range(of: "\r\n--") {
