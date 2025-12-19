@@ -333,15 +333,17 @@ extension EmailContentParser {
         
         if let bodyPart = bestBodyPart,
            let data = parsedMessage.bodyParts[bodyPart.partId] {
-            
+
             // Decode content based on transfer encoding
-            let decoded = decodeContent(data, encoding: bodyPart.transferEncoding)
-            
+            // MIMEParser.MimePartEntity uses 'encoding' not 'transferEncoding'
+            let decoded = decodeContent(data, encoding: bodyPart.encoding)
+
             // Convert to string based on charset
             let text = convertToString(decoded, charset: bodyPart.charset)
-            
+
             // Determine content type and assign appropriately
-            if bodyPart.mediaType.lowercased().contains("html") {
+            // MIMEParser.MimePartEntity uses 'contentType' not 'mediaType'
+            if bodyPart.contentType.lowercased().contains("html") {
                 htmlContent = text
             } else {
                 textContent = text
