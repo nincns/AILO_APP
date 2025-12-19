@@ -388,12 +388,32 @@ struct MessageDetailView: View {
                         } else {
                             // ✅ Bereits dekodiert - direkt rendern
                             print("✅ [MessageDetailView] HTML already processed - rendering directly")
-                            
+
+                            // ✅ NEU: Anhang-Erkennung nachholen wenn noch nicht gesetzt
+                            if !bodyEntity.hasAttachments, let rawBody = bodyEntity.rawBody, !rawBody.isEmpty {
+                                let detectedAttachments = detectAttachmentsInRawBody(rawBody)
+                                if detectedAttachments {
+                                    print("📎 [MessageDetailView] Late attachment detection: found attachments!")
+                                    // Update database with corrected flag
+                                    if let writeDAO = MailRepository.shared.writeDAO {
+                                        var updatedEntity = bodyEntity
+                                        updatedEntity.hasAttachments = true
+                                        try? writeDAO.storeBody(
+                                            accountId: mail.accountId,
+                                            folder: mail.folder,
+                                            uid: mail.uid,
+                                            body: updatedEntity
+                                        )
+                                        print("✅ [MessageDetailView] Updated hasAttachments flag in DB")
+                                    }
+                                }
+                            }
+
                             let displayContent = BodyContentProcessor.selectDisplayContent(
                                 html: bodyEntity.html,
                                 text: bodyEntity.text
                             )
-                            
+
                             await MainActor.run {
                                 bodyText = displayContent.content
                                 isHTML = displayContent.isHTML
@@ -517,12 +537,31 @@ struct MessageDetailView: View {
                     } else {
                         // ✅ Bereits dekodiert - direkt rendern
                         print("✅ [MessageDetailView] Post-sync HTML already processed - rendering directly")
-                        
+
+                        // ✅ NEU: Anhang-Erkennung nachholen wenn noch nicht gesetzt
+                        if !bodyEntity.hasAttachments, let rawBody = bodyEntity.rawBody, !rawBody.isEmpty {
+                            let detectedAttachments = detectAttachmentsInRawBody(rawBody)
+                            if detectedAttachments {
+                                print("📎 [MessageDetailView] Late attachment detection (post-sync): found attachments!")
+                                if let writeDAO = MailRepository.shared.writeDAO {
+                                    var updatedEntity = bodyEntity
+                                    updatedEntity.hasAttachments = true
+                                    try? writeDAO.storeBody(
+                                        accountId: mail.accountId,
+                                        folder: mail.folder,
+                                        uid: mail.uid,
+                                        body: updatedEntity
+                                    )
+                                    print("✅ [MessageDetailView] Updated hasAttachments flag in DB")
+                                }
+                            }
+                        }
+
                         let displayContent = BodyContentProcessor.selectDisplayContent(
                             html: bodyEntity.html,
                             text: bodyEntity.text
                         )
-                        
+
                         await MainActor.run {
                             bodyText = displayContent.content
                             isHTML = displayContent.isHTML
@@ -863,7 +902,51 @@ struct MessageDetailView: View {
         // Fallback: treat entire string as name
         return (trimmed, nil)
     }
-    
+
+    /// Erkennt Anhänge im rawBody für nachträgliche Aktualisierung
+    private func detectAttachmentsInRawBody(_ rawBody: String) -> Bool {
+        let lowerBody = rawBody.lowercased()
+
+        // 1. Explizit als Attachment markiert
+        if lowerBody.contains("content-disposition: attachment") {
+            return true
+        }
+
+        // 2. Multipart/mixed enthält typischerweise Anhänge
+        if lowerBody.contains("content-type: multipart/mixed") {
+            return true
+        }
+
+        // 3. PDF, Office-Dokumente, etc.
+        let attachmentTypes = [
+            "application/pdf",
+            "application/msword",
+            "application/vnd.openxmlformats",
+            "application/vnd.ms-excel",
+            "application/vnd.ms-powerpoint",
+            "application/zip",
+            "application/x-zip",
+            "application/octet-stream"
+        ]
+        for type in attachmentTypes {
+            if lowerBody.contains("content-type: \(type)") {
+                return true
+            }
+        }
+
+        // 4. Dateiname mit typischer Anhang-Erweiterung
+        if lowerBody.contains("filename=") {
+            let attachmentExtensions = [".pdf", ".doc", ".docx", ".xls", ".xlsx", ".ppt", ".pptx", ".zip", ".rar"]
+            for ext in attachmentExtensions {
+                if lowerBody.contains(ext) {
+                    return true
+                }
+            }
+        }
+
+        return false
+    }
+
 }
 
 // MARK: - Errors

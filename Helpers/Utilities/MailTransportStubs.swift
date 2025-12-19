@@ -374,20 +374,27 @@ final class MailSendReceive {
             print("🔍 PHASE 4: RAW-first storage for UID: \(uid)")
             print("🔍 [MailTransportStubs] Raw body length: \(raw.count)")
             
-            // ✅ RAW direkt speichern ohne MIME-Processing
+            // ✅ RAW direkt speichern mit Anhang-Erkennung
             if let writeDAO = MailRepository.shared.writeDAO {
+                let hasAttachments = detectAttachmentsInRaw(raw)
+                let isMultipart = raw.lowercased().contains("content-type: multipart/")
+
+                if hasAttachments {
+                    print("📎 [MailTransportStubs] Detected attachments in UID: \(uid)")
+                }
+
                 let entity = MessageBodyEntity(
                     accountId: account.id,
                     folder: folder,
                     uid: uid,
                     text: nil,              // ← Leer lassen (später Processing)
                     html: nil,              // ← Leer lassen (später Processing)
-                    hasAttachments: false,  // ← Später aus rawBody erkennen
+                    hasAttachments: hasAttachments,  // ✅ Aus rawBody erkannt
                     rawBody: raw,           // ← NUR RAW speichern
                     contentType: nil,       // ← Später extrahieren
                     charset: nil,           // ← Später extrahieren
                     transferEncoding: nil,
-                    isMultipart: false,     // ← Später aus rawBody erkennen
+                    isMultipart: isMultipart,  // ✅ Aus rawBody erkannt
                     rawSize: raw.count,
                     processedAt: nil        // ← NIL = nicht verarbeitet
                 )
@@ -661,12 +668,58 @@ extension MailSendReceive {
         let bodyStructure: IMAPBodyStructure
         let sectionData: [String: Data]
         let deferredSections: [FetchPlan.FetchSection]
-        
+
         init(uid: String, bodyStructure: IMAPBodyStructure, sectionData: [String: Data], deferredSections: [FetchPlan.FetchSection]) {
             self.uid = uid
             self.bodyStructure = bodyStructure
             self.sectionData = sectionData
             self.deferredSections = deferredSections
         }
+    }
+
+    // MARK: - Attachment Detection Helper
+
+    /// Erkennt ob eine E-Mail Anhänge enthält basierend auf dem rawBody
+    private func detectAttachmentsInRaw(_ rawBody: String) -> Bool {
+        let lowerBody = rawBody.lowercased()
+
+        // 1. Explizit als Attachment markiert
+        if lowerBody.contains("content-disposition: attachment") {
+            return true
+        }
+
+        // 2. Multipart/mixed enthält typischerweise Anhänge
+        if lowerBody.contains("content-type: multipart/mixed") {
+            return true
+        }
+
+        // 3. PDF, Office-Dokumente, etc.
+        let attachmentTypes = [
+            "application/pdf",
+            "application/msword",
+            "application/vnd.openxmlformats",
+            "application/vnd.ms-excel",
+            "application/vnd.ms-powerpoint",
+            "application/zip",
+            "application/x-zip",
+            "application/octet-stream"
+        ]
+        for type in attachmentTypes {
+            if lowerBody.contains("content-type: \(type)") {
+                return true
+            }
+        }
+
+        // 4. Dateiname mit typischer Anhang-Erweiterung
+        if lowerBody.contains("filename=") {
+            let attachmentExtensions = [".pdf", ".doc", ".docx", ".xls", ".xlsx", ".ppt", ".pptx", ".zip", ".rar"]
+            for ext in attachmentExtensions {
+                if lowerBody.contains("filename=") && lowerBody.contains(ext) {
+                    return true
+                }
+            }
+        }
+
+        return false
     }
 }
