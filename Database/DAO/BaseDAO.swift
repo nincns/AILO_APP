@@ -274,8 +274,18 @@ public class BaseDAO {
     internal func bindStringArray(_ statement: OpaquePointer, _ index: Int32, _ array: [String]) {
         let joined = array.joined(separator: ",")
         let finalValue = joined.isEmpty ? nil : joined
-        print("🔍 [BIND-STRINGARRAY] Index: \(index), Array: \(array), Joined: '\(finalValue ?? "NULL")'")
+        print("🔍 [BIND-STRINGARRAY] Index: \(index), Array: \(array), Joined: '\(finalValue ?? \"NULL\")'")
         bindText(statement, index, finalValue)
+    }
+
+    internal func bindBool(_ statement: OpaquePointer, _ index: Int32, _ value: Bool) {
+        sqlite3_bind_int(statement, index, value ? 1 : 0)
+    }
+
+    // Helper to create contextualized database errors
+    internal func dbError(context: String) -> DAOError {
+        let errorMsg = db != nil ? String(cString: sqlite3_errmsg(db)) : "No database connection"
+        return DAOError.databaseError("\(context): \(errorMsg)")
     }
 }
 
