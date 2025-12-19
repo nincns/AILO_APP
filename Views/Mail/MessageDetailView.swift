@@ -1030,6 +1030,17 @@ struct MessageDetailView: View {
                 // Dekodiere Base64
                 if let data = Data(base64Encoded: cleanBase64, options: .ignoreUnknownCharacters), data.count > 0 {
                     print("📎 [extractAttachmentsWithData] ✅ Decoded \(foundFilename): \(data.count) bytes")
+
+                    // Debug: Prüfe PDF-Integrität
+                    if let pdfStart = String(data: data.prefix(16), encoding: .ascii) {
+                        print("📎 [PDF-CHECK] Start: '\(pdfStart)'")
+                    }
+                    if let pdfEnd = String(data: data.suffix(32), encoding: .ascii) {
+                        print("📎 [PDF-CHECK] End: '\(pdfEnd)'")
+                    }
+                    let hasEOF = data.suffix(1024).contains("%%EOF".data(using: .ascii)!)
+                    print("📎 [PDF-CHECK] Contains %%EOF: \(hasEOF)")
+
                     results.append((foundFilename, data))
                     processedFilenames.insert(foundFilename.lowercased())
                 } else {
