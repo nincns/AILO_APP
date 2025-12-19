@@ -989,14 +989,24 @@ struct MessageDetailView: View {
 
     /// Extrahiert Anhang-Metadaten aus dem rawBody
     private func extractAttachmentMetadata(from rawBody: String) -> [AttachmentEntity] {
+        print("📎 [extractAttachmentMetadata] Starting extraction from rawBody (\(rawBody.count) chars)")
         var attachments: [AttachmentEntity] = []
         var partCounter = 1
+
+        // Debug: Suche nach Anhang-Indikatoren
+        let lowerBody = rawBody.lowercased()
+        print("📎 [extractAttachmentMetadata] Quick scan:")
+        print("   - Contains 'content-disposition: attachment': \(lowerBody.contains("content-disposition: attachment"))")
+        print("   - Contains 'application/pdf': \(lowerBody.contains("application/pdf"))")
+        print("   - Contains 'filename=': \(lowerBody.contains("filename="))")
+        print("   - Contains 'name=': \(lowerBody.contains("name="))")
 
         // Split by MIME boundary to find parts
         let lines = rawBody.components(separatedBy: "\n")
         var currentPart: [String: String] = [:]
         var inHeaders = false
         var boundaryFound = false
+        var boundaryCount = 0
 
         for line in lines {
             let trimmedLine = line.trimmingCharacters(in: .whitespacesAndNewlines)
