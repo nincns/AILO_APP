@@ -423,12 +423,15 @@ struct MessageDetailView: View {
                                 }
 
                                 // ✅ NEU: Anhang-Metadaten aus rawBody extrahieren
+                                print("📎 [PATH-A] detectedAttachments=\(detectedAttachments), bodyEntity.hasAttachments=\(bodyEntity.hasAttachments)")
                                 if detectedAttachments || bodyEntity.hasAttachments {
                                     let extractedAttachments = extractAttachmentMetadata(from: rawBody)
+                                    print("📎 [PATH-A] extractedAttachments.count = \(extractedAttachments.count)")
                                     if !extractedAttachments.isEmpty {
-                                        print("📎 [MessageDetailView] Extracted \(extractedAttachments.count) attachment(s)")
+                                        print("📎 [PATH-A] Extracted \(extractedAttachments.count) attachment(s)")
                                         await MainActor.run {
                                             self.attachments = extractedAttachments
+                                            print("📎 [PATH-A UI] attachments set: \(self.attachments.count)")
                                         }
                                     }
                                 }
