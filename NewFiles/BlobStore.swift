@@ -7,7 +7,7 @@ import CryptoKit
 
 // MARK: - Blob Store Implementation
 
-class BlobStore {
+class BlobStore: BlobStoreProtocol {
     
     private let basePath: URL
     private let writeDAO: MailWriteDAO
