@@ -364,15 +364,24 @@ struct MessageDetailView: View {
                                         rawBody: rawBody,
                                         bodyEntity: bodyEntity
                                     )
-                                    
+
+                                    // ✅ NEU: Anhang-Metadaten extrahieren
+                                    let extractedAttachments = extractAttachmentMetadata(from: rawBody)
+                                    if !extractedAttachments.isEmpty {
+                                        print("📎 [loadMailBody] Extracted \(extractedAttachments.count) attachment(s)")
+                                    }
+
                                     await MainActor.run {
                                         bodyText = displayText
                                         isHTML = displayIsHTML
                                         rawBodyText = rawBody
                                         isLoadingBody = false
+                                        if !extractedAttachments.isEmpty {
+                                            self.attachments = extractedAttachments
+                                        }
                                     }
                                     bodyLoaded = true
-                                    
+
                                 } catch {
                                     print("❌ [loadMailBody] Processing failed: \(error)")
                                     await MainActor.run {
@@ -523,16 +532,25 @@ struct MessageDetailView: View {
                                     rawBody: rawBody,
                                     bodyEntity: bodyEntity
                                 )
-                                
+
+                                // ✅ NEU: Anhang-Metadaten extrahieren
+                                let extractedAttachments = extractAttachmentMetadata(from: rawBody)
+                                if !extractedAttachments.isEmpty {
+                                    print("📎 [loadMailBodyAfterSync] Extracted \(extractedAttachments.count) attachment(s)")
+                                }
+
                                 await MainActor.run {
                                     bodyText = displayText
                                     isHTML = displayIsHTML
                                     rawBodyText = rawBody
                                     isLoadingBody = false
+                                    if !extractedAttachments.isEmpty {
+                                        self.attachments = extractedAttachments
+                                    }
                                 }
                                 print("✅ [loadMailBodyAfterSync] Processed content loaded")
                                 bodyLoaded = true
-                                
+
                             } catch {
                                 print("❌ [loadMailBodyAfterSync] Processing failed: \(error)")
                                 await MainActor.run {
