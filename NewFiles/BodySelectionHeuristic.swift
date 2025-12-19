@@ -17,7 +17,44 @@ class BodySelectionHeuristic {
     ]
     
     // MARK: - Select Best Body
-    
+
+    /// Overload for MIMEParser.MimePartEntity
+    func selectBestBody(from parts: [MIMEParser.MimePartEntity]) -> MIMEParser.MimePartEntity? {
+        // Filter for body candidates
+        let candidates = parts.filter { $0.isBodyCandidate }
+
+        if candidates.isEmpty {
+            return nil
+        }
+
+        // Score each part and return the best one
+        var bestPart: MIMEParser.MimePartEntity?
+        var bestScore = -1
+
+        for part in candidates {
+            var score = typePreferences[part.contentType] ?? 0
+
+            // Bonus for HTML content
+            if part.contentType.lowercased().contains("html") {
+                score += 100
+            } else if part.contentType.lowercased().contains("plain") {
+                score += 50
+            }
+
+            // Bonus for reasonable size
+            if part.size > 0 {
+                score += 10
+            }
+
+            if score > bestScore {
+                bestScore = score
+                bestPart = part
+            }
+        }
+
+        return bestPart
+    }
+
     func selectBestBody(from parts: [MimePartEntity]) -> MimePartEntity? {
         // Filter for body candidates
         let candidates = parts.filter { $0.isBodyCandidate }
