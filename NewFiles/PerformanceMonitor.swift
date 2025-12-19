@@ -345,11 +345,11 @@ class PerformanceMonitor {
     private func performPeriodicCheck() {
         let currentMemory = getCurrentMemoryUsage()
         let memoryGrowth = currentMemory - memoryBaseline
-        
+
         if memoryGrowth > thresholds.memoryCriticalThreshold {
-            logger.critical("🚨 Overall memory growth: \(formatBytes(memoryGrowth))")
+            logger.critical("🚨 Overall memory growth: \(self.formatBytes(memoryGrowth))")
         }
-        
+
         // Clean old metrics
         cleanOldMetrics()
     }
