@@ -912,13 +912,30 @@ struct MessageDetailView: View {
                     cleanPart = String(cleanPart.dropFirst(1))
                 }
 
-                // Prüfe ob dieser Part ein Anhang ist (PDF oder andere Dateitypen)
+                // Prüfe ob dieser Part ein Container ist (multipart/*) - überspringe Container
                 let lowerPart = cleanPart.lowercased()
-                let hasPdfType = lowerPart.contains("application/pdf")
-                let hasAttachmentDisp = lowerPart.contains("content-disposition") &&
-                                        (lowerPart.contains("attachment") || lowerPart.contains("filename"))
-                let hasBase64 = lowerPart.contains("content-transfer-encoding: base64") ||
-                                lowerPart.contains("content-transfer-encoding:base64")
+                if lowerPart.hasPrefix("content-type: multipart/") ||
+                   lowerPart.hasPrefix("content-type:multipart/") {
+                    print("📎 [extractAttachmentsWithData] Part \(index): Skipping multipart container")
+                    continue
+                }
+
+                // Extrahiere nur den Header-Teil (bis zur ersten leeren Zeile) für Content-Type Check
+                var headerSection = cleanPart
+                if let emptyLineRange = cleanPart.range(of: "\r\n\r\n") {
+                    headerSection = String(cleanPart[..<emptyLineRange.lowerBound])
+                } else if let emptyLineRange = cleanPart.range(of: "\n\n") {
+                    headerSection = String(cleanPart[..<emptyLineRange.lowerBound])
+                }
+                let lowerHeader = headerSection.lowercased()
+
+                // Prüfe ob dieser Part ein Anhang ist (PDF oder andere Dateitypen)
+                let hasPdfType = lowerHeader.contains("content-type: application/pdf") ||
+                                 lowerHeader.contains("content-type:application/pdf")
+                let hasAttachmentDisp = lowerHeader.contains("content-disposition") &&
+                                        (lowerHeader.contains("attachment") || lowerHeader.contains("filename"))
+                let hasBase64 = lowerHeader.contains("content-transfer-encoding: base64") ||
+                                lowerHeader.contains("content-transfer-encoding:base64")
 
                 let isAttachment = (hasPdfType || hasAttachmentDisp) && hasBase64
 
