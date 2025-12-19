@@ -869,9 +869,9 @@ struct MessageDetailView: View {
     private func extractAttachmentsWithData(from rawBody: String) -> [(filename: String, data: Data)] {
         print("📎 [extractAttachmentsWithData] Starting extraction from \(rawBody.count) chars")
         var results: [(String, Data)] = []
+        var processedFilenames: Set<String> = []
 
-        // Finde alle MIME-Parts mit Content-Disposition: attachment oder application/pdf etc.
-        // Suche nach Boundaries
+        // Finde alle Boundaries
         let boundaryPattern = "boundary=\"?([^\"\\s\\r\\n]+)\"?"
         guard let boundaryRegex = try? NSRegularExpression(pattern: boundaryPattern, options: .caseInsensitive) else {
             print("❌ [extractAttachmentsWithData] Failed to create boundary regex")
@@ -893,29 +893,36 @@ struct MessageDetailView: View {
         for boundary in boundaries {
             let delimiter = "--" + boundary
             let parts = rawBody.components(separatedBy: delimiter)
+            print("📎 [extractAttachmentsWithData] Boundary '\(boundary.prefix(20))...' has \(parts.count) parts")
 
             for (index, part) in parts.enumerated() {
-                // Überspringe ersten und letzten Part (Header und Terminator)
-                if index == 0 || part.hasPrefix("--") { continue }
+                // Überspringe ersten und letzten Part
+                if index == 0 || part.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { continue }
+                if part.hasPrefix("--") { continue }
 
-                // Prüfe ob dieser Part ein Anhang ist
+                // Prüfe ob dieser Part ein Anhang ist (PDF oder andere Dateitypen)
                 let lowerPart = part.lowercased()
-                let isAttachment = lowerPart.contains("content-disposition: attachment") ||
-                                   lowerPart.contains("content-disposition:attachment") ||
-                                   (lowerPart.contains("application/pdf") && lowerPart.contains("name=")) ||
-                                   (lowerPart.contains("application/") && lowerPart.contains("filename="))
+                let hasPdfType = lowerPart.contains("application/pdf")
+                let hasAttachmentDisp = lowerPart.contains("content-disposition") &&
+                                        (lowerPart.contains("attachment") || lowerPart.contains("filename"))
+                let hasBase64 = lowerPart.contains("content-transfer-encoding: base64") ||
+                                lowerPart.contains("content-transfer-encoding:base64")
+
+                let isAttachment = (hasPdfType || hasAttachmentDisp) && hasBase64
 
                 if !isAttachment { continue }
+
+                print("📎 [extractAttachmentsWithData] Part \(index): Found attachment candidate (pdf=\(hasPdfType), disp=\(hasAttachmentDisp), base64=\(hasBase64))")
 
                 // Extrahiere Dateiname
                 var filename: String? = nil
                 let filenamePatterns = [
                     "filename\\*?\\s*=\\s*\"([^\"]+)\"",
                     "filename\\*?\\s*=\\s*'([^']+)'",
-                    "filename\\*?\\s*=\\s*[^']*'[^']*'([^;\\s\\r\\n]+)",
+                    "filename\\*?\\s*=\\s*utf-8''([^;\\s\\r\\n]+)",
                     "filename\\*?\\s*=\\s*([^;\\s\\r\\n]+)",
                     "name\\s*=\\s*\"([^\"]+)\"",
-                    "name\\s*=\\s*([^;\\s\\r\\n]+)"
+                    "name\\s*=\\s*([^;\\s\\r\\n\"]+)"
                 ]
 
                 for pattern in filenamePatterns {
@@ -924,71 +931,81 @@ struct MessageDetailView: View {
                        match.numberOfRanges > 1,
                        let fnRange = Range(match.range(at: 1), in: part) {
                         var fn = String(part[fnRange]).trimmingCharacters(in: .whitespaces)
-                        // URL-Dekodierung
                         if fn.contains("%") {
                             fn = fn.removingPercentEncoding ?? fn
                         }
-                        // MIME-Dekodierung
                         fn = decodeFilename(fn)
-                        if !fn.isEmpty {
+                        if !fn.isEmpty && fn.contains(".") {
                             filename = fn
+                            print("📎 [extractAttachmentsWithData] Found filename: \(fn)")
                             break
                         }
                     }
                 }
 
                 guard let foundFilename = filename else {
-                    print("📎 [extractAttachmentsWithData] Part \(index): No filename found")
+                    print("📎 [extractAttachmentsWithData] Part \(index): No filename found, skipping")
                     continue
                 }
 
-                // Finde Base64-Daten (nach der leeren Zeile)
-                let partLines = part.components(separatedBy: "\r\n")
-                var dataStartIndex = 0
-                var foundEmptyLine = false
-
-                for (lineIndex, line) in partLines.enumerated() {
-                    if line.trimmingCharacters(in: .whitespaces).isEmpty && lineIndex > 0 {
-                        dataStartIndex = lineIndex + 1
-                        foundEmptyLine = true
-                        break
-                    }
-                }
-
-                if !foundEmptyLine {
-                    // Versuche mit \n statt \r\n
-                    let altLines = part.components(separatedBy: "\n")
-                    for (lineIndex, line) in altLines.enumerated() {
-                        if line.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && lineIndex > 0 {
-                            dataStartIndex = lineIndex + 1
-                            foundEmptyLine = true
-                            break
-                        }
-                    }
-                }
-
-                guard foundEmptyLine else {
-                    print("📎 [extractAttachmentsWithData] Part \(index): No data section found")
+                // Verhindere Duplikate
+                if processedFilenames.contains(foundFilename.lowercased()) {
+                    print("📎 [extractAttachmentsWithData] Skipping duplicate: \(foundFilename)")
                     continue
                 }
 
-                // Extrahiere und dekodiere Base64-Daten
-                let dataLines = partLines.dropFirst(dataStartIndex)
-                let base64String = dataLines
-                    .joined()
+                // Finde die Grenze zwischen Header und Body (doppelte Newline)
+                // Versuche verschiedene Newline-Kombinationen
+                var headerEndIndex: String.Index? = nil
+                var bodyStartOffset = 0
+
+                if let range = part.range(of: "\r\n\r\n") {
+                    headerEndIndex = range.upperBound
+                    bodyStartOffset = 4
+                } else if let range = part.range(of: "\n\n") {
+                    headerEndIndex = range.upperBound
+                    bodyStartOffset = 2
+                } else if let range = part.range(of: "\r\n \r\n") {
+                    headerEndIndex = range.upperBound
+                    bodyStartOffset = 5
+                }
+
+                guard let bodyStart = headerEndIndex else {
+                    print("❌ [extractAttachmentsWithData] Part \(index): Could not find header/body boundary")
+                    continue
+                }
+
+                // Extrahiere Base64-Body
+                var base64Body = String(part[bodyStart...])
+
+                // Entferne trailing boundary markers und Whitespace
+                if let boundaryIdx = base64Body.range(of: "\r\n--") {
+                    base64Body = String(base64Body[..<boundaryIdx.lowerBound])
+                } else if let boundaryIdx = base64Body.range(of: "\n--") {
+                    base64Body = String(base64Body[..<boundaryIdx.lowerBound])
+                }
+
+                // Bereinige Base64-String
+                let cleanBase64 = base64Body
+                    .replacingOccurrences(of: "\r\n", with: "")
                     .replacingOccurrences(of: "\r", with: "")
                     .replacingOccurrences(of: "\n", with: "")
                     .replacingOccurrences(of: " ", with: "")
+                    .trimmingCharacters(in: .whitespacesAndNewlines)
 
-                // Entferne trailing boundary markers
-                let cleanBase64 = base64String.components(separatedBy: "--").first ?? base64String
+                print("📎 [extractAttachmentsWithData] Base64 length: \(cleanBase64.count) chars")
+                print("📎 [extractAttachmentsWithData] Base64 preview: \(String(cleanBase64.prefix(80)))...")
 
-                if let data = Data(base64Encoded: cleanBase64, options: .ignoreUnknownCharacters) {
-                    print("📎 [extractAttachmentsWithData] Decoded \(foundFilename): \(data.count) bytes")
+                // Dekodiere Base64
+                if let data = Data(base64Encoded: cleanBase64, options: .ignoreUnknownCharacters), data.count > 0 {
+                    print("📎 [extractAttachmentsWithData] ✅ Decoded \(foundFilename): \(data.count) bytes")
                     results.append((foundFilename, data))
+                    processedFilenames.insert(foundFilename.lowercased())
                 } else {
                     print("❌ [extractAttachmentsWithData] Failed to decode Base64 for \(foundFilename)")
-                    print("   Base64 preview: \(String(cleanBase64.prefix(100)))...")
+                    // Debug: Zeige die ersten/letzten Zeichen
+                    print("   First 50 chars: '\(String(cleanBase64.prefix(50)))'")
+                    print("   Last 50 chars: '\(String(cleanBase64.suffix(50)))'")
                 }
             }
         }
