@@ -386,37 +386,263 @@ public actor MailProcessor {
     private func parseMultipartContent(
         content: String,
         contentType: String,
-        warnings: inout [String]
+        warnings: inout [String],
+        partPrefix: String = ""
     ) throws -> (text: String?, html: String?, attachments: [ProcessedAttachment]) {
-        
+
         guard let boundary = extractBoundary(from: contentType) else {
-            warnings.append("Multipart boundary not found")
+            warnings.append("Multipart boundary not found in: \(contentType.prefix(50))")
             print("MailProcessor Warning: Multipart boundary not found")
             return (text: content, html: nil, attachments: [])
         }
-        
+
         let parts = content.components(separatedBy: "--\(boundary)")
         var textPart: String?
         var htmlPart: String?
         var attachments: [ProcessedAttachment] = []
-        
+
+        print("📦 [MailProcessor] Found \(parts.count) parts with boundary: \(boundary.prefix(30))...")
+
         for (index, part) in parts.enumerated() {
-            if part.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { continue }
-            
-            let (partContentType, partContent) = extractPartContent(part)
-            
-            if partContentType.contains("text/plain") {
-                textPart = partContent
-            } else if partContentType.contains("text/html") {
-                htmlPart = partContent
-            } else if partContentType.contains("application/") || partContentType.contains("image/") {
-                if let attachment = createAttachment(from: part, partId: String(index)) {
+            let trimmedPart = part.trimmingCharacters(in: .whitespacesAndNewlines)
+
+            // Skip empty parts and end boundary markers
+            if trimmedPart.isEmpty || trimmedPart == "--" { continue }
+
+            let partId = partPrefix.isEmpty ? String(index) : "\(partPrefix).\(index)"
+            let partInfo = extractFullPartInfo(trimmedPart)
+
+            print("   📝 Part \(partId): \(partInfo.contentType) (disposition: \(partInfo.contentDisposition ?? "none"))")
+
+            // ✅ KRITISCHER FIX: Rekursive Verarbeitung verschachtelter Multiparts
+            if partInfo.contentType.lowercased().contains("multipart/") {
+                print("   🔁 Nested multipart detected, processing recursively...")
+
+                let nestedResult = try parseMultipartContent(
+                    content: partInfo.body,
+                    contentType: partInfo.fullContentType,
+                    warnings: &warnings,
+                    partPrefix: partId
+                )
+
+                // Merge results (erste gefundene Werte behalten)
+                if textPart == nil, let nestedText = nestedResult.text {
+                    textPart = nestedText
+                    print("   ✅ Merged nested text (\(nestedText.count) chars)")
+                }
+                if htmlPart == nil, let nestedHtml = nestedResult.html {
+                    htmlPart = nestedHtml
+                    print("   ✅ Merged nested HTML (\(nestedHtml.count) chars)")
+                }
+                attachments.append(contentsOf: nestedResult.attachments)
+                continue
+            }
+
+            // Prüfe ob Part ein Attachment ist
+            if isAttachmentPart(partInfo: partInfo) {
+                if let attachment = createAttachment(from: trimmedPart, partId: partId, partInfo: partInfo) {
                     attachments.append(attachment)
+                    print("   📎 Attachment created: \(attachment.filename) (\(attachment.sizeBytes) bytes)")
+                }
+                continue
+            }
+
+            // Verarbeite Body-Parts (text/plain, text/html)
+            let decodedContent = decodePartContent(partInfo: partInfo)
+
+            if partInfo.contentType.lowercased().contains("text/plain") {
+                if textPart == nil {
+                    textPart = decodedContent
+                    print("   ✅ Text part decoded (\(decodedContent.count) chars)")
+                }
+            } else if partInfo.contentType.lowercased().contains("text/html") {
+                if htmlPart == nil {
+                    htmlPart = decodedContent
+                    print("   ✅ HTML part decoded (\(decodedContent.count) chars)")
                 }
             }
         }
-        
+
         return (text: textPart, html: htmlPart, attachments: attachments)
+    }
+
+    // MARK: - Part Info Extraction
+
+    private struct PartInfo {
+        let contentType: String
+        let fullContentType: String
+        let transferEncoding: String
+        let contentDisposition: String?
+        let contentId: String?
+        let filename: String?
+        let charset: String?
+        let body: String
+        let headers: String
+    }
+
+    private func extractFullPartInfo(_ part: String) -> PartInfo {
+        let lines = part.components(separatedBy: .newlines)
+        var contentType = "text/plain"
+        var fullContentType = "text/plain"
+        var transferEncoding = "7bit"
+        var contentDisposition: String?
+        var contentId: String?
+        var filename: String?
+        var charset: String?
+        var headerEndIndex = 0
+        var headerLines: [String] = []
+
+        // Parse headers
+        for (index, line) in lines.enumerated() {
+            if line.trimmingCharacters(in: .whitespaces).isEmpty {
+                headerEndIndex = index + 1
+                break
+            }
+            headerLines.append(line)
+
+            let lowerLine = line.lowercased()
+
+            if lowerLine.hasPrefix("content-type:") {
+                fullContentType = String(line.dropFirst("content-type:".count)).trimmingCharacters(in: .whitespaces)
+                contentType = extractMimeType(from: fullContentType)
+                charset = extractCharsetFromContentType(fullContentType)
+            } else if lowerLine.hasPrefix("content-transfer-encoding:") {
+                transferEncoding = String(line.dropFirst("content-transfer-encoding:".count)).trimmingCharacters(in: .whitespaces)
+            } else if lowerLine.hasPrefix("content-disposition:") {
+                contentDisposition = String(line.dropFirst("content-disposition:".count)).trimmingCharacters(in: .whitespaces)
+                filename = extractFilenameFromDisposition(contentDisposition!)
+            } else if lowerLine.hasPrefix("content-id:") {
+                contentId = String(line.dropFirst("content-id:".count))
+                    .trimmingCharacters(in: .whitespaces)
+                    .trimmingCharacters(in: CharacterSet(charactersIn: "<>"))
+            }
+        }
+
+        // Extrahiere auch filename aus Content-Type falls nicht in Disposition
+        if filename == nil {
+            filename = extractFilename(from: part)
+        }
+
+        let body = lines.dropFirst(headerEndIndex).joined(separator: "\n")
+        let headers = headerLines.joined(separator: "\n")
+
+        return PartInfo(
+            contentType: contentType,
+            fullContentType: fullContentType,
+            transferEncoding: transferEncoding,
+            contentDisposition: contentDisposition,
+            contentId: contentId,
+            filename: filename,
+            charset: charset,
+            body: body,
+            headers: headers
+        )
+    }
+
+    private func extractMimeType(from contentType: String) -> String {
+        // Extrahiere nur den MIME-Type ohne Parameter
+        return contentType.components(separatedBy: ";").first?.trimmingCharacters(in: .whitespaces) ?? contentType
+    }
+
+    private func extractCharsetFromContentType(_ contentType: String) -> String? {
+        let pattern = #"charset="?([^";\s]+)"?"#
+        if let match = contentType.range(of: pattern, options: [.regularExpression, .caseInsensitive]) {
+            return String(contentType[match])
+                .replacingOccurrences(of: "charset=", with: "", options: .caseInsensitive)
+                .trimmingCharacters(in: CharacterSet(charactersIn: "\""))
+        }
+        return nil
+    }
+
+    private func extractFilenameFromDisposition(_ disposition: String) -> String? {
+        let pattern = #"filename="?([^";]+)"?"#
+        if let match = disposition.range(of: pattern, options: [.regularExpression, .caseInsensitive]) {
+            return String(disposition[match])
+                .replacingOccurrences(of: "filename=", with: "", options: .caseInsensitive)
+                .trimmingCharacters(in: CharacterSet(charactersIn: "\""))
+        }
+        return nil
+    }
+
+    // MARK: - Attachment Detection
+
+    private func isAttachmentPart(partInfo: PartInfo) -> Bool {
+        // Explizit als Attachment markiert
+        if let disposition = partInfo.contentDisposition?.lowercased() {
+            if disposition.contains("attachment") {
+                return true
+            }
+        }
+
+        // Content-Types die typischerweise Attachments sind
+        let attachmentTypes = [
+            "application/", "image/", "audio/", "video/"
+        ]
+
+        let lowerContentType = partInfo.contentType.lowercased()
+
+        for attachmentType in attachmentTypes {
+            if lowerContentType.hasPrefix(attachmentType) {
+                // Ausnahme: inline images (haben Content-ID und inline disposition)
+                if partInfo.contentId != nil && partInfo.contentDisposition?.lowercased().contains("inline") == true {
+                    return false  // Inline image, nicht als separates Attachment behandeln
+                }
+                return true
+            }
+        }
+
+        return false
+    }
+
+    // MARK: - Content Decoding
+
+    private func decodePartContent(partInfo: PartInfo) -> String {
+        let encoding = partInfo.transferEncoding.lowercased()
+        let body = partInfo.body
+
+        switch encoding {
+        case "base64":
+            let cleanBase64 = body.components(separatedBy: .whitespacesAndNewlines).joined()
+            if let data = Data(base64Encoded: cleanBase64),
+               let decoded = String(data: data, encoding: charsetToEncoding(partInfo.charset)) {
+                return decoded
+            }
+            // Fallback zu UTF-8
+            if let data = Data(base64Encoded: cleanBase64),
+               let decoded = String(data: data, encoding: .utf8) {
+                return decoded
+            }
+            return body
+
+        case "quoted-printable":
+            return decodeQuotedPrintableString(body)
+
+        default:
+            return body
+        }
+    }
+
+    private func charsetToEncoding(_ charset: String?) -> String.Encoding {
+        guard let charset = charset?.lowercased() else { return .utf8 }
+
+        switch charset {
+        case "utf-8": return .utf8
+        case "iso-8859-1", "latin-1": return .isoLatin1
+        case "windows-1252": return .windowsCP1252
+        case "ascii", "us-ascii": return .ascii
+        default: return .utf8
+        }
+    }
+
+    private func decodeQuotedPrintableString(_ input: String) -> String {
+        var result = ""
+        let lines = input.components(separatedBy: .newlines)
+
+        for line in lines {
+            result += decodeQuotedPrintableLine(line)
+        }
+
+        return result
     }
     
     private func extractBoundary(from contentType: String) -> String? {
@@ -433,7 +659,7 @@ public actor MailProcessor {
         let lines = part.components(separatedBy: .newlines)
         var contentType = "text/plain"
         var contentStart = 0
-        
+
         for (index, line) in lines.enumerated() {
             if line.isEmpty {
                 contentStart = index + 1
@@ -443,35 +669,97 @@ public actor MailProcessor {
                 contentType = line.replacingOccurrences(of: "Content-Type:", with: "").trimmingCharacters(in: .whitespacesAndNewlines)
             }
         }
-        
+
         let content = lines.dropFirst(contentStart).joined(separator: "\n")
         return (contentType: contentType, content: content)
     }
-    
-    private func createAttachment(from part: String, partId: String) -> ProcessedAttachment? {
-        let (contentType, content) = extractPartContent(part)
-        let filename = extractFilename(from: part) ?? "attachment_\(partId)"
-        
-        guard let data = content.data(using: .utf8) else {
-            print("MailProcessor Error: Failed to create attachment data for \(filename)")
-            return nil
+
+    /// Erstellt ein ProcessedAttachment mit korrekter Base64-Dekodierung
+    private func createAttachment(from part: String, partId: String, partInfo: PartInfo) -> ProcessedAttachment? {
+        let filename = partInfo.filename ?? "attachment_\(partId)"
+        let mimeType = partInfo.contentType
+        let encoding = partInfo.transferEncoding.lowercased()
+        let body = partInfo.body
+
+        print("   📎 [createAttachment] Creating: \(filename)")
+        print("      - MIME: \(mimeType)")
+        print("      - Encoding: \(encoding)")
+        print("      - Body size: \(body.count) chars")
+
+        let data: Data
+
+        // ✅ KRITISCHER FIX: Korrekte Dekodierung basierend auf Transfer-Encoding
+        switch encoding {
+        case "base64":
+            // Entferne Whitespace und dekodiere Base64
+            let cleanBase64 = body.components(separatedBy: .whitespacesAndNewlines).joined()
+            guard let decoded = Data(base64Encoded: cleanBase64) else {
+                print("   ⚠️ Base64 decoding failed for \(filename)")
+                // Fallback: Verwende raw data
+                guard let fallbackData = body.data(using: .utf8) else {
+                    print("   ❌ Failed to create attachment data for \(filename)")
+                    return nil
+                }
+                data = fallbackData
+                break
+            }
+            data = decoded
+            print("      ✅ Base64 decoded: \(decoded.count) bytes")
+
+        case "quoted-printable":
+            let decodedString = decodeQuotedPrintableString(body)
+            guard let qpData = decodedString.data(using: .utf8) else {
+                print("   ❌ QP decoding failed for \(filename)")
+                return nil
+            }
+            data = qpData
+
+        default:
+            // 7bit, 8bit, binary - use as-is
+            guard let rawData = body.data(using: .utf8) else {
+                print("   ❌ Failed to create raw data for \(filename)")
+                return nil
+            }
+            data = rawData
         }
-        
+
+        // Prüfe ob inline (hat Content-ID)
+        let isInline = partInfo.contentId != nil ||
+                      partInfo.contentDisposition?.lowercased().contains("inline") == true
+
         return ProcessedAttachment(
             filename: filename,
-            mimeType: contentType,
+            mimeType: mimeType,
             data: data,
+            contentId: partInfo.contentId,
+            isInline: isInline,
             partId: partId
         )
     }
-    
+
+    /// Legacy-Version für Abwärtskompatibilität
+    private func createAttachment(from part: String, partId: String) -> ProcessedAttachment? {
+        let partInfo = extractFullPartInfo(part)
+        return createAttachment(from: part, partId: partId, partInfo: partInfo)
+    }
+
     private func extractFilename(from part: String) -> String? {
-        let pattern = #"filename="?([^";]+)"?"#
-        if let match = part.range(of: pattern, options: .regularExpression) {
+        // Zuerst in Content-Disposition suchen
+        let dispositionPattern = #"filename="?([^";\r\n]+)"?"#
+        if let match = part.range(of: dispositionPattern, options: [.regularExpression, .caseInsensitive]) {
             return String(part[match])
-                .replacingOccurrences(of: "filename=", with: "")
+                .replacingOccurrences(of: "filename=", with: "", options: .caseInsensitive)
                 .trimmingCharacters(in: CharacterSet(charactersIn: "\""))
         }
+
+        // Dann in Content-Type name= Parameter suchen
+        let namePattern = #"name="?([^";\r\n]+)"?"#
+        if let match = part.range(of: namePattern, options: [.regularExpression, .caseInsensitive]) {
+            return String(part[match])
+                .replacingOccurrences(of: "name=", with: "", options: .caseInsensitive)
+                .trimmingCharacters(in: CharacterSet(charactersIn: "\""))
+        }
+
         return nil
     }
 }
