@@ -456,21 +456,36 @@ public class MailReadDAOImpl: BaseDAO, MailReadDAO {
             var parts: [MimePartEntity] = []
             
             while sqlite3_step(stmt) == SQLITE_ROW {
+                let idValue = stmt.columnUUID(0) ?? UUID()
+                let messageIdValue = stmt.columnUUID(1) ?? UUID()
+                let partNumberValue = stmt.columnText(2) ?? ""
+                let contentTypeValue = stmt.columnText(3) ?? ""
+                let sizeValue = Int64(stmt.columnInt(8))
+
                 let part = MimePartEntity(
-                    id: stmt.columnUUID(0),
-                    messageId: stmt.columnUUID(1),
-                    partNumber: stmt.columnText(2) ?? "",
-                    contentType: stmt.columnText(3) ?? "",
+                    id: idValue,
+                    messageId: messageIdValue,
+                    partNumber: partNumberValue,
+                    contentType: contentTypeValue,
                     contentSubtype: stmt.columnText(4),
                     contentId: stmt.columnText(5),
                     contentDisposition: stmt.columnText(6),
                     filename: stmt.columnText(7),
-                    size: Int64(stmt.columnInt(8)),
+                    size: sizeValue,
                     encoding: stmt.columnText(9),
                     charset: stmt.columnText(10),
                     isAttachment: stmt.columnBool(11),
                     isInline: stmt.columnBool(12),
-                    parentPartNumber: stmt.columnText(13)
+                    parentPartNumber: stmt.columnText(13),
+                    partId: partNumberValue,  // Verwende partNumber als partId
+                    parentPartId: stmt.columnText(13),
+                    mediaType: contentTypeValue,  // Verwende contentType als mediaType
+                    transferEncoding: stmt.columnText(9),
+                    filenameOriginal: stmt.columnText(7),
+                    filenameNormalized: stmt.columnText(7),
+                    sizeOctets: sizeValue,
+                    isBodyCandidate: contentTypeValue.lowercased().hasPrefix("text/"),
+                    blobId: nil
                 )
                 parts.append(part)
             }
@@ -502,22 +517,37 @@ public class MailReadDAOImpl: BaseDAO, MailReadDAO {
                 guard sqlite3_step(stmt) == SQLITE_ROW else {
                     return nil  // Return nil instead of throwing
                 }
-                
+
+                let idValue = stmt.columnUUID(0) ?? UUID()
+                let messageIdValue = stmt.columnUUID(1) ?? UUID()
+                let partNumberValue = stmt.columnText(2) ?? ""
+                let contentTypeValue = stmt.columnText(3) ?? ""
+                let sizeValue = Int64(stmt.columnInt(8))
+
                 return MimePartEntity(
-                    id: stmt.columnUUID(0),
-                    messageId: stmt.columnUUID(1),
-                    partNumber: stmt.columnText(2) ?? "",
-                    contentType: stmt.columnText(3) ?? "",
+                    id: idValue,
+                    messageId: messageIdValue,
+                    partNumber: partNumberValue,
+                    contentType: contentTypeValue,
                     contentSubtype: stmt.columnText(4),
                     contentId: stmt.columnText(5),
                     contentDisposition: stmt.columnText(6),
                     filename: stmt.columnText(7),
-                    size: Int64(stmt.columnInt(8)),
+                    size: sizeValue,
                     encoding: stmt.columnText(9),
                     charset: stmt.columnText(10),
                     isAttachment: stmt.columnBool(11),
                     isInline: stmt.columnBool(12),
-                    parentPartNumber: stmt.columnText(13)
+                    parentPartNumber: stmt.columnText(13),
+                    partId: partNumberValue,
+                    parentPartId: stmt.columnText(13),
+                    mediaType: contentTypeValue,
+                    transferEncoding: stmt.columnText(9),
+                    filenameOriginal: stmt.columnText(7),
+                    filenameNormalized: stmt.columnText(7),
+                    sizeOctets: sizeValue,
+                    isBodyCandidate: contentTypeValue.lowercased().hasPrefix("text/"),
+                    blobId: nil
                 )
             }
         }
@@ -579,7 +609,7 @@ public class MailReadDAOImpl: BaseDAO, MailReadDAO {
                 }
                 
                 return BlobMetaEntry(
-                    id: stmt.columnUUID(0),
+                    id: stmt.columnUUID(0) ?? UUID(),
                     sha256: stmt.columnText(1) ?? "",
                     size: Int64(stmt.columnInt(2)),
                     referenceCount: stmt.columnInt(3),
@@ -587,7 +617,6 @@ public class MailReadDAOImpl: BaseDAO, MailReadDAO {
                 )
             }
         }
-    }
     }
 
     // MARK: - Phase 1: RAW Message Blob ID
@@ -769,4 +798,4 @@ public class MailReadDAOImpl: BaseDAO, MailReadDAO {
             }
         }
     }
-
+}
