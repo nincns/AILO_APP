@@ -351,8 +351,8 @@ struct MessageDetailView: View {
                     AttachmentRowView(
                         attachment: attachment,
                         tempFileURL: index < tempFiles.count ? tempFiles[index] : nil,
-                        onTap: { url in
-                            previewURL = url
+                        onTap: {
+                            openAttachmentPreview(attachment: attachment)
                         }
                     )
                 }
@@ -833,6 +833,42 @@ struct MessageDetailView: View {
         onDelete?(mail)
         print(" Delete mail: \(mail.subject)")
         dismiss()
+    }
+
+    /// Öffnet Anhang-Vorschau mit QuickLook
+    private func openAttachmentPreview(attachment: AttachmentEntity) {
+        print("📎 [openAttachmentPreview] Opening: \(attachment.filename)")
+
+        guard !rawBodyText.isEmpty else {
+            print("❌ [openAttachmentPreview] rawBodyText is empty")
+            return
+        }
+
+        Task {
+            // Extrahiere Anhänge mit vollem Daten-Inhalt
+            let extractedAttachments = AttachmentExtractor.extract(from: rawBodyText)
+
+            // Finde passenden Anhang nach Dateiname
+            guard let matchingAttachment = extractedAttachments.first(where: { $0.filename == attachment.filename }) else {
+                print("❌ [openAttachmentPreview] Attachment not found: \(attachment.filename)")
+                return
+            }
+
+            // Erstelle temporäre Datei
+            let tempDir = FileManager.default.temporaryDirectory
+            let fileURL = tempDir.appendingPathComponent(matchingAttachment.filename)
+
+            do {
+                try matchingAttachment.data.write(to: fileURL)
+                print("📎 [openAttachmentPreview] Created temp file: \(fileURL.lastPathComponent) (\(matchingAttachment.data.count) bytes)")
+
+                await MainActor.run {
+                    previewURL = fileURL
+                }
+            } catch {
+                print("❌ [openAttachmentPreview] Failed to create temp file: \(error)")
+            }
+        }
     }
 
     /// Speichert alle Anhänge aus dem rawBody
@@ -1335,9 +1371,9 @@ private struct MailHTMLWebView: UIViewRepresentable {
 private struct AttachmentRowView: View {
     let attachment: AttachmentEntity
     let tempFileURL: URL?
-    let onTap: ((URL) -> Void)?
+    let onTap: (() -> Void)?
 
-    init(attachment: AttachmentEntity, tempFileURL: URL?, onTap: ((URL) -> Void)? = nil) {
+    init(attachment: AttachmentEntity, tempFileURL: URL?, onTap: (() -> Void)? = nil) {
         self.attachment = attachment
         self.tempFileURL = tempFileURL
         self.onTap = onTap
@@ -1345,20 +1381,7 @@ private struct AttachmentRowView: View {
 
     var body: some View {
         Button(action: {
-            if let url = tempFileURL {
-                onTap?(url)
-            } else if let data = attachment.data {
-                // Erstelle temporäre Datei falls noch nicht vorhanden
-                let tempDir = FileManager.default.temporaryDirectory
-                let filename = attachment.filename.isEmpty ? "attachment_\(attachment.partId)" : attachment.filename
-                let fileURL = tempDir.appendingPathComponent(filename)
-                do {
-                    try data.write(to: fileURL)
-                    onTap?(fileURL)
-                } catch {
-                    print("❌ [AttachmentRowView] Failed to create temp file: \(error)")
-                }
-            }
+            onTap?()
         }) {
             HStack {
                 Image(systemName: iconForAttachment)
@@ -1371,11 +1394,9 @@ private struct AttachmentRowView: View {
                         .foregroundStyle(.primary)
                         .lineLimit(1)
 
-                    if let data = attachment.data {
-                        Text(ByteCountFormatter.string(fromByteCount: Int64(data.count), countStyle: .file))
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
+                    Text(attachment.mimeType)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
                 }
 
                 Spacer()
@@ -1383,14 +1404,6 @@ private struct AttachmentRowView: View {
                 Image(systemName: "eye")
                     .foregroundStyle(.blue)
                     .font(.caption)
-
-                if let tempURL = tempFileURL {
-                    ShareLink(item: tempURL) {
-                        Image(systemName: "square.and.arrow.up")
-                            .foregroundStyle(Color.accentColor)
-                    }
-                    .buttonStyle(.borderless)
-                }
             }
         }
         .buttonStyle(.plain)
