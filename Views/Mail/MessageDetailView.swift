@@ -879,6 +879,34 @@ struct MessageDetailView: View {
         var results: [(String, Data)] = []
         var processedFilenames: Set<String> = []
 
+        // ✅ SCHRITT 1: Mail-Header von MIME-Body trennen
+        // rawBody = Mail-Headers + leere Zeile + MIME-Body
+        var mailHeaders = ""
+        var mimeBody = rawBody
+
+        if let range = rawBody.range(of: "\r\n\r\n") {
+            mailHeaders = String(rawBody[..<range.lowerBound])
+            mimeBody = String(rawBody[range.upperBound...])
+        } else if let range = rawBody.range(of: "\n\n") {
+            mailHeaders = String(rawBody[..<range.lowerBound])
+            mimeBody = String(rawBody[range.upperBound...])
+        }
+
+        print("📎 [extractAttachmentsWithData] Mail headers: \(mailHeaders.count) chars")
+        print("📎 [extractAttachmentsWithData] MIME body: \(mimeBody.count) chars")
+
+        // ✅ SCHRITT 2: Boundary aus Mail-Headers extrahieren
+        let boundaryPattern = "boundary=\"?([^\"\\s\\r\\n;]+)"
+        var rootBoundary: String? = nil
+
+        if let regex = try? NSRegularExpression(pattern: boundaryPattern, options: .caseInsensitive),
+           let match = regex.firstMatch(in: mailHeaders, options: [], range: NSRange(mailHeaders.startIndex..., in: mailHeaders)),
+           match.numberOfRanges > 1,
+           let boundaryRange = Range(match.range(at: 1), in: mailHeaders) {
+            rootBoundary = String(mailHeaders[boundaryRange])
+            print("📎 [extractAttachmentsWithData] Root boundary from mail headers: \(rootBoundary!.prefix(40))...")
+        }
+
         // Rekursive MIME-Part Verarbeitung
         func parseMimePart(_ part: String, depth: Int = 0) {
             let indent = String(repeating: "  ", count: depth)
@@ -897,6 +925,7 @@ struct MessageDetailView: View {
             }
 
             let lowerHeader = headerSection.lowercased()
+            print("\(indent)📎 [parseMimePart] Header preview: \(String(headerSection.prefix(100)).replacingOccurrences(of: "\n", with: " "))...")
 
             // 1. Ist es ein multipart-Container?
             if lowerHeader.contains("content-type:") && lowerHeader.contains("multipart/") {
@@ -1040,8 +1069,33 @@ struct MessageDetailView: View {
             }
         }
 
-        // Start der rekursiven Verarbeitung
-        parseMimePart(rawBody)
+        // ✅ SCHRITT 3: Start der rekursiven Verarbeitung
+        // Der mimeBody beginnt direkt mit --boundary, nicht mit Headers
+        if let boundary = rootBoundary {
+            print("📎 [extractAttachmentsWithData] Splitting mimeBody by root boundary...")
+            let delimiter = "--" + boundary
+            let parts = mimeBody.components(separatedBy: delimiter)
+            print("📎 [extractAttachmentsWithData] Found \(parts.count) top-level parts")
+
+            for (index, part) in parts.enumerated() {
+                // Überspringe Preamble und schließendes Boundary
+                if index == 0 { continue }
+                if part.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { continue }
+                if part.hasPrefix("--") { continue }
+
+                // Führende Newlines entfernen
+                var cleanPart = part
+                while cleanPart.hasPrefix("\r\n") { cleanPart = String(cleanPart.dropFirst(2)) }
+                while cleanPart.hasPrefix("\n") { cleanPart = String(cleanPart.dropFirst(1)) }
+
+                print("📎 [extractAttachmentsWithData] Processing top-level part \(index)")
+                parseMimePart(cleanPart, depth: 0)
+            }
+        } else {
+            // Fallback: Kein Boundary in Mail-Headers gefunden
+            print("📎 [extractAttachmentsWithData] No root boundary, trying direct parse...")
+            parseMimePart(mimeBody, depth: 0)
+        }
 
         print("📎 [extractAttachmentsWithData] Total extracted: \(results.count) attachments")
         return results
