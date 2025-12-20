@@ -927,38 +927,33 @@ struct MessageDetailView: View {
             print("\(indent)📎 [parseMimePart] Depth \(depth), part size: \(part.count) chars")
 
             // ✅ Header vom Body trennen - Apple-Mail-kompatibel
-            // Apple Mail nutzt oft KEINE doppelte Leerzeile zwischen Header und Body!
-            // Stattdessen: Bei multipart am ersten Boundary trennen
+            // WICHTIG: Apple Mail nutzt KEINE zuverlässige Leerzeile zwischen Header und Body!
+            // Der Header endet IMMER vor der ersten Boundary-Zeile (\n--)
             var headerSection = ""
             var bodySection = part
 
-            // 1. Prüfe ob es ein multipart-Container ist (boundary= im Header)
-            let lowerPart = part.lowercased()
-            if lowerPart.contains("boundary=") {
-                // Finde das boundary= im Header
-                if let boundaryDefRange = part.range(of: "boundary=", options: .caseInsensitive) {
-                    // Suche erste Boundary-Zeile (\n--) nach der boundary-Definition
-                    if let firstBoundaryRange = part.range(of: "\n--", range: boundaryDefRange.upperBound..<part.endIndex) {
-                        headerSection = String(part[..<firstBoundaryRange.lowerBound])
-                        bodySection = String(part[firstBoundaryRange.lowerBound...])
-                        print("\(indent)📎 [parseMimePart] Split at boundary marker, header: \(headerSection.count) chars, body: \(bodySection.count) chars")
-                    }
-                }
+            // 1. IMMER zuerst am ersten Boundary-Marker trennen
+            if let boundaryStart = part.range(of: "\n--") {
+                headerSection = String(part[..<boundaryStart.lowerBound])
+                bodySection = String(part[boundaryStart.lowerBound...])
+                print("\(indent)📎 [parseMimePart] Split at \\n--, header: \(headerSection.count) chars, body: \(bodySection.count) chars")
+            } else if let emptyLineRange = part.range(of: "\r\n\r\n") {
+                // 2. Fallback für Parts ohne Sub-Boundaries (z.B. PDF-Attachment)
+                headerSection = String(part[..<emptyLineRange.lowerBound])
+                bodySection = String(part[emptyLineRange.upperBound...])
+                print("\(indent)📎 [parseMimePart] Split at \\r\\n\\r\\n, header: \(headerSection.count) chars")
+            } else if let emptyLineRange = part.range(of: "\n\n") {
+                headerSection = String(part[..<emptyLineRange.lowerBound])
+                bodySection = String(part[emptyLineRange.upperBound...])
+                print("\(indent)📎 [parseMimePart] Split at \\n\\n, header: \(headerSection.count) chars")
             }
 
-            // 2. Fallback für nicht-multipart: Standard Leerzeilen-Trennung
-            if headerSection.isEmpty {
-                if let emptyLineRange = part.range(of: "\r\n\r\n") {
-                    headerSection = String(part[..<emptyLineRange.lowerBound])
-                    bodySection = String(part[emptyLineRange.upperBound...])
-                } else if let emptyLineRange = part.range(of: "\n\n") {
-                    headerSection = String(part[..<emptyLineRange.lowerBound])
-                    bodySection = String(part[emptyLineRange.upperBound...])
-                }
-            }
+            // Trim whitespace
+            headerSection = headerSection.trimmingCharacters(in: .whitespacesAndNewlines)
+            bodySection = bodySection.trimmingCharacters(in: .whitespacesAndNewlines)
 
             let lowerHeader = headerSection.lowercased()
-            print("\(indent)📎 [parseMimePart] Header preview: \(String(headerSection.prefix(100)).replacingOccurrences(of: "\n", with: " "))...")
+            print("\(indent)📎 [parseMimePart] Headers:\n\(headerSection.prefix(300))")
 
             // 1. Ist es ein multipart-Container?
             if lowerHeader.contains("content-type:") && lowerHeader.contains("multipart/") {
