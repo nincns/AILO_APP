@@ -137,7 +137,7 @@ public final class NIOSMTPClient: SMTPClientProtocol {
             try await handler.sendCommand("EHLO \(heloName)", on: channel)
             var ehloResponse = try await handler.readResponse()
             print("🔧 [NIO-SMTP] Step 3: EHLO response: \(ehloResponse.code)")
-            guard ehloResponse.code == 250 else {
+            if ehloResponse.code != 250 {
                 // Fallback to HELO
                 try await handler.sendCommand("HELO \(heloName)", on: channel)
                 ehloResponse = try await handler.readResponse()
