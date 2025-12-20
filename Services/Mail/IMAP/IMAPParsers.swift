@@ -185,7 +185,20 @@ public struct IMAPParsers {
         // Heuristic: some servers include a literal body right after a line with "BODY[" or "BODY[]"
         // Our transport should have already read the literal bytes, so they appear concatenated in lines.
         // Try to join lines that do not look like tagged responses.
-        let bodyCandidates = lines.filter { !$0.hasPrefix("A") && !$0.hasPrefix("* ") }
+        let bodyCandidates = lines.filter { line in
+            // Filtere nur echte IMAP-Responses raus, nicht Base64-Daten
+            guard !line.hasPrefix("* ") else { return false }  // Untagged responses
+
+            // IMAP Tagged responses haben Format: "Axx OK/NO/BAD ..."
+            // Base64-Daten beginnen auch mit "A", aber ohne " OK"/" NO"/" BAD"
+            if line.hasPrefix("A") {
+                let isTaggedResponse = line.contains(" OK") ||
+                                       line.contains(" NO") ||
+                                       line.contains(" BAD")
+                return !isTaggedResponse
+            }
+            return true
+        }
         if bodyCandidates.isEmpty {
             // Fallback: try everything after "BODY[" marker on the same line (rare)
             for l in lines {
