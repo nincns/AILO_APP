@@ -29,6 +29,8 @@ struct ComposeMailView: View {
     @State private var isHTML: Bool = false
     @State private var textBody: String = ""
     @State private var htmlBody: String = ""
+    @State private var replyText: String = ""  // Editierbarer Antworttext
+    @State private var quotedHTML: String = "" // Original-Quote (read-only)
 
     // MARK: - Attachments
     struct Attachment: Identifiable, Equatable {
@@ -158,10 +160,23 @@ struct ComposeMailView: View {
 
                 // Body section
                 if isHTML {
-                    HTMLPreviewView(html: htmlBody)
+                    ScrollView {
+                        VStack(alignment: .leading, spacing: 0) {
+                            // Editierbares Textfeld für Antwort
+                            TextEditor(text: $replyText)
+                                .font(.body)
+                                .frame(minHeight: 100)
+                                .scrollDisabled(true)
+
+                            // Quote-Vorschau (read-only)
+                            if !quotedHTML.isEmpty {
+                                HTMLPreviewView(html: quotedHTML)
+                                    .frame(minHeight: 200)
+                            }
+                        }
                         .padding(.horizontal, 12)
                         .padding(.top, 8)
-                        .frame(maxHeight: .infinity)
+                    }
                 } else {
                     TextEditor(text: $textBody)
                         .font(.body)
@@ -295,7 +310,14 @@ struct ComposeMailView: View {
         guard let _ = selectedAccountId else { return false }
         let hasTo = !to.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
         let hasSubject = !subject.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-        let hasBody = isHTML ? !htmlBody.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty : !textBody.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        let hasBody: Bool
+        if isHTML {
+            // HTML: replyText oder quotedHTML muss vorhanden sein
+            hasBody = !replyText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ||
+                      !quotedHTML.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        } else {
+            hasBody = !textBody.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        }
         return hasTo && hasSubject && hasBody
     }
 
@@ -307,6 +329,10 @@ struct ComposeMailView: View {
         let toList = splitEmails(to)
         let ccList = splitEmails(cc)
         let bccList = splitEmails(bcc)
+
+        // HTML: Kombiniere replyText + quotedHTML
+        let finalHtmlBody: String? = isHTML ? buildFinalHTML() : nil
+
         let draft = MailDraft(
             from: from,
             to: toList,
@@ -314,7 +340,7 @@ struct ComposeMailView: View {
             bcc: bccList,
             subject: subject,
             textBody: isHTML ? nil : textBody,
-            htmlBody: isHTML ? htmlBody : nil
+            htmlBody: finalHtmlBody
         )
         // Queue for sending via repository
         _ = MailRepository.shared.send(draft, accountId: accId)
@@ -436,13 +462,13 @@ struct ComposeMailView: View {
                 // HTML-Quote mit Blockquote-Styling
                 let header = dateStr.isEmpty ? "schrieb \(mail.from):" : "Am \(dateStr) schrieb \(mail.from):"
                 let quote = """
-                <br><br>
                 <p>\(header)</p>
                 <blockquote style="border-left: 2px solid #ccc; padding-left: 10px; margin-left: 0; color: #555;">
                 \(originalBody)
                 </blockquote>
                 """
-                self.htmlBody = quote
+                self.quotedHTML = quote
+                self.replyText = ""  // Cursor hier für Antwort
             } else {
                 // Text-Quote mit > Prefix
                 let quote = buildQuote(from: mail.from, date: dateStr, body: originalBody)
@@ -494,6 +520,12 @@ struct ComposeMailView: View {
     }
 
     // MARK: - Helpers
+    private func buildFinalHTML() -> String {
+        // Kombiniere Antworttext + Quote zu vollständigem HTML
+        let replyHTML = replyText.isEmpty ? "" : "<p>\(replyText.replacingOccurrences(of: "\n", with: "<br>"))</p>"
+        return replyHTML + quotedHTML
+    }
+
     private func splitEmails(_ s: String) -> [MailSendAddress] {
         s.split(separator: ",").map { MailSendAddress(String($0).trimmingCharacters(in: .whitespacesAndNewlines)) }
     }
