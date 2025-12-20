@@ -536,6 +536,7 @@
 
 /* MessageDetailView - Actions */
 "app.mail.action.reply" = "Antworten";
+"app.mail.action.reply_all" = "Allen antworten";
 "app.mail.action.forward" = "Weiterleiten";
 "app.mail.action.flag" = "Markieren";
 "app.mail.action.unflag" = "Markierung entfernen";

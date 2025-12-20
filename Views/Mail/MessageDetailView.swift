@@ -30,6 +30,12 @@ struct MessageDetailView: View {
     @State private var hasDetectedAttachments: Bool = false
     @State private var previewURL: URL? = nil
 
+    // Reply state
+    @State private var showReplySheet: Bool = false
+    @State private var isReplyAll: Bool = false
+    @State private var parsedToField: String = ""
+    @State private var parsedCCField: String = ""
+
     @Environment(\.dismiss) private var dismiss
     
     // Convenience initializer for use without actions
@@ -110,6 +116,9 @@ struct MessageDetailView: View {
                     Button(action: replyAction) {
                         Label(String(localized: "app.mail.action.reply"), systemImage: "arrowshape.turn.up.left")
                     }
+                    Button(action: replyAllAction) {
+                        Label(String(localized: "app.mail.action.reply_all"), systemImage: "arrowshape.turn.up.left.2")
+                    }
                     Button(action: forwardAction) {
                         Label(String(localized: "app.mail.action.forward"), systemImage: "arrowshape.turn.up.right")
                     }
@@ -171,6 +180,16 @@ struct MessageDetailView: View {
             if !shareItems.isEmpty {
                 ShareSheet(items: shareItems)
             }
+        }
+        .sheet(isPresented: $showReplySheet) {
+            ComposeMailView(
+                replyToMail: mail,
+                replyAll: isReplyAll,
+                originalBody: getPlainTextBody(),
+                originalTo: parsedToField,
+                originalCC: parsedCCField,
+                preselectedAccountId: mail.accountId
+            )
         }
         .overlay {
             if savingAttachments {
@@ -807,13 +826,80 @@ struct MessageDetailView: View {
     }
     
     private func replyAction() {
-        // TODO: Implement reply functionality
-        print(" Reply to mail: \(mail.subject)")
+        print("📧 Reply to mail: \(mail.subject)")
+        parseHeadersForReply()
+        isReplyAll = false
+        showReplySheet = true
     }
-    
+
+    private func replyAllAction() {
+        print("📧 Reply All to mail: \(mail.subject)")
+        parseHeadersForReply()
+        isReplyAll = true
+        showReplySheet = true
+    }
+
+    private func parseHeadersForReply() {
+        // Parse To and CC from raw body headers
+        guard !rawBodyText.isEmpty else {
+            parsedToField = ""
+            parsedCCField = ""
+            return
+        }
+
+        // Find headers section (before first empty line)
+        let lines = rawBodyText.components(separatedBy: "\n")
+        var toField = ""
+        var ccField = ""
+        var currentField = ""
+
+        for line in lines {
+            // Empty line marks end of headers
+            if line.trimmingCharacters(in: .whitespaces).isEmpty {
+                break
+            }
+
+            // Check for header continuation (starts with whitespace)
+            if line.hasPrefix(" ") || line.hasPrefix("\t") {
+                if currentField == "to" {
+                    toField += " " + line.trimmingCharacters(in: .whitespaces)
+                } else if currentField == "cc" {
+                    ccField += " " + line.trimmingCharacters(in: .whitespaces)
+                }
+                continue
+            }
+
+            // Check for new header
+            let lowerLine = line.lowercased()
+            if lowerLine.hasPrefix("to:") {
+                currentField = "to"
+                toField = String(line.dropFirst(3)).trimmingCharacters(in: .whitespaces)
+            } else if lowerLine.hasPrefix("cc:") {
+                currentField = "cc"
+                ccField = String(line.dropFirst(3)).trimmingCharacters(in: .whitespaces)
+            } else {
+                currentField = ""
+            }
+        }
+
+        parsedToField = toField
+        parsedCCField = ccField
+        print("📧 Parsed To: \(toField)")
+        print("📧 Parsed CC: \(ccField)")
+    }
+
+    private func getPlainTextBody() -> String {
+        // Return plain text version of body for quoting
+        if !isHTML {
+            return bodyText
+        }
+        // Strip HTML tags for quote
+        return bodyText.replacingOccurrences(of: "<[^>]+>", with: "", options: .regularExpression)
+    }
+
     private func forwardAction() {
         // TODO: Implement forward functionality
-        print(" Forward mail: \(mail.subject)")
+        print("📧 Forward mail: \(mail.subject)")
     }
     
     private func toggleFlagAction() {
