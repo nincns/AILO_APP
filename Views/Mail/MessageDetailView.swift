@@ -22,7 +22,11 @@ struct MessageDetailView: View {
     @State private var tempFiles: [URL] = []
     @State private var errorMessage: String? = nil
     @State private var showTechnicalHeaders: Bool = false
-    @State private var rawBodyText: String = ""  // NEU
+    @State private var rawBodyText: String = ""
+    @State private var showShareSheet: Bool = false
+    @State private var shareItems: [URL] = []
+    @State private var savingAttachments: Bool = false
+    @State private var hasDetectedAttachments: Bool = false
     
     @Environment(\.dismiss) private var dismiss
     
@@ -42,6 +46,7 @@ struct MessageDetailView: View {
                 mailHeaderSection
 
                 // Attachments section - NEUE POSITION
+                let _ = print("📎 [VIEW] attachments.isEmpty = \(attachments.isEmpty), count = \(attachments.count)")
                 if !attachments.isEmpty {
                     attachmentsSection
                         .padding(.top, 8)
@@ -124,7 +129,7 @@ struct MessageDetailView: View {
                     Button(action: {
                         let oldValue = showTechnicalHeaders
                         showTechnicalHeaders.toggle()
-                        
+
                         // Wechsel von ON (RAW) → OFF (Normal) triggert Re-Processing
                         if oldValue == true && showTechnicalHeaders == false {
                             Task {
@@ -137,6 +142,16 @@ struct MessageDetailView: View {
                             systemImage: "info.circle"
                         )
                     }
+
+                    // Anhänge speichern - anzeigen wenn Anhänge erkannt wurden
+                    if mail.hasAttachments || hasDetectedAttachments {
+                        Divider()
+                        Button(action: saveAllAttachments) {
+                            Label("Anhänge speichern", systemImage: "square.and.arrow.down")
+                        }
+                    }
+
+                    Divider()
                     Button(role: .destructive, action: deleteAction) {
                         Label(String(localized: "common.delete"), systemImage: "trash")
                     }
@@ -150,6 +165,29 @@ struct MessageDetailView: View {
         }
         .onDisappear {
             cleanupTempFiles()
+        }
+        .sheet(isPresented: $showShareSheet) {
+            if !shareItems.isEmpty {
+                ShareSheet(items: shareItems)
+            }
+        }
+        .overlay {
+            if savingAttachments {
+                ZStack {
+                    Color.black.opacity(0.3)
+                    VStack(spacing: 12) {
+                        ProgressView()
+                            .scaleEffect(1.5)
+                        Text("Anhänge werden extrahiert...")
+                            .font(.subheadline)
+                            .foregroundStyle(.white)
+                    }
+                    .padding(24)
+                    .background(.ultraThinMaterial)
+                    .clipShape(RoundedRectangle(cornerRadius: 12))
+                }
+                .ignoresSafeArea()
+            }
         }
     }
     
@@ -364,15 +402,29 @@ struct MessageDetailView: View {
                                         rawBody: rawBody,
                                         bodyEntity: bodyEntity
                                     )
-                                    
+
+                                    // ✅ NEU: Anhang-Metadaten extrahieren
+                                    let extractedAttachments = extractAttachmentMetadata(from: rawBody)
+                                    if !extractedAttachments.isEmpty {
+                                        print("📎 [loadMailBody] Extracted \(extractedAttachments.count) attachment(s)")
+                                    }
+
                                     await MainActor.run {
                                         bodyText = displayText
                                         isHTML = displayIsHTML
                                         rawBodyText = rawBody
                                         isLoadingBody = false
+                                        if !extractedAttachments.isEmpty {
+                                            self.attachments = extractedAttachments
+                                            self.hasDetectedAttachments = true
+                                            print("📎 [UI] attachments state updated: \(self.attachments.count) items")
+                                            for att in self.attachments {
+                                                print("📎 [UI] - \(att.filename)")
+                                            }
+                                        }
                                     }
                                     bodyLoaded = true
-                                    
+
                                 } catch {
                                     print("❌ [loadMailBody] Processing failed: \(error)")
                                     await MainActor.run {
@@ -388,12 +440,47 @@ struct MessageDetailView: View {
                         } else {
                             // ✅ Bereits dekodiert - direkt rendern
                             print("✅ [MessageDetailView] HTML already processed - rendering directly")
-                            
+
+                            // ✅ NEU: Anhang-Erkennung und Metadaten-Extraktion
+                            if let rawBody = bodyEntity.rawBody, !rawBody.isEmpty {
+                                let detectedAttachments = detectAttachmentsInRawBody(rawBody)
+                                if detectedAttachments && !bodyEntity.hasAttachments {
+                                    print("📎 [MessageDetailView] Late attachment detection: found attachments!")
+                                    // Update database with corrected flag
+                                    if let writeDAO = MailRepository.shared.writeDAO {
+                                        var updatedEntity = bodyEntity
+                                        updatedEntity.hasAttachments = true
+                                        try? writeDAO.storeBody(
+                                            accountId: mail.accountId,
+                                            folder: mail.folder,
+                                            uid: mail.uid,
+                                            body: updatedEntity
+                                        )
+                                        print("✅ [MessageDetailView] Updated hasAttachments flag in DB")
+                                    }
+                                }
+
+                                // ✅ NEU: Anhang-Metadaten aus rawBody extrahieren
+                                print("📎 [PATH-A] detectedAttachments=\(detectedAttachments), bodyEntity.hasAttachments=\(bodyEntity.hasAttachments)")
+                                if detectedAttachments || bodyEntity.hasAttachments {
+                                    let extractedAttachments = extractAttachmentMetadata(from: rawBody)
+                                    print("📎 [PATH-A] extractedAttachments.count = \(extractedAttachments.count)")
+                                    if !extractedAttachments.isEmpty {
+                                        print("📎 [PATH-A] Extracted \(extractedAttachments.count) attachment(s)")
+                                        await MainActor.run {
+                                            self.attachments = extractedAttachments
+                                            self.hasDetectedAttachments = true
+                                            print("📎 [PATH-A UI] attachments set: \(self.attachments.count)")
+                                        }
+                                    }
+                                }
+                            }
+
                             let displayContent = BodyContentProcessor.selectDisplayContent(
                                 html: bodyEntity.html,
                                 text: bodyEntity.text
                             )
-                            
+
                             await MainActor.run {
                                 bodyText = displayContent.content
                                 isHTML = displayContent.isHTML
@@ -492,16 +579,26 @@ struct MessageDetailView: View {
                                     rawBody: rawBody,
                                     bodyEntity: bodyEntity
                                 )
-                                
+
+                                // ✅ NEU: Anhang-Metadaten extrahieren
+                                let extractedAttachments = extractAttachmentMetadata(from: rawBody)
+                                if !extractedAttachments.isEmpty {
+                                    print("📎 [loadMailBodyAfterSync] Extracted \(extractedAttachments.count) attachment(s)")
+                                }
+
                                 await MainActor.run {
                                     bodyText = displayText
                                     isHTML = displayIsHTML
                                     rawBodyText = rawBody
                                     isLoadingBody = false
+                                    if !extractedAttachments.isEmpty {
+                                        self.attachments = extractedAttachments
+                                        self.hasDetectedAttachments = true
+                                    }
                                 }
                                 print("✅ [loadMailBodyAfterSync] Processed content loaded")
                                 bodyLoaded = true
-                                
+
                             } catch {
                                 print("❌ [loadMailBodyAfterSync] Processing failed: \(error)")
                                 await MainActor.run {
@@ -517,12 +614,43 @@ struct MessageDetailView: View {
                     } else {
                         // ✅ Bereits dekodiert - direkt rendern
                         print("✅ [MessageDetailView] Post-sync HTML already processed - rendering directly")
-                        
+
+                        // ✅ NEU: Anhang-Erkennung und Metadaten-Extraktion (post-sync)
+                        if let rawBody = bodyEntity.rawBody, !rawBody.isEmpty {
+                            let detectedAttachments = detectAttachmentsInRawBody(rawBody)
+                            if detectedAttachments && !bodyEntity.hasAttachments {
+                                print("📎 [MessageDetailView] Late attachment detection (post-sync): found attachments!")
+                                if let writeDAO = MailRepository.shared.writeDAO {
+                                    var updatedEntity = bodyEntity
+                                    updatedEntity.hasAttachments = true
+                                    try? writeDAO.storeBody(
+                                        accountId: mail.accountId,
+                                        folder: mail.folder,
+                                        uid: mail.uid,
+                                        body: updatedEntity
+                                    )
+                                    print("✅ [MessageDetailView] Updated hasAttachments flag in DB")
+                                }
+                            }
+
+                            // ✅ NEU: Anhang-Metadaten aus rawBody extrahieren
+                            if detectedAttachments || bodyEntity.hasAttachments {
+                                let extractedAttachments = extractAttachmentMetadata(from: rawBody)
+                                if !extractedAttachments.isEmpty {
+                                    print("📎 [MessageDetailView] Extracted \(extractedAttachments.count) attachment(s) (post-sync)")
+                                    await MainActor.run {
+                                        self.attachments = extractedAttachments
+                                        self.hasDetectedAttachments = true
+                                    }
+                                }
+                            }
+                        }
+
                         let displayContent = BodyContentProcessor.selectDisplayContent(
                             html: bodyEntity.html,
                             text: bodyEntity.text
                         )
-                        
+
                         await MainActor.run {
                             bodyText = displayContent.content
                             isHTML = displayContent.isHTML
@@ -652,8 +780,15 @@ struct MessageDetailView: View {
                 }
                 
                 await MainActor.run {
-                    self.attachments = loadedAttachments
-                    self.tempFiles = tempURLs
+                    // ✅ FIX: Nur überschreiben wenn DB-Anhänge vorhanden
+                    // Sonst bleiben die aus rawBody extrahierten Anhänge erhalten
+                    if !loadedAttachments.isEmpty {
+                        self.attachments = loadedAttachments
+                        self.tempFiles = tempURLs
+                        print("📎 [loadAttachments] Loaded \(loadedAttachments.count) from DB")
+                    } else {
+                        print("📎 [loadAttachments] DB empty, keeping \(self.attachments.count) extracted attachments")
+                    }
                 }
             }
         } catch {
@@ -693,7 +828,325 @@ struct MessageDetailView: View {
         print(" Delete mail: \(mail.subject)")
         dismiss()
     }
-    
+
+    /// Speichert alle Anhänge aus dem rawBody
+    private func saveAllAttachments() {
+        print("📎 [saveAllAttachments] Starting attachment extraction...")
+
+        guard !rawBodyText.isEmpty else {
+            print("❌ [saveAllAttachments] rawBodyText is empty")
+            return
+        }
+
+        Task {
+            await MainActor.run { savingAttachments = true }
+
+            var savedFiles: [URL] = []
+            let extractedAttachments = extractAttachmentsWithData(from: rawBodyText)
+
+            print("📎 [saveAllAttachments] Found \(extractedAttachments.count) attachments with data")
+
+            for (filename, data) in extractedAttachments {
+                let tempDir = FileManager.default.temporaryDirectory
+                let fileURL = tempDir.appendingPathComponent(filename)
+
+                do {
+                    try data.write(to: fileURL)
+                    savedFiles.append(fileURL)
+                    print("📎 [saveAllAttachments] Saved: \(filename) (\(data.count) bytes)")
+                } catch {
+                    print("❌ [saveAllAttachments] Failed to save \(filename): \(error)")
+                }
+            }
+
+            await MainActor.run {
+                savingAttachments = false
+                if !savedFiles.isEmpty {
+                    shareItems = savedFiles
+                    showShareSheet = true
+                    print("📎 [saveAllAttachments] Showing share sheet with \(savedFiles.count) files")
+                } else {
+                    print("❌ [saveAllAttachments] No files to share")
+                }
+            }
+        }
+    }
+
+    /// Extrahiert Anhänge MIT den tatsächlichen Base64-Daten aus dem rawBody
+    /// ✅ REKURSIVER MIME-PARSER - verarbeitet verschachtelte multipart-Strukturen korrekt
+    private func extractAttachmentsWithData(from rawBody: String) -> [(filename: String, data: Data)] {
+        print("📎 [extractAttachmentsWithData] Starting RECURSIVE extraction from \(rawBody.count) chars")
+        var results: [(String, Data)] = []
+        var processedFilenames: Set<String> = []
+
+        // ✅ SCHRITT 1: Mail-Header von MIME-Body trennen
+        // WICHTIG: Apple Mail verwendet oft KEINE doppelte Leerzeile!
+        // Stattdessen: Trenne am ersten Boundary-Marker
+        var mailHeaders = ""
+        var mimeBody = rawBody
+
+        // Suche erste Boundary-Zeile (--Apple-Mail- oder ähnlich)
+        // Das ist der zuverlässigste Trennpunkt
+        if let boundaryRange = rawBody.range(of: "\n--", options: .literal) {
+            mailHeaders = String(rawBody[..<boundaryRange.lowerBound])
+            // ✅ FIX: mimeBody ab "--" starten (nur \n überspringen, NICHT die Dashes!)
+            let bodyStart = rawBody.index(after: boundaryRange.lowerBound) // Skip nur das \n
+            mimeBody = String(rawBody[bodyStart...]) // Startet mit "--Apple-Mail-..."
+            print("📎 [extractAttachmentsWithData] Split at first boundary marker")
+        } else if let range = rawBody.range(of: "\r\n\r\n") {
+            // Fallback: klassische CRLF-Trennung
+            mailHeaders = String(rawBody[..<range.lowerBound])
+            mimeBody = String(rawBody[range.upperBound...])
+            print("📎 [extractAttachmentsWithData] Split at CRLF")
+        } else if let range = rawBody.range(of: "\n\n") {
+            // Fallback: LF-Trennung
+            mailHeaders = String(rawBody[..<range.lowerBound])
+            mimeBody = String(rawBody[range.upperBound...])
+            print("📎 [extractAttachmentsWithData] Split at LF")
+        }
+
+        print("📎 [extractAttachmentsWithData] Mail headers: \(mailHeaders.count) chars")
+        print("📎 [extractAttachmentsWithData] MIME body: \(mimeBody.count) chars")
+        print("📎 [extractAttachmentsWithData] MIME body starts with: '\(String(mimeBody.prefix(50)))'")
+
+        // ✅ SCHRITT 2: Boundary aus Mail-Headers extrahieren
+        let boundaryPattern = "boundary=\"?([^\"\\s\\r\\n;]+)"
+        var rootBoundary: String? = nil
+
+        if let regex = try? NSRegularExpression(pattern: boundaryPattern, options: .caseInsensitive),
+           let match = regex.firstMatch(in: mailHeaders, options: [], range: NSRange(mailHeaders.startIndex..., in: mailHeaders)),
+           match.numberOfRanges > 1,
+           let boundaryRange = Range(match.range(at: 1), in: mailHeaders) {
+            rootBoundary = String(mailHeaders[boundaryRange])
+            print("📎 [extractAttachmentsWithData] Root boundary from mail headers: \(rootBoundary!.prefix(40))...")
+        }
+
+        // ✅ Rekursive MIME-Part Verarbeitung (Leaf-basiert)
+        // Ein "Part" kommt von einem Boundary-Split, beginnt also mit seinem Header (nicht mit --)
+        func parseMimePart(_ part: String, depth: Int = 0) {
+            let indent = String(repeating: "  ", count: depth)
+            print("\(indent)📎 [parseMimePart] Depth \(depth), part size: \(part.count) chars")
+
+            // ✅ Header vom Body trennen - IMMER an Leerzeile!
+            // Ein Part aus dem Boundary-Split hat Format: "Headers\n\nBody"
+            var headerSection = ""
+            var bodySection = part
+
+            if let emptyLineRange = part.range(of: "\r\n\r\n") {
+                headerSection = String(part[..<emptyLineRange.lowerBound])
+                bodySection = String(part[emptyLineRange.upperBound...])
+                print("\(indent)📎 [parseMimePart] Split at CRLF, header: \(headerSection.count) chars, body: \(bodySection.count) chars")
+            } else if let emptyLineRange = part.range(of: "\n\n") {
+                headerSection = String(part[..<emptyLineRange.lowerBound])
+                bodySection = String(part[emptyLineRange.upperBound...])
+                print("\(indent)📎 [parseMimePart] Split at LF, header: \(headerSection.count) chars, body: \(bodySection.count) chars")
+            } else {
+                print("\(indent)📎 [parseMimePart] No empty line found, skipping part")
+                return
+            }
+
+            // Trim whitespace
+            headerSection = headerSection.trimmingCharacters(in: .whitespacesAndNewlines)
+            bodySection = bodySection.trimmingCharacters(in: .whitespacesAndNewlines)
+
+            let lowerHeader = headerSection.lowercased()
+            print("\(indent)📎 [parseMimePart] Headers:\n\(headerSection.prefix(300))")
+
+            // 1. Ist es ein multipart-Container?
+            if lowerHeader.contains("content-type:") && lowerHeader.contains("multipart/") {
+                // Boundary extrahieren
+                let boundaryPattern = "boundary=\"?([^\"\\s\\r\\n;]+)"
+                if let regex = try? NSRegularExpression(pattern: boundaryPattern, options: .caseInsensitive),
+                   let match = regex.firstMatch(in: headerSection, options: [], range: NSRange(headerSection.startIndex..., in: headerSection)),
+                   match.numberOfRanges > 1,
+                   let boundaryRange = Range(match.range(at: 1), in: headerSection) {
+
+                    let boundary = String(headerSection[boundaryRange])
+                    print("\(indent)📎 [parseMimePart] Found multipart container with boundary: \(boundary.prefix(40))...")
+
+                    // In Sub-Parts aufteilen
+                    let delimiter = "--" + boundary
+                    let subParts = bodySection.components(separatedBy: delimiter)
+                    print("\(indent)📎 [parseMimePart] Split into \(subParts.count) sub-parts")
+
+                    for (index, subPart) in subParts.enumerated() {
+                        // Überspringe Preamble (index 0) und schließendes Boundary (--)
+                        let trimmedSub = subPart.trimmingCharacters(in: .whitespacesAndNewlines)
+                        if index == 0 { continue }
+                        if trimmedSub.isEmpty { continue }
+                        if trimmedSub == "--" { continue }
+
+                        // Führende Newlines entfernen
+                        var cleanSubPart = subPart
+                        while cleanSubPart.hasPrefix("\r\n") { cleanSubPart = String(cleanSubPart.dropFirst(2)) }
+                        while cleanSubPart.hasPrefix("\n") { cleanSubPart = String(cleanSubPart.dropFirst(1)) }
+
+                        print("\(indent)📎 [parseMimePart] Processing sub-part \(index), starts with: '\(String(cleanSubPart.prefix(60)).replacingOccurrences(of: "\n", with: " "))...'")
+                        parseMimePart(cleanSubPart, depth: depth + 1)
+                    }
+                }
+                return
+            }
+
+            // 2. Ist es ein Attachment (application/* + base64)?
+            let hasAppType = lowerHeader.contains("content-type: application/") ||
+                             lowerHeader.contains("content-type:application/")
+            let hasBase64 = lowerHeader.contains("content-transfer-encoding: base64") ||
+                            lowerHeader.contains("content-transfer-encoding:base64")
+            let hasFilename = lowerHeader.contains("filename")
+
+            if hasAppType && hasBase64 {
+                print("\(indent)📎 [parseMimePart] Found attachment! (app=\(hasAppType), base64=\(hasBase64), filename=\(hasFilename))")
+
+                // Dateiname extrahieren
+                var filename: String? = nil
+                let filenamePatterns = [
+                    "filename\\*?\\s*=\\s*\"([^\"]+)\"",
+                    "filename\\*?\\s*=\\s*utf-8''([^;\\s\\r\\n]+)",
+                    "filename\\*?\\s*=\\s*([^;\\s\\r\\n]+)",
+                    "name\\s*=\\s*\"([^\"]+)\""
+                ]
+
+                for pattern in filenamePatterns {
+                    if let regex = try? NSRegularExpression(pattern: pattern, options: .caseInsensitive),
+                       let match = regex.firstMatch(in: part, options: [], range: NSRange(part.startIndex..., in: part)),
+                       match.numberOfRanges > 1,
+                       let fnRange = Range(match.range(at: 1), in: part) {
+                        var fn = String(part[fnRange]).trimmingCharacters(in: .whitespaces)
+                        if fn.contains("%") { fn = fn.removingPercentEncoding ?? fn }
+                        fn = decodeFilename(fn)
+                        if !fn.isEmpty && fn.contains(".") {
+                            filename = fn
+                            break
+                        }
+                    }
+                }
+
+                guard let foundFilename = filename else {
+                    print("\(indent)❌ [parseMimePart] No filename found, skipping")
+                    return
+                }
+
+                // Duplikat-Check
+                if processedFilenames.contains(foundFilename.lowercased()) {
+                    print("\(indent)📎 [parseMimePart] Skipping duplicate: \(foundFilename)")
+                    return
+                }
+
+                print("\(indent)📎 [parseMimePart] Extracting: \(foundFilename)")
+
+                // Base64 extrahieren - nur gültige Zeichen
+                let base64Charset = CharacterSet(
+                    charactersIn: "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/="
+                )
+
+                var base64Lines: [String] = []
+                for line in bodySection.components(separatedBy: .newlines) {
+                    let trimmed = line.trimmingCharacters(in: .whitespaces)
+                    if trimmed.isEmpty { continue }
+                    if trimmed.hasPrefix("--") { break }
+
+                    if trimmed.unicodeScalars.allSatisfy({ base64Charset.contains($0) }) {
+                        base64Lines.append(trimmed)
+                    } else {
+                        print("\(indent)📎 [parseMimePart] Non-Base64 char found, stopping")
+                        break
+                    }
+                }
+
+                let base64String = base64Lines.joined()
+                print("\(indent)📎 [parseMimePart] Base64 length: \(base64String.count) chars")
+
+                // Dekodieren
+                if let data = Data(base64Encoded: base64String, options: .ignoreUnknownCharacters), data.count > 0 {
+                    print("\(indent)📎 [parseMimePart] ✅ Decoded \(foundFilename): \(data.count) bytes")
+
+                    // PDF-Integritätscheck
+                    if foundFilename.lowercased().hasSuffix(".pdf") {
+                        if let pdfStart = String(data: data.prefix(16), encoding: .ascii) {
+                            print("\(indent)📎 [PDF-CHECK] Start: '\(pdfStart)'")
+                        }
+                        let hasEOF = data.suffix(1024).contains("%%EOF".data(using: .ascii)!)
+                        print("\(indent)📎 [PDF-CHECK] Contains %%EOF: \(hasEOF)")
+
+                        // startxref Check
+                        if let startxrefData = "startxref".data(using: .ascii),
+                           let range = data.range(of: startxrefData) {
+                            let afterStartxref = data[range.upperBound...]
+                            if let endIdx = afterStartxref.firstIndex(where: { byte in
+                                let char = Character(UnicodeScalar(byte))
+                                return !char.isNumber && !char.isWhitespace
+                            }) {
+                                let numData = afterStartxref[..<endIdx]
+                                if let numStr = String(data: numData, encoding: .ascii)?.trimmingCharacters(in: .whitespacesAndNewlines),
+                                   let startxref = Int(numStr) {
+                                    let valid = startxref < data.count
+                                    print("\(indent)📎 [PDF-CHECK] startxref=\(startxref), file_size=\(data.count), valid=\(valid)")
+                                }
+                            }
+                        }
+                    }
+
+                    results.append((foundFilename, data))
+                    processedFilenames.insert(foundFilename.lowercased())
+                } else {
+                    print("\(indent)❌ [parseMimePart] Failed to decode Base64 for \(foundFilename)")
+                }
+            }
+        }
+
+        // ✅ SCHRITT 3: Start der rekursiven Verarbeitung
+        // Der mimeBody beginnt direkt mit --boundary, nicht mit Headers
+        if let boundary = rootBoundary {
+            print("📎 [extractAttachmentsWithData] Splitting mimeBody by root boundary...")
+            let delimiter = "--" + boundary
+            let parts = mimeBody.components(separatedBy: delimiter)
+            print("📎 [extractAttachmentsWithData] Found \(parts.count) top-level parts")
+
+            for (index, rawPart) in parts.enumerated() {
+                // Trim whitespace/newlines
+                let trimmed = rawPart.trimmingCharacters(in: .whitespacesAndNewlines)
+
+                // Skip preamble (index 0), empty parts, and closing boundary (--)
+                if index == 0 { continue }
+                if trimmed.isEmpty { continue }
+                if trimmed == "--" { continue }
+
+                // Boundary-Zeile entfernen falls noch vorhanden
+                var cleanedPart = rawPart
+
+                // Führende Newlines entfernen
+                while cleanedPart.hasPrefix("\r\n") { cleanedPart = String(cleanedPart.dropFirst(2)) }
+                while cleanedPart.hasPrefix("\n") { cleanedPart = String(cleanedPart.dropFirst(1)) }
+                while cleanedPart.hasPrefix("\r") { cleanedPart = String(cleanedPart.dropFirst(1)) }
+
+                // Falls Part noch mit "--" beginnt (Boundary-Rest), diese Zeile entfernen
+                if cleanedPart.hasPrefix("--") {
+                    if let newlineRange = cleanedPart.range(of: "\n") {
+                        cleanedPart = String(cleanedPart[newlineRange.upperBound...])
+                    } else {
+                        continue
+                    }
+                    // Nochmal führende Newlines entfernen
+                    while cleanedPart.hasPrefix("\r\n") { cleanedPart = String(cleanedPart.dropFirst(2)) }
+                    while cleanedPart.hasPrefix("\n") { cleanedPart = String(cleanedPart.dropFirst(1)) }
+                }
+
+                // ✅ Alle Parts direkt an parseMimePart übergeben
+                // parseMimePart erkennt selbst ob es ein multipart-Container ist
+                print("📎 [extractAttachmentsWithData] Processing part \(index), starts with: '\(String(cleanedPart.prefix(60)).replacingOccurrences(of: "\n", with: " "))...'")
+                parseMimePart(cleanedPart, depth: 0)
+            }
+        } else {
+            // Fallback: Kein Boundary in Mail-Headers gefunden
+            print("📎 [extractAttachmentsWithData] No root boundary, trying direct parse...")
+            parseMimePart(mimeBody, depth: 0)
+        }
+
+        print("📎 [extractAttachmentsWithData] Total extracted: \(results.count) attachments")
+        return results
+    }
+
     /// Re-processes mail body when toggling from RAW to Normal view
     private func reprocessMailBody() async {
         print("🔄 [reprocessMailBody] Re-processing mail body (toggle trigger)...")
@@ -863,7 +1316,209 @@ struct MessageDetailView: View {
         // Fallback: treat entire string as name
         return (trimmed, nil)
     }
-    
+
+    /// Erkennt Anhänge im rawBody für nachträgliche Aktualisierung
+    private func detectAttachmentsInRawBody(_ rawBody: String) -> Bool {
+        let lowerBody = rawBody.lowercased()
+
+        // 1. Explizit als Attachment markiert
+        if lowerBody.contains("content-disposition: attachment") {
+            return true
+        }
+
+        // 2. Multipart/mixed enthält typischerweise Anhänge
+        if lowerBody.contains("content-type: multipart/mixed") {
+            return true
+        }
+
+        // 3. PDF, Office-Dokumente, etc.
+        let attachmentTypes = [
+            "application/pdf",
+            "application/msword",
+            "application/vnd.openxmlformats",
+            "application/vnd.ms-excel",
+            "application/vnd.ms-powerpoint",
+            "application/zip",
+            "application/x-zip",
+            "application/octet-stream"
+        ]
+        for type in attachmentTypes {
+            if lowerBody.contains("content-type: \(type)") {
+                return true
+            }
+        }
+
+        // 4. Dateiname mit typischer Anhang-Erweiterung
+        if lowerBody.contains("filename=") {
+            let attachmentExtensions = [".pdf", ".doc", ".docx", ".xls", ".xlsx", ".ppt", ".pptx", ".zip", ".rar"]
+            for ext in attachmentExtensions {
+                if lowerBody.contains(ext) {
+                    return true
+                }
+            }
+        }
+
+        return false
+    }
+
+    /// Extrahiert Anhang-Metadaten aus dem rawBody - Regex-basiert für bessere Erkennung
+    private func extractAttachmentMetadata(from rawBody: String) -> [AttachmentEntity] {
+        print("📎 [extractAttachmentMetadata] Starting extraction from rawBody (\(rawBody.count) chars)")
+        var attachments: [AttachmentEntity] = []
+        var partCounter = 1
+
+        let lowerBody = rawBody.lowercased()
+
+        // Debug-Ausgabe
+        let hasAttachmentDisp = lowerBody.contains("content-disposition: attachment") ||
+                                lowerBody.contains("content-disposition:attachment")
+        let hasPdf = lowerBody.contains("application/pdf")
+        let hasFilename = lowerBody.contains("filename=") || lowerBody.contains("filename*=")
+        let hasName = lowerBody.contains("name=")
+
+        print("📎 Quick scan: disposition=\(hasAttachmentDisp), pdf=\(hasPdf), filename=\(hasFilename), name=\(hasName)")
+
+        // Regex-basierte Suche nach filename (auch über Zeilenumbrüche hinweg)
+        // Suche nach: filename="...", filename*="...", name="..."
+        let patterns = [
+            "filename\\s*=\\s*\"([^\"]+)\"",           // filename="value"
+            "filename\\s*=\\s*'([^']+)'",              // filename='value'
+            "filename\\s*=\\s*([^;\\s\\r\\n]+)",       // filename=value (ohne Quotes)
+            "filename\\*\\s*=\\s*[^']*'[^']*'([^;\\s\\r\\n]+)", // filename*=utf-8''value
+            "name\\s*=\\s*\"([^\"]+)\"",               // name="value"
+            "name\\s*=\\s*'([^']+)'",                  // name='value'
+            "name\\s*=\\s*([^;\\s\\r\\n]+)"            // name=value
+        ]
+
+        var foundFilenames: Set<String> = []
+
+        for pattern in patterns {
+            if let regex = try? NSRegularExpression(pattern: pattern, options: [.caseInsensitive]) {
+                let range = NSRange(rawBody.startIndex..., in: rawBody)
+                let matches = regex.matches(in: rawBody, options: [], range: range)
+
+                for match in matches {
+                    if match.numberOfRanges > 1,
+                       let filenameRange = Range(match.range(at: 1), in: rawBody) {
+                        var filename = String(rawBody[filenameRange])
+                            .trimmingCharacters(in: .whitespaces)
+
+                        // URL-Dekodierung für filename*=
+                        if filename.contains("%") {
+                            filename = filename.removingPercentEncoding ?? filename
+                        }
+
+                        // MIME-Dekodierung
+                        filename = decodeFilename(filename)
+
+                        // Nur Dateien mit bekannten Erweiterungen
+                        let validExts = [".pdf", ".doc", ".docx", ".xls", ".xlsx", ".ppt", ".pptx",
+                                        ".zip", ".rar", ".png", ".jpg", ".jpeg", ".gif", ".txt",
+                                        ".csv", ".rtf", ".odt", ".ods"]
+                        let hasValidExt = validExts.contains { filename.lowercased().hasSuffix($0) }
+
+                        if hasValidExt && !foundFilenames.contains(filename.lowercased()) {
+                            foundFilenames.insert(filename.lowercased())
+
+                            // MIME-Type aus Erweiterung ableiten
+                            var mimeType = "application/octet-stream"
+                            let ext = (filename as NSString).pathExtension.lowercased()
+                            switch ext {
+                            case "pdf": mimeType = "application/pdf"
+                            case "doc": mimeType = "application/msword"
+                            case "docx": mimeType = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                            case "xls": mimeType = "application/vnd.ms-excel"
+                            case "xlsx": mimeType = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                            case "png": mimeType = "image/png"
+                            case "jpg", "jpeg": mimeType = "image/jpeg"
+                            case "gif": mimeType = "image/gif"
+                            case "zip": mimeType = "application/zip"
+                            case "txt": mimeType = "text/plain"
+                            default: break
+                            }
+
+                            let attachment = AttachmentEntity(
+                                accountId: mail.accountId,
+                                folder: mail.folder,
+                                uid: mail.uid,
+                                partId: "part\(partCounter)",
+                                filename: filename,
+                                mimeType: mimeType,
+                                sizeBytes: 0,
+                                data: nil
+                            )
+                            attachments.append(attachment)
+                            partCounter += 1
+                            print("📎 Found: \(filename) (\(mimeType))")
+                        }
+                    }
+                }
+            }
+        }
+
+        print("📎 [extractAttachmentMetadata] Found \(attachments.count) attachments total")
+        return attachments
+    }
+
+    /// Extrahiert einen gequoteten Wert (z.B. filename="test.pdf")
+    private func extractQuotedValue(_ input: String) -> String {
+        var result = input.trimmingCharacters(in: .whitespaces)
+
+        // Remove leading quote
+        if result.hasPrefix("\"") {
+            result = String(result.dropFirst())
+        }
+        if result.hasPrefix("'") {
+            result = String(result.dropFirst())
+        }
+
+        // Find end of value
+        var endIndex = result.endIndex
+        for (i, char) in result.enumerated() {
+            if char == "\"" || char == "'" || char == ";" || char == "\r" || char == "\n" {
+                endIndex = result.index(result.startIndex, offsetBy: i)
+                break
+            }
+        }
+
+        return String(result[..<endIndex]).trimmingCharacters(in: .whitespaces)
+    }
+
+    /// Dekodiert einen MIME-encoded Dateinamen
+    private func decodeFilename(_ filename: String) -> String {
+        var decoded = filename
+
+        // Handle =?charset?encoding?text?= format
+        if decoded.contains("=?") && decoded.contains("?=") {
+            // Simple UTF-8 Q-encoding decode
+            decoded = decoded.replacingOccurrences(of: "=?utf-8?Q?", with: "", options: .caseInsensitive)
+            decoded = decoded.replacingOccurrences(of: "=?UTF-8?Q?", with: "", options: .caseInsensitive)
+            decoded = decoded.replacingOccurrences(of: "?=", with: "")
+            decoded = decoded.replacingOccurrences(of: "_", with: " ")
+
+            // Decode =XX hex sequences
+            var result = ""
+            var i = decoded.startIndex
+            while i < decoded.endIndex {
+                if decoded[i] == "=" && decoded.distance(from: i, to: decoded.endIndex) >= 3 {
+                    let hexStart = decoded.index(after: i)
+                    let hexEnd = decoded.index(hexStart, offsetBy: 2)
+                    let hexStr = String(decoded[hexStart..<hexEnd])
+                    if let byte = UInt8(hexStr, radix: 16) {
+                        result.append(Character(UnicodeScalar(byte)))
+                        i = hexEnd
+                        continue
+                    }
+                }
+                result.append(decoded[i])
+                i = decoded.index(after: i)
+            }
+            decoded = result
+        }
+
+        return decoded
+    }
+
 }
 
 // MARK: - Errors
@@ -1013,5 +1668,24 @@ private struct AttachmentRowView: View {
                 flags: []
             )
         )
+    }
+}
+
+// MARK: - Share Sheet
+
+/// UIKit-basiertes Share Sheet für iOS
+struct ShareSheet: UIViewControllerRepresentable {
+    let items: [URL]
+
+    func makeUIViewController(context: Context) -> UIActivityViewController {
+        let controller = UIActivityViewController(
+            activityItems: items,
+            applicationActivities: nil
+        )
+        return controller
+    }
+
+    func updateUIViewController(_ uiViewController: UIActivityViewController, context: Context) {
+        // Keine Updates nötig
     }
 }

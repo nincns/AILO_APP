@@ -361,9 +361,15 @@ private class MailFullAccessDAOImpl: MailFullAccessDAO {
     func getAllBlobIds() throws -> [String] {
         // Delegate to factory implementation
         return try factory.mailReadDAO.getAllBlobIds()
-        
+
         // Alternative dummy implementation:
         // return []
+    }
+
+    // MARK: - Attachment Status
+
+    func attachmentStatus(accountId: UUID, folder: String) throws -> [String: Bool] {
+        return try factory.mailReadDAO.attachmentStatus(accountId: accountId, folder: folder)
     }
 }
 

@@ -158,25 +158,48 @@ public struct ProcessedMessage {
 
 public struct ProcessedContent {
     public let html: String?
+    public let text: String?
     public let plainText: String?
     public let attachmentRefs: [String]
-    
-    public init(html: String?, plainText: String?, attachmentRefs: [String]) {
+
+    public init(html: String?, text: String?, plainText: String? = nil, attachmentRefs: [String] = []) {
         self.html = html
-        self.plainText = plainText
+        self.text = text
+        self.plainText = plainText ?? text
         self.attachmentRefs = attachmentRefs
+    }
+
+    // Convenience init without text parameter
+    public init(html: String?, text: String?) {
+        self.html = html
+        self.text = text
+        self.plainText = text
+        self.attachmentRefs = []
     }
 }
 
 public struct FinalizedContent {
     public let html: String?
+    public let text: String?
     public let plainText: String?
     public let inlineImages: [String: Data]
-    
-    public init(html: String?, plainText: String?, inlineImages: [String: Data]) {
+    public let generatorVersion: Int
+
+    public init(html: String?, text: String?, plainText: String? = nil, inlineImages: [String: Data] = [:], generatorVersion: Int = 1) {
         self.html = html
-        self.plainText = plainText
+        self.text = text
+        self.plainText = plainText ?? text
         self.inlineImages = inlineImages
+        self.generatorVersion = generatorVersion
+    }
+
+    // Convenience init matching MessageProcessingService usage
+    public init(html: String?, text: String?, generatorVersion: Int) {
+        self.html = html
+        self.text = text
+        self.plainText = text
+        self.inlineImages = [:]
+        self.generatorVersion = generatorVersion
     }
 }
 
@@ -205,13 +228,17 @@ public class CertificateInfo: NSObject {
     }
 }
 
-public enum TrustLevel: Int {
+public enum TrustLevel: Int, Comparable {
     case unknown = 0
     case untrusted = 1
     case marginal = 2
     case trusted = 3
     case invalid = 4
     case revoked = 5
+
+    public static func < (lhs: TrustLevel, rhs: TrustLevel) -> Bool {
+        return lhs.rawValue < rhs.rawValue
+    }
 }
 
 // MARK: - MIME Content Types
@@ -247,27 +274,63 @@ public struct IMAPBodyPart {
     public let type: MimeContentType
     public let size: Int64?
     public let parameters: [String: String]
-    
+
+    // Additional properties for compatibility
+    public var mediaType: String {
+        switch type {
+        case .text(let subtype, _):
+            return "text/\(subtype)"
+        case .image(let subtype, _):
+            return "image/\(subtype)"
+        case .audio(let subtype):
+            return "audio/\(subtype)"
+        case .video(let subtype):
+            return "video/\(subtype)"
+        case .application(let subtype):
+            return "application/\(subtype)"
+        case .message(let subtype):
+            return "message/\(subtype)"
+        case .multipart(let subtype, _):
+            return "multipart/\(subtype)"
+        case .attachment(let mimeType, _):
+            return mimeType
+        }
+    }
+
+    public var charset: String? {
+        if case .text(_, let charset) = type {
+            return charset
+        }
+        return parameters["charset"]
+    }
+
+    public var encoding: String? {
+        return parameters["encoding"] ?? parameters["content-transfer-encoding"]
+    }
+
+    public var filename: String? {
+        if case .attachment(_, let filename) = type {
+            return filename
+        }
+        return parameters["filename"] ?? parameters["name"]
+    }
+
+    public var contentId: String? {
+        if case .image(_, let contentId) = type {
+            return contentId
+        }
+        return parameters["content-id"]
+    }
+
+    public var disposition: String? {
+        return parameters["content-disposition"]
+    }
+
     public init(partNumber: String, type: MimeContentType, size: Int64? = nil, parameters: [String: String] = [:]) {
         self.partNumber = partNumber
         self.type = type
         self.size = size
         self.parameters = parameters
-    }
-}
-
-// MARK: - Error Extensions
-
-extension StorageError {
-    public var isTemporary: Bool {
-        switch self {
-        case .diskFull, .ioError, .timeout:
-            return true
-        case .corrupted, .invalidData, .notFound:
-            return false
-        default:
-            return false
-        }
     }
 }
 
@@ -280,16 +343,47 @@ public enum ProcessingError: Error {
     case securityCheckFailed
     case timeout
     case cancelled
+    case contentTooLarge
+    case invalidEncoding
+    case contentNotAvailable(partId: String)
     case unknownError(Error)
-    
+
     public var isRecoverable: Bool {
         switch self {
         case .timeout, .storageFailed:
             return true
         case .invalidMessage, .parsingFailed, .securityCheckFailed, .cancelled:
             return false
+        case .contentTooLarge, .invalidEncoding, .contentNotAvailable:
+            return false
         case .unknownError:
             return false
         }
+    }
+}
+
+// Alias for backward compatibility
+public typealias MessageProcessingError = ProcessingError
+
+// MARK: - BlobStore Protocol
+
+public protocol BlobStoreProtocol {
+    func store(_ data: Data, messageId: UUID, partId: String) throws -> String
+    func retrieve(blobId: String) throws -> Data?
+    func exists(blobId: String) -> Bool
+    func delete(blobId: String) throws
+    func storeRawMessage(_ data: Data, messageId: UUID) throws -> String
+    func retrieveRawMessage(messageId: UUID) throws -> Data?
+}
+
+// Note: RenderCacheDAO is defined as a class in RenderCacheDAO.swift
+// Note: IMAPBodyStructure is defined in Services/Mail/IMAP/IMAPParsers.swift
+// Note: AttachmentEntity is defined in Database/Schema/MailSchema.swift
+
+// MARK: - MimePartEntity Extensions
+
+extension MimePartEntity {
+    public var contentSha256: String? {
+        return nil // Computed from blobId or content
     }
 }

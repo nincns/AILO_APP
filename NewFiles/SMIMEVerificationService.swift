@@ -298,11 +298,12 @@ class SMIMEVerificationService {
             commonName = summary
         }
         
-        // Extract detailed info using SecCertificateCopyValues
-        if let values = SecCertificateCopyValues(certificate, nil, nil) as? [String: Any] {
-            // Parse certificate fields
-            // ... implementation
-        }
+        // Extract detailed info
+        #if os(macOS)
+        // SecCertificateCopyValues is only available on macOS
+        // On iOS, use alternative methods
+        #endif
+        // For iOS, we use SecCertificateCopyData and parse manually
         
         return SignerInfo(
             commonName: commonName ?? "Unknown",

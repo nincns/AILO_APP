@@ -565,19 +565,27 @@ public final class MailRepository: ObservableObject {
                 
                 print("✅ Fetched rawBody for UID: \(uid) - size: \(rawBody.count) bytes")
                 
-                // ✅ RAW-first Storage
+                // ✅ RAW-first Storage mit Anhang-Erkennung
+                let hasAttachments = detectAttachments(in: rawBody)
+                let isMultipart = rawBody.lowercased().contains("content-type: multipart/")
+                let contentType = extractContentType(from: rawBody)
+
+                if hasAttachments {
+                    print("📎 [MailRepository] Detected attachments in UID: \(uid)")
+                }
+
                 let bodyEntity = MessageBodyEntity(
                     accountId: accountId,
                     folder: folder,
                     uid: uid,
                     text: nil,              // ← Leer lassen (später Processing)
                     html: nil,              // ← Leer lassen (später Processing)
-                    hasAttachments: false,  // ← Später aus rawBody erkennen
+                    hasAttachments: hasAttachments,  // ✅ Aus rawBody erkannt
                     rawBody: rawBody,       // ← NUR RAW speichern
-                    contentType: nil,       // ← Später extrahieren
-                    charset: nil,           // ← Später extrahieren
+                    contentType: contentType,
+                    charset: extractCharset(from: rawBody),
                     transferEncoding: nil,
-                    isMultipart: false,     // ← Später aus rawBody erkennen
+                    isMultipart: isMultipart,  // ✅ Aus rawBody erkannt
                     rawSize: rawBody.count,
                     processedAt: nil        // ← NIL = nicht verarbeitet
                 )
@@ -786,50 +794,15 @@ public final class MailRepository: ObservableObject {
             print("❌ No DAO available for loadAttachmentStatus")
             return [:]
         }
-        
-        // ✅ Cast zu BaseDAO für direkten SQL-Zugriff
-        guard let baseDAO = dao as? BaseDAO else {
-            print("❌ DAO is not a BaseDAO")
-            return [:]
-        }
-        
+
         print("📎 [OPTIMIZED] Loading attachment status for account: \(accountId), folder: \(folder)")
-        
-        // ✅ FIX: BEIDE Tabellen prüfen mit COALESCE
-        let sql = """
-            SELECT h.uid, 
-                   COALESCE(b.has_attachments, h.has_attachments, 0) as has_attachments
-            FROM \(MailSchema.tMsgHeader) h
-            LEFT JOIN \(MailSchema.tMsgBody) b 
-                ON h.account_id = b.account_id 
-                AND h.folder = b.folder 
-                AND h.uid = b.uid
-            WHERE h.account_id = ? AND h.folder = ?
-        """
-        
+
         do {
-            let stmt = try baseDAO.prepare(sql)
-            defer { baseDAO.finalize(stmt) }
-            
-            baseDAO.bindUUID(stmt, 1, accountId)
-            baseDAO.bindText(stmt, 2, folder)
-            
-            var statusMap: [String: Bool] = [:]
-            
-            while sqlite3_step(stmt) == SQLITE_ROW {
-                if let cString = sqlite3_column_text(stmt, 0) {
-                    let uid = String(cString: cString)
-                    let hasAttachments = sqlite3_column_int(stmt, 1) != 0
-                    statusMap[uid] = hasAttachments
-                }
-            }
-            
+            let statusMap = try dao.attachmentStatus(accountId: accountId, folder: folder)
             print("📎 Loaded attachment status for \(statusMap.count) messages")
             let withAttachments = statusMap.values.filter { $0 }.count
             print("📎 → \(withAttachments) messages have attachments")
-            
             return statusMap
-            
         } catch {
             print("❌ Failed to load attachment status: \(error)")
             return [:]
@@ -887,6 +860,109 @@ public final class MailRepository: ObservableObject {
                 s.send(())
             }
         }
+    }
+
+    // MARK: - Attachment Detection Helpers
+
+    /// Erkennt ob eine E-Mail Anhänge enthält basierend auf dem rawBody
+    private func detectAttachments(in rawBody: String) -> Bool {
+        let lowerBody = rawBody.lowercased()
+
+        // 1. Explizit als Attachment markiert
+        if lowerBody.contains("content-disposition: attachment") {
+            return true
+        }
+
+        // 2. Multipart/mixed enthält typischerweise Anhänge
+        if lowerBody.contains("content-type: multipart/mixed") {
+            return true
+        }
+
+        // 3. Dateiname im Content-Disposition Header
+        if lowerBody.contains("filename=") {
+            // Check if it's not an inline image
+            let lines = rawBody.components(separatedBy: "\n")
+            for (index, line) in lines.enumerated() {
+                if line.lowercased().contains("filename=") {
+                    // Prüfe vorherige Zeilen für Content-Disposition
+                    if index > 0 && index < lines.count {
+                        let contextStart = max(0, index - 3)
+                        let context = lines[contextStart...index].joined(separator: "\n").lowercased()
+                        if context.contains("content-disposition: attachment") {
+                            return true
+                        }
+                        // Auch prüfen ob es kein inline ist
+                        if !context.contains("content-disposition: inline") &&
+                           !context.contains("content-id:") {
+                            return true
+                        }
+                    }
+                }
+            }
+        }
+
+        // 4. PDF, Office-Dokumente, etc.
+        let attachmentTypes = [
+            "application/pdf",
+            "application/msword",
+            "application/vnd.openxmlformats",
+            "application/vnd.ms-excel",
+            "application/vnd.ms-powerpoint",
+            "application/zip",
+            "application/x-zip",
+            "application/octet-stream"
+        ]
+        for type in attachmentTypes {
+            if lowerBody.contains("content-type: \(type)") {
+                return true
+            }
+        }
+
+        // 5. Name parameter im Content-Type (häufig bei Anhängen)
+        if lowerBody.contains("content-type:") && lowerBody.contains("name=") {
+            // Prüfe ob es sich um einen echten Anhang handelt
+            if !lowerBody.contains("content-id:") || lowerBody.contains("content-disposition: attachment") {
+                return true
+            }
+        }
+
+        return false
+    }
+
+    /// Extrahiert den Content-Type aus dem rawBody
+    private func extractContentType(from rawBody: String) -> String? {
+        let lines = rawBody.components(separatedBy: "\n")
+        for line in lines {
+            let trimmed = line.trimmingCharacters(in: .whitespacesAndNewlines)
+            if trimmed.lowercased().hasPrefix("content-type:") {
+                let value = trimmed.dropFirst("content-type:".count)
+                    .trimmingCharacters(in: .whitespaces)
+                // Nur den Teil vor dem Semikolon zurückgeben
+                if let semicolonIndex = value.firstIndex(of: ";") {
+                    return String(value[..<semicolonIndex]).trimmingCharacters(in: .whitespaces)
+                }
+                return value
+            }
+        }
+        return nil
+    }
+
+    /// Extrahiert den Charset aus dem rawBody
+    private func extractCharset(from rawBody: String) -> String? {
+        let lowerBody = rawBody.lowercased()
+        if let charsetRange = lowerBody.range(of: "charset=") {
+            let afterCharset = lowerBody[charsetRange.upperBound...]
+            var charset = ""
+            for char in afterCharset {
+                if char == ";" || char == "\n" || char == "\r" || char == " " || char == "\"" {
+                    if !charset.isEmpty { break }
+                } else {
+                    charset.append(char)
+                }
+            }
+            return charset.isEmpty ? nil : charset
+        }
+        return nil
     }
 }
 
