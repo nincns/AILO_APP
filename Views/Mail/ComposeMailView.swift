@@ -1,6 +1,7 @@
 // ComposeMailView.swift - Enhanced mail composer for AILO_APP
 import SwiftUI
 import PhotosUI
+import WebKit
 
 struct ComposeMailView: View {
     @Environment(\.dismiss) private var dismiss
@@ -156,18 +157,18 @@ struct ComposeMailView: View {
                 Divider()
 
                 // Body section
-                Group {
-                    if isHTML {
-                        TextEditor(text: $htmlBody)
-                            .font(.body)
-                    } else {
-                        TextEditor(text: $textBody)
-                            .font(.body)
-                    }
+                if isHTML {
+                    HTMLPreviewView(html: htmlBody)
+                        .padding(.horizontal, 12)
+                        .padding(.top, 8)
+                        .frame(maxHeight: .infinity)
+                } else {
+                    TextEditor(text: $textBody)
+                        .font(.body)
+                        .padding(.horizontal, 12)
+                        .padding(.top, 8)
+                        .frame(maxHeight: .infinity)
                 }
-                .padding(.horizontal, 12)
-                .padding(.top, 8)
-                .frame(maxHeight: .infinity)
 
                 // Attachments bar (compact)
                 if !attachments.isEmpty || true {
@@ -513,6 +514,54 @@ struct ComposeMailView: View {
         case "html", "htm": return "text/html"
         default: return "application/octet-stream"
         }
+    }
+}
+
+// MARK: - HTML Preview View
+private struct HTMLPreviewView: UIViewRepresentable {
+    let html: String
+
+    func makeUIView(context: Context) -> WKWebView {
+        let webView = WKWebView()
+        webView.isOpaque = false
+        webView.backgroundColor = .clear
+        webView.scrollView.backgroundColor = .clear
+        return webView
+    }
+
+    func updateUIView(_ webView: WKWebView, context: Context) {
+        let styledHTML = """
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+            <style>
+                body {
+                    font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+                    font-size: 16px;
+                    line-height: 1.5;
+                    color: #333;
+                    margin: 0;
+                    padding: 0;
+                }
+                @media (prefers-color-scheme: dark) {
+                    body { color: #e0e0e0; }
+                }
+                blockquote {
+                    border-left: 2px solid #ccc;
+                    padding-left: 10px;
+                    margin-left: 0;
+                    color: #666;
+                }
+                @media (prefers-color-scheme: dark) {
+                    blockquote { color: #999; border-left-color: #555; }
+                }
+            </style>
+        </head>
+        <body>\(html)</body>
+        </html>
+        """
+        webView.loadHTMLString(styledHTML, baseURL: nil)
     }
 }
 
