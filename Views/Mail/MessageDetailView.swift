@@ -880,20 +880,34 @@ struct MessageDetailView: View {
         var processedFilenames: Set<String> = []
 
         // ✅ SCHRITT 1: Mail-Header von MIME-Body trennen
-        // rawBody = Mail-Headers + leere Zeile + MIME-Body
+        // WICHTIG: Apple Mail verwendet oft KEINE doppelte Leerzeile!
+        // Stattdessen: Trenne am ersten Boundary-Marker
         var mailHeaders = ""
         var mimeBody = rawBody
 
-        if let range = rawBody.range(of: "\r\n\r\n") {
+        // Suche erste Boundary-Zeile (--Apple-Mail- oder ähnlich)
+        // Das ist der zuverlässigste Trennpunkt
+        if let boundaryRange = rawBody.range(of: "\n--", options: .literal) {
+            mailHeaders = String(rawBody[..<boundaryRange.lowerBound])
+            mimeBody = String(rawBody[boundaryRange.upperBound...].dropFirst()) // Drop the leading "-" to get "--..."
+            // Korrektur: mimeBody soll mit "--" beginnen
+            mimeBody = "--" + mimeBody
+            print("📎 [extractAttachmentsWithData] Split at first boundary marker")
+        } else if let range = rawBody.range(of: "\r\n\r\n") {
+            // Fallback: klassische CRLF-Trennung
             mailHeaders = String(rawBody[..<range.lowerBound])
             mimeBody = String(rawBody[range.upperBound...])
+            print("📎 [extractAttachmentsWithData] Split at CRLF")
         } else if let range = rawBody.range(of: "\n\n") {
+            // Fallback: LF-Trennung
             mailHeaders = String(rawBody[..<range.lowerBound])
             mimeBody = String(rawBody[range.upperBound...])
+            print("📎 [extractAttachmentsWithData] Split at LF")
         }
 
         print("📎 [extractAttachmentsWithData] Mail headers: \(mailHeaders.count) chars")
         print("📎 [extractAttachmentsWithData] MIME body: \(mimeBody.count) chars")
+        print("📎 [extractAttachmentsWithData] MIME body starts with: '\(String(mimeBody.prefix(50)))'")
 
         // ✅ SCHRITT 2: Boundary aus Mail-Headers extrahieren
         let boundaryPattern = "boundary=\"?([^\"\\s\\r\\n;]+)"
