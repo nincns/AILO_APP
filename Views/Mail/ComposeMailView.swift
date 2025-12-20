@@ -5,6 +5,14 @@ import PhotosUI
 struct ComposeMailView: View {
     @Environment(\.dismiss) private var dismiss
 
+    // MARK: - Reply/Forward Parameters
+    var replyToMail: MessageHeaderEntity? = nil
+    var replyAll: Bool = false
+    var originalBody: String = ""
+    var originalTo: String = ""      // For Reply All
+    var originalCC: String = ""      // For Reply All
+    var preselectedAccountId: UUID? = nil
+
     // MARK: - Addressing
     @State private var accounts: [MailAccountConfig] = []
     @State private var activeIDs: Set<UUID> = []
@@ -161,7 +169,14 @@ struct ComposeMailView: View {
             .onChange(of: htmlBody) { _, _ in scheduleAutosave() }
             .onAppear {
                 loadAccounts()
-                loadAutosave()
+
+                // Check if this is a reply
+                if let mail = replyToMail {
+                    prefillForReply(mail: mail)
+                } else {
+                    loadAutosave()
+                }
+
                 // Register for prefill (reply/forward)
                 prefillToken = ComposePrefillCenter.shared.register { text in
                     Task { @MainActor in
@@ -271,6 +286,102 @@ struct ComposeMailView: View {
     }
 
     private func clearAutosave() { UserDefaults.standard.removeObject(forKey: autosaveKey) }
+
+    // MARK: - Reply Prefill
+    private func prefillForReply(mail: MessageHeaderEntity) {
+        // Set account
+        if let accId = preselectedAccountId {
+            selectedAccountId = accId
+        }
+
+        // Build recipients
+        let myEmail = getMyEmail(for: mail.accountId)
+
+        if replyAll {
+            // Reply All: From -> To, original To + CC (minus my email) -> To + CC
+            var toRecipients = [mail.from]
+            var ccRecipients: [String] = []
+
+            // Parse original To recipients (excluding my email)
+            let originalToList = parseEmailList(originalTo)
+            for addr in originalToList {
+                if !isSameEmail(addr, myEmail) && !isSameEmail(addr, mail.from) {
+                    toRecipients.append(addr)
+                }
+            }
+
+            // Parse original CC recipients (excluding my email)
+            let originalCCList = parseEmailList(originalCC)
+            for addr in originalCCList {
+                if !isSameEmail(addr, myEmail) {
+                    ccRecipients.append(addr)
+                }
+            }
+
+            self.to = toRecipients.joined(separator: ", ")
+            self.cc = ccRecipients.joined(separator: ", ")
+        } else {
+            // Simple Reply: only to original sender
+            self.to = mail.from
+        }
+
+        // Subject with Re: prefix
+        let originalSubject = mail.subject
+        if originalSubject.lowercased().hasPrefix("re:") {
+            self.subject = originalSubject
+        } else {
+            self.subject = "Re: \(originalSubject)"
+        }
+
+        // Quote original body
+        if !originalBody.isEmpty {
+            let dateStr = formatDateForQuote(mail.date)
+            let quote = buildQuote(from: mail.from, date: dateStr, body: originalBody)
+            self.textBody = "\n\n\(quote)"
+        }
+    }
+
+    private func getMyEmail(for accountId: UUID) -> String {
+        if let account = accounts.first(where: { $0.id == accountId }) {
+            return account.replyTo ?? account.recvUsername
+        }
+        return ""
+    }
+
+    private func parseEmailList(_ list: String) -> [String] {
+        guard !list.isEmpty else { return [] }
+        return list.split(separator: ",").map { String($0).trimmingCharacters(in: .whitespacesAndNewlines) }
+    }
+
+    private func isSameEmail(_ a: String, _ b: String) -> Bool {
+        // Extract email from "Name <email>" format if needed
+        let emailA = extractEmail(from: a).lowercased()
+        let emailB = extractEmail(from: b).lowercased()
+        return emailA == emailB
+    }
+
+    private func extractEmail(from str: String) -> String {
+        if let start = str.firstIndex(of: "<"), let end = str.firstIndex(of: ">") {
+            return String(str[str.index(after: start)..<end])
+        }
+        return str.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    private func formatDateForQuote(_ date: Date?) -> String {
+        guard let date = date else { return "" }
+        let formatter = DateFormatter()
+        formatter.dateFormat = "dd.MM.yyyy 'um' HH:mm"
+        formatter.locale = Locale(identifier: "de_DE")
+        return formatter.string(from: date)
+    }
+
+    private func buildQuote(from sender: String, date: String, body: String) -> String {
+        let header = date.isEmpty ? "schrieb \(sender):" : "Am \(date) schrieb \(sender):"
+        let quotedLines = body.split(separator: "\n", omittingEmptySubsequences: false)
+            .map { "> \($0)" }
+            .joined(separator: "\n")
+        return "\(header)\n\(quotedLines)"
+    }
 
     // MARK: - Helpers
     private func splitEmails(_ s: String) -> [MailSendAddress] {
