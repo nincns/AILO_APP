@@ -2,6 +2,7 @@
 // OPTIMIERT: Nutzt BodyContentProcessor fr initiale Bereinigung + filterTechnicalHeaders fr UI-Toggle
 import SwiftUI
 import WebKit
+import QuickLook
 
 // MARK: - Message Detail View
 //  PERFORMANCE FIX: This view now loads pre-processed content directly from storage
@@ -27,7 +28,8 @@ struct MessageDetailView: View {
     @State private var shareItems: [URL] = []
     @State private var savingAttachments: Bool = false
     @State private var hasDetectedAttachments: Bool = false
-    
+    @State private var previewURL: URL? = nil
+
     @Environment(\.dismiss) private var dismiss
     
     // Convenience initializer for use without actions
@@ -189,6 +191,7 @@ struct MessageDetailView: View {
                 .ignoresSafeArea()
             }
         }
+        .quickLookPreview($previewURL)
     }
     
     @ViewBuilder
@@ -347,7 +350,10 @@ struct MessageDetailView: View {
                 ForEach(Array(attachments.enumerated()), id: \.offset) { index, attachment in
                     AttachmentRowView(
                         attachment: attachment,
-                        tempFileURL: index < tempFiles.count ? tempFiles[index] : nil
+                        tempFileURL: index < tempFiles.count ? tempFiles[index] : nil,
+                        onTap: { url in
+                            previewURL = url
+                        }
                     )
                 }
             }
@@ -1329,37 +1335,68 @@ private struct MailHTMLWebView: UIViewRepresentable {
 private struct AttachmentRowView: View {
     let attachment: AttachmentEntity
     let tempFileURL: URL?
-    
+    let onTap: ((URL) -> Void)?
+
+    init(attachment: AttachmentEntity, tempFileURL: URL?, onTap: ((URL) -> Void)? = nil) {
+        self.attachment = attachment
+        self.tempFileURL = tempFileURL
+        self.onTap = onTap
+    }
+
     var body: some View {
-        HStack {
-            Image(systemName: iconForAttachment)
-                .foregroundStyle(.secondary)
-                .frame(width: 20)
-            
-            VStack(alignment: .leading, spacing: 2) {
-                Text(attachment.filename.isEmpty ? attachment.partId : attachment.filename)
-                    .font(.subheadline)
-                    .lineLimit(1)
-                
-                if let data = attachment.data {
-                    Text(ByteCountFormatter.string(fromByteCount: Int64(data.count), countStyle: .file))
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+        Button(action: {
+            if let url = tempFileURL {
+                onTap?(url)
+            } else if let data = attachment.data {
+                // Erstelle temporäre Datei falls noch nicht vorhanden
+                let tempDir = FileManager.default.temporaryDirectory
+                let filename = attachment.filename.isEmpty ? "attachment_\(attachment.partId)" : attachment.filename
+                let fileURL = tempDir.appendingPathComponent(filename)
+                do {
+                    try data.write(to: fileURL)
+                    onTap?(fileURL)
+                } catch {
+                    print("❌ [AttachmentRowView] Failed to create temp file: \(error)")
                 }
             }
-            
-            Spacer()
-            
-            if let tempURL = tempFileURL {
-                ShareLink(item: tempURL) {
-                    Image(systemName: "square.and.arrow.up")
-                        .foregroundStyle(Color.accentColor)
+        }) {
+            HStack {
+                Image(systemName: iconForAttachment)
+                    .foregroundStyle(.blue)
+                    .frame(width: 24)
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(attachment.filename.isEmpty ? attachment.partId : attachment.filename)
+                        .font(.subheadline)
+                        .foregroundStyle(.primary)
+                        .lineLimit(1)
+
+                    if let data = attachment.data {
+                        Text(ByteCountFormatter.string(fromByteCount: Int64(data.count), countStyle: .file))
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
                 }
-                .buttonStyle(.borderless)
+
+                Spacer()
+
+                Image(systemName: "eye")
+                    .foregroundStyle(.blue)
+                    .font(.caption)
+
+                if let tempURL = tempFileURL {
+                    ShareLink(item: tempURL) {
+                        Image(systemName: "square.and.arrow.up")
+                            .foregroundStyle(Color.accentColor)
+                    }
+                    .buttonStyle(.borderless)
+                }
             }
         }
-        .padding(.vertical, 4)
-        .background(Color(UIColor.secondarySystemBackground))
+        .buttonStyle(.plain)
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
+        .background(Color(UIColor.tertiarySystemBackground))
         .clipShape(RoundedRectangle(cornerRadius: 8))
     }
     
