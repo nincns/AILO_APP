@@ -11,6 +11,7 @@ struct ComposeMailView: View {
     var originalBody: String = ""
     var originalTo: String = ""      // For Reply All
     var originalCC: String = ""      // For Reply All
+    var originalIsHTML: Bool = false // Format der Original-Mail
     var preselectedAccountId: UUID? = nil
 
     // MARK: - Addressing
@@ -380,6 +381,9 @@ struct ComposeMailView: View {
 
     // MARK: - Reply Prefill
     private func prefillForReply(mail: MessageHeaderEntity) {
+        // Format der Original-Mail übernehmen
+        self.isHTML = originalIsHTML
+
         // Set account
         if let accId = preselectedAccountId {
             selectedAccountId = accId
@@ -424,11 +428,25 @@ struct ComposeMailView: View {
             self.subject = "Re: \(originalSubject)"
         }
 
-        // Quote original body
+        // Quote original body - formatabhängig
         if !originalBody.isEmpty {
             let dateStr = formatDateForQuote(mail.date)
-            let quote = buildQuote(from: mail.from, date: dateStr, body: originalBody)
-            self.textBody = "\n\n\(quote)"
+            if originalIsHTML {
+                // HTML-Quote mit Blockquote-Styling
+                let header = dateStr.isEmpty ? "schrieb \(mail.from):" : "Am \(dateStr) schrieb \(mail.from):"
+                let quote = """
+                <br><br>
+                <p>\(header)</p>
+                <blockquote style="border-left: 2px solid #ccc; padding-left: 10px; margin-left: 0; color: #555;">
+                \(originalBody)
+                </blockquote>
+                """
+                self.htmlBody = quote
+            } else {
+                // Text-Quote mit > Prefix
+                let quote = buildQuote(from: mail.from, date: dateStr, body: originalBody)
+                self.textBody = "\n\n\(quote)"
+            }
         }
     }
 
