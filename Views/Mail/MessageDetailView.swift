@@ -1091,19 +1091,41 @@ struct MessageDetailView: View {
             let parts = mimeBody.components(separatedBy: delimiter)
             print("📎 [extractAttachmentsWithData] Found \(parts.count) top-level parts")
 
-            for (index, part) in parts.enumerated() {
-                // Überspringe Preamble und schließendes Boundary
+            for (index, rawPart) in parts.enumerated() {
+                // Trim whitespace/newlines
+                let trimmed = rawPart.trimmingCharacters(in: .whitespacesAndNewlines)
+
+                // Skip preamble (index 0), empty parts, and closing boundary (--)
                 if index == 0 { continue }
-                if part.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { continue }
-                if part.hasPrefix("--") { continue }
+                if trimmed.isEmpty { continue }
+                if trimmed == "--" { continue }
+
+                // ✅ FIX: Boundary-Zeile entfernen falls noch vorhanden
+                // Nach dem Split kann der Part mit "--" oder Newlines beginnen
+                var cleanedPart = rawPart
 
                 // Führende Newlines entfernen
-                var cleanPart = part
-                while cleanPart.hasPrefix("\r\n") { cleanPart = String(cleanPart.dropFirst(2)) }
-                while cleanPart.hasPrefix("\n") { cleanPart = String(cleanPart.dropFirst(1)) }
+                while cleanedPart.hasPrefix("\r\n") { cleanedPart = String(cleanedPart.dropFirst(2)) }
+                while cleanedPart.hasPrefix("\n") { cleanedPart = String(cleanedPart.dropFirst(1)) }
+                while cleanedPart.hasPrefix("\r") { cleanedPart = String(cleanedPart.dropFirst(1)) }
 
-                print("📎 [extractAttachmentsWithData] Processing top-level part \(index)")
-                parseMimePart(cleanPart, depth: 0)
+                // Falls Part noch mit "--" beginnt (Boundary-Rest), diese Zeile entfernen
+                if cleanedPart.hasPrefix("--") {
+                    if let newlineRange = cleanedPart.range(of: "\n") {
+                        cleanedPart = String(cleanedPart[newlineRange.upperBound...])
+                        print("📎 [extractAttachmentsWithData] Part \(index): Removed boundary line prefix")
+                    } else {
+                        print("📎 [extractAttachmentsWithData] Part \(index): Only boundary, skipping")
+                        continue
+                    }
+                }
+
+                // Nochmal führende Newlines entfernen nach Boundary-Entfernung
+                while cleanedPart.hasPrefix("\r\n") { cleanedPart = String(cleanedPart.dropFirst(2)) }
+                while cleanedPart.hasPrefix("\n") { cleanedPart = String(cleanedPart.dropFirst(1)) }
+
+                print("📎 [extractAttachmentsWithData] Processing top-level part \(index), starts with: '\(String(cleanedPart.prefix(60)).replacingOccurrences(of: "\n", with: " "))...'")
+                parseMimePart(cleanedPart, depth: 0)
             }
         } else {
             // Fallback: Kein Boundary in Mail-Headers gefunden
