@@ -342,10 +342,15 @@ public class AttachmentExtractor {
         let lowerContentType = contentType.lowercased()
         let lowerDisposition = disposition.lowercased()
 
+        // Bilder mit name/filename Parameter sind auch Attachments (Apple Mail nutzt oft inline)
+        let hasFilename = lowerContentType.contains("name=") || lowerDisposition.contains("filename=")
+        let isImage = lowerContentType.contains("image/")
+
         let isAttachment = lowerDisposition.contains("attachment") ||
                           lowerContentType.contains("application/pdf") ||
                           lowerContentType.contains("application/") ||
-                          (lowerContentType.contains("image/") && lowerDisposition.contains("attachment"))
+                          (isImage && hasFilename) ||  // Bilder mit Dateiname
+                          (isImage && lowerDisposition.contains("inline") && hasFilename)
 
         guard isAttachment else {
             print("\(indent)📎 [AttachmentExtractor] Not an attachment: \(contentType.prefix(40))")
