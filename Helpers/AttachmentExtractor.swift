@@ -154,35 +154,134 @@ public class AttachmentExtractor {
             return
         }
 
-        let delimiter = "--" + boundary
-        let parts = string.components(separatedBy: delimiter)
+        let boundaryMarker = "--" + boundary
+        let closingMarker = "--" + boundary + "--"
 
-        print("\(indent)📎 [AttachmentExtractor] Split into \(parts.count) parts with boundary")
+        let lines = string.components(separatedBy: "\n")
+        var parts: [[String]] = []
+        var currentPart: [String] = []
+        var inPart = false
 
-        for (index, part) in parts.enumerated() {
-            guard index > 0 else { continue } // Skip preamble
-            let trimmed = part.trimmingCharacters(in: .whitespacesAndNewlines)
-            guard !trimmed.isEmpty && trimmed != "--" else { continue }
+        print("\(indent)📎 [AttachmentExtractor] Scanning \(lines.count) lines for boundary: \(boundaryMarker.prefix(50))...")
 
-            print("\(indent)📎 [AttachmentExtractor] Processing part \(index)")
-            processMultipartPart(part, results: &results, depth: depth)
+        for (lineIndex, line) in lines.enumerated() {
+            // ✅ FIX: Robustere Boundary-Erkennung - entferne \r und trimme
+            let trimmed = line.trimmingCharacters(in: CharacterSet(charactersIn: "\r\n\t "))
+
+            // Closing Boundary zuerst prüfen (ist länger)
+            if trimmed.hasPrefix(closingMarker) {
+                print("\(indent)📎 [AttachmentExtractor] Found CLOSING boundary at line \(lineIndex)")
+                if inPart && !currentPart.isEmpty {
+                    parts.append(currentPart)
+                }
+                break
+            }
+
+            // Start-Boundary mit hasPrefix statt ==
+            if trimmed.hasPrefix(boundaryMarker) {
+                print("\(indent)📎 [AttachmentExtractor] Found boundary at line \(lineIndex)")
+                if inPart && !currentPart.isEmpty {
+                    parts.append(currentPart)
+                    print("\(indent)📎 [AttachmentExtractor] Saved part with \(currentPart.count) lines")
+                }
+                currentPart = []
+                inPart = true
+                continue
+            }
+
+            // Content sammeln
+            if inPart {
+                currentPart.append(line)
+            }
+        }
+
+        // Falls kein Closing Boundary gefunden
+        if inPart && !currentPart.isEmpty {
+            parts.append(currentPart)
+            print("\(indent)📎 [AttachmentExtractor] Saved final part with \(currentPart.count) lines")
+        }
+
+        print("\(indent)📎 [AttachmentExtractor] Total parts found: \(parts.count)")
+
+        for (index, partLines) in parts.enumerated() {
+            print("\(indent)📎 [AttachmentExtractor] Processing part \(index + 1), lines: \(partLines.count)")
+
+            // DEBUG: Erste Zeile anzeigen
+            if let firstLine = partLines.first {
+                print("\(indent)📎 [AttachmentExtractor] Part \(index + 1) starts with: '\(firstLine.prefix(60))'")
+            }
+
+            processPartLines(partLines, results: &results, depth: depth)
         }
     }
 
-    private static func processMultipartPart(_ part: String, results: inout [ExtractedAttachment], depth: Int) {
+    private static func processPartLines(_ lines: [String], results: inout [ExtractedAttachment], depth: Int) {
         let indent = String(repeating: "  ", count: depth)
 
-        // Führende Newlines entfernen
-        var cleanPart = part
-        while cleanPart.hasPrefix("\r\n") { cleanPart = String(cleanPart.dropFirst(2)) }
-        while cleanPart.hasPrefix("\n") { cleanPart = String(cleanPart.dropFirst(1)) }
-        while cleanPart.hasPrefix("\r") { cleanPart = String(cleanPart.dropFirst(1)) }
-
-        // ✅ FIX: Header/Body trennen mit RFC 5322 Folded Header Support
-        guard let (headers, body) = splitHeadersAndBody(cleanPart) else {
-            print("\(indent)📎 [AttachmentExtractor] No headers found in part")
+        guard !lines.isEmpty else {
+            print("\(indent)📎 [AttachmentExtractor] Empty part, skipping")
             return
         }
+
+        // Header/Body trennen mit RFC 5322 Folded Headers Support
+        var headers: [String: String] = [:]
+        var currentKey: String?
+        var currentValue = ""
+        var bodyStartLine = 0
+        var foundEmptyLine = false
+
+        for (index, line) in lines.enumerated() {
+            // ✅ FIX: Robustere Leerzeilen-Erkennung
+            let trimmed = line.trimmingCharacters(in: .whitespacesAndNewlines)
+
+            // Leerzeile = Ende der Part-Headers
+            if trimmed.isEmpty {
+                if let key = currentKey, !currentValue.isEmpty {
+                    headers[key.lowercased()] = currentValue.trimmingCharacters(in: .whitespaces)
+                }
+                bodyStartLine = index + 1
+                foundEmptyLine = true
+                break
+            }
+
+            // Entferne \r am Ende
+            let cleanLine = line.hasSuffix("\r") ? String(line.dropLast()) : line
+
+            // RFC 5322: Folded Header (beginnt mit Whitespace/Tab)
+            if cleanLine.hasPrefix(" ") || cleanLine.hasPrefix("\t") {
+                currentValue += " " + cleanLine.trimmingCharacters(in: .whitespaces)
+                continue
+            }
+
+            // Vorherigen Header speichern
+            if let key = currentKey, !currentValue.isEmpty {
+                headers[key.lowercased()] = currentValue.trimmingCharacters(in: .whitespaces)
+            }
+
+            // Neuen Header parsen
+            if let colonIndex = cleanLine.firstIndex(of: ":") {
+                currentKey = String(cleanLine[..<colonIndex]).trimmingCharacters(in: .whitespaces)
+                currentValue = String(cleanLine[cleanLine.index(after: colonIndex)...])
+            }
+        }
+
+        // Letzten Header speichern falls nicht durch Leerzeile beendet
+        if let key = currentKey, !currentValue.isEmpty {
+            headers[key.lowercased()] = currentValue.trimmingCharacters(in: .whitespaces)
+        }
+
+        // ✅ FIX: Auch ohne Leerzeile weitermachen wenn Headers gefunden
+        if !foundEmptyLine && !headers.isEmpty {
+            print("\(indent)📎 [AttachmentExtractor] No empty line but found \(headers.count) headers")
+            bodyStartLine = lines.count // Kein Body
+        }
+
+        guard !headers.isEmpty else {
+            print("\(indent)📎 [AttachmentExtractor] No valid headers in part")
+            return
+        }
+
+        print("\(indent)📎 [AttachmentExtractor] Parsed \(headers.count) headers")
 
         let contentType = headers["content-type"] ?? ""
         let encoding = headers["content-transfer-encoding"] ?? ""
@@ -190,103 +289,74 @@ public class AttachmentExtractor {
 
         print("\(indent)📎 [AttachmentExtractor] Content-Type: \(contentType.prefix(60))...")
 
+        // Body-Zeilen
+        let bodyLines = bodyStartLine < lines.count ? Array(lines[bodyStartLine...]) : []
+        let body = bodyLines.joined(separator: "\n")
+
         // Rekursiv bei verschachteltem Multipart
         if contentType.lowercased().contains("multipart/") {
             if let nestedBoundary = extractBoundary(from: contentType),
                let bodyData = body.data(using: .utf8) {
-                print("\(indent)📎 [AttachmentExtractor] Nested multipart with boundary: \(nestedBoundary.prefix(30))...")
+                print("\(indent)📎 [AttachmentExtractor] 🔁 Nested multipart with boundary: \(nestedBoundary.prefix(40))...")
                 extractFromMultipart(bodyData[...], boundary: nestedBoundary, results: &results, depth: depth + 1)
             }
             return
         }
 
         // Attachment prüfen
-        let isAttachment = disposition.lowercased().contains("attachment") ||
-                          contentType.lowercased().contains("application/") ||
-                          (contentType.lowercased().contains("image/") && disposition.lowercased().contains("attachment"))
+        let lowerContentType = contentType.lowercased()
+        let lowerDisposition = disposition.lowercased()
+
+        let isAttachment = lowerDisposition.contains("attachment") ||
+                          lowerContentType.contains("application/pdf") ||
+                          lowerContentType.contains("application/") ||
+                          (lowerContentType.contains("image/") && lowerDisposition.contains("attachment"))
 
         guard isAttachment else {
-            print("\(indent)📎 [AttachmentExtractor] Not an attachment, skipping")
+            print("\(indent)📎 [AttachmentExtractor] Not an attachment: \(contentType.prefix(40))")
             return
         }
 
         // Filename extrahieren
-        let filename = extractFilename(from: disposition) ?? extractFilename(from: contentType) ?? "attachment.bin"
-        print("\(indent)📎 [AttachmentExtractor] Found attachment: \(filename)")
+        let filename = extractFilename(from: disposition) ??
+                      extractFilename(from: contentType) ??
+                      "attachment_\(results.count + 1).bin"
+
+        print("\(indent)📎 [AttachmentExtractor] 📎 Extracting: \(filename)")
 
         // Base64 dekodieren
         if encoding.lowercased().contains("base64") {
-            let base64 = body.components(separatedBy: .newlines)
+            let base64Lines = bodyLines
                 .map { $0.trimmingCharacters(in: .whitespaces) }
                 .filter { !$0.isEmpty && !$0.hasPrefix("--") }
-                .joined()
 
-            print("\(indent)📎 [AttachmentExtractor] Base64 length: \(base64.count) chars")
+            let base64String = base64Lines.joined()
+            print("\(indent)📎 [AttachmentExtractor] Base64 data: \(base64String.count) chars")
 
-            if let data = Data(base64Encoded: base64, options: .ignoreUnknownCharacters), !data.isEmpty {
+            if let data = Data(base64Encoded: base64String, options: .ignoreUnknownCharacters),
+               !data.isEmpty {
+
                 // PDF-Integritätscheck
                 if filename.lowercased().hasSuffix(".pdf") {
                     validatePDF(data, indent: indent)
                 }
 
+                let mimeType = contentType.components(separatedBy: ";").first?
+                    .trimmingCharacters(in: .whitespaces) ?? "application/octet-stream"
+
                 results.append(ExtractedAttachment(
                     filename: filename,
-                    mimeType: contentType.components(separatedBy: ";").first?.trimmingCharacters(in: .whitespaces) ?? "application/octet-stream",
+                    mimeType: mimeType,
                     data: data,
-                    contentId: headers["content-id"]
+                    contentId: headers["content-id"]?.trimmingCharacters(in: CharacterSet(charactersIn: "<>"))
                 ))
                 print("\(indent)📎 [AttachmentExtractor] ✅ Decoded: \(filename) (\(data.count) bytes)")
             } else {
-                print("\(indent)❌ [AttachmentExtractor] Failed to decode Base64 for \(filename)")
+                print("\(indent)❌ [AttachmentExtractor] Base64 decode failed for \(filename)")
             }
         } else {
             print("\(indent)📎 [AttachmentExtractor] Not Base64 encoded, skipping")
         }
-    }
-
-    /// Trennt Headers und Body unter Berücksichtigung von RFC 5322 Folded Headers
-    private static func splitHeadersAndBody(_ part: String) -> (headers: [String: String], body: String)? {
-        var headers: [String: String] = [:]
-        var currentKey: String?
-        var currentValue = ""
-
-        let lines = part.components(separatedBy: "\n")
-        var bodyStartIndex = 0
-
-        for (index, line) in lines.enumerated() {
-            let trimmedLine = line.trimmingCharacters(in: CharacterSet(charactersIn: "\r\t "))
-
-            // Leerzeile = Ende Headers
-            if trimmedLine.isEmpty {
-                if let key = currentKey {
-                    headers[key.lowercased()] = currentValue.trimmingCharacters(in: .whitespaces)
-                }
-                bodyStartIndex = index + 1
-                break
-            }
-
-            // ✅ RFC 5322: Folded Header (beginnt mit Whitespace oder Tab)
-            if line.hasPrefix(" ") || line.hasPrefix("\t") {
-                currentValue += " " + line.trimmingCharacters(in: .whitespaces)
-                continue
-            }
-
-            // Neuer Header - vorherigen speichern
-            if let key = currentKey {
-                headers[key.lowercased()] = currentValue.trimmingCharacters(in: .whitespaces)
-            }
-
-            // Header-Zeile parsen
-            if let colonIndex = line.firstIndex(of: ":") {
-                currentKey = String(line[..<colonIndex]).trimmingCharacters(in: .whitespaces)
-                currentValue = String(line[line.index(after: colonIndex)...])
-            }
-        }
-
-        guard !headers.isEmpty else { return nil }
-
-        let body = lines[bodyStartIndex...].joined(separator: "\n")
-        return (headers, body)
     }
 
     private static func extractFilename(from header: String) -> String? {
