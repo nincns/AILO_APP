@@ -358,10 +358,8 @@ struct MessageDetailView: View {
                 )
             }
         }
-        .padding(.horizontal, 10)
-        .padding(.vertical, 6)
-        .background(Color(UIColor.secondarySystemBackground))
-        .clipShape(RoundedRectangle(cornerRadius: 6))
+        .padding(.horizontal, 0)
+        .padding(.vertical, 4)
     }
     
     // MARK: - Actions
@@ -1402,10 +1400,8 @@ private struct AttachmentRowView: View {
             }
         }
         .buttonStyle(.plain)
-        .padding(.horizontal, 8)
-        .padding(.vertical, 4)
-        .background(Color(UIColor.tertiarySystemBackground))
-        .clipShape(RoundedRectangle(cornerRadius: 4))
+        .padding(.horizontal, 0)
+        .padding(.vertical, 2)
     }
     
     private var iconForAttachment: String {
