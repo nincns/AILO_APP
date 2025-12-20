@@ -921,31 +921,28 @@ struct MessageDetailView: View {
             print("📎 [extractAttachmentsWithData] Root boundary from mail headers: \(rootBoundary!.prefix(40))...")
         }
 
-        // Rekursive MIME-Part Verarbeitung
+        // ✅ Rekursive MIME-Part Verarbeitung (Leaf-basiert)
+        // Ein "Part" kommt von einem Boundary-Split, beginnt also mit seinem Header (nicht mit --)
         func parseMimePart(_ part: String, depth: Int = 0) {
             let indent = String(repeating: "  ", count: depth)
             print("\(indent)📎 [parseMimePart] Depth \(depth), part size: \(part.count) chars")
 
-            // ✅ Header vom Body trennen - Apple-Mail-kompatibel
-            // WICHTIG: Apple Mail nutzt KEINE zuverlässige Leerzeile zwischen Header und Body!
-            // Der Header endet IMMER vor der ersten Boundary-Zeile (\n--)
+            // ✅ Header vom Body trennen - IMMER an Leerzeile!
+            // Ein Part aus dem Boundary-Split hat Format: "Headers\n\nBody"
             var headerSection = ""
             var bodySection = part
 
-            // 1. IMMER zuerst am ersten Boundary-Marker trennen
-            if let boundaryStart = part.range(of: "\n--") {
-                headerSection = String(part[..<boundaryStart.lowerBound])
-                bodySection = String(part[boundaryStart.lowerBound...])
-                print("\(indent)📎 [parseMimePart] Split at \\n--, header: \(headerSection.count) chars, body: \(bodySection.count) chars")
-            } else if let emptyLineRange = part.range(of: "\r\n\r\n") {
-                // 2. Fallback für Parts ohne Sub-Boundaries (z.B. PDF-Attachment)
+            if let emptyLineRange = part.range(of: "\r\n\r\n") {
                 headerSection = String(part[..<emptyLineRange.lowerBound])
                 bodySection = String(part[emptyLineRange.upperBound...])
-                print("\(indent)📎 [parseMimePart] Split at \\r\\n\\r\\n, header: \(headerSection.count) chars")
+                print("\(indent)📎 [parseMimePart] Split at CRLF, header: \(headerSection.count) chars, body: \(bodySection.count) chars")
             } else if let emptyLineRange = part.range(of: "\n\n") {
                 headerSection = String(part[..<emptyLineRange.lowerBound])
                 bodySection = String(part[emptyLineRange.upperBound...])
-                print("\(indent)📎 [parseMimePart] Split at \\n\\n, header: \(headerSection.count) chars")
+                print("\(indent)📎 [parseMimePart] Split at LF, header: \(headerSection.count) chars, body: \(bodySection.count) chars")
+            } else {
+                print("\(indent)📎 [parseMimePart] No empty line found, skipping part")
+                return
             }
 
             // Trim whitespace
@@ -965,7 +962,7 @@ struct MessageDetailView: View {
                    let boundaryRange = Range(match.range(at: 1), in: headerSection) {
 
                     let boundary = String(headerSection[boundaryRange])
-                    print("\(indent)📎 [parseMimePart] Found multipart container with boundary: \(boundary.prefix(30))...")
+                    print("\(indent)📎 [parseMimePart] Found multipart container with boundary: \(boundary.prefix(40))...")
 
                     // In Sub-Parts aufteilen
                     let delimiter = "--" + boundary
@@ -974,16 +971,17 @@ struct MessageDetailView: View {
 
                     for (index, subPart) in subParts.enumerated() {
                         // Überspringe Preamble (index 0) und schließendes Boundary (--)
+                        let trimmedSub = subPart.trimmingCharacters(in: .whitespacesAndNewlines)
                         if index == 0 { continue }
-                        if subPart.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { continue }
-                        if subPart.hasPrefix("--") { continue }
+                        if trimmedSub.isEmpty { continue }
+                        if trimmedSub == "--" { continue }
 
                         // Führende Newlines entfernen
                         var cleanSubPart = subPart
                         while cleanSubPart.hasPrefix("\r\n") { cleanSubPart = String(cleanSubPart.dropFirst(2)) }
                         while cleanSubPart.hasPrefix("\n") { cleanSubPart = String(cleanSubPart.dropFirst(1)) }
 
-                        print("\(indent)📎 [parseMimePart] Processing sub-part \(index)")
+                        print("\(indent)📎 [parseMimePart] Processing sub-part \(index), starts with: '\(String(cleanSubPart.prefix(60)).replacingOccurrences(of: "\n", with: " "))...'")
                         parseMimePart(cleanSubPart, depth: depth + 1)
                     }
                 }
@@ -1134,34 +1132,9 @@ struct MessageDetailView: View {
                     while cleanedPart.hasPrefix("\n") { cleanedPart = String(cleanedPart.dropFirst(1)) }
                 }
 
-                // ✅ FIX: Root-Container "unwrappen" statt überspringen!
-                // Wenn Part mit "Content-Type: multipart/mixed" beginnt,
-                // dann ist das der Container selbst → dessen BODY extrahieren
-                let lowerCleanedPart = cleanedPart.lowercased()
-                if lowerCleanedPart.hasPrefix("content-type:") && lowerCleanedPart.contains("multipart/mixed") {
-                    print("📎 [extractAttachmentsWithData] Part \(index): Unwrapping root multipart/mixed container")
-
-                    // Header entfernen, nur Body weiterverarbeiten
-                    if let range = cleanedPart.range(of: "\r\n\r\n") {
-                        let bodyOnly = String(cleanedPart[range.upperBound...])
-                        print("📎 [extractAttachmentsWithData] Extracted body: \(bodyOnly.count) chars")
-                        parseMimePart(bodyOnly, depth: 0)
-                    } else if let range = cleanedPart.range(of: "\n\n") {
-                        let bodyOnly = String(cleanedPart[range.upperBound...])
-                        print("📎 [extractAttachmentsWithData] Extracted body: \(bodyOnly.count) chars")
-                        parseMimePart(bodyOnly, depth: 0)
-                    } else {
-                        // Fallback: Am ersten Boundary trennen
-                        if let boundaryStart = cleanedPart.range(of: "\n--") {
-                            let bodyOnly = String(cleanedPart[boundaryStart.upperBound...])
-                            print("📎 [extractAttachmentsWithData] Extracted body at boundary: \(bodyOnly.count) chars")
-                            parseMimePart("--" + bodyOnly, depth: 0)
-                        }
-                    }
-                    continue
-                }
-
-                print("📎 [extractAttachmentsWithData] Processing top-level part \(index), starts with: '\(String(cleanedPart.prefix(60)).replacingOccurrences(of: "\n", with: " "))...'")
+                // ✅ Alle Parts direkt an parseMimePart übergeben
+                // parseMimePart erkennt selbst ob es ein multipart-Container ist
+                print("📎 [extractAttachmentsWithData] Processing part \(index), starts with: '\(String(cleanedPart.prefix(60)).replacingOccurrences(of: "\n", with: " "))...'")
                 parseMimePart(cleanedPart, depth: 0)
             }
         } else {
