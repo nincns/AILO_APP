@@ -347,19 +347,15 @@ struct MessageDetailView: View {
                 Spacer()
             }
 
-            // Kompakte Attachment-Liste
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 6) {
-                    ForEach(Array(attachments.enumerated()), id: \.offset) { index, attachment in
-                        AttachmentRowView(
-                            attachment: attachment,
-                            tempFileURL: index < tempFiles.count ? tempFiles[index] : nil,
-                            onTap: {
-                                openAttachmentPreview(attachment: attachment)
-                            }
-                        )
+            // Kompakte Attachment-Liste (volle Breite)
+            ForEach(Array(attachments.enumerated()), id: \.offset) { index, attachment in
+                AttachmentRowView(
+                    attachment: attachment,
+                    tempFileURL: index < tempFiles.count ? tempFiles[index] : nil,
+                    onTap: {
+                        openAttachmentPreview(attachment: attachment)
                     }
-                }
+                )
             }
         }
         .padding(.horizontal, 10)
@@ -1387,18 +1383,21 @@ private struct AttachmentRowView: View {
         Button(action: {
             onTap?()
         }) {
-            HStack(spacing: 4) {
+            HStack(spacing: 6) {
                 Image(systemName: iconForAttachment)
                     .font(.caption2)
                     .foregroundStyle(.blue)
 
-                Text(shortFilename)
+                Text(attachment.filename.isEmpty ? attachment.partId : attachment.filename)
                     .font(.caption)
                     .foregroundStyle(.primary)
                     .lineLimit(1)
+                    .truncationMode(.middle)
+
+                Spacer()
 
                 Image(systemName: "eye")
-                    .font(.system(size: 9))
+                    .font(.system(size: 10))
                     .foregroundStyle(.blue.opacity(0.7))
             }
         }
@@ -1407,17 +1406,6 @@ private struct AttachmentRowView: View {
         .padding(.vertical, 4)
         .background(Color(UIColor.tertiarySystemBackground))
         .clipShape(RoundedRectangle(cornerRadius: 4))
-    }
-
-    private var shortFilename: String {
-        let name = attachment.filename.isEmpty ? attachment.partId : attachment.filename
-        if name.count > 25 {
-            let ext = (name as NSString).pathExtension
-            let base = (name as NSString).deletingPathExtension
-            let shortened = String(base.prefix(18))
-            return "\(shortened)...\(ext.isEmpty ? "" : ".\(ext)")"
-        }
-        return name
     }
     
     private var iconForAttachment: String {
