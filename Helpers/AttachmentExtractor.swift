@@ -57,53 +57,75 @@ public class AttachmentExtractor {
     /// Parst Message-Headers unter Berücksichtigung von RFC 5322 Folded Headers
     private static func parseMessageHeaders(_ data: Data) -> ([String: String], Int) {
         var headers: [String: String] = [:]
-        var currentKey: String?
-        var currentValue = ""
         var bodyStart = 0
 
         guard let string = String(data: data, encoding: .utf8) ?? String(data: data, encoding: .isoLatin1) else {
             return ([:], 0)
         }
 
-        var charCount = 0
-        let lines = string.components(separatedBy: "\n")
+        // ✅ Robuster Ansatz: Erst Header/Body-Grenze finden
+        // Suche nach \r\n\r\n oder \n\n
+        if let crlfRange = string.range(of: "\r\n\r\n") {
+            bodyStart = string.distance(from: string.startIndex, to: crlfRange.upperBound)
+            let headerString = String(string[..<crlfRange.lowerBound])
+            headers = parseHeaderString(headerString)
+            print("📎 [AttachmentExtractor] Found header/body boundary at CRLF, bodyStart: \(bodyStart)")
+        } else if let lfRange = string.range(of: "\n\n") {
+            bodyStart = string.distance(from: string.startIndex, to: lfRange.upperBound)
+            let headerString = String(string[..<lfRange.lowerBound])
+            headers = parseHeaderString(headerString)
+            print("📎 [AttachmentExtractor] Found header/body boundary at LF, bodyStart: \(bodyStart)")
+        } else {
+            // Fallback: Suche erste Boundary-Zeile
+            if let boundaryRange = string.range(of: "\n--", options: .literal) {
+                // Headers gehen bis vor das \n
+                let headerString = String(string[..<boundaryRange.lowerBound])
+                headers = parseHeaderString(headerString)
+                // Body startet beim --
+                bodyStart = string.distance(from: string.startIndex, to: boundaryRange.lowerBound) + 1
+                print("📎 [AttachmentExtractor] Found header/body boundary at first --, bodyStart: \(bodyStart)")
+            }
+        }
+
+        return (headers, bodyStart)
+    }
+
+    /// Parst einen Header-String in ein Dictionary (mit RFC 5322 Folded Header Support)
+    private static func parseHeaderString(_ headerString: String) -> [String: String] {
+        var headers: [String: String] = [:]
+        var currentKey: String?
+        var currentValue = ""
+
+        let lines = headerString.components(separatedBy: "\n")
 
         for line in lines {
-            let lineLength = line.count + 1 // +1 für \n
-
-            // Leerzeile = Ende der Headers
-            let trimmedLine = line.trimmingCharacters(in: CharacterSet(charactersIn: "\r\t "))
-            if trimmedLine.isEmpty {
-                // Letzten Header speichern
-                if let key = currentKey {
-                    headers[key.lowercased()] = currentValue.trimmingCharacters(in: .whitespaces)
-                }
-                bodyStart = charCount + lineLength
-                break
-            }
+            // Entferne \r am Ende (für \r\n Line-Endings)
+            let cleanLine = line.hasSuffix("\r") ? String(line.dropLast()) : line
 
             // ✅ RFC 5322: Folded Header (beginnt mit Whitespace oder Tab)
-            if line.hasPrefix(" ") || line.hasPrefix("\t") {
-                currentValue += " " + line.trimmingCharacters(in: .whitespaces)
-                charCount += lineLength
+            if cleanLine.hasPrefix(" ") || cleanLine.hasPrefix("\t") {
+                currentValue += " " + cleanLine.trimmingCharacters(in: .whitespaces)
                 continue
             }
 
             // Neuer Header - vorherigen speichern
-            if let key = currentKey {
+            if let key = currentKey, !currentValue.isEmpty {
                 headers[key.lowercased()] = currentValue.trimmingCharacters(in: .whitespaces)
             }
 
             // Header-Zeile parsen
-            if let colonIndex = line.firstIndex(of: ":") {
-                currentKey = String(line[..<colonIndex]).trimmingCharacters(in: .whitespaces)
-                currentValue = String(line[line.index(after: colonIndex)...])
+            if let colonIndex = cleanLine.firstIndex(of: ":") {
+                currentKey = String(cleanLine[..<colonIndex]).trimmingCharacters(in: .whitespaces)
+                currentValue = String(cleanLine[cleanLine.index(after: colonIndex)...])
             }
-
-            charCount += lineLength
         }
 
-        return (headers, bodyStart)
+        // Letzten Header speichern
+        if let key = currentKey, !currentValue.isEmpty {
+            headers[key.lowercased()] = currentValue.trimmingCharacters(in: .whitespaces)
+        }
+
+        return headers
     }
 
     private static func extractBoundary(from contentType: String) -> String? {
