@@ -1012,41 +1012,67 @@ struct MessageDetailView: View {
                     continue
                 }
 
-                // Alles NACH dem Header extrahieren (roh, unverändert)
-                var afterHeader = String(cleanPart[startRange.upperBound...])
+                // ✅ NEU: Base64 über MEHRERE Parts hinweg sammeln
+                // Apple Mail verteilt große Anhänge über mehrere MIME-Parts!
+                var base64Chunks: [String] = []
 
-                // ✅ FIX: Suche nach ALLEN bekannten Boundaries und schneide beim ersten ab
-                // Bei verschachtelten Multipart-Strukturen können verschiedene Boundaries vorkommen
+                // 1. Erster Chunk: Alles nach dem Header im aktuellen Part
+                let afterHeader = String(cleanPart[startRange.upperBound...])
+                base64Chunks.append(afterHeader)
+                print("📎 [extractAttachmentsWithData] Part \(index): First chunk \(afterHeader.count) chars")
+
+                // 2. Nachfolgende Parts sammeln bis zum schließenden Boundary
+                let closingMarker = "--" + boundary + "--"
+                var subsequentIndex = index + 1
+
+                while subsequentIndex < parts.count {
+                    let nextPart = parts[subsequentIndex]
+
+                    // Prüfe ob das der schließende Part ist
+                    if nextPart.hasPrefix("--") {
+                        print("📎 [extractAttachmentsWithData] Reached closing boundary at part \(subsequentIndex)")
+                        break
+                    }
+
+                    // Prüfe ob es ein neuer Content-Type Header ist (neuer Anhang/Part)
+                    let nextPartLower = nextPart.lowercased()
+                    if nextPartLower.contains("content-type:") || nextPartLower.contains("content-type: ") {
+                        // Könnte ein weiterer Inline-Teil sein, oder Fortsetzung
+                        // Nur stoppen wenn es KEIN Base64 mehr ist
+                        if !nextPartLower.contains("base64") {
+                            print("📎 [extractAttachmentsWithData] Part \(subsequentIndex): New non-base64 content, stopping")
+                            break
+                        }
+                    }
+
+                    // Dieser Part ist Fortsetzung der Base64-Daten
+                    base64Chunks.append(nextPart)
+                    print("📎 [extractAttachmentsWithData] Part \(subsequentIndex): Adding chunk \(nextPart.count) chars")
+                    subsequentIndex += 1
+                }
+
+                // 3. Alle Chunks zusammenfügen
+                var combinedBase64 = base64Chunks.joined()
+                print("📎 [extractAttachmentsWithData] Combined \(base64Chunks.count) chunks, total \(combinedBase64.count) chars")
+
+                // 4. Am schließenden Boundary abschneiden (falls noch enthalten)
                 for knownBoundary in boundaries {
-                    // Schließender Marker hat Priorität
-                    let closingMarker = "--" + knownBoundary + "--"
-                    if let closingRange = afterHeader.range(of: closingMarker) {
-                        afterHeader = String(afterHeader[..<closingRange.lowerBound])
-                        print("📎 [extractAttachmentsWithData] Cut at closing boundary '\(knownBoundary.prefix(15))...'--")
+                    let closingMarkerFull = "--" + knownBoundary + "--"
+                    if let closingRange = combinedBase64.range(of: closingMarkerFull) {
+                        combinedBase64 = String(combinedBase64[..<closingRange.lowerBound])
+                        print("📎 [extractAttachmentsWithData] Cut at closing --\(knownBoundary.prefix(15))...--")
                         break
                     }
-
-                    // Ansonsten beim nächsten Part-Marker
-                    let nextMarker = "--" + knownBoundary + "\r\n"
-                    if let nextRange = afterHeader.range(of: nextMarker) {
-                        afterHeader = String(afterHeader[..<nextRange.lowerBound])
-                        print("📎 [extractAttachmentsWithData] Cut at next part '\(knownBoundary.prefix(15))...'")
-                        break
-                    }
-                    let nextMarkerLF = "--" + knownBoundary + "\n"
-                    if let nextRange = afterHeader.range(of: nextMarkerLF) {
-                        afterHeader = String(afterHeader[..<nextRange.lowerBound])
-                        print("📎 [extractAttachmentsWithData] Cut at next part LF '\(knownBoundary.prefix(15))...'")
+                    let nextMarker = "--" + knownBoundary
+                    if let nextRange = combinedBase64.range(of: nextMarker) {
+                        combinedBase64 = String(combinedBase64[..<nextRange.lowerBound])
+                        print("📎 [extractAttachmentsWithData] Cut at --\(knownBoundary.prefix(15))...")
                         break
                     }
                 }
 
-                // Fallback: Suche nach generischem Boundary-Pattern am Ende
-                // ignoreUnknownCharacters ignoriert alles was kein gültiges Base64 ist
-                // (inkl. Boundary-Marker am Ende)
-
                 // Nur Whitespace/Newlines entfernen, NICHTS anderes!
-                let cleanBase64 = afterHeader
+                let cleanBase64 = combinedBase64
                     .replacingOccurrences(of: "\r", with: "")
                     .replacingOccurrences(of: "\n", with: "")
                     .replacingOccurrences(of: " ", with: "")
