@@ -126,7 +126,34 @@ private enum StartupWarmups {
             MailRepository.shared.dao = daoFactory.mailFullAccessDAO
             MailRepository.shared.writeDAO = daoFactory.mailFullAccessDAO
             print("✅ DEBUG: DAO Factory initialized successfully with fresh DB!")
-            
+
+            // ✅ MailSendService initialisieren
+            MailSendService.shared.dao = OutboxDAOAdapter(daoFactory.outboxDAO)
+            MailSendService.shared.smtpFactory = { SMTPClient() }
+            MailSendService.shared.smtpConfigProvider = { accountId in
+                guard let data = UserDefaults.standard.data(forKey: "mail.accounts"),
+                      let accounts = try? JSONDecoder().decode([MailAccountConfig].self, from: data),
+                      let acc = accounts.first(where: { $0.id == accountId }) else {
+                    return nil
+                }
+                let encryption: SMTPTLSEncryption = {
+                    switch acc.smtpEncryption {
+                    case .none: return .plain
+                    case .sslTLS: return .sslTLS
+                    case .startTLS: return .startTLS
+                    }
+                }()
+                return SMTPConfig(
+                    host: acc.smtpHost,
+                    port: acc.smtpPort,
+                    encryption: encryption,
+                    heloName: nil,
+                    username: acc.smtpUsername.isEmpty ? acc.recvUsername : acc.smtpUsername,
+                    password: acc.smtpPassword.isEmpty ? acc.recvPassword : acc.smtpPassword
+                )
+            }
+            print("✅ MailSendService initialized with OutboxDAO and SMTP config")
+
             // 🚀 NEU: Starte initiale Mail-Synchronisation im Hintergrund
             Task {
                 await startInitialMailSync()
