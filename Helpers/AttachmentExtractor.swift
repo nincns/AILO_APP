@@ -174,6 +174,8 @@ public class AttachmentExtractor {
                 if inPart && !currentPart.isEmpty {
                     parts.append(currentPart)
                 }
+                currentPart = []  // ✅ FIX: Clear to prevent duplicate append after loop
+                inPart = false
                 break
             }
 
@@ -244,6 +246,17 @@ public class AttachmentExtractor {
                 break
             }
 
+            // ✅ FIX: Boundary-Zeile bedeutet auch Ende der Headers (Body beginnt)
+            if trimmed.hasPrefix("--") {
+                if let key = currentKey, !currentValue.isEmpty {
+                    headers[key.lowercased()] = currentValue.trimmingCharacters(in: .whitespaces)
+                }
+                bodyStartLine = index
+                foundEmptyLine = true  // Treat as if empty line found
+                print("\(indent)📎 [AttachmentExtractor] Found boundary in headers at line \(index), body starts here")
+                break
+            }
+
             // Entferne \r am Ende
             let cleanLine = line.hasSuffix("\r") ? String(line.dropLast()) : line
 
@@ -251,6 +264,17 @@ public class AttachmentExtractor {
             if cleanLine.hasPrefix(" ") || cleanLine.hasPrefix("\t") {
                 currentValue += " " + cleanLine.trimmingCharacters(in: .whitespaces)
                 continue
+            }
+
+            // ✅ FIX: Zeile ohne Colon und ohne Whitespace-Prefix = Ende der Headers
+            if !cleanLine.contains(":") && !cleanLine.hasPrefix(" ") && !cleanLine.hasPrefix("\t") {
+                if let key = currentKey, !currentValue.isEmpty {
+                    headers[key.lowercased()] = currentValue.trimmingCharacters(in: .whitespaces)
+                }
+                bodyStartLine = index
+                foundEmptyLine = true
+                print("\(indent)📎 [AttachmentExtractor] Non-header line at \(index): '\(cleanLine.prefix(40))'")
+                break
             }
 
             // Vorherigen Header speichern
