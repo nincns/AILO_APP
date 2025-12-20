@@ -344,19 +344,27 @@ struct MessageDetailView: View {
                     .font(.subheadline)
                     .fontWeight(.medium)
                     .foregroundStyle(.secondary)
+
+                Text("(\(attachments.count))")
+                    .font(.caption)
+                    .foregroundStyle(.tertiary)
             }
-            
-            LazyVStack(alignment: .leading, spacing: 6) {
-                ForEach(Array(attachments.enumerated()), id: \.offset) { index, attachment in
-                    AttachmentRowView(
-                        attachment: attachment,
-                        tempFileURL: index < tempFiles.count ? tempFiles[index] : nil,
-                        onTap: {
-                            openAttachmentPreview(attachment: attachment)
-                        }
-                    )
+
+            // Scrollbare Liste mit max. Höhe für mehrere Anhänge
+            ScrollView {
+                LazyVStack(alignment: .leading, spacing: 6) {
+                    ForEach(Array(attachments.enumerated()), id: \.offset) { index, attachment in
+                        AttachmentRowView(
+                            attachment: attachment,
+                            tempFileURL: index < tempFiles.count ? tempFiles[index] : nil,
+                            onTap: {
+                                openAttachmentPreview(attachment: attachment)
+                            }
+                        )
+                    }
                 }
             }
+            .frame(maxHeight: attachments.count > 2 ? 150 : nil) // Scroll bei > 2 Anhängen
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 8)
