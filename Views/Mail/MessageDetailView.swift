@@ -878,23 +878,42 @@ struct MessageDetailView: View {
         var results: [(String, Data)] = []
         var processedFilenames: Set<String> = []
 
-        // Finde alle Boundaries
-        let boundaryPattern = "boundary=\"?([^\"\\s\\r\\n]+)\"?"
-        guard let boundaryRegex = try? NSRegularExpression(pattern: boundaryPattern, options: .caseInsensitive) else {
-            print("❌ [extractAttachmentsWithData] Failed to create boundary regex")
+        // ✅ FIX: Nur die ÄUSSERE multipart/mixed Boundary verwenden!
+        // Attachments liegen auf der multipart/mixed Ebene, NICHT in multipart/alternative
+
+        // 1. Finde den Top-Level Content-Type Header (erste Zeile mit Content-Type)
+        var outerBoundary: String? = nil
+
+        // Suche nach multipart/mixed boundary (das ist die äußere Ebene mit Attachments)
+        let mixedPattern = "Content-Type:\\s*multipart/mixed[^\\r\\n]*boundary=\"?([^\"\\s\\r\\n;]+)"
+        if let mixedRegex = try? NSRegularExpression(pattern: mixedPattern, options: .caseInsensitive),
+           let match = mixedRegex.firstMatch(in: rawBody, options: [], range: NSRange(rawBody.startIndex..., in: rawBody)),
+           match.numberOfRanges > 1,
+           let boundaryRange = Range(match.range(at: 1), in: rawBody) {
+            outerBoundary = String(rawBody[boundaryRange])
+            print("📎 [extractAttachmentsWithData] Found multipart/mixed boundary: \(outerBoundary!)")
+        }
+
+        // Fallback: Wenn kein multipart/mixed, nimm die ERSTE Boundary (Top-Level)
+        if outerBoundary == nil {
+            let boundaryPattern = "boundary=\"?([^\"\\s\\r\\n]+)\"?"
+            if let boundaryRegex = try? NSRegularExpression(pattern: boundaryPattern, options: .caseInsensitive),
+               let match = boundaryRegex.firstMatch(in: rawBody, options: [], range: NSRange(rawBody.startIndex..., in: rawBody)),
+               match.numberOfRanges > 1,
+               let boundaryRange = Range(match.range(at: 1), in: rawBody) {
+                outerBoundary = String(rawBody[boundaryRange])
+                print("📎 [extractAttachmentsWithData] Fallback: Using first boundary: \(outerBoundary!)")
+            }
+        }
+
+        guard let boundary = outerBoundary else {
+            print("❌ [extractAttachmentsWithData] No boundary found")
             return results
         }
 
-        let range = NSRange(rawBody.startIndex..., in: rawBody)
-        let boundaryMatches = boundaryRegex.matches(in: rawBody, options: [], range: range)
-
-        var boundaries: [String] = []
-        for match in boundaryMatches {
-            if match.numberOfRanges > 1, let boundaryRange = Range(match.range(at: 1), in: rawBody) {
-                boundaries.append(String(rawBody[boundaryRange]))
-            }
-        }
-        print("📎 [extractAttachmentsWithData] Found \(boundaries.count) boundaries: \(boundaries)")
+        // Nur diese eine Boundary verwenden (keine Iteration über alle!)
+        let boundaries = [boundary]
+        print("📎 [extractAttachmentsWithData] Using boundary: \(boundary)")
 
         // Für jede Boundary, finde die Parts
         for boundary in boundaries {
