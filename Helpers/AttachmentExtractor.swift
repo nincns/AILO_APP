@@ -15,6 +15,12 @@ public class AttachmentExtractor {
     public static func extract(from rawBody: String) -> [ExtractedAttachment] {
         print("📎 [AttachmentExtractor] Starting extraction from \(rawBody.count) chars")
 
+        // DEBUG: Zeige Ende der rawBody um Truncation zu erkennen
+        if rawBody.count > 200 {
+            let endPart = String(rawBody.suffix(200))
+            print("📎 [AttachmentExtractor] rawBody ends with: '...\(endPart.replacingOccurrences(of: "\n", with: "\\n").replacingOccurrences(of: "\r", with: "\\r"))'")
+        }
+
         guard let data = rawBody.data(using: .utf8) ?? rawBody.data(using: .isoLatin1) else {
             print("❌ [AttachmentExtractor] Failed to convert rawBody to Data")
             return []
@@ -174,6 +180,8 @@ public class AttachmentExtractor {
                 if inPart && !currentPart.isEmpty {
                     parts.append(currentPart)
                 }
+                currentPart = []  // ✅ FIX: Prevent duplicate in post-loop check
+                inPart = false
                 break
             }
 
@@ -206,16 +214,20 @@ public class AttachmentExtractor {
         for (index, partLines) in parts.enumerated() {
             print("\(indent)📎 [AttachmentExtractor] Processing part \(index + 1), lines: \(partLines.count)")
 
-            // DEBUG: Erste Zeile anzeigen
+            // DEBUG: Erste und letzte Zeile anzeigen
             if let firstLine = partLines.first {
                 print("\(indent)📎 [AttachmentExtractor] Part \(index + 1) starts with: '\(firstLine.prefix(60))'")
             }
+            if let lastLine = partLines.last {
+                let trimmed = lastLine.trimmingCharacters(in: .whitespacesAndNewlines)
+                print("\(indent)📎 [AttachmentExtractor] Part \(index + 1) ends with: '\(trimmed.suffix(60))' (len: \(trimmed.count))")
+            }
 
-            processPartLines(partLines, results: &results, depth: depth)
+            processPartLines(partLines, boundary: boundary, results: &results, depth: depth)
         }
     }
 
-    private static func processPartLines(_ lines: [String], results: inout [ExtractedAttachment], depth: Int) {
+    private static func processPartLines(_ lines: [String], boundary: String, results: inout [ExtractedAttachment], depth: Int) {
         let indent = String(repeating: "  ", count: depth)
 
         guard !lines.isEmpty else {
@@ -244,6 +256,18 @@ public class AttachmentExtractor {
                 break
             }
 
+            // ✅ FIX: Nur EXAKTE Boundary beendet Header-Bereich
+            let exactBoundaryCheck = "--" + boundary
+            if trimmed.hasPrefix(exactBoundaryCheck) {
+                if let key = currentKey, !currentValue.isEmpty {
+                    headers[key.lowercased()] = currentValue.trimmingCharacters(in: .whitespaces)
+                }
+                bodyStartLine = index
+                foundEmptyLine = true
+                print("\(indent)📎 [AttachmentExtractor] Found boundary at line \(index)")
+                break
+            }
+
             // Entferne \r am Ende
             let cleanLine = line.hasSuffix("\r") ? String(line.dropLast()) : line
 
@@ -251,6 +275,17 @@ public class AttachmentExtractor {
             if cleanLine.hasPrefix(" ") || cleanLine.hasPrefix("\t") {
                 currentValue += " " + cleanLine.trimmingCharacters(in: .whitespaces)
                 continue
+            }
+
+            // ✅ FIX: Zeile ohne Colon = Ende der Headers (Body-Content)
+            if !cleanLine.contains(":") {
+                if let key = currentKey, !currentValue.isEmpty {
+                    headers[key.lowercased()] = currentValue.trimmingCharacters(in: .whitespaces)
+                }
+                bodyStartLine = index
+                foundEmptyLine = true
+                print("\(indent)📎 [AttachmentExtractor] Non-header line at \(index): '\(cleanLine.prefix(30))'")
+                break
             }
 
             // Vorherigen Header speichern
@@ -326,12 +361,37 @@ public class AttachmentExtractor {
 
         // Base64 dekodieren
         if encoding.lowercased().contains("base64") {
+            // DEBUG: Zeige letzte Zeilen vor dem Filtern
+            print("\(indent)📎 [AttachmentExtractor] Body lines count: \(bodyLines.count)")
+            if bodyLines.count > 3 {
+                print("\(indent)📎 [AttachmentExtractor] Last 3 body lines:")
+                for i in max(0, bodyLines.count - 3)..<bodyLines.count {
+                    let line = bodyLines[i]
+                    let trimmed = line.trimmingCharacters(in: .whitespaces)
+                    print("\(indent)   [\(i)]: '\(trimmed.prefix(60))...' (len: \(trimmed.count))")
+                }
+            }
+
+            let exactBoundary = "--" + boundary
             let base64Lines = bodyLines
                 .map { $0.trimmingCharacters(in: .whitespaces) }
-                .filter { !$0.isEmpty && !$0.hasPrefix("--") }
+                .filter { line in
+                    !line.isEmpty && !line.hasPrefix(exactBoundary)
+                }
+
+            // DEBUG: Zeige gefilterte Stats
+            let filteredOutCount = bodyLines.count - base64Lines.count
+            print("\(indent)📎 [AttachmentExtractor] Base64 lines: \(base64Lines.count) (filtered out: \(filteredOutCount))")
 
             let base64String = base64Lines.joined()
-            print("\(indent)📎 [AttachmentExtractor] Base64 data: \(base64String.count) chars")
+            let expectedSize = (base64String.count * 3) / 4
+            print("\(indent)📎 [AttachmentExtractor] Base64 data: \(base64String.count) chars → expected ~\(expectedSize) bytes")
+
+            // DEBUG: Zeige Ende des Base64-Strings
+            if base64String.count > 100 {
+                let endPart = String(base64String.suffix(100))
+                print("\(indent)📎 [AttachmentExtractor] Base64 ends with: '...\(endPart)'")
+            }
 
             if let data = Data(base64Encoded: base64String, options: .ignoreUnknownCharacters),
                !data.isEmpty {

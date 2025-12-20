@@ -367,12 +367,17 @@ final class MailSendReceive {
             try await cmds.login(conn, user: account.recvUsername, pass: pwd)
             _ = try await cmds.select(conn, folder: folder, readOnly: true)
             let lines = try await cmds.uidFetchBody(conn, uid: uid, partsOrPeek: "BODY.PEEK[]")
+
+            // DEBUG: Log raw IMAP response size to detect truncation at network level
+            let totalLineChars = lines.reduce(0) { $0 + $1.count }
+            print("📡 [IMAP-FETCH] Received \(lines.count) lines, total \(totalLineChars) chars from server")
+
             // Parse body (best-effort text/html split)
             let raw = IMAPParsers().parseBodySection(lines) ?? ""
-            
+
             // ✅ PHASE 4: RAW-first Storage - vereinfacht
             print("🔍 PHASE 4: RAW-first storage for UID: \(uid)")
-            print("🔍 [MailTransportStubs] Raw body length: \(raw.count)")
+            print("🔍 [MailTransportStubs] Raw body length: \(raw.count) (diff: \(totalLineChars - raw.count) chars stripped)")
             
             // ✅ RAW direkt speichern mit Anhang-Erkennung
             if let writeDAO = MailRepository.shared.writeDAO {
