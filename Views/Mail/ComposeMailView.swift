@@ -45,6 +45,9 @@ struct ComposeMailView: View {
     @State private var photoItems: [PhotosPickerItem] = []
     @State private var showFileImporter: Bool = false
 
+    // Rich Text Editor Controller
+    @StateObject private var editorController = RichTextEditorController()
+
     // Autosave debounce
     @State private var autosaveTask: Task<Void, Never>? = nil
 
@@ -160,8 +163,15 @@ struct ComposeMailView: View {
 
                 // Body section
                 if isHTML {
-                    RichTextEditorView(html: $htmlBody)
-                        .frame(maxHeight: .infinity)
+                    VStack(spacing: 0) {
+                        // Formatting toolbar
+                        FormattingToolbar(controller: editorController)
+
+                        Divider()
+
+                        RichTextEditorView(html: $htmlBody, controller: editorController)
+                            .frame(maxHeight: .infinity)
+                    }
                 } else {
                     TextEditor(text: $textBody)
                         .font(.body)
@@ -263,12 +273,12 @@ struct ComposeMailView: View {
             .onAppear {
                 loadAccounts()
 
-                // Check if this is a reply
+                // Check if this is a reply/forward
                 if let mail = replyToMail {
                     prefillForReply(mail: mail)
-                } else {
-                    loadAutosave()
                 }
+                // Neue Mail: Felder bleiben leer (kein Autosave laden)
+                // Autosave wird nur beim Bearbeiten gespeichert, nicht beim Start geladen
 
                 // Register for prefill (reply/forward)
                 prefillToken = ComposePrefillCenter.shared.register { text in
@@ -560,9 +570,106 @@ struct ComposeMailView: View {
     }
 }
 
+// MARK: - Rich Text Editor Controller
+class RichTextEditorController: ObservableObject {
+    weak var webView: WKWebView?
+
+    func executeCommand(_ command: String, argument: String? = nil) {
+        guard let webView = webView else { return }
+        let js: String
+        if let arg = argument {
+            js = "document.execCommand('\(command)', false, '\(arg)')"
+        } else {
+            js = "document.execCommand('\(command)', false, null)"
+        }
+        webView.evaluateJavaScript(js, completionHandler: nil)
+    }
+
+    func bold() { executeCommand("bold") }
+    func italic() { executeCommand("italic") }
+    func underline() { executeCommand("underline") }
+    func strikethrough() { executeCommand("strikeThrough") }
+    func insertOrderedList() { executeCommand("insertOrderedList") }
+    func insertUnorderedList() { executeCommand("insertUnorderedList") }
+    func indent() { executeCommand("indent") }
+    func outdent() { executeCommand("outdent") }
+    func insertLink(_ url: String) { executeCommand("createLink", argument: url) }
+    func removeFormat() { executeCommand("removeFormat") }
+}
+
+// MARK: - Formatting Toolbar
+private struct FormattingToolbar: View {
+    @ObservedObject var controller: RichTextEditorController
+    @State private var showLinkDialog = false
+    @State private var linkURL = ""
+
+    var body: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 2) {
+                FormatButton(icon: "bold", action: controller.bold)
+                FormatButton(icon: "italic", action: controller.italic)
+                FormatButton(icon: "underline", action: controller.underline)
+                FormatButton(icon: "strikethrough", action: controller.strikethrough)
+
+                Divider().frame(height: 20).padding(.horizontal, 4)
+
+                FormatButton(icon: "list.bullet", action: controller.insertUnorderedList)
+                FormatButton(icon: "list.number", action: controller.insertOrderedList)
+                FormatButton(icon: "increase.indent", action: controller.indent)
+                FormatButton(icon: "decrease.indent", action: controller.outdent)
+
+                Divider().frame(height: 20).padding(.horizontal, 4)
+
+                FormatButton(icon: "link") {
+                    showLinkDialog = true
+                }
+                FormatButton(icon: "clear", action: controller.removeFormat)
+            }
+            .padding(.horizontal, 8)
+        }
+        .frame(height: 36)
+        .background(Color(UIColor.tertiarySystemBackground))
+        .alert("Link einfügen", isPresented: $showLinkDialog) {
+            TextField("https://", text: $linkURL)
+                .textInputAutocapitalization(.never)
+                .autocorrectionDisabled(true)
+            Button("Abbrechen", role: .cancel) {
+                linkURL = ""
+            }
+            Button("Einfügen") {
+                if !linkURL.isEmpty {
+                    var url = linkURL
+                    if !url.hasPrefix("http://") && !url.hasPrefix("https://") {
+                        url = "https://" + url
+                    }
+                    controller.insertLink(url)
+                }
+                linkURL = ""
+            }
+        }
+    }
+}
+
+private struct FormatButton: View {
+    let icon: String
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            Image(systemName: icon)
+                .font(.system(size: 15, weight: .medium))
+                .frame(width: 32, height: 32)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .foregroundStyle(.primary)
+    }
+}
+
 // MARK: - Rich Text Editor View (Editable HTML)
 private struct RichTextEditorView: UIViewRepresentable {
     @Binding var html: String
+    @ObservedObject var controller: RichTextEditorController
 
     func makeCoordinator() -> Coordinator {
         Coordinator(self)
@@ -578,6 +685,12 @@ private struct RichTextEditorView: UIViewRepresentable {
         webView.scrollView.backgroundColor = .clear
         webView.navigationDelegate = context.coordinator
         context.coordinator.webView = webView
+
+        // Register webView with controller for formatting commands
+        DispatchQueue.main.async {
+            self.controller.webView = webView
+        }
+
         return webView
     }
 
