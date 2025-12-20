@@ -51,7 +51,6 @@ struct MessageDetailView: View {
                 let _ = print("📎 [VIEW] attachments.isEmpty = \(attachments.isEmpty), count = \(attachments.count)")
                 if !attachments.isEmpty {
                     attachmentsSection
-                        .padding(.top, 8)
                 }
                 
                 Divider()
@@ -359,7 +358,7 @@ struct MessageDetailView: View {
             }
         }
         .padding(.horizontal, 0)
-        .padding(.vertical, 4)
+        .padding(.vertical, 0)
     }
     
     // MARK: - Actions
