@@ -922,9 +922,27 @@ struct MessageDetailView: View {
             print("📎 [extractAttachmentsWithData] Boundary '\(boundary.prefix(20))...' has \(parts.count) parts")
 
             for (index, part) in parts.enumerated() {
-                // Überspringe ersten und letzten Part
-                if index == 0 || part.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { continue }
-                if part.hasPrefix("--") { continue }
+                // Debug: Zeige jeden Part
+                let partPreview = String(part.prefix(100)).replacingOccurrences(of: "\n", with: "\\n")
+                print("📎 [extractAttachmentsWithData] Checking part \(index): '\(partPreview)...'")
+
+                // Überspringe ersten Part (vor erstem Boundary)
+                if index == 0 {
+                    print("📎 [extractAttachmentsWithData] Part \(index): Skipping (preamble)")
+                    continue
+                }
+
+                // Leerer Part
+                if part.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                    print("📎 [extractAttachmentsWithData] Part \(index): Skipping (empty)")
+                    continue
+                }
+
+                // Schließendes Boundary (--boundary--)
+                if part.hasPrefix("--") {
+                    print("📎 [extractAttachmentsWithData] Part \(index): Skipping (closing boundary)")
+                    continue
+                }
 
                 // Bereinige Part von führenden Newlines (nach dem Boundary kommt oft \r\n)
                 var cleanPart = part
@@ -965,7 +983,14 @@ struct MessageDetailView: View {
 
                 let isAttachment = (hasPdfType || hasAttachmentDisp) && hasBase64
 
-                if !isAttachment { continue }
+                // Debug: Zeige alle Parts und warum sie nicht als Attachment erkannt werden
+                print("📎 [extractAttachmentsWithData] Part \(index): pdf=\(hasPdfType), disp=\(hasAttachmentDisp), base64=\(hasBase64), isAttachment=\(isAttachment)")
+                if !isAttachment {
+                    // Zeige Header-Vorschau für Debugging
+                    let headerPreview = String(headerSection.prefix(200)).replacingOccurrences(of: "\n", with: " ")
+                    print("   Header preview: \(headerPreview)...")
+                    continue
+                }
 
                 print("📎 [extractAttachmentsWithData] Part \(index): Found attachment candidate (pdf=\(hasPdfType), disp=\(hasAttachmentDisp), base64=\(hasBase64))")
 
