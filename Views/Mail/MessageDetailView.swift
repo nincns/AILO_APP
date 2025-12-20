@@ -335,24 +335,21 @@ struct MessageDetailView: View {
     
     @ViewBuilder
     private var attachmentsSection: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack(spacing: 6) {
+        VStack(alignment: .leading, spacing: 4) {
+            // Kompakte Header-Zeile
+            HStack(spacing: 4) {
                 Image(systemName: "paperclip")
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                Text("Anhänge (\(attachments.count))")
                     .font(.caption)
                     .foregroundStyle(.secondary)
-                Text(String(localized: "app.mail.detail.attachments"))
-                    .font(.subheadline)
-                    .fontWeight(.medium)
-                    .foregroundStyle(.secondary)
-
-                Text("(\(attachments.count))")
-                    .font(.caption)
-                    .foregroundStyle(.tertiary)
+                Spacer()
             }
 
-            // Scrollbare Liste mit max. Höhe für mehrere Anhänge
-            ScrollView {
-                LazyVStack(alignment: .leading, spacing: 6) {
+            // Kompakte Attachment-Liste
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 6) {
                     ForEach(Array(attachments.enumerated()), id: \.offset) { index, attachment in
                         AttachmentRowView(
                             attachment: attachment,
@@ -364,12 +361,11 @@ struct MessageDetailView: View {
                     }
                 }
             }
-            .frame(maxHeight: attachments.count > 2 ? 150 : nil) // Scroll bei > 2 Anhängen
         }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 8)
+        .padding(.horizontal, 10)
+        .padding(.vertical, 6)
         .background(Color(UIColor.secondarySystemBackground))
-        .clipShape(RoundedRectangle(cornerRadius: 8))
+        .clipShape(RoundedRectangle(cornerRadius: 6))
     }
     
     // MARK: - Actions
@@ -1391,34 +1387,37 @@ private struct AttachmentRowView: View {
         Button(action: {
             onTap?()
         }) {
-            HStack {
+            HStack(spacing: 4) {
                 Image(systemName: iconForAttachment)
+                    .font(.caption2)
                     .foregroundStyle(.blue)
-                    .frame(width: 24)
 
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(attachment.filename.isEmpty ? attachment.partId : attachment.filename)
-                        .font(.subheadline)
-                        .foregroundStyle(.primary)
-                        .lineLimit(1)
-
-                    Text(attachment.mimeType)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-
-                Spacer()
+                Text(shortFilename)
+                    .font(.caption)
+                    .foregroundStyle(.primary)
+                    .lineLimit(1)
 
                 Image(systemName: "eye")
-                    .foregroundStyle(.blue)
-                    .font(.caption)
+                    .font(.system(size: 9))
+                    .foregroundStyle(.blue.opacity(0.7))
             }
         }
         .buttonStyle(.plain)
-        .padding(.horizontal, 12)
-        .padding(.vertical, 8)
+        .padding(.horizontal, 8)
+        .padding(.vertical, 4)
         .background(Color(UIColor.tertiarySystemBackground))
-        .clipShape(RoundedRectangle(cornerRadius: 8))
+        .clipShape(RoundedRectangle(cornerRadius: 4))
+    }
+
+    private var shortFilename: String {
+        let name = attachment.filename.isEmpty ? attachment.partId : attachment.filename
+        if name.count > 25 {
+            let ext = (name as NSString).pathExtension
+            let base = (name as NSString).deletingPathExtension
+            let shortened = String(base.prefix(18))
+            return "\(shortened)...\(ext.isEmpty ? "" : ".\(ext)")"
+        }
+        return name
     }
     
     private var iconForAttachment: String {
