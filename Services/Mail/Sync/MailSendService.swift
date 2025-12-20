@@ -394,8 +394,13 @@ public final class MailSendService {
                 publish(accountId)
 
                 // Backoff and continue with the next/again
-                let delay: TimeInterval = retryPolicy.nextDelay(for: mapToRetryKind(kind), attempt: attempt, key: RetryPolicy.Key(accountId: accountId, host: cfg.host))
+                var delay: TimeInterval = retryPolicy.nextDelay(for: mapToRetryKind(kind), attempt: attempt, key: RetryPolicy.Key(accountId: accountId, host: cfg.host))
+                // Minimum 30 Sekunden Backoff bei Protokoll-/Verbindungsfehlern
+                if delay < 30 {
+                    delay = 30
+                }
                 attempt &+= 1
+                logger.info(.SEND, accountId: accountId, "Backoff \(Int(delay))s before next attempt")
                 try? await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
                 if oneShot { break }
             }

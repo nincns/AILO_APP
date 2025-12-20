@@ -321,6 +321,17 @@ struct ComposeMailView: View {
         let ccList = splitEmails(cc)
         let bccList = splitEmails(bcc)
 
+        // HTML-Body bereinigen - Editor-Scripts entfernen
+        let cleanedHtmlBody: String? = {
+            guard isHTML else { return nil }
+            var html = htmlBody
+            // Alle Script-Tags entfernen (können vom WKWebView-Editor stammen)
+            while let scriptRange = html.range(of: "<script[^>]*>[\\s\\S]*?</script>", options: .regularExpression) {
+                html.removeSubrange(scriptRange)
+            }
+            return html.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : html
+        }()
+
         let draft = MailDraft(
             from: from,
             to: toList,
@@ -328,7 +339,7 @@ struct ComposeMailView: View {
             bcc: bccList,
             subject: subject,
             textBody: isHTML ? nil : textBody,
-            htmlBody: isHTML ? htmlBody : nil
+            htmlBody: cleanedHtmlBody
         )
         // Queue for sending via repository
         _ = MailRepository.shared.send(draft, accountId: accId)

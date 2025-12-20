@@ -207,6 +207,15 @@ private enum StartupWarmups {
                 return nil
             }
             let encryption: SMTPTLSEncryption = {
+                // Port 587 = STARTTLS (erst Plaintext, dann TLS-Upgrade)
+                // Port 465 = direktes SSL/TLS
+                if acc.smtpPort == 587 {
+                    return .startTLS
+                }
+                if acc.smtpPort == 465 {
+                    return .sslTLS
+                }
+                // Fallback auf Account-Einstellung
                 switch acc.smtpEncryption {
                 case .none: return .plain
                 case .sslTLS: return .sslTLS
