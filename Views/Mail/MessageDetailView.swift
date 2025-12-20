@@ -185,9 +185,10 @@ struct MessageDetailView: View {
             ComposeMailView(
                 replyToMail: mail,
                 replyAll: isReplyAll,
-                originalBody: getPlainTextBody(),
+                originalBody: bodyText,
                 originalTo: parsedToField,
                 originalCC: parsedCCField,
+                originalIsHTML: isHTML,
                 preselectedAccountId: mail.accountId
             )
         }
