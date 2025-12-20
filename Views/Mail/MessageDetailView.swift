@@ -1100,8 +1100,18 @@ struct MessageDetailView: View {
                 if trimmed.isEmpty { continue }
                 if trimmed == "--" { continue }
 
-                // ✅ FIX: Boundary-Zeile entfernen falls noch vorhanden
-                // Nach dem Split kann der Part mit "--" oder Newlines beginnen
+                // ✅ FIX: Root-Container überspringen!
+                // Wenn Part "Content-Type: multipart" + "boundary=rootBoundary" enthält,
+                // dann ist das der Container selbst, nicht ein Sub-Part
+                let lowerTrimmed = trimmed.lowercased()
+                if lowerTrimmed.contains("content-type:") && lowerTrimmed.contains("multipart/") {
+                    if trimmed.contains("boundary=\(boundary)") || trimmed.contains("boundary=\"\(boundary)\"") {
+                        print("📎 [extractAttachmentsWithData] Part \(index): Skipping root multipart container (same boundary)")
+                        continue
+                    }
+                }
+
+                // Boundary-Zeile entfernen falls noch vorhanden
                 var cleanedPart = rawPart
 
                 // Führende Newlines entfernen
