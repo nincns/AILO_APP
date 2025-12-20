@@ -174,7 +174,7 @@ public class AttachmentExtractor {
                 if inPart && !currentPart.isEmpty {
                     parts.append(currentPart)
                 }
-                currentPart = []  // ✅ FIX: Clear to prevent duplicate append after loop
+                currentPart = []  // ✅ FIX: Prevent duplicate in post-loop check
                 inPart = false
                 break
             }
@@ -246,14 +246,14 @@ public class AttachmentExtractor {
                 break
             }
 
-            // ✅ FIX: Boundary-Zeile bedeutet auch Ende der Headers (Body beginnt)
+            // ✅ FIX: Boundary-Zeile = Ende der Headers, Body beginnt hier
             if trimmed.hasPrefix("--") {
                 if let key = currentKey, !currentValue.isEmpty {
                     headers[key.lowercased()] = currentValue.trimmingCharacters(in: .whitespaces)
                 }
                 bodyStartLine = index
-                foundEmptyLine = true  // Treat as if empty line found
-                print("\(indent)📎 [AttachmentExtractor] Found boundary in headers at line \(index), body starts here")
+                foundEmptyLine = true
+                print("\(indent)📎 [AttachmentExtractor] Found nested boundary at line \(index)")
                 break
             }
 
@@ -266,14 +266,14 @@ public class AttachmentExtractor {
                 continue
             }
 
-            // ✅ FIX: Zeile ohne Colon und ohne Whitespace-Prefix = Ende der Headers
-            if !cleanLine.contains(":") && !cleanLine.hasPrefix(" ") && !cleanLine.hasPrefix("\t") {
+            // ✅ FIX: Zeile ohne Colon = Ende der Headers (Body-Content)
+            if !cleanLine.contains(":") {
                 if let key = currentKey, !currentValue.isEmpty {
                     headers[key.lowercased()] = currentValue.trimmingCharacters(in: .whitespaces)
                 }
                 bodyStartLine = index
                 foundEmptyLine = true
-                print("\(indent)📎 [AttachmentExtractor] Non-header line at \(index): '\(cleanLine.prefix(40))'")
+                print("\(indent)📎 [AttachmentExtractor] Non-header line at \(index): '\(cleanLine.prefix(30))'")
                 break
             }
 
