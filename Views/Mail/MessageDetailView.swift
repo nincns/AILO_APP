@@ -1100,17 +1100,6 @@ struct MessageDetailView: View {
                 if trimmed.isEmpty { continue }
                 if trimmed == "--" { continue }
 
-                // ✅ FIX: Root-Container überspringen!
-                // Wenn Part "Content-Type: multipart" + "boundary=rootBoundary" enthält,
-                // dann ist das der Container selbst, nicht ein Sub-Part
-                let lowerTrimmed = trimmed.lowercased()
-                if lowerTrimmed.contains("content-type:") && lowerTrimmed.contains("multipart/") {
-                    if trimmed.contains("boundary=\(boundary)") || trimmed.contains("boundary=\"\(boundary)\"") {
-                        print("📎 [extractAttachmentsWithData] Part \(index): Skipping root multipart container (same boundary)")
-                        continue
-                    }
-                }
-
                 // Boundary-Zeile entfernen falls noch vorhanden
                 var cleanedPart = rawPart
 
@@ -1123,16 +1112,40 @@ struct MessageDetailView: View {
                 if cleanedPart.hasPrefix("--") {
                     if let newlineRange = cleanedPart.range(of: "\n") {
                         cleanedPart = String(cleanedPart[newlineRange.upperBound...])
-                        print("📎 [extractAttachmentsWithData] Part \(index): Removed boundary line prefix")
                     } else {
-                        print("📎 [extractAttachmentsWithData] Part \(index): Only boundary, skipping")
                         continue
                     }
+                    // Nochmal führende Newlines entfernen
+                    while cleanedPart.hasPrefix("\r\n") { cleanedPart = String(cleanedPart.dropFirst(2)) }
+                    while cleanedPart.hasPrefix("\n") { cleanedPart = String(cleanedPart.dropFirst(1)) }
                 }
 
-                // Nochmal führende Newlines entfernen nach Boundary-Entfernung
-                while cleanedPart.hasPrefix("\r\n") { cleanedPart = String(cleanedPart.dropFirst(2)) }
-                while cleanedPart.hasPrefix("\n") { cleanedPart = String(cleanedPart.dropFirst(1)) }
+                // ✅ FIX: Root-Container "unwrappen" statt überspringen!
+                // Wenn Part mit "Content-Type: multipart/mixed" beginnt,
+                // dann ist das der Container selbst → dessen BODY extrahieren
+                let lowerCleanedPart = cleanedPart.lowercased()
+                if lowerCleanedPart.hasPrefix("content-type:") && lowerCleanedPart.contains("multipart/mixed") {
+                    print("📎 [extractAttachmentsWithData] Part \(index): Unwrapping root multipart/mixed container")
+
+                    // Header entfernen, nur Body weiterverarbeiten
+                    if let range = cleanedPart.range(of: "\r\n\r\n") {
+                        let bodyOnly = String(cleanedPart[range.upperBound...])
+                        print("📎 [extractAttachmentsWithData] Extracted body: \(bodyOnly.count) chars")
+                        parseMimePart(bodyOnly, depth: 0)
+                    } else if let range = cleanedPart.range(of: "\n\n") {
+                        let bodyOnly = String(cleanedPart[range.upperBound...])
+                        print("📎 [extractAttachmentsWithData] Extracted body: \(bodyOnly.count) chars")
+                        parseMimePart(bodyOnly, depth: 0)
+                    } else {
+                        // Fallback: Am ersten Boundary trennen
+                        if let boundaryStart = cleanedPart.range(of: "\n--") {
+                            let bodyOnly = String(cleanedPart[boundaryStart.upperBound...])
+                            print("📎 [extractAttachmentsWithData] Extracted body at boundary: \(bodyOnly.count) chars")
+                            parseMimePart("--" + bodyOnly, depth: 0)
+                        }
+                    }
+                    continue
+                }
 
                 print("📎 [extractAttachmentsWithData] Processing top-level part \(index), starts with: '\(String(cleanedPart.prefix(60)).replacingOccurrences(of: "\n", with: " "))...'")
                 parseMimePart(cleanedPart, depth: 0)
