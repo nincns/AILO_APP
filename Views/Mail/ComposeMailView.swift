@@ -2,6 +2,7 @@
 import SwiftUI
 import PhotosUI
 import WebKit
+import Combine
 
 struct ComposeMailView: View {
     @Environment(\.dismiss) private var dismiss
