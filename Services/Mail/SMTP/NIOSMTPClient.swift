@@ -148,19 +148,20 @@ public final class NIOSMTPClient: SMTPClientProtocol {
             #endif
 
             // Step 5: AUTH LOGIN
-            if !config.username.isEmpty && !config.password.isEmpty {
+            if let username = config.username, let password = config.password,
+               !username.isEmpty, !password.isEmpty {
                 try await handler.sendCommand("AUTH LOGIN", on: channel)
                 let authResponse = try await handler.readResponse()
 
                 if authResponse.code == 334 {
                     // Send base64 encoded username
-                    let userB64 = Data(config.username.utf8).base64EncodedString()
+                    let userB64 = Data(username.utf8).base64EncodedString()
                     try await handler.sendCommand(userB64, on: channel)
                     let userResponse = try await handler.readResponse()
 
                     if userResponse.code == 334 {
                         // Send base64 encoded password
-                        let passB64 = Data(config.password.utf8).base64EncodedString()
+                        let passB64 = Data(password.utf8).base64EncodedString()
                         try await handler.sendCommand(passB64, on: channel)
                         let passResponse = try await handler.readResponse()
 
