@@ -780,8 +780,15 @@ struct MessageDetailView: View {
                 }
                 
                 await MainActor.run {
-                    self.attachments = loadedAttachments
-                    self.tempFiles = tempURLs
+                    // ✅ FIX: Nur überschreiben wenn DB-Anhänge vorhanden
+                    // Sonst bleiben die aus rawBody extrahierten Anhänge erhalten
+                    if !loadedAttachments.isEmpty {
+                        self.attachments = loadedAttachments
+                        self.tempFiles = tempURLs
+                        print("📎 [loadAttachments] Loaded \(loadedAttachments.count) from DB")
+                    } else {
+                        print("📎 [loadAttachments] DB empty, keeping \(self.attachments.count) extracted attachments")
+                    }
                 }
             }
         } catch {
