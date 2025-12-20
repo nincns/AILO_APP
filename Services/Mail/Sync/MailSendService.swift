@@ -160,7 +160,7 @@ public final class MailSendService {
 
     // Dependencies
     public var smtpFactory: (() -> (any SMTPClientProtocol))?          // injected
-    public var smtpConfigProvider: ((UUID) -> SMTPConfig)?   // by accountId
+    public var smtpConfigProvider: ((UUID) -> SMTPConfig?)?   // by accountId (returns nil if not found)
     public var retryPolicy: RetryPolicy = .shared
     public var logger: MailLogger = .shared
     public var metrics: MailMetrics = .shared
