@@ -926,16 +926,35 @@ struct MessageDetailView: View {
             let indent = String(repeating: "  ", count: depth)
             print("\(indent)📎 [parseMimePart] Depth \(depth), part size: \(part.count) chars")
 
-            // Header vom Body trennen
+            // ✅ Header vom Body trennen - Apple-Mail-kompatibel
+            // Apple Mail nutzt oft KEINE doppelte Leerzeile zwischen Header und Body!
+            // Stattdessen: Bei multipart am ersten Boundary trennen
             var headerSection = ""
             var bodySection = part
 
-            if let emptyLineRange = part.range(of: "\r\n\r\n") {
-                headerSection = String(part[..<emptyLineRange.lowerBound])
-                bodySection = String(part[emptyLineRange.upperBound...])
-            } else if let emptyLineRange = part.range(of: "\n\n") {
-                headerSection = String(part[..<emptyLineRange.lowerBound])
-                bodySection = String(part[emptyLineRange.upperBound...])
+            // 1. Prüfe ob es ein multipart-Container ist (boundary= im Header)
+            let lowerPart = part.lowercased()
+            if lowerPart.contains("boundary=") {
+                // Finde das boundary= im Header
+                if let boundaryDefRange = part.range(of: "boundary=", options: .caseInsensitive) {
+                    // Suche erste Boundary-Zeile (\n--) nach der boundary-Definition
+                    if let firstBoundaryRange = part.range(of: "\n--", range: boundaryDefRange.upperBound..<part.endIndex) {
+                        headerSection = String(part[..<firstBoundaryRange.lowerBound])
+                        bodySection = String(part[firstBoundaryRange.lowerBound...])
+                        print("\(indent)📎 [parseMimePart] Split at boundary marker, header: \(headerSection.count) chars, body: \(bodySection.count) chars")
+                    }
+                }
+            }
+
+            // 2. Fallback für nicht-multipart: Standard Leerzeilen-Trennung
+            if headerSection.isEmpty {
+                if let emptyLineRange = part.range(of: "\r\n\r\n") {
+                    headerSection = String(part[..<emptyLineRange.lowerBound])
+                    bodySection = String(part[emptyLineRange.upperBound...])
+                } else if let emptyLineRange = part.range(of: "\n\n") {
+                    headerSection = String(part[..<emptyLineRange.lowerBound])
+                    bodySection = String(part[emptyLineRange.upperBound...])
+                }
             }
 
             let lowerHeader = headerSection.lowercased()
