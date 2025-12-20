@@ -7,6 +7,7 @@ import Foundation
 #if canImport(NIOCore) && canImport(NIOPosix)
 import NIOCore
 import NIOPosix
+import NIOConcurrencyHelpers
 #if canImport(NIOSSL)
 import NIOSSL
 #endif
@@ -120,7 +121,7 @@ public final class NIOSMTPClient: SMTPClientProtocol {
 
             guard let channel = self.channel, let handler = self.handler else {
                 print("❌ [NIO-SMTP] Channel not established!")
-                return .failure(.connectionFailed("Channel not established"))
+                return .failed(.connectFailed("Channel not established"))
             }
 
             // Step 2: Wait for greeting (220)
@@ -128,7 +129,7 @@ public final class NIOSMTPClient: SMTPClientProtocol {
             print("🔧 [NIO-SMTP] Step 2: Greeting received: \(greeting.code) \(greeting.message)")
             guard greeting.code == 220 else {
                 try? await channel.close()
-                return .failure(.greetingFailed("Server greeting: \(greeting.message)"))
+                return .failed(.greetingFailed("Server greeting: \(greeting.message)"))
             }
 
             // Step 3: EHLO
@@ -142,7 +143,7 @@ public final class NIOSMTPClient: SMTPClientProtocol {
                 ehloResponse = try await handler.readResponse()
                 guard ehloResponse.code == 250 else {
                     try? await channel.close()
-                    return .failure(.authFailed("HELO failed: \(ehloResponse.message)"))
+                    return .failed(.authFailed("HELO failed: \(ehloResponse.message)"))
                 }
             }
 
@@ -197,18 +198,18 @@ public final class NIOSMTPClient: SMTPClientProtocol {
                         guard passResponse.code == 235 else {
                             print("❌ [NIO-SMTP] Authentication failed: \(passResponse.message)")
                             try? await channel.close()
-                            return .failure(.authFailed("Authentication failed: \(passResponse.message)"))
+                            return .failed(.authFailed("Authentication failed: \(passResponse.message)"))
                         }
                         print("✅ [NIO-SMTP] Step 5: Authentication successful!")
                     } else {
                         print("❌ [NIO-SMTP] Username rejected: \(userResponse.message)")
                         try? await channel.close()
-                        return .failure(.authFailed("Username rejected: \(userResponse.message)"))
+                        return .failed(.authFailed("Username rejected: \(userResponse.message)"))
                     }
                 } else if authResponse.code != 235 {
                     print("❌ [NIO-SMTP] AUTH LOGIN not supported: \(authResponse.message)")
                     try? await channel.close()
-                    return .failure(.authFailed("AUTH LOGIN not supported: \(authResponse.message)"))
+                    return .failed(.authFailed("AUTH LOGIN not supported: \(authResponse.message)"))
                 }
             } else {
                 print("🔧 [NIO-SMTP] Step 5: Skipping auth (no credentials)")
@@ -222,7 +223,7 @@ public final class NIOSMTPClient: SMTPClientProtocol {
             guard mailFromResponse.code == 250 else {
                 print("❌ [NIO-SMTP] MAIL FROM rejected: \(mailFromResponse.message)")
                 try? await channel.close()
-                return .failure(.sendFailed("MAIL FROM rejected: \(mailFromResponse.message)"))
+                return .failed(.sendFailed("MAIL FROM rejected: \(mailFromResponse.message)"))
             }
 
             // Step 7: RCPT TO (for all recipients)
@@ -234,7 +235,7 @@ public final class NIOSMTPClient: SMTPClientProtocol {
                 guard rcptResponse.code == 250 || rcptResponse.code == 251 else {
                     print("❌ [NIO-SMTP] RCPT TO rejected for \(recipient.email): \(rcptResponse.message)")
                     try? await channel.close()
-                    return .failure(.sendFailed("RCPT TO rejected for \(recipient.email): \(rcptResponse.message)"))
+                    return .failed(.sendFailed("RCPT TO rejected for \(recipient.email): \(rcptResponse.message)"))
                 }
             }
 
@@ -245,7 +246,7 @@ public final class NIOSMTPClient: SMTPClientProtocol {
             guard dataResponse.code == 354 else {
                 print("❌ [NIO-SMTP] DATA command rejected: \(dataResponse.message)")
                 try? await channel.close()
-                return .failure(.sendFailed("DATA command rejected: \(dataResponse.message)"))
+                return .failed(.sendFailed("DATA command rejected: \(dataResponse.message)"))
             }
 
             // Step 9: Send message content
@@ -259,7 +260,7 @@ public final class NIOSMTPClient: SMTPClientProtocol {
             guard endDataResponse.code == 250 else {
                 print("❌ [NIO-SMTP] Message rejected: \(endDataResponse.message)")
                 try? await channel.close()
-                return .failure(.sendFailed("Message rejected: \(endDataResponse.message)"))
+                return .failed(.sendFailed("Message rejected: \(endDataResponse.message)"))
             }
             print("✅ [NIO-SMTP] Step 9: Message accepted by server")
 
@@ -273,18 +274,18 @@ public final class NIOSMTPClient: SMTPClientProtocol {
             let messageId = extractMessageId(from: endDataResponse.message)
             print("✅ [NIO-SMTP] Send completed successfully! MessageID: \(messageId ?? "none")")
 
-            return .success(messageId)
+            return .success(serverId: messageId)
 
         } catch let error as SMTPError {
             print("❌ [NIO-SMTP] SMTPError: \(error)")
             try? await channel?.close()
-            return .failure(error)
+            return .failed(error)
         } catch {
             print("❌ [NIO-SMTP] General error: \(error)")
             print("❌ [NIO-SMTP] Error type: \(type(of: error))")
             print("❌ [NIO-SMTP] Error description: \(error.localizedDescription)")
             try? await channel?.close()
-            return .failure(.sendFailed(error.localizedDescription))
+            return .failed(.sendFailed(error.localizedDescription))
         }
     }
 
@@ -333,7 +334,7 @@ public final class NIOSMTPClient: SMTPClientProtocol {
         let response = try await handler.readResponse()
 
         guard response.code == 220 else {
-            throw SMTPError.tlsFailed("STARTTLS rejected: \(response.message)")
+            throw SMTPError.startTLSRejected
         }
 
         // Create SSL context and handler
@@ -362,73 +363,14 @@ public final class NIOSMTPClient: SMTPClientProtocol {
             lines.append("Cc: \(message.cc.map { formatAddress($0) }.joined(separator: ", "))")
         }
         lines.append("Subject: \(encodeHeader(message.subject))")
-        lines.append("Date: \(formatRFC2822Date(message.date))")
+        lines.append("Date: \(formatRFC2822Date(Date()))")
         lines.append("MIME-Version: 1.0")
+        lines.append("Message-ID: <\(UUID().uuidString)@ailo.local>")
 
-        let messageId = message.messageId ?? "<\(UUID().uuidString)@ailo.local>"
-        lines.append("Message-ID: \(messageId)")
-
-        if let inReplyTo = message.inReplyTo {
-            lines.append("In-Reply-To: \(inReplyTo)")
-        }
-        if let references = message.references, !references.isEmpty {
-            lines.append("References: \(references.joined(separator: " "))")
-        }
-
-        // Determine content type
-        let hasAttachments = !(message.attachments ?? []).isEmpty
+        // Determine content type - MailMessage only has textBody and htmlBody
         let hasHTML = message.htmlBody != nil && !message.htmlBody!.isEmpty
 
-        if hasAttachments {
-            let boundary = "----=_Part_\(UUID().uuidString.replacingOccurrences(of: "-", with: ""))"
-            lines.append("Content-Type: multipart/mixed; boundary=\"\(boundary)\"")
-            lines.append("")
-
-            // Text/HTML part
-            if hasHTML {
-                let altBoundary = "----=_Alt_\(UUID().uuidString.replacingOccurrences(of: "-", with: ""))"
-                lines.append("--\(boundary)")
-                lines.append("Content-Type: multipart/alternative; boundary=\"\(altBoundary)\"")
-                lines.append("")
-
-                // Plain text
-                lines.append("--\(altBoundary)")
-                lines.append("Content-Type: text/plain; charset=utf-8")
-                lines.append("Content-Transfer-Encoding: quoted-printable")
-                lines.append("")
-                lines.append(quotedPrintableEncode(message.textBody ?? ""))
-                lines.append("")
-
-                // HTML
-                lines.append("--\(altBoundary)")
-                lines.append("Content-Type: text/html; charset=utf-8")
-                lines.append("Content-Transfer-Encoding: quoted-printable")
-                lines.append("")
-                lines.append(quotedPrintableEncode(message.htmlBody ?? ""))
-                lines.append("")
-                lines.append("--\(altBoundary)--")
-            } else {
-                lines.append("--\(boundary)")
-                lines.append("Content-Type: text/plain; charset=utf-8")
-                lines.append("Content-Transfer-Encoding: quoted-printable")
-                lines.append("")
-                lines.append(quotedPrintableEncode(message.textBody ?? ""))
-            }
-
-            // Attachments
-            for attachment in message.attachments ?? [] {
-                lines.append("")
-                lines.append("--\(boundary)")
-                lines.append("Content-Type: \(attachment.mimeType); name=\"\(attachment.filename)\"")
-                lines.append("Content-Transfer-Encoding: base64")
-                lines.append("Content-Disposition: attachment; filename=\"\(attachment.filename)\"")
-                lines.append("")
-                lines.append(attachment.data.base64EncodedString(options: .lineLength76Characters))
-            }
-
-            lines.append("")
-            lines.append("--\(boundary)--")
-        } else if hasHTML {
+        if hasHTML {
             let boundary = "----=_Alt_\(UUID().uuidString.replacingOccurrences(of: "-", with: ""))"
             lines.append("Content-Type: multipart/alternative; boundary=\"\(boundary)\"")
             lines.append("")
@@ -610,7 +552,7 @@ final class SMTPResponseHandler: ChannelInboundHandler, ChannelOutboundHandler, 
             // Use a simple callback-based approach
             DispatchQueue.global().async { [weak self] in
                 guard let self = self else {
-                    continuation.resume(throwing: SMTPError.connectionFailed("Handler deallocated"))
+                    continuation.resume(throwing: SMTPError.connectFailed("Handler deallocated"))
                     return
                 }
 
@@ -685,66 +627,6 @@ final class SMTPResponseHandler: ChannelInboundHandler, ChannelOutboundHandler, 
         // Consume CRLF
         _ = buffer.readSlice(length: 2)
 
-        return lineSlice.readString(length: lineSlice.readableBytes)
-    }
-}
-
-// Keep old SMTPLineHandler for backwards compatibility with testConnection
-final class SMTPLineHandler: ChannelInboundHandler, ChannelOutboundHandler {
-    typealias InboundIn = ByteBuffer
-    typealias OutboundOut = ByteBuffer
-
-    private var buffer = ByteBufferAllocator().buffer(capacity: 0)
-    private let lock = NIOLock()
-    private var waiters: [EventLoopPromise<String>] = []
-
-    func channelRead(context: ChannelHandlerContext, data: NIOAny) {
-        var buf = self.unwrapInboundIn(data)
-        buffer.writeBuffer(&buf)
-
-        while let line = readLineCRLF() {
-            lock.withLock {
-                if !waiters.isEmpty {
-                    let p = waiters.removeFirst()
-                    p.succeed(line)
-                }
-            }
-        }
-    }
-
-    func errorCaught(context: ChannelHandlerContext, error: Error) {
-        lock.withLock {
-            for p in waiters { p.fail(error) }
-            waiters.removeAll()
-        }
-        context.close(promise: nil)
-    }
-
-    func nextLine(on el: EventLoop) async throws -> String {
-        return try await withCheckedThrowingContinuation { cont in
-            let p: EventLoopPromise<String> = el.makePromise(of: String.self)
-            p.futureResult.whenSuccess { cont.resume(returning: $0) }
-            p.futureResult.whenFailure { cont.resume(throwing: $0) }
-            lock.withLock { waiters.append(p) }
-        }
-    }
-
-    func sendLine(_ s: String, on channel: Channel) async throws {
-        var out = channel.allocator.buffer(capacity: s.utf8.count + 2)
-        out.writeString(s)
-        out.writeString("\r\n")
-        try await channel.writeAndFlush(self.wrapOutboundOut(out)).get()
-    }
-
-    private func readLineCRLF() -> String? {
-        guard let view = buffer.readableBytesView.firstRange(of: Data("\r\n".utf8)) else {
-            return nil
-        }
-        let lineLength = buffer.readableBytesView.distance(from: buffer.readableBytesView.startIndex, to: view.lowerBound)
-        guard var lineSlice = buffer.readSlice(length: lineLength) else {
-            return nil
-        }
-        _ = buffer.readSlice(length: 2)
         return lineSlice.readString(length: lineSlice.readableBytes)
     }
 }
