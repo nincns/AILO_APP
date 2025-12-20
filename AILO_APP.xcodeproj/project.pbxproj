@@ -7,6 +7,9 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		C9NIO00062EF80000007634FC /* NIOCore in Frameworks */ = {isa = PBXBuildFile; productRef = C9NIO00032EF80000007634FC /* NIOCore */; };
+		C9NIO00072EF80000007634FC /* NIOPosix in Frameworks */ = {isa = PBXBuildFile; productRef = C9NIO00042EF80000007634FC /* NIOPosix */; };
+		C9NIO00082EF80000007634FC /* NIOSSL in Frameworks */ = {isa = PBXBuildFile; productRef = C9NIO00052EF80000007634FC /* NIOSSL */; };
 		C93D2CB12EB16CFD00AA4072 /* MailViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = C93D2CB02EB16CFC00AA4072 /* MailViewModel.swift */; };
 		C93D2CB32EB16D7700AA4072 /* MailViewComponents.swift in Sources */ = {isa = PBXBuildFile; fileRef = C93D2CB22EB16D7700AA4072 /* MailViewComponents.swift */; };
 		C93D2CB52EB16DC300AA4072 /* MailViewSheets.swift in Sources */ = {isa = PBXBuildFile; fileRef = C93D2CB42EB16DC300AA4072 /* MailViewSheets.swift */; };
@@ -249,6 +252,9 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				C9NIO00062EF80000007634FC /* NIOCore in Frameworks */,
+				C9NIO00072EF80000007634FC /* NIOPosix in Frameworks */,
+				C9NIO00082EF80000007634FC /* NIOSSL in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -652,6 +658,9 @@
 			);
 			name = AILO_APP;
 			packageProductDependencies = (
+				C9NIO00032EF80000007634FC /* NIOCore */,
+				C9NIO00042EF80000007634FC /* NIOPosix */,
+				C9NIO00052EF80000007634FC /* NIOSSL */,
 			);
 			productName = AILO_APP;
 			productReference = C9F2CC292E8873D300D5D965 /* AILO_APP.app */;
@@ -682,6 +691,10 @@
 			);
 			mainGroup = C9F2CC202E8873D300D5D965;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				C9NIO00012EF80000007634FC /* XCRemoteSwiftPackageReference "swift-nio" */,
+				C9NIO00022EF80000007634FC /* XCRemoteSwiftPackageReference "swift-nio-ssl" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = C9F2CC2A2E8873D300D5D965 /* Products */;
 			projectDirPath = "";
@@ -1054,6 +1067,43 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		C9NIO00012EF80000007634FC /* XCRemoteSwiftPackageReference "swift-nio" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/apple/swift-nio.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 2.65.0;
+			};
+		};
+		C9NIO00022EF80000007634FC /* XCRemoteSwiftPackageReference "swift-nio-ssl" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/apple/swift-nio-ssl.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 2.26.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		C9NIO00032EF80000007634FC /* NIOCore */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = C9NIO00012EF80000007634FC /* XCRemoteSwiftPackageReference "swift-nio" */;
+			productName = NIOCore;
+		};
+		C9NIO00042EF80000007634FC /* NIOPosix */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = C9NIO00012EF80000007634FC /* XCRemoteSwiftPackageReference "swift-nio" */;
+			productName = NIOPosix;
+		};
+		C9NIO00052EF80000007634FC /* NIOSSL */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = C9NIO00022EF80000007634FC /* XCRemoteSwiftPackageReference "swift-nio-ssl" */;
+			productName = NIOSSL;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = C9F2CC212E8873D300D5D965 /* Project object */;
 }
