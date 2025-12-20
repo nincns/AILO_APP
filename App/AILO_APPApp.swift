@@ -199,7 +199,7 @@ private enum StartupWarmups {
     /// Initialisiert den MailSendService mit DAO und SMTP-Konfiguration
     private static func initializeMailSendService(daoFactory: DAOFactory) {
         MailSendService.shared.dao = OutboxDAOAdapter(daoFactory.outboxDAO)
-        MailSendService.shared.smtpFactory = { SMTPClient() }
+        MailSendService.shared.smtpFactory = { NIOSMTPClient() }
         MailSendService.shared.smtpConfigProvider = { accountId in
             guard let data = UserDefaults.standard.data(forKey: "mail.accounts"),
                   let accounts = try? JSONDecoder().decode([MailAccountConfig].self, from: data),
