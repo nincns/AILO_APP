@@ -1390,12 +1390,6 @@ private struct AttachmentRowView: View {
                     .foregroundStyle(.primary)
                     .lineLimit(1)
                     .truncationMode(.middle)
-
-                Spacer()
-
-                Image(systemName: "eye")
-                    .font(.system(size: 10))
-                    .foregroundStyle(.blue.opacity(0.7))
             }
         }
         .buttonStyle(.plain)
