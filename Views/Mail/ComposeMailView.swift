@@ -29,8 +29,6 @@ struct ComposeMailView: View {
     @State private var isHTML: Bool = false
     @State private var textBody: String = ""
     @State private var htmlBody: String = ""
-    @State private var replyText: String = ""  // Editierbarer Antworttext
-    @State private var quotedHTML: String = "" // Original-Quote (read-only)
 
     // MARK: - Attachments
     struct Attachment: Identifiable, Equatable {
@@ -160,23 +158,8 @@ struct ComposeMailView: View {
 
                 // Body section
                 if isHTML {
-                    ScrollView {
-                        VStack(alignment: .leading, spacing: 0) {
-                            // Editierbares Textfeld für Antwort
-                            TextEditor(text: $replyText)
-                                .font(.body)
-                                .frame(minHeight: 100)
-                                .scrollDisabled(true)
-
-                            // Quote-Vorschau (read-only)
-                            if !quotedHTML.isEmpty {
-                                HTMLPreviewView(html: quotedHTML)
-                                    .frame(minHeight: 200)
-                            }
-                        }
-                        .padding(.horizontal, 12)
-                        .padding(.top, 8)
-                    }
+                    RichTextEditorView(html: $htmlBody)
+                        .frame(maxHeight: .infinity)
                 } else {
                     TextEditor(text: $textBody)
                         .font(.body)
@@ -310,14 +293,9 @@ struct ComposeMailView: View {
         guard let _ = selectedAccountId else { return false }
         let hasTo = !to.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
         let hasSubject = !subject.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-        let hasBody: Bool
-        if isHTML {
-            // HTML: replyText oder quotedHTML muss vorhanden sein
-            hasBody = !replyText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ||
-                      !quotedHTML.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-        } else {
-            hasBody = !textBody.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-        }
+        let hasBody = isHTML
+            ? !htmlBody.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            : !textBody.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
         return hasTo && hasSubject && hasBody
     }
 
@@ -330,9 +308,6 @@ struct ComposeMailView: View {
         let ccList = splitEmails(cc)
         let bccList = splitEmails(bcc)
 
-        // HTML: Kombiniere replyText + quotedHTML
-        let finalHtmlBody: String? = isHTML ? buildFinalHTML() : nil
-
         let draft = MailDraft(
             from: from,
             to: toList,
@@ -340,7 +315,7 @@ struct ComposeMailView: View {
             bcc: bccList,
             subject: subject,
             textBody: isHTML ? nil : textBody,
-            htmlBody: finalHtmlBody
+            htmlBody: isHTML ? htmlBody : nil
         )
         // Queue for sending via repository
         _ = MailRepository.shared.send(draft, accountId: accId)
@@ -459,16 +434,16 @@ struct ComposeMailView: View {
         if !originalBody.isEmpty {
             let dateStr = formatDateForQuote(mail.date)
             if originalIsHTML {
-                // HTML-Quote mit Blockquote-Styling
+                // HTML-Quote mit Blockquote-Styling + Platz für Antwort oben
                 let header = dateStr.isEmpty ? "schrieb \(mail.from):" : "Am \(dateStr) schrieb \(mail.from):"
                 let quote = """
+                <p><br></p>
                 <p>\(header)</p>
                 <blockquote style="border-left: 2px solid #ccc; padding-left: 10px; margin-left: 0; color: #555;">
                 \(originalBody)
                 </blockquote>
                 """
-                self.quotedHTML = quote
-                self.replyText = ""  // Cursor hier für Antwort
+                self.htmlBody = quote
             } else {
                 // Text-Quote mit > Prefix
                 let quote = buildQuote(from: mail.from, date: dateStr, body: originalBody)
@@ -520,12 +495,6 @@ struct ComposeMailView: View {
     }
 
     // MARK: - Helpers
-    private func buildFinalHTML() -> String {
-        // Kombiniere Antworttext + Quote zu vollständigem HTML
-        let replyHTML = replyText.isEmpty ? "" : "<p>\(replyText.replacingOccurrences(of: "\n", with: "<br>"))</p>"
-        return replyHTML + quotedHTML
-    }
-
     private func splitEmails(_ s: String) -> [MailSendAddress] {
         s.split(separator: ",").map { MailSendAddress(String($0).trimmingCharacters(in: .whitespacesAndNewlines)) }
     }
@@ -549,7 +518,111 @@ struct ComposeMailView: View {
     }
 }
 
-// MARK: - HTML Preview View
+// MARK: - Rich Text Editor View (Editable HTML)
+private struct RichTextEditorView: UIViewRepresentable {
+    @Binding var html: String
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator(self)
+    }
+
+    func makeUIView(context: Context) -> WKWebView {
+        let config = WKWebViewConfiguration()
+        config.userContentController.add(context.coordinator, name: "htmlDidChange")
+
+        let webView = WKWebView(frame: .zero, configuration: config)
+        webView.isOpaque = false
+        webView.backgroundColor = .clear
+        webView.scrollView.backgroundColor = .clear
+        webView.navigationDelegate = context.coordinator
+        context.coordinator.webView = webView
+        return webView
+    }
+
+    func updateUIView(_ webView: WKWebView, context: Context) {
+        // Nur laden wenn sich der Content wirklich geändert hat (nicht durch User-Eingabe)
+        guard !context.coordinator.isUserEditing else { return }
+
+        let styledHTML = """
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+            <style>
+                * { box-sizing: border-box; }
+                body {
+                    font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+                    font-size: 16px;
+                    line-height: 1.5;
+                    color: #333;
+                    margin: 0;
+                    padding: 8px;
+                    min-height: 100vh;
+                    outline: none;
+                }
+                @media (prefers-color-scheme: dark) {
+                    body { color: #e0e0e0; background: transparent; }
+                }
+                blockquote {
+                    border-left: 2px solid #ccc;
+                    padding-left: 10px;
+                    margin: 10px 0;
+                    color: #666;
+                }
+                @media (prefers-color-scheme: dark) {
+                    blockquote { color: #999; border-left-color: #555; }
+                }
+                [contenteditable]:focus { outline: none; }
+            </style>
+        </head>
+        <body contenteditable="true" id="editor">\(html)</body>
+        <script>
+            const editor = document.getElementById('editor');
+            editor.addEventListener('input', function() {
+                window.webkit.messageHandlers.htmlDidChange.postMessage(editor.innerHTML);
+            });
+            editor.addEventListener('focus', function() {
+                window.webkit.messageHandlers.htmlDidChange.postMessage('__FOCUS__');
+            });
+            editor.addEventListener('blur', function() {
+                window.webkit.messageHandlers.htmlDidChange.postMessage('__BLUR__');
+            });
+        </script>
+        </html>
+        """
+        webView.loadHTMLString(styledHTML, baseURL: nil)
+    }
+
+    class Coordinator: NSObject, WKNavigationDelegate, WKScriptMessageHandler {
+        var parent: RichTextEditorView
+        weak var webView: WKWebView?
+        var isUserEditing = false
+
+        init(_ parent: RichTextEditorView) {
+            self.parent = parent
+        }
+
+        func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
+            guard let body = message.body as? String else { return }
+
+            if body == "__FOCUS__" {
+                isUserEditing = true
+                return
+            }
+            if body == "__BLUR__" {
+                isUserEditing = false
+                return
+            }
+
+            // HTML hat sich geändert
+            DispatchQueue.main.async {
+                self.parent.html = body
+            }
+        }
+    }
+}
+
+// MARK: - HTML Preview View (Read-only)
 private struct HTMLPreviewView: UIViewRepresentable {
     let html: String
 
