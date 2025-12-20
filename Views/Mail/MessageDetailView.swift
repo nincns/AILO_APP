@@ -1008,21 +1008,18 @@ struct MessageDetailView: View {
                 // Alles NACH dem Header extrahieren (roh, unverändert)
                 let afterHeader = String(cleanPart[startRange.upperBound...])
 
-                // Finde das Ende (nächste Boundary oder Ende des Strings)
-                var base64Raw = afterHeader
-                if let boundaryStart = afterHeader.range(of: "\n--") {
-                    base64Raw = String(afterHeader[..<boundaryStart.lowerBound])
-                } else if let boundaryStart = afterHeader.range(of: "\r\n--") {
-                    base64Raw = String(afterHeader[..<boundaryStart.lowerBound])
-                }
+                // KEIN manuelles Abschneiden mehr!
+                // ignoreUnknownCharacters ignoriert alles was kein gültiges Base64 ist
+                // (inkl. Boundary-Marker am Ende)
 
                 // Nur Whitespace/Newlines entfernen, NICHTS anderes!
-                let cleanBase64 = base64Raw
+                let cleanBase64 = afterHeader
                     .replacingOccurrences(of: "\r", with: "")
                     .replacingOccurrences(of: "\n", with: "")
                     .replacingOccurrences(of: " ", with: "")
                     .replacingOccurrences(of: "\t", with: "")
 
+                print("📎 [extractAttachmentsWithData] Raw after header: \(afterHeader.count) chars")
                 print("📎 [extractAttachmentsWithData] Base64 length: \(cleanBase64.count) chars")
                 print("📎 [extractAttachmentsWithData] Base64 preview: \(String(cleanBase64.prefix(80)))...")
                 print("📎 [extractAttachmentsWithData] Base64 end: ...\(String(cleanBase64.suffix(40)))")
