@@ -223,11 +223,11 @@ public class AttachmentExtractor {
                 print("\(indent)📎 [AttachmentExtractor] Part \(index + 1) ends with: '\(trimmed.suffix(60))' (len: \(trimmed.count))")
             }
 
-            processPartLines(partLines, results: &results, depth: depth)
+            processPartLines(partLines, boundary: boundary, results: &results, depth: depth)
         }
     }
 
-    private static func processPartLines(_ lines: [String], results: inout [ExtractedAttachment], depth: Int) {
+    private static func processPartLines(_ lines: [String], boundary: String, results: inout [ExtractedAttachment], depth: Int) {
         let indent = String(repeating: "  ", count: depth)
 
         guard !lines.isEmpty else {
@@ -256,14 +256,15 @@ public class AttachmentExtractor {
                 break
             }
 
-            // ✅ FIX: Boundary-Zeile = Ende der Headers, Body beginnt hier
-            if trimmed.hasPrefix("--") {
+            // ✅ FIX: Nur EXAKTE Boundary beendet Header-Bereich
+            let exactBoundaryCheck = "--" + boundary
+            if trimmed.hasPrefix(exactBoundaryCheck) {
                 if let key = currentKey, !currentValue.isEmpty {
                     headers[key.lowercased()] = currentValue.trimmingCharacters(in: .whitespaces)
                 }
                 bodyStartLine = index
                 foundEmptyLine = true
-                print("\(indent)📎 [AttachmentExtractor] Found nested boundary at line \(index)")
+                print("\(indent)📎 [AttachmentExtractor] Found boundary at line \(index)")
                 break
             }
 
@@ -371,9 +372,12 @@ public class AttachmentExtractor {
                 }
             }
 
+            let exactBoundary = "--" + boundary
             let base64Lines = bodyLines
                 .map { $0.trimmingCharacters(in: .whitespaces) }
-                .filter { !$0.isEmpty && !$0.hasPrefix("--") }
+                .filter { line in
+                    !line.isEmpty && !line.hasPrefix(exactBoundary)
+                }
 
             // DEBUG: Zeige gefilterte Stats
             let filteredOutCount = bodyLines.count - base64Lines.count
