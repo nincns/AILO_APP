@@ -88,29 +88,44 @@ public final class NIOSMTPClient: SMTPClientProtocol {
     }
 
     public func send(_ message: MailMessage, using config: SMTPConfig) async -> DeliveryResult {
+        print("🔧 [NIO-SMTP] Starting send via NIOSMTPClient")
+        print("🔧 [NIO-SMTP] Host: \(config.host):\(config.port)")
+        print("🔧 [NIO-SMTP] Encryption: \(config.encryption)")
+        #if canImport(NIOSSL)
+        print("🔧 [NIO-SMTP] NIOSSL is available ✅")
+        #else
+        print("⚠️ [NIO-SMTP] NIOSSL is NOT available - STARTTLS won't work!")
+        #endif
+
         do {
             let group = MultiThreadedEventLoopGroup(numberOfThreads: 1)
             self.group = group
 
             // Step 1: Connect to SMTP server
+            print("🔧 [NIO-SMTP] Step 1: Connecting to server...")
             #if canImport(NIOSSL)
             if config.encryption == .sslTLS {
                 // Direct SSL/TLS connection (port 465)
                 try await connectWithSSL(config: config, group: group)
+                print("🔧 [NIO-SMTP] Step 1: Connected with SSL/TLS")
             } else {
                 // Plain connection, possibly with STARTTLS upgrade
                 try await connectPlain(config: config, group: group)
+                print("🔧 [NIO-SMTP] Step 1: Connected (plain)")
             }
             #else
             try await connectPlain(config: config, group: group)
+            print("🔧 [NIO-SMTP] Step 1: Connected (plain, no NIOSSL)")
             #endif
 
             guard let channel = self.channel, let handler = self.handler else {
+                print("❌ [NIO-SMTP] Channel not established!")
                 return .failure(.connectionFailed("Channel not established"))
             }
 
             // Step 2: Wait for greeting (220)
             let greeting = try await handler.readResponse()
+            print("🔧 [NIO-SMTP] Step 2: Greeting received: \(greeting.code) \(greeting.message)")
             guard greeting.code == 220 else {
                 try? await channel.close()
                 return .failure(.greetingFailed("Server greeting: \(greeting.message)"))
@@ -120,6 +135,7 @@ public final class NIOSMTPClient: SMTPClientProtocol {
             let heloName = config.heloName ?? "localhost"
             try await handler.sendCommand("EHLO \(heloName)", on: channel)
             var ehloResponse = try await handler.readResponse()
+            print("🔧 [NIO-SMTP] Step 3: EHLO response: \(ehloResponse.code)")
             guard ehloResponse.code == 250 else {
                 // Fallback to HELO
                 try await handler.sendCommand("HELO \(heloName)", on: channel)
@@ -133,81 +149,107 @@ public final class NIOSMTPClient: SMTPClientProtocol {
             // Step 4: STARTTLS if required
             #if canImport(NIOSSL)
             if config.encryption == .startTLS {
+                print("🔧 [NIO-SMTP] Step 4: Attempting STARTTLS upgrade...")
                 // Check if server supports STARTTLS
                 let supportsStartTLS = ehloResponse.fullResponse.contains("STARTTLS")
+                print("🔧 [NIO-SMTP] Server advertises STARTTLS: \(supportsStartTLS)")
                 if supportsStartTLS {
                     try await performSTARTTLS(config: config, channel: channel, handler: handler)
+                    print("✅ [NIO-SMTP] Step 4: STARTTLS upgrade successful!")
 
                     // Re-issue EHLO after TLS upgrade
                     try await handler.sendCommand("EHLO \(heloName)", on: channel)
                     let _ = try await handler.readResponse()
+                    print("🔧 [NIO-SMTP] Step 4: Post-TLS EHLO completed")
                 } else {
-                    print("⚠️ Server does not advertise STARTTLS, proceeding without TLS")
+                    print("⚠️ [NIO-SMTP] Server does not advertise STARTTLS, proceeding without TLS")
                 }
+            }
+            #else
+            if config.encryption == .startTLS {
+                print("❌ [NIO-SMTP] STARTTLS requested but NIOSSL not available!")
             }
             #endif
 
             // Step 5: AUTH LOGIN
+            print("🔧 [NIO-SMTP] Step 5: Starting authentication...")
             if let username = config.username, let password = config.password,
                !username.isEmpty, !password.isEmpty {
+                print("🔧 [NIO-SMTP] Step 5: Sending AUTH LOGIN")
                 try await handler.sendCommand("AUTH LOGIN", on: channel)
                 let authResponse = try await handler.readResponse()
+                print("🔧 [NIO-SMTP] Step 5: AUTH response: \(authResponse.code)")
 
                 if authResponse.code == 334 {
                     // Send base64 encoded username
                     let userB64 = Data(username.utf8).base64EncodedString()
                     try await handler.sendCommand(userB64, on: channel)
                     let userResponse = try await handler.readResponse()
+                    print("🔧 [NIO-SMTP] Step 5: Username response: \(userResponse.code)")
 
                     if userResponse.code == 334 {
                         // Send base64 encoded password
                         let passB64 = Data(password.utf8).base64EncodedString()
                         try await handler.sendCommand(passB64, on: channel)
                         let passResponse = try await handler.readResponse()
+                        print("🔧 [NIO-SMTP] Step 5: Password response: \(passResponse.code)")
 
                         guard passResponse.code == 235 else {
+                            print("❌ [NIO-SMTP] Authentication failed: \(passResponse.message)")
                             try? await channel.close()
                             return .failure(.authFailed("Authentication failed: \(passResponse.message)"))
                         }
+                        print("✅ [NIO-SMTP] Step 5: Authentication successful!")
                     } else {
+                        print("❌ [NIO-SMTP] Username rejected: \(userResponse.message)")
                         try? await channel.close()
                         return .failure(.authFailed("Username rejected: \(userResponse.message)"))
                     }
                 } else if authResponse.code != 235 {
+                    print("❌ [NIO-SMTP] AUTH LOGIN not supported: \(authResponse.message)")
                     try? await channel.close()
                     return .failure(.authFailed("AUTH LOGIN not supported: \(authResponse.message)"))
                 }
+            } else {
+                print("🔧 [NIO-SMTP] Step 5: Skipping auth (no credentials)")
             }
 
             // Step 6: MAIL FROM
             let fromAddress = message.from.email
+            print("🔧 [NIO-SMTP] Step 6: MAIL FROM <\(fromAddress)>")
             try await handler.sendCommand("MAIL FROM:<\(fromAddress)>", on: channel)
             let mailFromResponse = try await handler.readResponse()
             guard mailFromResponse.code == 250 else {
+                print("❌ [NIO-SMTP] MAIL FROM rejected: \(mailFromResponse.message)")
                 try? await channel.close()
                 return .failure(.sendFailed("MAIL FROM rejected: \(mailFromResponse.message)"))
             }
 
             // Step 7: RCPT TO (for all recipients)
             let allRecipients = message.to + message.cc + message.bcc
+            print("🔧 [NIO-SMTP] Step 7: RCPT TO for \(allRecipients.count) recipients")
             for recipient in allRecipients {
                 try await handler.sendCommand("RCPT TO:<\(recipient.email)>", on: channel)
                 let rcptResponse = try await handler.readResponse()
                 guard rcptResponse.code == 250 || rcptResponse.code == 251 else {
+                    print("❌ [NIO-SMTP] RCPT TO rejected for \(recipient.email): \(rcptResponse.message)")
                     try? await channel.close()
                     return .failure(.sendFailed("RCPT TO rejected for \(recipient.email): \(rcptResponse.message)"))
                 }
             }
 
             // Step 8: DATA
+            print("🔧 [NIO-SMTP] Step 8: Sending DATA command")
             try await handler.sendCommand("DATA", on: channel)
             let dataResponse = try await handler.readResponse()
             guard dataResponse.code == 354 else {
+                print("❌ [NIO-SMTP] DATA command rejected: \(dataResponse.message)")
                 try? await channel.close()
                 return .failure(.sendFailed("DATA command rejected: \(dataResponse.message)"))
             }
 
             // Step 9: Send message content
+            print("🔧 [NIO-SMTP] Step 9: Sending message content...")
             let messageData = buildMIMEMessage(message)
             try await handler.sendRawData(messageData, on: channel)
 
@@ -215,24 +257,32 @@ public final class NIOSMTPClient: SMTPClientProtocol {
             try await handler.sendCommand("\r\n.", on: channel)
             let endDataResponse = try await handler.readResponse()
             guard endDataResponse.code == 250 else {
+                print("❌ [NIO-SMTP] Message rejected: \(endDataResponse.message)")
                 try? await channel.close()
                 return .failure(.sendFailed("Message rejected: \(endDataResponse.message)"))
             }
+            print("✅ [NIO-SMTP] Step 9: Message accepted by server")
 
             // Step 10: QUIT
+            print("🔧 [NIO-SMTP] Step 10: Sending QUIT")
             try await handler.sendCommand("QUIT", on: channel)
             _ = try? await handler.readResponse()
             try? await channel.close()
 
             // Extract message ID from response if available
             let messageId = extractMessageId(from: endDataResponse.message)
+            print("✅ [NIO-SMTP] Send completed successfully! MessageID: \(messageId ?? "none")")
 
             return .success(messageId)
 
         } catch let error as SMTPError {
+            print("❌ [NIO-SMTP] SMTPError: \(error)")
             try? await channel?.close()
             return .failure(error)
         } catch {
+            print("❌ [NIO-SMTP] General error: \(error)")
+            print("❌ [NIO-SMTP] Error type: \(type(of: error))")
+            print("❌ [NIO-SMTP] Error description: \(error.localizedDescription)")
             try? await channel?.close()
             return .failure(.sendFailed(error.localizedDescription))
         }
@@ -703,12 +753,20 @@ final class SMTPLineHandler: ChannelInboundHandler, ChannelOutboundHandler {
 
 // Fallback if SwiftNIO is not available in this target. Conform to protocol and delegate to SMTPClient.
 public final class NIOSMTPClient: SMTPClientProtocol {
-    public init() {}
+    public init() {
+        print("⚠️ [NIO-SMTP] Using FALLBACK implementation (NIO not available)")
+    }
+
     public func testConnection(_ config: SMTPConfig) async -> Result<Void, SMTPError> {
+        print("⚠️ [NIO-SMTP] testConnection via FALLBACK (delegating to SMTPClient)")
         let smtp = SMTPClient()
         return await smtp.testConnection(config)
     }
+
     public func send(_ message: MailMessage, using config: SMTPConfig) async -> DeliveryResult {
+        print("⚠️ [NIO-SMTP] send via FALLBACK (delegating to SMTPClient)")
+        print("⚠️ [NIO-SMTP] STARTTLS will NOT work in fallback mode!")
+        print("⚠️ [NIO-SMTP] Config: \(config.host):\(config.port) encryption:\(config.encryption)")
         let smtp = SMTPClient()
         return await smtp.send(message, using: config)
     }

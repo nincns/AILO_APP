@@ -359,18 +359,19 @@ public final class MailSendService {
             publish(accountId)
 
             let smtp: any SMTPClientProtocol = smtpFactory?() ?? SMTPClient()
+            print("📤 [SEND] Using SMTP client: \(type(of: smtp))")
+
             guard let cfg = (smtpConfigProvider?(accountId) ?? Self.defaultSMTPConfig(for: accountId)) else {
                 logger.error(.SEND, accountId: accountId, "No SMTP config")
                 try? dao.markFailed(item.id, error: "No SMTP config")
                 publish(accountId)
                 continue
             }
-
-            // If STARTTLS selected, prefer NIO-based client (when available)
-            // TEMPORARY: Always use standard SMTPClient until NIO implementation is ready
+            print("📤 [SEND] Config: \(cfg.host):\(cfg.port) encryption:\(cfg.encryption)")
 
             let start = Date()
             let result = await runSend(item: item, smtp: smtp, config: cfg)
+            print("📤 [SEND] Result: \(result)")
             let duration = Date().timeIntervalSince(start)
             metrics.observe(step: .send, duration: duration, accountId: accountId, host: cfg.host)
 
