@@ -9,11 +9,13 @@ struct ComposeMailView: View {
     // MARK: - Reply/Forward Parameters
     var replyToMail: MessageHeaderEntity? = nil
     var replyAll: Bool = false
+    var isForward: Bool = false      // Forward mode (vs Reply)
     var originalBody: String = ""
     var originalTo: String = ""      // For Reply All
     var originalCC: String = ""      // For Reply All
     var originalIsHTML: Bool = false // Format der Original-Mail
     var preselectedAccountId: UUID? = nil
+    var originalAttachments: [Attachment] = []  // Anhänge aus Original-Mail
 
     // MARK: - Addressing
     @State private var accounts: [MailAccountConfig] = []
@@ -381,7 +383,7 @@ struct ComposeMailView: View {
 
     private func clearAutosave() { UserDefaults.standard.removeObject(forKey: autosaveKey) }
 
-    // MARK: - Reply Prefill
+    // MARK: - Reply/Forward Prefill
     private func prefillForReply(mail: MessageHeaderEntity) {
         // Format der Original-Mail übernehmen
         self.isHTML = originalIsHTML
@@ -391,51 +393,76 @@ struct ComposeMailView: View {
             selectedAccountId = accId
         }
 
-        // Build recipients
-        let myEmail = getMyEmail(for: mail.accountId)
-
-        if replyAll {
-            // Reply All: From -> To, original To + CC (minus my email) -> To + CC
-            var toRecipients = [mail.from]
-            var ccRecipients: [String] = []
-
-            // Parse original To recipients (excluding my email)
-            let originalToList = parseEmailList(originalTo)
-            for addr in originalToList {
-                if !isSameEmail(addr, myEmail) && !isSameEmail(addr, mail.from) {
-                    toRecipients.append(addr)
-                }
-            }
-
-            // Parse original CC recipients (excluding my email)
-            let originalCCList = parseEmailList(originalCC)
-            for addr in originalCCList {
-                if !isSameEmail(addr, myEmail) {
-                    ccRecipients.append(addr)
-                }
-            }
-
-            self.to = toRecipients.joined(separator: ", ")
-            self.cc = ccRecipients.joined(separator: ", ")
-        } else {
-            // Simple Reply: only to original sender
-            self.to = mail.from
+        // Anhänge aus Original-Mail übernehmen (bei Reply und Forward)
+        if !originalAttachments.isEmpty {
+            self.attachments = originalAttachments
         }
 
-        // Subject with Re: prefix
-        let originalSubject = mail.subject
-        if originalSubject.lowercased().hasPrefix("re:") {
-            self.subject = originalSubject
+        // Build recipients - bei Forward leer lassen
+        if isForward {
+            // Forward: Empfänger leer, Benutzer füllt aus
+            self.to = ""
+            self.cc = ""
         } else {
-            self.subject = "Re: \(originalSubject)"
+            let myEmail = getMyEmail(for: mail.accountId)
+
+            if replyAll {
+                // Reply All: From -> To, original To + CC (minus my email) -> To + CC
+                var toRecipients = [mail.from]
+                var ccRecipients: [String] = []
+
+                // Parse original To recipients (excluding my email)
+                let originalToList = parseEmailList(originalTo)
+                for addr in originalToList {
+                    if !isSameEmail(addr, myEmail) && !isSameEmail(addr, mail.from) {
+                        toRecipients.append(addr)
+                    }
+                }
+
+                // Parse original CC recipients (excluding my email)
+                let originalCCList = parseEmailList(originalCC)
+                for addr in originalCCList {
+                    if !isSameEmail(addr, myEmail) {
+                        ccRecipients.append(addr)
+                    }
+                }
+
+                self.to = toRecipients.joined(separator: ", ")
+                self.cc = ccRecipients.joined(separator: ", ")
+            } else {
+                // Simple Reply: only to original sender
+                self.to = mail.from
+            }
+        }
+
+        // Subject with Re: or Fwd: prefix
+        let originalSubject = mail.subject
+        if isForward {
+            // Forward: Fwd: prefix
+            let lowerSubject = originalSubject.lowercased()
+            if lowerSubject.hasPrefix("fwd:") || lowerSubject.hasPrefix("fw:") || lowerSubject.hasPrefix("wg:") {
+                self.subject = originalSubject
+            } else {
+                self.subject = "Fwd: \(originalSubject)"
+            }
+        } else {
+            // Reply: Re: prefix
+            if originalSubject.lowercased().hasPrefix("re:") || originalSubject.lowercased().hasPrefix("aw:") {
+                self.subject = originalSubject
+            } else {
+                self.subject = "Re: \(originalSubject)"
+            }
         }
 
         // Quote original body - formatabhängig
         if !originalBody.isEmpty {
             let dateStr = formatDateForQuote(mail.date)
             if originalIsHTML {
-                // HTML-Quote mit Blockquote-Styling + Platz für Antwort oben
-                let header = dateStr.isEmpty ? "schrieb \(mail.from):" : "Am \(dateStr) schrieb \(mail.from):"
+                // HTML-Quote mit Blockquote-Styling + Platz für Antwort/Weiterleitung oben
+                let action = isForward ? "Weitergeleitete Nachricht" : "schrieb \(mail.from):"
+                let header = isForward
+                    ? "---------- \(action) ----------<br>Von: \(mail.from)<br>Datum: \(dateStr)<br>Betreff: \(originalSubject)"
+                    : (dateStr.isEmpty ? "schrieb \(mail.from):" : "Am \(dateStr) schrieb \(mail.from):")
                 let quote = """
                 <p><br></p>
                 <p>\(header)</p>
@@ -445,9 +472,24 @@ struct ComposeMailView: View {
                 """
                 self.htmlBody = quote
             } else {
-                // Text-Quote mit > Prefix
-                let quote = buildQuote(from: mail.from, date: dateStr, body: originalBody)
-                self.textBody = "\n\n\(quote)"
+                // Text-Quote
+                if isForward {
+                    let forwardHeader = """
+
+
+                    ---------- Weitergeleitete Nachricht ----------
+                    Von: \(mail.from)
+                    Datum: \(dateStr)
+                    Betreff: \(originalSubject)
+
+                    \(originalBody)
+                    """
+                    self.textBody = forwardHeader
+                } else {
+                    // Reply: > Prefix
+                    let quote = buildQuote(from: mail.from, date: dateStr, body: originalBody)
+                    self.textBody = "\n\n\(quote)"
+                }
             }
         }
     }

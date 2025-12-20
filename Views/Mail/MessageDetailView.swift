@@ -30,9 +30,10 @@ struct MessageDetailView: View {
     @State private var hasDetectedAttachments: Bool = false
     @State private var previewURL: URL? = nil
 
-    // Reply state
+    // Reply/Forward state
     @State private var showReplySheet: Bool = false
     @State private var isReplyAll: Bool = false
+    @State private var isForward: Bool = false
     @State private var parsedToField: String = ""
     @State private var parsedCCField: String = ""
 
@@ -185,11 +186,13 @@ struct MessageDetailView: View {
             ComposeMailView(
                 replyToMail: mail,
                 replyAll: isReplyAll,
+                isForward: isForward,
                 originalBody: bodyText,
                 originalTo: parsedToField,
                 originalCC: parsedCCField,
                 originalIsHTML: isHTML,
-                preselectedAccountId: mail.accountId
+                preselectedAccountId: mail.accountId,
+                originalAttachments: extractAttachmentsForCompose()
             )
         }
         .overlay {
@@ -830,6 +833,7 @@ struct MessageDetailView: View {
         print("📧 Reply to mail: \(mail.subject)")
         parseHeadersForReply()
         isReplyAll = false
+        isForward = false
         showReplySheet = true
     }
 
@@ -837,6 +841,7 @@ struct MessageDetailView: View {
         print("📧 Reply All to mail: \(mail.subject)")
         parseHeadersForReply()
         isReplyAll = true
+        isForward = false
         showReplySheet = true
     }
 
@@ -899,8 +904,11 @@ struct MessageDetailView: View {
     }
 
     private func forwardAction() {
-        // TODO: Implement forward functionality
         print("📧 Forward mail: \(mail.subject)")
+        parseHeadersForReply()
+        isReplyAll = false
+        isForward = true
+        showReplySheet = true
     }
     
     private func toggleFlagAction() {
@@ -1369,6 +1377,32 @@ struct MessageDetailView: View {
         }
 
         return decoded
+    }
+
+    /// Extrahiert Anhänge für ComposeMailView (Reply/Forward)
+    private func extractAttachmentsForCompose() -> [ComposeMailView.Attachment] {
+        guard !rawBodyText.isEmpty else {
+            print("📎 [extractAttachmentsForCompose] rawBodyText is empty")
+            return []
+        }
+
+        // Nutze den zentralen AttachmentExtractor
+        let extracted = AttachmentExtractor.extract(from: rawBodyText)
+        print("📎 [extractAttachmentsForCompose] Extracted \(extracted.count) attachments")
+
+        // Konvertiere zu ComposeMailView.Attachment Format
+        var composeAttachments: [ComposeMailView.Attachment] = []
+        for att in extracted {
+            let composeAtt = ComposeMailView.Attachment(
+                data: att.data,
+                mimeType: att.mimeType,
+                filename: att.filename
+            )
+            composeAttachments.append(composeAtt)
+            print("📎 [extractAttachmentsForCompose] Added: \(att.filename) (\(att.data.count) bytes)")
+        }
+
+        return composeAttachments
     }
 
 }
