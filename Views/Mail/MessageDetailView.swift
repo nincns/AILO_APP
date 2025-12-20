@@ -1016,17 +1016,48 @@ struct MessageDetailView: View {
                 // Apple Mail verteilt große Anhänge über mehrere MIME-Parts!
                 var base64Chunks: [String] = []
 
+                // Base64 Charset für Validierung
+                let base64Charset = CharacterSet(
+                    charactersIn: "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/="
+                )
+
                 // 1. Erster Chunk: Alles nach dem Header im aktuellen Part
+                // AUCH hier nur echte Base64-Zeilen sammeln!
                 let afterHeader = String(cleanPart[startRange.upperBound...])
-                base64Chunks.append(afterHeader)
-                print("📎 [extractAttachmentsWithData] Part \(index): First chunk \(afterHeader.count) chars")
+                var firstChunkLines: [String] = []
+                var firstChunkEnded = false
+
+                for line in afterHeader.components(separatedBy: .newlines) {
+                    let trimmed = line.trimmingCharacters(in: .whitespaces)
+                    if trimmed.isEmpty { continue }
+                    if trimmed.lowercased().hasPrefix("content-") { continue }
+                    if trimmed.hasPrefix("--") {
+                        firstChunkEnded = true
+                        break
+                    }
+
+                    // Nur echte Base64-Zeilen
+                    if trimmed.unicodeScalars.allSatisfy({ base64Charset.contains($0) }) {
+                        firstChunkLines.append(trimmed)
+                    } else {
+                        print("📎 [extractAttachmentsWithData] Part \(index): Non-Base64 in first chunk, stopping")
+                        print("   Line: '\(String(trimmed.prefix(50)))...'")
+                        firstChunkEnded = true
+                        break
+                    }
+                }
+
+                if !firstChunkLines.isEmpty {
+                    base64Chunks.append(firstChunkLines.joined(separator: "\n"))
+                }
+                print("📎 [extractAttachmentsWithData] Part \(index): First chunk \(firstChunkLines.count) lines")
 
                 // 2. Nachfolgende Parts sammeln bis zum schließenden Boundary
                 // WICHTIG: Apple Mail verteilt Base64 über mehrere Parts OHNE Header!
-                // Nur bei Boundary-Marker stoppen, NICHT bei fehlendem Content-Type
+                // Aber: Wenn erster Chunk bereits bei Non-Base64 endete, keine weiteren Parts
                 var subsequentIndex = index + 1
 
-                while subsequentIndex < parts.count {
+                while subsequentIndex < parts.count && !firstChunkEnded {
                     var nextPart = parts[subsequentIndex]
 
                     // Führende Newlines entfernen
@@ -1041,20 +1072,43 @@ struct MessageDetailView: View {
                         break
                     }
 
-                    // ❌ ENTFERNT: Content-Type Check war FALSCH!
-                    // Apple Mail verteilt Base64 über mehrere Parts, auch MIT Content-Type Headers
-                    // Wir sammeln ALLES bis zum Boundary, egal welche Header vorkommen
+                    // ✅ FIX: Nur echte Base64-Zeilen sammeln
+                    // HTML enthält <, >, " etc. - diese Zeichen beenden die Sammlung
+                    // base64Charset ist bereits oben definiert
 
-                    // Nur die reinen Base64-Zeilen sammeln (keine Header-Zeilen, keine Boundaries)
                     var linesToAdd: [String] = []
+                    var hitNonBase64 = false
                     let lines = nextPart.components(separatedBy: .newlines)
+
                     for line in lines {
                         let trimmedLine = line.trimmingCharacters(in: .whitespaces)
-                        // Überspringe Header-Zeilen und leere Zeilen
+
+                        // Leere Zeilen überspringen
                         if trimmedLine.isEmpty { continue }
+
+                        // Header-Zeilen überspringen (nicht abbrechen, nur ignorieren)
                         if trimmedLine.lowercased().hasPrefix("content-") { continue }
-                        if trimmedLine.hasPrefix("--") { continue }
-                        linesToAdd.append(line)
+
+                        // Boundary beendet IMMER
+                        if trimmedLine.hasPrefix("--") {
+                            print("📎 [extractAttachmentsWithData] Part \(subsequentIndex): Hit boundary in line, stopping")
+                            hitNonBase64 = true
+                            break
+                        }
+
+                        // ⛔ KRITISCH: Prüfe ob Zeile NUR Base64-Zeichen enthält
+                        let isValidBase64 = trimmedLine.unicodeScalars.allSatisfy { base64Charset.contains($0) }
+
+                        if isValidBase64 {
+                            linesToAdd.append(trimmedLine)
+                        } else {
+                            // Nicht-Base64 Zeichen gefunden (z.B. HTML: <, >, ")
+                            // Das bedeutet: Attachment ist zu Ende!
+                            print("📎 [extractAttachmentsWithData] Part \(subsequentIndex): Non-Base64 chars detected, stopping collection")
+                            print("   Line preview: '\(String(trimmedLine.prefix(50)))...'")
+                            hitNonBase64 = true
+                            break
+                        }
                     }
 
                     if !linesToAdd.isEmpty {
@@ -1062,6 +1116,13 @@ struct MessageDetailView: View {
                         base64Chunks.append(chunkData)
                         print("📎 [extractAttachmentsWithData] Part \(subsequentIndex): Adding \(linesToAdd.count) Base64 lines (\(chunkData.count) chars)")
                     }
+
+                    // Wenn wir Nicht-Base64 gefunden haben, Sammlung komplett beenden
+                    if hitNonBase64 {
+                        print("📎 [extractAttachmentsWithData] Stopping collection after part \(subsequentIndex)")
+                        break
+                    }
+
                     subsequentIndex += 1
                 }
 
