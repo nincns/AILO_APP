@@ -889,9 +889,9 @@ struct MessageDetailView: View {
         // Das ist der zuverlässigste Trennpunkt
         if let boundaryRange = rawBody.range(of: "\n--", options: .literal) {
             mailHeaders = String(rawBody[..<boundaryRange.lowerBound])
-            mimeBody = String(rawBody[boundaryRange.upperBound...].dropFirst()) // Drop the leading "-" to get "--..."
-            // Korrektur: mimeBody soll mit "--" beginnen
-            mimeBody = "--" + mimeBody
+            // ✅ FIX: mimeBody ab "--" starten (nur \n überspringen, NICHT die Dashes!)
+            let bodyStart = rawBody.index(after: boundaryRange.lowerBound) // Skip nur das \n
+            mimeBody = String(rawBody[bodyStart...]) // Startet mit "--Apple-Mail-..."
             print("📎 [extractAttachmentsWithData] Split at first boundary marker")
         } else if let range = rawBody.range(of: "\r\n\r\n") {
             // Fallback: klassische CRLF-Trennung
