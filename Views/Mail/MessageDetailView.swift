@@ -1013,9 +1013,35 @@ struct MessageDetailView: View {
                 }
 
                 // Alles NACH dem Header extrahieren (roh, unverändert)
-                let afterHeader = String(cleanPart[startRange.upperBound...])
+                var afterHeader = String(cleanPart[startRange.upperBound...])
 
-                // KEIN manuelles Abschneiden mehr!
+                // ✅ FIX: Suche nach ALLEN bekannten Boundaries und schneide beim ersten ab
+                // Bei verschachtelten Multipart-Strukturen können verschiedene Boundaries vorkommen
+                for knownBoundary in boundaries {
+                    // Schließender Marker hat Priorität
+                    let closingMarker = "--" + knownBoundary + "--"
+                    if let closingRange = afterHeader.range(of: closingMarker) {
+                        afterHeader = String(afterHeader[..<closingRange.lowerBound])
+                        print("📎 [extractAttachmentsWithData] Cut at closing boundary '\(knownBoundary.prefix(15))...'--")
+                        break
+                    }
+
+                    // Ansonsten beim nächsten Part-Marker
+                    let nextMarker = "--" + knownBoundary + "\r\n"
+                    if let nextRange = afterHeader.range(of: nextMarker) {
+                        afterHeader = String(afterHeader[..<nextRange.lowerBound])
+                        print("📎 [extractAttachmentsWithData] Cut at next part '\(knownBoundary.prefix(15))...'")
+                        break
+                    }
+                    let nextMarkerLF = "--" + knownBoundary + "\n"
+                    if let nextRange = afterHeader.range(of: nextMarkerLF) {
+                        afterHeader = String(afterHeader[..<nextRange.lowerBound])
+                        print("📎 [extractAttachmentsWithData] Cut at next part LF '\(knownBoundary.prefix(15))...'")
+                        break
+                    }
+                }
+
+                // Fallback: Suche nach generischem Boundary-Pattern am Ende
                 // ignoreUnknownCharacters ignoriert alles was kein gültiges Base64 ist
                 // (inkl. Boundary-Marker am Ende)
 
@@ -1039,11 +1065,33 @@ struct MessageDetailView: View {
                     if let pdfStart = String(data: data.prefix(16), encoding: .ascii) {
                         print("📎 [PDF-CHECK] Start: '\(pdfStart)'")
                     }
-                    if let pdfEnd = String(data: data.suffix(32), encoding: .ascii) {
-                        print("📎 [PDF-CHECK] End: '\(pdfEnd)'")
+                    if let pdfEnd = String(data: data.suffix(64), encoding: .ascii) {
+                        print("📎 [PDF-CHECK] End (64 bytes): '\(pdfEnd)'")
                     }
                     let hasEOF = data.suffix(1024).contains("%%EOF".data(using: .ascii)!)
                     print("📎 [PDF-CHECK] Contains %%EOF: \(hasEOF)")
+
+                    // ✅ Kritischer Test: startxref muss < file_size sein
+                    if let startxrefData = "startxref".data(using: .ascii),
+                       let range = data.range(of: startxrefData) {
+                        // Extrahiere die Zahl nach "startxref"
+                        let afterStartxref = data[range.upperBound...]
+                        if let endOfNumber = afterStartxref.firstIndex(where: { byte in
+                            let char = Character(UnicodeScalar(byte))
+                            return !char.isNumber && !char.isWhitespace
+                        }) {
+                            let numberData = afterStartxref[..<endOfNumber]
+                            if let numberStr = String(data: numberData, encoding: .ascii)?.trimmingCharacters(in: .whitespacesAndNewlines),
+                               let startxrefValue = Int(numberStr) {
+                                let fileSize = data.count
+                                let isValid = startxrefValue < fileSize
+                                print("📎 [PDF-CHECK] startxref=\(startxrefValue), file_size=\(fileSize), valid=\(isValid)")
+                                if !isValid {
+                                    print("⚠️ [PDF-CHECK] PDF TRUNCATED! startxref points beyond EOF by \(startxrefValue - fileSize) bytes")
+                                }
+                            }
+                        }
+                    }
 
                     results.append((foundFilename, data))
                     processedFilenames.insert(foundFilename.lowercased())
