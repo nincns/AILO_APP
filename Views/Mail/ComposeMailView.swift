@@ -51,79 +51,169 @@ struct ComposeMailView: View {
 
     var body: some View {
         NavigationStack {
-            Form {
-                // From
-                Section(String(localized: "app.mail.compose.from")) {
-                    Picker(String(localized: "app.mail.compose.from"), selection: $selectedAccountId) {
-                        ForEach(activeAccounts(), id: \.id) { acc in
-                            Text(acc.accountName).tag(acc.id as UUID?)
-                        }
-                    }
-                }
-
-                // Recipients
-                Section(String(localized: "app.mail.compose.to")) {
-                    TextField(String(localized: "app.mail.compose.to_placeholder"), text: $to)
-                        .textInputAutocapitalization(.never)
-                        .autocorrectionDisabled(true)
-                        .keyboardType(.emailAddress)
-                    TextField(String(localized: "app.mail.compose.cc"), text: $cc)
-                        .textInputAutocapitalization(.never)
-                        .autocorrectionDisabled(true)
-                        .keyboardType(.emailAddress)
-                    TextField(String(localized: "app.mail.compose.bcc"), text: $bcc)
-                        .textInputAutocapitalization(.never)
-                        .autocorrectionDisabled(true)
-                        .keyboardType(.emailAddress)
-                }
-
-                // Subject
-                Section(String(localized: "app.mail.compose.subject")) {
-                    TextField(String(localized: "app.mail.compose.subject_placeholder"), text: $subject)
-                        .textInputAutocapitalization(.sentences)
-                }
-
-                // Body
-                Section(String(localized: "app.mail.compose.body")) {
-                    Toggle(String(localized: "app.mail.compose.html"), isOn: $isHTML)
-                    if isHTML {
-                        TextEditor(text: $htmlBody)
-                            .frame(minHeight: 200)
-                            .font(.body)
-                    } else {
-                        TextEditor(text: $textBody)
-                            .frame(minHeight: 200)
-                            .font(.body)
-                    }
-                }
-
-                // Attachments
-                Section(String(localized: "app.mail.compose.attachments")) {
-                    if attachments.isEmpty {
-                        Text(String(localized: "app.mail.compose.no_attachments"))
+            VStack(spacing: 0) {
+                // Compact header section
+                VStack(spacing: 0) {
+                    // From row
+                    HStack {
+                        Text("Von")
+                            .font(.subheadline)
                             .foregroundStyle(.secondary)
-                    } else {
-                        ForEach(attachments) { att in
-                            HStack {
-                                Image(systemName: "paperclip")
-                                Text(att.filename).lineLimit(1)
-                                Spacer()
-                                Button(role: .destructive) {
-                                    attachments.removeAll { $0.id == att.id }
-                                } label: { Image(systemName: "trash") }
+                            .frame(width: 50, alignment: .leading)
+                        Picker("", selection: $selectedAccountId) {
+                            ForEach(activeAccounts(), id: \.id) { acc in
+                                Text(acc.accountName).tag(acc.id as UUID?)
                             }
                         }
+                        .labelsHidden()
                     }
+                    .padding(.horizontal)
+                    .padding(.vertical, 8)
+
+                    Divider().padding(.leading, 50)
+
+                    // To row
                     HStack {
+                        Text("An")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                            .frame(width: 50, alignment: .leading)
+                        TextField("Empfänger", text: $to)
+                            .textInputAutocapitalization(.never)
+                            .autocorrectionDisabled(true)
+                            .keyboardType(.emailAddress)
+                            .font(.subheadline)
+                    }
+                    .padding(.horizontal)
+                    .padding(.vertical, 8)
+
+                    Divider().padding(.leading, 50)
+
+                    // CC row
+                    HStack {
+                        Text("CC")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                            .frame(width: 50, alignment: .leading)
+                        TextField("CC", text: $cc)
+                            .textInputAutocapitalization(.never)
+                            .autocorrectionDisabled(true)
+                            .keyboardType(.emailAddress)
+                            .font(.subheadline)
+                    }
+                    .padding(.horizontal)
+                    .padding(.vertical, 8)
+
+                    Divider().padding(.leading, 50)
+
+                    // BCC row (collapsible - only show if has content or tapped)
+                    if !bcc.isEmpty {
+                        HStack {
+                            Text("BCC")
+                                .font(.subheadline)
+                                .foregroundStyle(.secondary)
+                                .frame(width: 50, alignment: .leading)
+                            TextField("BCC", text: $bcc)
+                                .textInputAutocapitalization(.never)
+                                .autocorrectionDisabled(true)
+                                .keyboardType(.emailAddress)
+                                .font(.subheadline)
+                        }
+                        .padding(.horizontal)
+                        .padding(.vertical, 8)
+
+                        Divider().padding(.leading, 50)
+                    }
+
+                    // Subject row
+                    HStack {
+                        Text("Betreff")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                            .frame(width: 50, alignment: .leading)
+                        TextField("Betreff", text: $subject)
+                            .textInputAutocapitalization(.sentences)
+                            .font(.subheadline)
+                    }
+                    .padding(.horizontal)
+                    .padding(.vertical, 8)
+                }
+                .background(Color(UIColor.secondarySystemBackground))
+
+                Divider()
+
+                // Body section
+                VStack(alignment: .leading, spacing: 4) {
+                    HStack {
+                        Text("HTML")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                        Toggle("", isOn: $isHTML)
+                            .labelsHidden()
+                            .scaleEffect(0.8)
+                    }
+                    .padding(.horizontal)
+                    .padding(.top, 8)
+
+                    if isHTML {
+                        TextEditor(text: $htmlBody)
+                            .font(.body)
+                            .padding(.horizontal, 12)
+                    } else {
+                        TextEditor(text: $textBody)
+                            .font(.body)
+                            .padding(.horizontal, 12)
+                    }
+                }
+                .frame(maxHeight: .infinity)
+
+                // Attachments bar (compact)
+                if !attachments.isEmpty || true {
+                    Divider()
+                    HStack(spacing: 12) {
                         PhotosPicker(selection: $photoItems, matching: .any(of: [.images, .videos])) {
-                            Label(String(localized: "app.mail.compose.add_photo"), systemImage: "photo")
+                            Image(systemName: "photo")
+                                .font(.title3)
                         }
                         Button {
                             showFileImporter = true
                         } label: {
-                            Label(String(localized: "app.mail.compose.add_file"), systemImage: "doc")
+                            Image(systemName: "paperclip")
+                                .font(.title3)
                         }
+
+                        if !attachments.isEmpty {
+                            Divider()
+                                .frame(height: 20)
+                            ScrollView(.horizontal, showsIndicators: false) {
+                                HStack(spacing: 8) {
+                                    ForEach(attachments) { att in
+                                        HStack(spacing: 4) {
+                                            Text(att.filename)
+                                                .font(.caption)
+                                                .lineLimit(1)
+                                            Button {
+                                                attachments.removeAll { $0.id == att.id }
+                                            } label: {
+                                                Image(systemName: "xmark.circle.fill")
+                                                    .font(.caption)
+                                                    .foregroundStyle(.secondary)
+                                            }
+                                        }
+                                        .padding(.horizontal, 8)
+                                        .padding(.vertical, 4)
+                                        .background(Color(UIColor.tertiarySystemBackground))
+                                        .clipShape(Capsule())
+                                    }
+                                }
+                            }
+                        }
+
+                        Spacer()
                     }
+                    .padding(.horizontal)
+                    .padding(.vertical, 8)
+                    .background(Color(UIColor.secondarySystemBackground))
                 }
             }
             .navigationTitle(String(localized: "app.mail.compose.title"))
