@@ -596,6 +596,28 @@ class RichTextEditorController: ObservableObject {
     func outdent() { executeCommand("outdent") }
     func insertLink(_ url: String) { executeCommand("createLink", argument: url) }
     func removeFormat() { executeCommand("removeFormat") }
+    func setFontName(_ fontName: String) { executeCommand("fontName", argument: fontName) }
+    func setFontSize(_ size: Int) { executeCommand("fontSize", argument: String(size)) }
+
+    // Available fonts
+    static let availableFonts: [(name: String, value: String)] = [
+        ("System", "-apple-system"),
+        ("Arial", "Arial"),
+        ("Helvetica", "Helvetica"),
+        ("Times", "Times New Roman"),
+        ("Georgia", "Georgia"),
+        ("Courier", "Courier New"),
+        ("Verdana", "Verdana")
+    ]
+
+    // Font sizes (1-7 scale for execCommand, with display labels)
+    static let availableSizes: [(label: String, value: Int)] = [
+        ("Klein", 1),
+        ("Normal", 3),
+        ("Mittel", 4),
+        ("Groß", 5),
+        ("Sehr groß", 6)
+    ]
 }
 
 // MARK: - Formatting Toolbar
@@ -603,10 +625,62 @@ private struct FormattingToolbar: View {
     @ObservedObject var controller: RichTextEditorController
     @State private var showLinkDialog = false
     @State private var linkURL = ""
+    @State private var selectedFont = "System"
+    @State private var selectedSize = "Normal"
 
     var body: some View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 2) {
+                // Font picker
+                Menu {
+                    ForEach(RichTextEditorController.availableFonts, id: \.value) { font in
+                        Button(font.name) {
+                            selectedFont = font.name
+                            controller.setFontName(font.value)
+                        }
+                    }
+                } label: {
+                    HStack(spacing: 2) {
+                        Text(selectedFont)
+                            .font(.caption)
+                            .lineLimit(1)
+                        Image(systemName: "chevron.down")
+                            .font(.system(size: 8))
+                    }
+                    .frame(minWidth: 60)
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 4)
+                    .background(Color(UIColor.systemBackground))
+                    .cornerRadius(4)
+                }
+                .foregroundStyle(.primary)
+
+                // Size picker
+                Menu {
+                    ForEach(RichTextEditorController.availableSizes, id: \.value) { size in
+                        Button(size.label) {
+                            selectedSize = size.label
+                            controller.setFontSize(size.value)
+                        }
+                    }
+                } label: {
+                    HStack(spacing: 2) {
+                        Text(selectedSize)
+                            .font(.caption)
+                            .lineLimit(1)
+                        Image(systemName: "chevron.down")
+                            .font(.system(size: 8))
+                    }
+                    .frame(minWidth: 50)
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 4)
+                    .background(Color(UIColor.systemBackground))
+                    .cornerRadius(4)
+                }
+                .foregroundStyle(.primary)
+
+                Divider().frame(height: 20).padding(.horizontal, 4)
+
                 FormatButton(icon: "bold", action: controller.bold)
                 FormatButton(icon: "italic", action: controller.italic)
                 FormatButton(icon: "underline", action: controller.underline)
