@@ -1022,32 +1022,59 @@ struct MessageDetailView: View {
                 print("📎 [extractAttachmentsWithData] Part \(index): First chunk \(afterHeader.count) chars")
 
                 // 2. Nachfolgende Parts sammeln bis zum schließenden Boundary
-                let closingMarker = "--" + boundary + "--"
+                // WICHTIG: Apple Mail verteilt Base64 über mehrere Parts OHNE Header!
+                // Nur bei Boundary-Marker stoppen, NICHT bei fehlendem Content-Type
                 var subsequentIndex = index + 1
 
                 while subsequentIndex < parts.count {
-                    let nextPart = parts[subsequentIndex]
+                    var nextPart = parts[subsequentIndex]
 
-                    // Prüfe ob das der schließende Part ist
+                    // Führende Newlines entfernen
+                    while nextPart.hasPrefix("\r\n") { nextPart = String(nextPart.dropFirst(2)) }
+                    while nextPart.hasPrefix("\n") { nextPart = String(nextPart.dropFirst(1)) }
+                    while nextPart.hasPrefix("\r") { nextPart = String(nextPart.dropFirst(1)) }
+
+                    // ✅ EINZIGES Abbruchkriterium: Boundary-Marker
+                    // "--" am Anfang bedeutet: schließendes Boundary (--boundary--)
                     if nextPart.hasPrefix("--") {
                         print("📎 [extractAttachmentsWithData] Reached closing boundary at part \(subsequentIndex)")
                         break
                     }
 
-                    // Prüfe ob es ein neuer Content-Type Header ist (neuer Anhang/Part)
-                    let nextPartLower = nextPart.lowercased()
-                    if nextPartLower.contains("content-type:") || nextPartLower.contains("content-type: ") {
-                        // Könnte ein weiterer Inline-Teil sein, oder Fortsetzung
-                        // Nur stoppen wenn es KEIN Base64 mehr ist
-                        if !nextPartLower.contains("base64") {
-                            print("📎 [extractAttachmentsWithData] Part \(subsequentIndex): New non-base64 content, stopping")
-                            break
-                        }
+                    // ✅ Prüfe ob dieser Part ein ANDERER Anhang/Content ist (hat eigene Header)
+                    // Wenn der Part neue MIME-Header hat, die KEIN Base64 sind, stoppen
+                    let trimmedPart = nextPart.trimmingCharacters(in: .whitespacesAndNewlines)
+                    let lowerTrimmed = trimmedPart.lowercased()
+
+                    // Nur stoppen wenn: Hat Content-Type UND ist definitiv kein Base64-Fortsetzung
+                    let hasContentType = lowerTrimmed.hasPrefix("content-type:")
+                    let hasBase64Header = lowerTrimmed.contains("content-transfer-encoding: base64") ||
+                                          lowerTrimmed.contains("content-transfer-encoding:base64")
+
+                    if hasContentType && !hasBase64Header {
+                        // Neuer MIME-Part mit anderem Inhalt (z.B. text/html)
+                        print("📎 [extractAttachmentsWithData] Part \(subsequentIndex): New MIME part with different content-type, stopping")
+                        break
                     }
 
-                    // Dieser Part ist Fortsetzung der Base64-Daten
-                    base64Chunks.append(nextPart)
-                    print("📎 [extractAttachmentsWithData] Part \(subsequentIndex): Adding chunk \(nextPart.count) chars")
+                    // Dieser Part ist Fortsetzung der Base64-Daten (oder hat Base64 Header)
+                    // Nur die reinen Base64-Zeilen sammeln (keine Header-Zeilen)
+                    var linesToAdd: [String] = []
+                    let lines = nextPart.components(separatedBy: .newlines)
+                    for line in lines {
+                        let trimmedLine = line.trimmingCharacters(in: .whitespaces)
+                        // Überspringe Header-Zeilen und leere Zeilen
+                        if trimmedLine.isEmpty { continue }
+                        if trimmedLine.lowercased().hasPrefix("content-") { continue }
+                        if trimmedLine.hasPrefix("--") { continue }
+                        linesToAdd.append(line)
+                    }
+
+                    if !linesToAdd.isEmpty {
+                        let chunkData = linesToAdd.joined(separator: "\n")
+                        base64Chunks.append(chunkData)
+                        print("📎 [extractAttachmentsWithData] Part \(subsequentIndex): Adding \(linesToAdd.count) Base64 lines (\(chunkData.count) chars)")
+                    }
                     subsequentIndex += 1
                 }
 
