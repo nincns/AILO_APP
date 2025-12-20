@@ -128,30 +128,7 @@ private enum StartupWarmups {
             print("✅ DEBUG: DAO Factory initialized successfully with fresh DB!")
 
             // ✅ MailSendService initialisieren
-            MailSendService.shared.dao = OutboxDAOAdapter(daoFactory.outboxDAO)
-            MailSendService.shared.smtpFactory = { SMTPClient() }
-            MailSendService.shared.smtpConfigProvider = { accountId in
-                guard let data = UserDefaults.standard.data(forKey: "mail.accounts"),
-                      let accounts = try? JSONDecoder().decode([MailAccountConfig].self, from: data),
-                      let acc = accounts.first(where: { $0.id == accountId }) else {
-                    return nil
-                }
-                let encryption: SMTPTLSEncryption = {
-                    switch acc.smtpEncryption {
-                    case .none: return .plain
-                    case .sslTLS: return .sslTLS
-                    case .startTLS: return .startTLS
-                    }
-                }()
-                return SMTPConfig(
-                    host: acc.smtpHost,
-                    port: acc.smtpPort,
-                    encryption: encryption,
-                    heloName: nil,
-                    username: acc.smtpUsername.isEmpty ? acc.recvUsername : acc.smtpUsername,
-                    password: acc.smtpPassword.isEmpty ? acc.recvPassword : acc.smtpPassword
-                )
-            }
+            initializeMailSendService(daoFactory: daoFactory)
             print("✅ MailSendService initialized with OutboxDAO and SMTP config")
 
             // 🚀 NEU: Starte initiale Mail-Synchronisation im Hintergrund
@@ -217,5 +194,36 @@ private enum StartupWarmups {
         }
         
         print("🎉 Initial mail sync startup completed for all accounts!")
+    }
+
+    /// Initialisiert den MailSendService mit DAO und SMTP-Konfiguration
+    private static func initializeMailSendService(daoFactory: DAOFactory) {
+        MailSendService.shared.dao = OutboxDAOAdapter(daoFactory.outboxDAO)
+        MailSendService.shared.smtpFactory = { SMTPClient() }
+        MailSendService.shared.smtpConfigProvider = { accountId in
+            guard let data = UserDefaults.standard.data(forKey: "mail.accounts"),
+                  let accounts = try? JSONDecoder().decode([MailAccountConfig].self, from: data),
+                  let acc = accounts.first(where: { $0.id == accountId }) else {
+                return nil
+            }
+            let encryption: SMTPTLSEncryption = {
+                switch acc.smtpEncryption {
+                case .none: return .plain
+                case .sslTLS: return .sslTLS
+                case .startTLS: return .startTLS
+                }
+            }()
+            // Handle optional smtpPassword
+            let username = acc.smtpUsername.isEmpty ? acc.recvUsername : acc.smtpUsername
+            let password = (acc.smtpPassword ?? "").isEmpty ? acc.recvPassword : (acc.smtpPassword ?? "")
+            return SMTPConfig(
+                host: acc.smtpHost,
+                port: acc.smtpPort,
+                encryption: encryption,
+                heloName: nil,
+                username: username,
+                password: password
+            )
+        }
     }
 }
