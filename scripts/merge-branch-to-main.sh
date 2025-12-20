@@ -35,7 +35,13 @@ git fetch origin
 # Zu main wechseln
 echo "🔀 Switching to main..."
 git checkout main
-git pull origin main
+
+# Pull mit merge-Strategie (nicht rebase) um divergierende Branches zu handhaben
+echo "⬇️  Pulling latest main..."
+git pull origin main --no-rebase || {
+    echo "⚠️  Pull failed, trying reset to origin/main..."
+    git reset --hard origin/main
+}
 
 # Branch mergen
 echo "🔀 Merging $BRANCH..."
