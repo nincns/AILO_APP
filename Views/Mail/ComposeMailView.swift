@@ -28,7 +28,7 @@ struct ComposeMailView: View {
     @State private var subject: String = ""
 
     // MARK: - Body
-    @State private var isHTML: Bool = false
+    @State private var isHTML: Bool = true  // HTML als Standard für neue Mails
     @State private var textBody: String = ""
     @State private var htmlBody: String = ""
 
@@ -375,7 +375,7 @@ struct ComposeMailView: View {
         self.subject = dict["subject"] as? String ?? ""
         self.textBody = dict["text"] as? String ?? ""
         self.htmlBody = dict["html"] as? String ?? ""
-        self.isHTML = dict["isHTML"] as? Bool ?? false
+        self.isHTML = dict["isHTML"] as? Bool ?? true  // Standard: HTML
         if let idStr = dict["accountId"] as? String, let id = UUID(uuidString: idStr) {
             self.selectedAccountId = id
         }
