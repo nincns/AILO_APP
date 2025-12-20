@@ -54,7 +54,7 @@ struct ComposeMailView: View {
             VStack(spacing: 0) {
                 // Compact header section
                 VStack(spacing: 0) {
-                    // From row
+                    // From row with HTML toggle
                     HStack {
                         Text("Von")
                             .font(.subheadline)
@@ -66,6 +66,18 @@ struct ComposeMailView: View {
                             }
                         }
                         .labelsHidden()
+
+                        Spacer()
+
+                        // HTML Toggle
+                        HStack(spacing: 4) {
+                            Text("HTML")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                            Toggle("", isOn: $isHTML)
+                                .labelsHidden()
+                                .scaleEffect(0.7)
+                        }
                     }
                     .padding(.horizontal)
                     .padding(.vertical, 8)
@@ -143,28 +155,17 @@ struct ComposeMailView: View {
                 Divider()
 
                 // Body section
-                VStack(alignment: .leading, spacing: 4) {
-                    HStack {
-                        Text("HTML")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                        Toggle("", isOn: $isHTML)
-                            .labelsHidden()
-                            .scaleEffect(0.8)
-                    }
-                    .padding(.horizontal)
-                    .padding(.top, 8)
-
+                Group {
                     if isHTML {
                         TextEditor(text: $htmlBody)
                             .font(.body)
-                            .padding(.horizontal, 12)
                     } else {
                         TextEditor(text: $textBody)
                             .font(.body)
-                            .padding(.horizontal, 12)
                     }
                 }
+                .padding(.horizontal, 12)
+                .padding(.top, 8)
                 .frame(maxHeight: .infinity)
 
                 // Attachments bar (compact)
