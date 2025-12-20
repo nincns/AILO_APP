@@ -1035,30 +1035,17 @@ struct MessageDetailView: View {
                     while nextPart.hasPrefix("\r") { nextPart = String(nextPart.dropFirst(1)) }
 
                     // ✅ EINZIGES Abbruchkriterium: Boundary-Marker
-                    // "--" am Anfang bedeutet: schließendes Boundary (--boundary--)
+                    // "--" am Anfang bedeutet: nächster MIME-Part oder schließendes Boundary
                     if nextPart.hasPrefix("--") {
-                        print("📎 [extractAttachmentsWithData] Reached closing boundary at part \(subsequentIndex)")
+                        print("📎 [extractAttachmentsWithData] Reached boundary at part \(subsequentIndex)")
                         break
                     }
 
-                    // ✅ Prüfe ob dieser Part ein ANDERER Anhang/Content ist (hat eigene Header)
-                    // Wenn der Part neue MIME-Header hat, die KEIN Base64 sind, stoppen
-                    let trimmedPart = nextPart.trimmingCharacters(in: .whitespacesAndNewlines)
-                    let lowerTrimmed = trimmedPart.lowercased()
+                    // ❌ ENTFERNT: Content-Type Check war FALSCH!
+                    // Apple Mail verteilt Base64 über mehrere Parts, auch MIT Content-Type Headers
+                    // Wir sammeln ALLES bis zum Boundary, egal welche Header vorkommen
 
-                    // Nur stoppen wenn: Hat Content-Type UND ist definitiv kein Base64-Fortsetzung
-                    let hasContentType = lowerTrimmed.hasPrefix("content-type:")
-                    let hasBase64Header = lowerTrimmed.contains("content-transfer-encoding: base64") ||
-                                          lowerTrimmed.contains("content-transfer-encoding:base64")
-
-                    if hasContentType && !hasBase64Header {
-                        // Neuer MIME-Part mit anderem Inhalt (z.B. text/html)
-                        print("📎 [extractAttachmentsWithData] Part \(subsequentIndex): New MIME part with different content-type, stopping")
-                        break
-                    }
-
-                    // Dieser Part ist Fortsetzung der Base64-Daten (oder hat Base64 Header)
-                    // Nur die reinen Base64-Zeilen sammeln (keine Header-Zeilen)
+                    // Nur die reinen Base64-Zeilen sammeln (keine Header-Zeilen, keine Boundaries)
                     var linesToAdd: [String] = []
                     let lines = nextPart.components(separatedBy: .newlines)
                     for line in lines {
