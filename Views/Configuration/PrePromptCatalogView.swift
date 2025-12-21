@@ -144,7 +144,8 @@ struct PrePromptCatalogView: View {
             HStack(spacing: 12) {
                 Text(item.icon)
                     .font(.title2)
-                    .frame(width: 28)
+                    .frame(width: 44, alignment: .leading)
+                    .lineLimit(1)
 
                 Text(item.name)
                     .foregroundStyle(.primary)
@@ -194,7 +195,8 @@ struct PrePromptCatalogView: View {
             HStack(spacing: 12) {
                 Text(item.icon)
                     .font(.title2)
-                    .frame(width: 28)
+                    .frame(width: 44, alignment: .leading)
+                    .lineLimit(1)
 
                 VStack(alignment: .leading, spacing: 2) {
                     Text(item.name)
