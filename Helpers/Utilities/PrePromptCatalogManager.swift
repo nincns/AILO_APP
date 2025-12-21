@@ -1,5 +1,6 @@
 import Foundation
 import Combine
+import SwiftUI
 
 /// Manager for hierarchical Pre-Prompt catalog
 /// Handles both menu structure (PrePromptMenuItem) and content (AIPrePromptPreset)
