@@ -435,14 +435,8 @@ private struct PresetEditorSheet: View {
 
                 // Schlagwörter/Metadaten
                 Section(header: Text("preprompts.field.keywords")) {
-                    TextField(String(localized: "preprompts.field.keywords.placeholder"), text: $keywords)
-                        .font(.subheadline)
-
-                    if !keywords.isEmpty {
-                        Text("preprompts.field.keywords.hint")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
+                    KeywordBubbleInput(keywords: $keywords)
+                        .padding(.vertical, 4)
                 }
 
                 // Prompt-Inhalt
@@ -492,5 +486,160 @@ private struct PresetEditorSheet: View {
                 }
             }
         }
+    }
+}
+
+// MARK: - Keyword Bubble Input
+
+private struct KeywordBubbleInput: View {
+    @Binding var keywords: String
+
+    @State private var inputText = ""
+    @State private var tags: [String] = []
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            // Bubbles in FlowLayout
+            FlowLayout(spacing: 6) {
+                ForEach(Array(tags.enumerated()), id: \.offset) { index, tag in
+                    KeywordBubble(text: tag) {
+                        removeTag(at: index)
+                    }
+                }
+
+                // Eingabefeld
+                TextField(tags.isEmpty ? String(localized: "preprompts.field.keywords.placeholder") : "", text: $inputText)
+                    .font(.subheadline)
+                    .frame(minWidth: 100)
+                    .onChange(of: inputText) { _, newValue in
+                        checkForSemicolon(newValue)
+                    }
+                    .onSubmit {
+                        addCurrentTag()
+                    }
+            }
+        }
+        .onAppear {
+            parseTags()
+        }
+    }
+
+    private func parseTags() {
+        tags = keywords.split(separator: ";")
+            .map { $0.trimmingCharacters(in: .whitespaces) }
+            .filter { !$0.isEmpty }
+    }
+
+    private func checkForSemicolon(_ text: String) {
+        if text.contains(";") {
+            let parts = text.split(separator: ";", omittingEmptySubsequences: false)
+            for part in parts.dropLast() {
+                let trimmed = part.trimmingCharacters(in: .whitespaces)
+                if !trimmed.isEmpty {
+                    tags.append(trimmed)
+                }
+            }
+            inputText = String(parts.last ?? "").trimmingCharacters(in: .whitespaces)
+            updateKeywords()
+        }
+    }
+
+    private func addCurrentTag() {
+        let trimmed = inputText.trimmingCharacters(in: .whitespaces)
+        if !trimmed.isEmpty {
+            tags.append(trimmed)
+            inputText = ""
+            updateKeywords()
+        }
+    }
+
+    private func removeTag(at index: Int) {
+        guard index < tags.count else { return }
+        tags.remove(at: index)
+        updateKeywords()
+    }
+
+    private func updateKeywords() {
+        keywords = tags.joined(separator: "; ")
+    }
+}
+
+// MARK: - Keyword Bubble
+
+private struct KeywordBubble: View {
+    let text: String
+    let onDelete: () -> Void
+
+    var body: some View {
+        HStack(spacing: 4) {
+            Text(text)
+                .font(.subheadline)
+                .lineLimit(1)
+
+            Button(action: onDelete) {
+                Image(systemName: "xmark.circle.fill")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            .buttonStyle(.plain)
+        }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 6)
+        .background(Color.blue.opacity(0.15))
+        .foregroundStyle(.primary)
+        .clipShape(Capsule())
+    }
+}
+
+// MARK: - Flow Layout
+
+private struct FlowLayout: Layout {
+    var spacing: CGFloat = 8
+
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        let result = arrangeSubviews(proposal: proposal, subviews: subviews)
+        return result.size
+    }
+
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        let result = arrangeSubviews(proposal: proposal, subviews: subviews)
+
+        for (index, frame) in result.frames.enumerated() {
+            subviews[index].place(
+                at: CGPoint(x: bounds.minX + frame.minX, y: bounds.minY + frame.minY),
+                proposal: ProposedViewSize(frame.size)
+            )
+        }
+    }
+
+    private func arrangeSubviews(proposal: ProposedViewSize, subviews: Subviews) -> (size: CGSize, frames: [CGRect]) {
+        let maxWidth = proposal.width ?? .infinity
+        var frames: [CGRect] = []
+        var currentX: CGFloat = 0
+        var currentY: CGFloat = 0
+        var lineHeight: CGFloat = 0
+        var totalHeight: CGFloat = 0
+        var totalWidth: CGFloat = 0
+
+        for subview in subviews {
+            let size = subview.sizeThatFits(.unspecified)
+
+            if currentX + size.width > maxWidth && currentX > 0 {
+                // Neue Zeile
+                currentX = 0
+                currentY += lineHeight + spacing
+                lineHeight = 0
+            }
+
+            frames.append(CGRect(x: currentX, y: currentY, width: size.width, height: size.height))
+
+            lineHeight = max(lineHeight, size.height)
+            currentX += size.width + spacing
+            totalWidth = max(totalWidth, currentX - spacing)
+        }
+
+        totalHeight = currentY + lineHeight
+
+        return (CGSize(width: totalWidth, height: totalHeight), frames)
     }
 }
