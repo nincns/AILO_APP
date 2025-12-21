@@ -633,3 +633,5 @@
 "cookbook.list.empty" = "Keine Kochbücher";
 "cookbook.default" = "Mein Kochbuch";
 "cookbook.migrated" = "Importierte Rezepte";
+
+"keywords.placeholder" = "Schlagwörter: mit Semikolon getrennt";

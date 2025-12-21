@@ -594,7 +594,7 @@ struct KeywordBubbleInput: View {
                 }
 
                 // Eingabefeld
-                TextField(tags.isEmpty ? String(localized: "preprompts.field.keywords.placeholder") : "", text: $inputText)
+                TextField(tags.isEmpty ? String(localized: "keywords.placeholder") : "", text: $inputText)
                     .font(.subheadline)
                     .frame(minWidth: 100)
                     .onChange(of: inputText) { _, newValue in
@@ -604,6 +604,9 @@ struct KeywordBubbleInput: View {
                         addCurrentTag()
                     }
             }
+            .padding(10)
+            .background(Color(.systemBackground))
+            .clipShape(RoundedRectangle(cornerRadius: 8))
         }
         .onAppear {
             parseTags()
