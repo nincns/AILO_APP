@@ -7,9 +7,6 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		C9NIO00062EF80000007634FC /* NIOCore in Frameworks */ = {isa = PBXBuildFile; productRef = C9NIO00032EF80000007634FC /* NIOCore */; };
-		C9NIO00072EF80000007634FC /* NIOPosix in Frameworks */ = {isa = PBXBuildFile; productRef = C9NIO00042EF80000007634FC /* NIOPosix */; };
-		C9NIO00082EF80000007634FC /* NIOSSL in Frameworks */ = {isa = PBXBuildFile; productRef = C9NIO00052EF80000007634FC /* NIOSSL */; };
 		C93D2CB12EB16CFD00AA4072 /* MailViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = C93D2CB02EB16CFC00AA4072 /* MailViewModel.swift */; };
 		C93D2CB32EB16D7700AA4072 /* MailViewComponents.swift in Sources */ = {isa = PBXBuildFile; fileRef = C93D2CB22EB16D7700AA4072 /* MailViewComponents.swift */; };
 		C93D2CB52EB16DC300AA4072 /* MailViewSheets.swift in Sources */ = {isa = PBXBuildFile; fileRef = C93D2CB42EB16DC300AA4072 /* MailViewSheets.swift */; };
@@ -44,6 +41,10 @@
 		C9AE83AB2EB3FFA000BD2C4E /* MailProcessor.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9AE83AA2EB3FFA000BD2C4E /* MailProcessor.swift */; };
 		C9B79FEB2EF6E46000D0D81D /* AttachmentExtractor.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9B79FEA2EF6E46000D0D81D /* AttachmentExtractor.swift */; };
 		C9B7A0352EF7531300D0D81D /* OutboxDAOAdapter.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9B7A0342EF7531300D0D81D /* OutboxDAOAdapter.swift */; };
+		C9B7A0852EF7EBC000D0D81D /* PrePromptMenuItem.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9B7A0842EF7EBC000D0D81D /* PrePromptMenuItem.swift */; };
+		C9B7A0882EF7EBDF00D0D81D /* PrePromptCatalogManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9B7A0862EF7EBDF00D0D81D /* PrePromptCatalogManager.swift */; };
+		C9B7A0892EF7EBDF00D0D81D /* PrePromptPicker.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9B7A0872EF7EBDF00D0D81D /* PrePromptPicker.swift */; };
+		C9B7A08B2EF7EBF100D0D81D /* PrePromptCatalogView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9B7A08A2EF7EBF100D0D81D /* PrePromptCatalogView.swift */; };
 		C9C33C352EB2C0E4006390C7 /* ContentAnalyzer.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9C33C342EB2C0E4006390C7 /* ContentAnalyzer.swift */; };
 		C9C33C372EB2C341006390C7 /* TransferEncodingDecoder.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9C33C362EB2C341006390C7 /* TransferEncodingDecoder.swift */; };
 		C9C33C392EB2C35A006390C7 /* HeaderCharsetDetector.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9C33C382EB2C35A006390C7 /* HeaderCharsetDetector.swift */; };
@@ -112,6 +113,9 @@
 		C9FB88402EB2AC76002359BA /* EnhancedMessageDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9FB883F2EB2AC76002359BA /* EnhancedMessageDetailView.swift */; };
 		C9FB88422EB2ACA6002359BA /* AttachmentDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9FB88412EB2ACA6002359BA /* AttachmentDetailView.swift */; };
 		C9FB88442EB2ACDD002359BA /* MailContentRenderer.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9FB88432EB2ACDD002359BA /* MailContentRenderer.swift */; };
+		C9NIO00062EF80000007634FC /* NIOCore in Frameworks */ = {isa = PBXBuildFile; productRef = C9NIO00032EF80000007634FC /* NIOCore */; };
+		C9NIO00072EF80000007634FC /* NIOPosix in Frameworks */ = {isa = PBXBuildFile; productRef = C9NIO00042EF80000007634FC /* NIOPosix */; };
+		C9NIO00082EF80000007634FC /* NIOSSL in Frameworks */ = {isa = PBXBuildFile; productRef = C9NIO00052EF80000007634FC /* NIOSSL */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -162,6 +166,10 @@
 		C9AE83AA2EB3FFA000BD2C4E /* MailProcessor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MailProcessor.swift; sourceTree = "<group>"; };
 		C9B79FEA2EF6E46000D0D81D /* AttachmentExtractor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AttachmentExtractor.swift; sourceTree = "<group>"; };
 		C9B7A0342EF7531300D0D81D /* OutboxDAOAdapter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OutboxDAOAdapter.swift; sourceTree = "<group>"; };
+		C9B7A0842EF7EBC000D0D81D /* PrePromptMenuItem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PrePromptMenuItem.swift; sourceTree = "<group>"; };
+		C9B7A0862EF7EBDF00D0D81D /* PrePromptCatalogManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PrePromptCatalogManager.swift; sourceTree = "<group>"; };
+		C9B7A0872EF7EBDF00D0D81D /* PrePromptPicker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PrePromptPicker.swift; sourceTree = "<group>"; };
+		C9B7A08A2EF7EBF100D0D81D /* PrePromptCatalogView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PrePromptCatalogView.swift; sourceTree = "<group>"; };
 		C9C33C342EB2C0E4006390C7 /* ContentAnalyzer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentAnalyzer.swift; sourceTree = "<group>"; };
 		C9C33C362EB2C341006390C7 /* TransferEncodingDecoder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TransferEncodingDecoder.swift; sourceTree = "<group>"; };
 		C9C33C382EB2C35A006390C7 /* HeaderCharsetDetector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HeaderCharsetDetector.swift; sourceTree = "<group>"; };
@@ -331,6 +339,7 @@
 		C9DEDF982EAECC4D00C40B92 /* Models */ = {
 			isa = PBXGroup;
 			children = (
+				C9B7A0842EF7EBC000D0D81D /* PrePromptMenuItem.swift */,
 				C9DEDF932EAECC4D00C40B92 /* AIPrePromptPreset.swift */,
 				C9DEDF942EAECC4D00C40B92 /* LogEntry.swift */,
 				C9DEDF952EAECC4D00C40B92 /* MailDomainModels.swift */,
@@ -416,6 +425,8 @@
 		C9DEDFB42EAECC4D00C40B92 /* Utilities */ = {
 			isa = PBXGroup;
 			children = (
+				C9B7A0862EF7EBDF00D0D81D /* PrePromptCatalogManager.swift */,
+				C9B7A0872EF7EBDF00D0D81D /* PrePromptPicker.swift */,
 				C9DEDFAE2EAECC4D00C40B92 /* CancellationToken.swift */,
 				C9DEDFAF2EAECC4D00C40B92 /* Categories.swift */,
 				C9DEDFB02EAECC4D00C40B92 /* CircuitBreaker.swift */,
@@ -525,6 +536,7 @@
 		C9DEDFDA2EAECC4D00C40B92 /* Configuration */ = {
 			isa = PBXGroup;
 			children = (
+				C9B7A08A2EF7EBF100D0D81D /* PrePromptCatalogView.swift */,
 				C9DEDFD72EAECC4D00C40B92 /* AIEditor.swift */,
 				C9DEDFD82EAECC4D00C40B92 /* ConfigView.swift */,
 				C9DEDFD92EAECC4D00C40B92 /* PrePromptEditor.swift */,
@@ -769,6 +781,8 @@
 				C9DEE0122EAECC4D00C40B92 /* MarkdownHelper.swift in Sources */,
 				C9DEE0132EAECC4D00C40B92 /* SprechenView.swift in Sources */,
 				C947A0F12EAED321006E661B /* ContentExtractor.swift in Sources */,
+				C9B7A0882EF7EBDF00D0D81D /* PrePromptCatalogManager.swift in Sources */,
+				C9B7A0892EF7EBDF00D0D81D /* PrePromptPicker.swift in Sources */,
 				C96E33AD2EB14D230058CB0A /* ContentDecoder.swift in Sources */,
 				C96E33A92EAED61F0058CB0A /* EmailContentParser.swift in Sources */,
 				C9DEE0152EAECC4D00C40B92 /* CancellationToken.swift in Sources */,
@@ -788,6 +802,7 @@
 				C947E9042EB41267007634FC /* MailWriteDAO.swift in Sources */,
 				C9DEE01E2EAECC4D00C40B92 /* IMAPParsers.swift in Sources */,
 				C9DEE01F2EAECC4D00C40B92 /* AIEditor.swift in Sources */,
+				C9B7A0852EF7EBC000D0D81D /* PrePromptMenuItem.swift in Sources */,
 				C9DEE0202EAECC4D00C40B92 /* TextLogDetailView.swift in Sources */,
 				C9DEE0212EAECC4D00C40B92 /* IMAPCommands.swift in Sources */,
 				C9DEE0222EAECC4D00C40B92 /* MailSendService.swift in Sources */,
@@ -801,6 +816,7 @@
 				C96E33C72EB15DDE0058CB0A /* TextEnrichedDecoder.swift in Sources */,
 				C9C33C352EB2C0E4006390C7 /* ContentAnalyzer.swift in Sources */,
 				C9DEE02A2EAECC4D00C40B92 /* IMAPConnection.swift in Sources */,
+				C9B7A08B2EF7EBF100D0D81D /* PrePromptCatalogView.swift in Sources */,
 				C947E90C2EB41367007634FC /* AccountDAO.swift in Sources */,
 				C93D2CB72EB16E2400AA4072 /* MailboxNavigationPanel.swift in Sources */,
 				C9DEE02B2EAECC4D00C40B92 /* MailComposer.swift in Sources */,
