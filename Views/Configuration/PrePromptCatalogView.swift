@@ -332,6 +332,7 @@ private struct NewFolderSheet: View {
                     }
 
                 TextField(String(localized: "catalog.category.name.placeholder"), text: $name)
+                    .frame(maxWidth: .infinity)
                     .padding(8)
                     .background(Color(.secondarySystemBackground))
                     .clipShape(RoundedRectangle(cornerRadius: 8))
@@ -346,7 +347,7 @@ private struct NewFolderSheet: View {
                 Button(String(localized: "catalog.action.cancel")) {
                     dismiss()
                 }
-                .foregroundStyle(.secondary)
+                .foregroundStyle(.red)
 
                 Button(String(localized: "catalog.action.save")) {
                     onSave(name, icon, keywords)
@@ -406,6 +407,7 @@ private struct FolderEditorSheet: View {
                     }
 
                 TextField(String(localized: "catalog.category.name.placeholder"), text: $name)
+                    .frame(maxWidth: .infinity)
                     .padding(8)
                     .background(Color(.secondarySystemBackground))
                     .clipShape(RoundedRectangle(cornerRadius: 8))
@@ -420,7 +422,7 @@ private struct FolderEditorSheet: View {
                 Button(String(localized: "catalog.action.cancel")) {
                     dismiss()
                 }
-                .foregroundStyle(.secondary)
+                .foregroundStyle(.red)
 
                 Button(String(localized: "catalog.action.save")) {
                     var updated = folder
@@ -486,6 +488,7 @@ private struct PresetEditorSheet: View {
                     }
 
                 TextField(String(localized: "preprompts.field.name.placeholder"), text: $name)
+                    .frame(maxWidth: .infinity)
                     .padding(8)
                     .background(Color(.secondarySystemBackground))
                     .clipShape(RoundedRectangle(cornerRadius: 8))
@@ -504,7 +507,7 @@ private struct PresetEditorSheet: View {
                     .padding(.horizontal)
 
                 TextEditor(text: $text)
-                    .frame(minHeight: 120)
+                    .frame(minHeight: 120, maxWidth: .infinity)
                     .padding(8)
                     .scrollContentBackground(.hidden)
                     .background(Color(.secondarySystemBackground))
@@ -516,7 +519,7 @@ private struct PresetEditorSheet: View {
                 Button(String(localized: "catalog.action.cancel")) {
                     dismiss()
                 }
-                .foregroundStyle(.secondary)
+                .foregroundStyle(.red)
 
                 Button(String(localized: "catalog.action.save")) {
                     let newPreset: AIPrePromptPreset

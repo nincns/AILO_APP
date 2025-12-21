@@ -475,6 +475,7 @@ private struct CookbookEditorSheet: View {
                     }
 
                 TextField(String(localized: "cookbook.name.placeholder"), text: $name)
+                    .frame(maxWidth: .infinity)
                     .padding(8)
                     .background(Color(.secondarySystemBackground))
                     .clipShape(RoundedRectangle(cornerRadius: 8))
@@ -489,7 +490,7 @@ private struct CookbookEditorSheet: View {
                 Button(String(localized: "catalog.action.cancel")) {
                     dismiss()
                 }
-                .foregroundStyle(.secondary)
+                .foregroundStyle(.red)
 
                 Button(String(localized: "catalog.action.save")) {
                     onSave(name, icon, keywords)
@@ -549,6 +550,7 @@ private struct ChapterEditorSheet: View {
                     }
 
                 TextField(String(localized: "cookbook.chapter.name.placeholder"), text: $name)
+                    .frame(maxWidth: .infinity)
                     .padding(8)
                     .background(Color(.secondarySystemBackground))
                     .clipShape(RoundedRectangle(cornerRadius: 8))
@@ -563,7 +565,7 @@ private struct ChapterEditorSheet: View {
                 Button(String(localized: "catalog.action.cancel")) {
                     dismiss()
                 }
-                .foregroundStyle(.secondary)
+                .foregroundStyle(.red)
 
                 Button(String(localized: "catalog.action.save")) {
                     onSave(name, icon, keywords)
