@@ -639,12 +639,12 @@
 
 /* MARK: - Prompt Manager */
 "cookbook.title" = "Prompt Manager";
-"cookbook.recipes.count %lld" = "%lld Recipes";
+"cookbook.recipes.count %lld" = "%lld Elements";
 "cookbook.chapter.new" = "New Chapter";
 "cookbook.chapter.edit" = "Edit Chapter";
 "cookbook.chapter.name.placeholder" = "Chapter Name";
-"cookbook.chapter.migrated" = "Imported Recipes";
-"cookbook.recipe.new" = "New Recipe";
+"cookbook.chapter.migrated" = "Imported Prompts";
+"cookbook.recipe.new" = "New Prompt";
 "cookbook.empty" = "No entries";
 
 "cookbook.new" = "New Prompt Manager";
@@ -652,6 +652,6 @@
 "cookbook.name.placeholder" = "Name";
 "cookbook.list.empty" = "No Prompt Managers";
 "cookbook.default" = "My Prompt Manager";
-"cookbook.migrated" = "Imported Recipes";
+"cookbook.migrated" = "Imported Prompts";
 
 "keywords.placeholder" = "Keywords: separated by semicolon";
