@@ -513,24 +513,67 @@ public final class NIOSMTPClient: SMTPClientProtocol {
         return result
     }
 
-    /// Sanitizes HTML to remove potentially problematic content
+    /// Sanitizes HTML to remove potentially problematic content that triggers spam filters
     private func sanitizeHTML(_ html: String) -> String {
         var sanitized = html
 
-        // Remove script tags (security + spam filter)
-        while let scriptRange = sanitized.range(of: "<script[^>]*>[\\s\\S]*?</script>", options: [.regularExpression, .caseInsensitive]) {
-            sanitized.removeSubrange(scriptRange)
+        // Remove dangerous tags that trigger spam filters
+        let dangerousTags = ["script", "style", "form", "iframe", "object", "embed", "applet", "meta", "link", "base"]
+        for tag in dangerousTags {
+            // Remove opening and closing tags with content
+            while let range = sanitized.range(of: "<\(tag)[^>]*>[\\s\\S]*?</\(tag)>", options: [.regularExpression, .caseInsensitive]) {
+                sanitized.removeSubrange(range)
+            }
+            // Remove self-closing tags
+            while let range = sanitized.range(of: "<\(tag)[^>]*/?>", options: [.regularExpression, .caseInsensitive]) {
+                sanitized.removeSubrange(range)
+            }
         }
 
-        // Remove event handlers (onclick, onload, etc.)
+        // Remove event handlers (onclick, onload, onerror, etc.)
         while let eventRange = sanitized.range(of: "\\s+on\\w+\\s*=\\s*[\"'][^\"']*[\"']", options: [.regularExpression, .caseInsensitive]) {
             sanitized.removeSubrange(eventRange)
         }
+        // Also handle unquoted event handlers
+        while let eventRange = sanitized.range(of: "\\s+on\\w+\\s*=\\s*[^\\s>]+", options: [.regularExpression, .caseInsensitive]) {
+            sanitized.removeSubrange(eventRange)
+        }
 
-        // Remove javascript: URLs
+        // Remove javascript: and data: URLs (common in phishing)
         sanitized = sanitized.replacingOccurrences(of: "javascript:", with: "", options: .caseInsensitive)
+        sanitized = sanitized.replacingOccurrences(of: "data:", with: "", options: .caseInsensitive)
+        sanitized = sanitized.replacingOccurrences(of: "vbscript:", with: "", options: .caseInsensitive)
 
-        return sanitized
+        // Remove external stylesheet references
+        sanitized = sanitized.replacingOccurrences(of: "@import[^;]+;", with: "", options: .regularExpression)
+
+        // Ensure proper HTML structure (many spam filters require this)
+        return wrapInHTMLStructure(sanitized)
+    }
+
+    /// Wraps HTML content in a proper document structure if missing
+    private func wrapInHTMLStructure(_ html: String) -> String {
+        let lowercased = html.lowercased()
+
+        // Check if already has proper structure
+        if lowercased.contains("<!doctype") || lowercased.contains("<html") {
+            // Already has structure, just ensure no duplicate doctypes
+            return html
+        }
+
+        // Wrap in minimal valid HTML5 structure
+        return """
+        <!DOCTYPE html>
+        <html>
+        <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        </head>
+        <body>
+        \(html)
+        </body>
+        </html>
+        """
     }
 
     /// Converts HTML to plain text for multipart/alternative
