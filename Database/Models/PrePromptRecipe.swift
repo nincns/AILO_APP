@@ -58,6 +58,19 @@ public struct PrePromptRecipe: Identifiable, Codable, Equatable, Sendable {
         case id, name, icon, keywords, elementIDs, itemIDs, separator, createdAt, updatedAt
     }
 
+    // Custom encoding (itemIDs is only for migration decoding)
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(id, forKey: .id)
+        try container.encode(name, forKey: .name)
+        try container.encode(icon, forKey: .icon)
+        try container.encode(keywords, forKey: .keywords)
+        try container.encode(elementIDs, forKey: .elementIDs)
+        try container.encode(separator, forKey: .separator)
+        try container.encode(createdAt, forKey: .createdAt)
+        try container.encode(updatedAt, forKey: .updatedAt)
+    }
+
     /// Create a modified copy with updated timestamp
     public func updated(
         name: String? = nil,
