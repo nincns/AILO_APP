@@ -315,8 +315,10 @@ struct ComposeMailView: View {
     // MARK: - Actions
     private func sendAndDismiss() {
         guard let accId = selectedAccountId, let account = accounts.first(where: { $0.id == accId }) else { return }
-        // Build draft model
-        let from = MailSendAddress(account.replyTo ?? account.recvUsername)
+        // Build draft model with display name for proper From header
+        let fromEmail = account.replyTo ?? account.recvUsername
+        let fromName = account.displayName ?? account.accountName
+        let from = MailSendAddress(fromEmail, name: fromName)
         let toList = splitEmails(to)
         let ccList = splitEmails(cc)
         let bccList = splitEmails(bcc)
