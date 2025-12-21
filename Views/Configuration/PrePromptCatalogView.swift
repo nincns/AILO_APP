@@ -6,17 +6,30 @@ struct PrePromptCatalogView: View {
     @State private var currentFolderID: UUID? = nil
     @State private var showNewFolderSheet = false
     @State private var showNewPresetSheet = false
+    @State private var showNewRecipeSheet = false
     @State private var editingPreset: AIPrePromptPreset? = nil
     @State private var editingFolder: PrePromptMenuItem? = nil
+    @State private var editingRecipe: PrePromptRecipe? = nil
     @State private var newFolderName = ""
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
         NavigationStack {
             List {
-                if manager.children(of: currentFolderID).isEmpty {
+                // Recipes section (only at root level)
+                if currentFolderID == nil && !manager.recipes.isEmpty {
+                    Section(header: Text("catalog.section.recipes")) {
+                        ForEach(manager.recipes) { recipe in
+                            recipeRow(recipe)
+                        }
+                        .onDelete(perform: deleteRecipes)
+                    }
+                }
+
+                // Categories and items
+                if manager.children(of: currentFolderID).isEmpty && (currentFolderID != nil || manager.recipes.isEmpty) {
                     emptyState
-                } else {
+                } else if !manager.children(of: currentFolderID).isEmpty {
                     ForEach(manager.children(of: currentFolderID)) { item in
                         if item.isFolder {
                             folderRow(item)
@@ -53,6 +66,14 @@ struct PrePromptCatalogView: View {
                             showNewPresetSheet = true
                         } label: {
                             Label(String(localized: "catalog.item.new"), systemImage: "plus.circle")
+                        }
+
+                        Divider()
+
+                        Button {
+                            showNewRecipeSheet = true
+                        } label: {
+                            Label(String(localized: "catalog.recipe.new"), systemImage: "book.closed")
                         }
                     } label: {
                         Image(systemName: "plus")
@@ -92,6 +113,22 @@ struct PrePromptCatalogView: View {
                     folder: folder,
                     onSave: { updated in
                         manager.updateMenuItem(updated)
+                    }
+                )
+            }
+            .sheet(isPresented: $showNewRecipeSheet) {
+                RecipeEditorSheet(
+                    recipe: nil,
+                    onSave: { recipe in
+                        manager.addRecipe(recipe)
+                    }
+                )
+            }
+            .sheet(item: $editingRecipe) { recipe in
+                RecipeEditorSheet(
+                    recipe: recipe,
+                    onSave: { updated in
+                        manager.updateRecipe(updated)
                     }
                 )
             }
@@ -235,6 +272,44 @@ struct PrePromptCatalogView: View {
         }
     }
 
+    private func recipeRow(_ recipe: PrePromptRecipe) -> some View {
+        Button {
+            editingRecipe = recipe
+        } label: {
+            HStack(spacing: 12) {
+                Text(recipe.icon)
+                    .font(.title2)
+                    .frame(width: 44, alignment: .leading)
+                    .lineLimit(1)
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(recipe.name)
+                        .font(.body)
+                        .foregroundStyle(.primary)
+
+                    let itemCount = recipe.itemIDs.count
+                    Text(String(localized: "catalog.recipe.items \(itemCount)"))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+
+                Spacer()
+
+                Image(systemName: "book.closed.fill")
+                    .foregroundStyle(.blue)
+                    .font(.caption)
+            }
+        }
+        .buttonStyle(.plain)
+        .swipeActions(edge: .trailing) {
+            Button(role: .destructive) {
+                manager.deleteRecipe(recipe.id)
+            } label: {
+                Label("catalog.action.delete", systemImage: "trash")
+            }
+        }
+    }
+
     // MARK: - Actions
 
     private func navigateUp() {
@@ -258,6 +333,13 @@ struct PrePromptCatalogView: View {
 
     private func moveItems(from source: IndexSet, to destination: Int) {
         manager.reorderItems(in: currentFolderID, from: source, to: destination)
+    }
+
+    private func deleteRecipes(at offsets: IndexSet) {
+        for index in offsets {
+            let recipe = manager.recipes[index]
+            manager.deleteRecipe(recipe.id)
+        }
     }
 }
 
@@ -653,5 +735,324 @@ private struct FlowLayout: Layout {
         totalHeight = currentY + lineHeight
 
         return (CGSize(width: totalWidth, height: totalHeight), frames)
+    }
+}
+
+// MARK: - Recipe Editor Sheet
+
+private struct RecipeEditorSheet: View {
+    let recipe: PrePromptRecipe?
+    let onSave: (PrePromptRecipe) -> Void
+
+    @State private var name: String
+    @State private var icon: String
+    @State private var keywords: String
+    @State private var selectedItemIDs: [UUID]
+    @State private var showItemPicker = false
+    @State private var showPreview = false
+    @ObservedObject private var manager = PrePromptCatalogManager.shared
+    @Environment(\.dismiss) private var dismiss
+
+    init(recipe: PrePromptRecipe?, onSave: @escaping (PrePromptRecipe) -> Void) {
+        self.recipe = recipe
+        self.onSave = onSave
+        _name = State(initialValue: recipe?.name ?? "")
+        _icon = State(initialValue: recipe?.icon ?? "📖")
+        _keywords = State(initialValue: recipe?.keywords ?? "")
+        _selectedItemIDs = State(initialValue: recipe?.itemIDs ?? [])
+    }
+
+    var body: some View {
+        NavigationView {
+            VStack(spacing: 0) {
+                // Header info
+                VStack(spacing: 12) {
+                    // Icon + Name
+                    HStack(spacing: 8) {
+                        TextField("📖", text: $icon)
+                            .frame(width: 50)
+                            .multilineTextAlignment(.center)
+                            .font(.title2)
+                            .padding(8)
+                            .background(Color(.systemGray6))
+                            .clipShape(RoundedRectangle(cornerRadius: 8))
+                            .onChange(of: icon) { _, newValue in
+                                if newValue.count > 3 {
+                                    icon = String(newValue.prefix(3))
+                                }
+                            }
+
+                        TextField(String(localized: "catalog.recipe.name.placeholder"), text: $name)
+                            .textFieldStyle(.roundedBorder)
+                    }
+
+                    // Keywords
+                    KeywordBubbleInput(keywords: $keywords)
+                }
+                .padding()
+                .background(Color(.systemGroupedBackground))
+
+                Divider()
+
+                // Selected items list
+                List {
+                    Section(header: HStack {
+                        Text("catalog.recipe.ingredients")
+                        Spacer()
+                        Button {
+                            showItemPicker = true
+                        } label: {
+                            Image(systemName: "plus.circle.fill")
+                                .foregroundStyle(.blue)
+                        }
+                    }) {
+                        if selectedItemIDs.isEmpty {
+                            Text("catalog.recipe.empty")
+                                .foregroundStyle(.secondary)
+                                .font(.subheadline)
+                        } else {
+                            ForEach(selectedItemIDs, id: \.self) { itemID in
+                                if let preset = manager.preset(withID: itemID) {
+                                    selectedItemRow(preset)
+                                }
+                            }
+                            .onDelete(perform: removeItems)
+                            .onMove(perform: moveSelectedItems)
+                        }
+                    }
+
+                    // Preview section
+                    Section(header: Text("catalog.recipe.preview")) {
+                        previewContent
+                    }
+                }
+                .listStyle(.insetGrouped)
+            }
+            .navigationTitle(Text(recipe == nil ? "catalog.recipe.new" : "catalog.recipe.edit"))
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button(String(localized: "catalog.action.cancel")) {
+                        dismiss()
+                    }
+                }
+
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    EditButton()
+                }
+
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button(String(localized: "catalog.action.save")) {
+                        let newRecipe: PrePromptRecipe
+                        if let existing = recipe {
+                            newRecipe = existing.updated(
+                                name: name,
+                                icon: icon,
+                                keywords: keywords,
+                                itemIDs: selectedItemIDs
+                            )
+                        } else {
+                            newRecipe = PrePromptRecipe(
+                                name: name,
+                                icon: icon,
+                                keywords: keywords,
+                                itemIDs: selectedItemIDs
+                            )
+                        }
+                        onSave(newRecipe)
+                        dismiss()
+                    }
+                    .disabled(name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                }
+            }
+            .sheet(isPresented: $showItemPicker) {
+                RecipeItemPicker(
+                    selectedIDs: $selectedItemIDs,
+                    presets: manager.presets
+                )
+            }
+        }
+    }
+
+    private func selectedItemRow(_ preset: AIPrePromptPreset) -> some View {
+        HStack(spacing: 12) {
+            Text(preset.icon)
+                .font(.title3)
+                .frame(width: 32, alignment: .leading)
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(preset.name)
+                    .font(.subheadline)
+
+                if !preset.keywords.isEmpty {
+                    Text(preset.keywords)
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                }
+            }
+
+            Spacer()
+        }
+    }
+
+    @ViewBuilder
+    private var previewContent: some View {
+        if selectedItemIDs.isEmpty {
+            Text("catalog.recipe.preview.empty")
+                .foregroundStyle(.secondary)
+                .font(.subheadline)
+        } else {
+            VStack(alignment: .leading, spacing: 12) {
+                // Combined keywords
+                let allKeywords = collectAllKeywords()
+                if !allKeywords.isEmpty {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("catalog.recipe.preview.keywords")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+
+                        FlowLayout(spacing: 4) {
+                            ForEach(Array(allKeywords.enumerated()), id: \.offset) { _, pair in
+                                Text("\(pair.key): \(pair.value)")
+                                    .font(.caption2)
+                                    .padding(.horizontal, 8)
+                                    .padding(.vertical, 4)
+                                    .background(Color.orange.opacity(0.2))
+                                    .clipShape(Capsule())
+                            }
+                        }
+                    }
+                }
+
+                // Combined prompt text
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("catalog.recipe.preview.prompt")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+
+                    Text(generatePromptPreview())
+                        .font(.caption)
+                        .foregroundStyle(.primary)
+                        .lineLimit(10)
+                        .padding(8)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .background(Color(.systemGray6))
+                        .clipShape(RoundedRectangle(cornerRadius: 8))
+                }
+            }
+        }
+    }
+
+    private func collectAllKeywords() -> [(key: String, value: String)] {
+        var result: [(key: String, value: String)] = []
+
+        // From selected items
+        for itemID in selectedItemIDs {
+            if let preset = manager.preset(withID: itemID) {
+                for pair in preset.keywordPairs {
+                    if !result.contains(where: { $0.key.lowercased() == pair.key.lowercased() }) {
+                        result.append(pair)
+                    }
+                }
+            }
+        }
+
+        // Recipe keywords override
+        let recipeKeywords = keywords.split(separator: ";")
+            .map { $0.trimmingCharacters(in: .whitespaces) }
+            .filter { !$0.isEmpty }
+            .compactMap { part -> (key: String, value: String)? in
+                let components = part.split(separator: ":", maxSplits: 1)
+                if components.count == 2 {
+                    return (
+                        key: String(components[0]).trimmingCharacters(in: .whitespaces),
+                        value: String(components[1]).trimmingCharacters(in: .whitespaces)
+                    )
+                }
+                return nil
+            }
+
+        for pair in recipeKeywords {
+            if let index = result.firstIndex(where: { $0.key.lowercased() == pair.key.lowercased() }) {
+                result[index] = pair
+            } else {
+                result.append(pair)
+            }
+        }
+
+        return result
+    }
+
+    private func generatePromptPreview() -> String {
+        let texts = selectedItemIDs.compactMap { id in
+            manager.preset(withID: id)?.text
+        }
+        return texts.joined(separator: "\n\n")
+    }
+
+    private func removeItems(at offsets: IndexSet) {
+        selectedItemIDs.remove(atOffsets: offsets)
+    }
+
+    private func moveSelectedItems(from source: IndexSet, to destination: Int) {
+        selectedItemIDs.move(fromOffsets: source, toOffset: destination)
+    }
+}
+
+// MARK: - Recipe Item Picker
+
+private struct RecipeItemPicker: View {
+    @Binding var selectedIDs: [UUID]
+    let presets: [AIPrePromptPreset]
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        NavigationView {
+            List {
+                ForEach(presets) { preset in
+                    Button {
+                        if !selectedIDs.contains(preset.id) {
+                            selectedIDs.append(preset.id)
+                        }
+                        dismiss()
+                    } label: {
+                        HStack(spacing: 12) {
+                            Text(preset.icon)
+                                .font(.title2)
+                                .frame(width: 44, alignment: .leading)
+
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(preset.name)
+                                    .font(.body)
+                                    .foregroundStyle(.primary)
+
+                                Text(preset.text.prefix(50) + (preset.text.count > 50 ? "..." : ""))
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                                    .lineLimit(1)
+                            }
+
+                            Spacer()
+
+                            if selectedIDs.contains(preset.id) {
+                                Image(systemName: "checkmark.circle.fill")
+                                    .foregroundStyle(.green)
+                            }
+                        }
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .navigationTitle(Text("catalog.recipe.additem"))
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button(String(localized: "catalog.action.cancel")) {
+                        dismiss()
+                    }
+                }
+            }
+        }
     }
 }

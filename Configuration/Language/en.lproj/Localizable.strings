@@ -425,6 +425,18 @@
 "catalog.action.save" = "Save";
 "catalog.action.cancel" = "Cancel";
 "catalog.empty" = "No entries";
+"catalog.section.recipes" = "Recipes";
+"catalog.recipe.new" = "New Recipe";
+"catalog.recipe.edit" = "Edit Recipe";
+"catalog.recipe.name.placeholder" = "Recipe name";
+"catalog.recipe.items %lld" = "%lld ingredients";
+"catalog.recipe.ingredients" = "Ingredients";
+"catalog.recipe.empty" = "Tap + to add items";
+"catalog.recipe.additem" = "Add Item";
+"catalog.recipe.preview" = "Preview";
+"catalog.recipe.preview.empty" = "Add items to see a preview";
+"catalog.recipe.preview.keywords" = "Combined Keywords";
+"catalog.recipe.preview.prompt" = "Generated Prompt";
 
 /* MARK: - Pre-Prompt Picker */
 "preprompt.picker.title" = "Choose Pre-Prompt";

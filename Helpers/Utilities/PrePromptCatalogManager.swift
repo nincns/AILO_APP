@@ -3,12 +3,13 @@ import Combine
 import SwiftUI
 
 /// Manager for hierarchical Pre-Prompt catalog
-/// Handles both menu structure (PrePromptMenuItem) and content (AIPrePromptPreset)
+/// Handles menu structure (PrePromptMenuItem), content (AIPrePromptPreset), and recipes (PrePromptRecipe)
 public final class PrePromptCatalogManager: ObservableObject {
     public static let shared = PrePromptCatalogManager()
 
     @Published public private(set) var menuItems: [PrePromptMenuItem] = []
     @Published public private(set) var presets: [AIPrePromptPreset] = []
+    @Published public private(set) var recipes: [PrePromptRecipe] = []
 
     private init() {
         load()
@@ -19,6 +20,7 @@ public final class PrePromptCatalogManager: ObservableObject {
     public func load() {
         loadMenuItems()
         loadPresets()
+        loadRecipes()
 
         // Migration: If menu is empty but presets exist, create menu entries
         if menuItems.isEmpty && !presets.isEmpty {
@@ -49,9 +51,19 @@ public final class PrePromptCatalogManager: ObservableObject {
         presets = items
     }
 
+    private func loadRecipes() {
+        guard let data = UserDefaults.standard.data(forKey: kPrePromptRecipesKey),
+              let items = try? JSONDecoder().decode([PrePromptRecipe].self, from: data) else {
+            recipes = []
+            return
+        }
+        recipes = items
+    }
+
     public func save() {
         saveMenuItems()
         savePresets()
+        saveRecipes()
     }
 
     private func saveMenuItems() {
@@ -62,6 +74,11 @@ public final class PrePromptCatalogManager: ObservableObject {
     private func savePresets() {
         guard let data = try? JSONEncoder().encode(presets) else { return }
         UserDefaults.standard.set(data, forKey: kAIPresetsKey)
+    }
+
+    private func saveRecipes() {
+        guard let data = try? JSONEncoder().encode(recipes) else { return }
+        UserDefaults.standard.set(data, forKey: kPrePromptRecipesKey)
     }
 
     // MARK: - Menu Item CRUD
@@ -181,6 +198,42 @@ public final class PrePromptCatalogManager: ObservableObject {
         guard let index = menuItems.firstIndex(where: { $0.id == folderID }) else { return }
         menuItems[index].name = newName
         saveMenuItems()
+    }
+
+    // MARK: - Recipe CRUD
+
+    /// Add a new recipe
+    public func addRecipe(_ recipe: PrePromptRecipe) {
+        recipes.append(recipe)
+        saveRecipes()
+    }
+
+    /// Update an existing recipe
+    public func updateRecipe(_ recipe: PrePromptRecipe) {
+        guard let index = recipes.firstIndex(where: { $0.id == recipe.id }) else { return }
+        recipes[index] = recipe
+        saveRecipes()
+    }
+
+    /// Delete a recipe
+    public func deleteRecipe(_ recipeID: UUID) {
+        recipes.removeAll { $0.id == recipeID }
+        saveRecipes()
+    }
+
+    /// Get recipe by ID
+    public func recipe(withID id: UUID) -> PrePromptRecipe? {
+        recipes.first(where: { $0.id == id })
+    }
+
+    /// Generate complete prompt from a recipe
+    public func generatePrompt(from recipe: PrePromptRecipe) -> String {
+        recipe.generatePrompt(from: presets)
+    }
+
+    /// Get all keywords from a recipe (including referenced items)
+    public func collectKeywords(from recipe: PrePromptRecipe) -> [(key: String, value: String)] {
+        recipe.collectKeywords(from: presets)
     }
 
     // MARK: - Query Helpers

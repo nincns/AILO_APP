@@ -12,6 +12,7 @@ let kAIPrePrompt          = "config.ai.preprompt"
 let kAIPresetsKey         = "config.ai.preprompts"           // JSON [AIPrePromptPreset]
 let kAISelectedPresetKey  = "config.ai.preprompt.selected"   // UUID().uuidString
 let kPrePromptMenuKey     = "config.ai.preprompt.menu"       // JSON [PrePromptMenuItem]
+let kPrePromptRecipesKey  = "config.ai.preprompt.recipes"    // JSON [PrePromptRecipe]
 
 // Schreiben/Kategorien
 let kCategories           = "config.categories"

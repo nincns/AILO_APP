@@ -325,6 +325,18 @@
 "catalog.action.save" = "Speichern";
 "catalog.action.cancel" = "Abbrechen";
 "catalog.empty" = "Keine Einträge";
+"catalog.section.recipes" = "Rezepte";
+"catalog.recipe.new" = "Neues Rezept";
+"catalog.recipe.edit" = "Rezept bearbeiten";
+"catalog.recipe.name.placeholder" = "Rezeptname";
+"catalog.recipe.items %lld" = "%lld Zutaten";
+"catalog.recipe.ingredients" = "Zutaten";
+"catalog.recipe.empty" = "Tippe + um Items hinzuzufügen";
+"catalog.recipe.additem" = "Item hinzufügen";
+"catalog.recipe.preview" = "Vorschau";
+"catalog.recipe.preview.empty" = "Füge Items hinzu um eine Vorschau zu sehen";
+"catalog.recipe.preview.keywords" = "Kombinierte Schlagwörter";
+"catalog.recipe.preview.prompt" = "Generierter Prompt";
 
 /* MARK: - Pre-Prompt Picker */
 "preprompt.picker.title" = "Pre-Prompt wählen";
