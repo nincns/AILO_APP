@@ -115,7 +115,7 @@ public struct PrePromptRecipe: Identifiable, Codable, Equatable, Sendable {
 
     /// Generate the combined prompt text from all referenced elements
     /// Categories become section headers with their metadata
-    /// Items provide the actual prompt content
+    /// Items provide the actual prompt content with their keywords
     public func generatePrompt(from menuItems: [PrePromptMenuItem], presets: [AIPrePromptPreset]) -> String {
         var parts: [String] = []
 
@@ -135,8 +135,25 @@ public struct PrePromptRecipe: Identifiable, Codable, Equatable, Sendable {
                     parts.append(sectionParts.joined(separator: "\n"))
                 } else if let presetID = menuItem.presetID,
                           let preset = presets.first(where: { $0.id == presetID }) {
-                    // Item: Use preset text
-                    parts.append(preset.text)
+                    // Item: Include keywords and preset text
+                    var itemParts: [String] = []
+
+                    // Add item/menuItem keywords
+                    if !menuItem.keywords.isEmpty {
+                        let contextLines = menuItem.keywordPairs.map { "**\($0.key):** \($0.value)" }
+                        itemParts.append(contentsOf: contextLines)
+                    }
+
+                    // Add preset keywords
+                    if !preset.keywords.isEmpty {
+                        let presetContextLines = preset.keywordPairs.map { "**\($0.key):** \($0.value)" }
+                        itemParts.append(contentsOf: presetContextLines)
+                    }
+
+                    // Add preset text
+                    itemParts.append(preset.text)
+
+                    parts.append(itemParts.joined(separator: "\n"))
                 }
             }
         }

@@ -1027,7 +1027,25 @@ struct RecipeEditorSheet: View {
                     parts.append(sectionParts.joined(separator: "\n"))
                 } else if let presetID = menuItem.presetID,
                           let preset = manager.preset(withID: presetID) {
-                    parts.append(preset.text)
+                    // Item: Include keywords and preset text
+                    var itemParts: [String] = []
+
+                    // Add item/menuItem keywords
+                    if !menuItem.keywords.isEmpty {
+                        let contextLines = menuItem.keywordPairs.map { "**\($0.key):** \($0.value)" }
+                        itemParts.append(contentsOf: contextLines)
+                    }
+
+                    // Add preset keywords
+                    if !preset.keywords.isEmpty {
+                        let presetContextLines = preset.keywordPairs.map { "**\($0.key):** \($0.value)" }
+                        itemParts.append(contentsOf: presetContextLines)
+                    }
+
+                    // Add preset text
+                    itemParts.append(preset.text)
+
+                    parts.append(itemParts.joined(separator: "\n"))
                 }
             }
         }
