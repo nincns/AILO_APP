@@ -344,6 +344,15 @@
 "catalog.recipe.preview.keywords" = "Kombinierte Schlagwörter";
 "catalog.recipe.preview.prompt" = "Generierter Prompt";
 
+/* Catalog Export/Import */
+"catalog.action.export" = "Katalog exportieren";
+"catalog.action.import" = "Katalog importieren";
+"catalog.import.success" = "Import erfolgreich";
+"catalog.import.error" = "Import fehlgeschlagen";
+"catalog.import.success.message" = "Der Katalog wurde erfolgreich importiert.";
+"catalog.import.access.error" = "Zugriff auf Datei nicht möglich.";
+"catalog.export.filename" = "PrePrompt-Katalog";
+
 /* MARK: - Pre-Prompt Picker */
 "preprompt.picker.title" = "Pre-Prompt wählen";
 "preprompt.picker.cancel" = "Abbrechen";

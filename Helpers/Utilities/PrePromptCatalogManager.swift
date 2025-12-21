@@ -682,6 +682,100 @@ public final class PrePromptCatalogManager: ObservableObject {
     }
 }
 
+// MARK: - Export/Import
+
+/// Structure for catalog export
+public struct CatalogExport: Codable {
+    public let version: Int
+    public let exportDate: Date
+    public let menuItems: [PrePromptMenuItem]
+    public let presets: [AIPrePromptPreset]
+    public let recipes: [PrePromptRecipe]
+    public let cookbooks: [Cookbook]
+    public let recipeMenuItems: [RecipeMenuItem]
+
+    public init(
+        menuItems: [PrePromptMenuItem],
+        presets: [AIPrePromptPreset],
+        recipes: [PrePromptRecipe],
+        cookbooks: [Cookbook],
+        recipeMenuItems: [RecipeMenuItem]
+    ) {
+        self.version = 1
+        self.exportDate = Date()
+        self.menuItems = menuItems
+        self.presets = presets
+        self.recipes = recipes
+        self.cookbooks = cookbooks
+        self.recipeMenuItems = recipeMenuItems
+    }
+}
+
+extension PrePromptCatalogManager {
+
+    /// Export catalog to JSON Data
+    public func exportCatalog() -> Data? {
+        let export = CatalogExport(
+            menuItems: menuItems,
+            presets: presets,
+            recipes: recipes,
+            cookbooks: cookbooks,
+            recipeMenuItems: recipeMenuItems
+        )
+        let encoder = JSONEncoder()
+        encoder.dateEncodingStrategy = .iso8601
+        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+        return try? encoder.encode(export)
+    }
+
+    /// Import catalog from JSON Data (replaces existing)
+    public func importCatalog(from data: Data) throws {
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+        let imported = try decoder.decode(CatalogExport.self, from: data)
+
+        menuItems = imported.menuItems
+        presets = imported.presets
+        recipes = imported.recipes
+        cookbooks = imported.cookbooks
+        recipeMenuItems = imported.recipeMenuItems
+        save()
+    }
+
+    /// Merge import (adds without replacing)
+    public func mergeCatalog(from data: Data) throws {
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+        let imported = try decoder.decode(CatalogExport.self, from: data)
+
+        // Add only items with new IDs
+        for item in imported.menuItems where !menuItems.contains(where: { $0.id == item.id }) {
+            menuItems.append(item)
+        }
+        for preset in imported.presets where !presets.contains(where: { $0.id == preset.id }) {
+            presets.append(preset)
+        }
+        for recipe in imported.recipes where !recipes.contains(where: { $0.id == recipe.id }) {
+            recipes.append(recipe)
+        }
+        for cookbook in imported.cookbooks where !cookbooks.contains(where: { $0.id == cookbook.id }) {
+            cookbooks.append(cookbook)
+        }
+        for item in imported.recipeMenuItems where !recipeMenuItems.contains(where: { $0.id == item.id }) {
+            recipeMenuItems.append(item)
+        }
+        save()
+    }
+
+    /// Generate export filename with current date
+    public func exportFilename() -> String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd"
+        let dateString = formatter.string(from: Date())
+        return "\(String(localized: "catalog.export.filename"))-\(dateString).json"
+    }
+}
+
 // MARK: - Convenience Functions
 
 /// Load presets using the catalog manager

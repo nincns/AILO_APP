@@ -1,4 +1,5 @@
 import SwiftUI
+import UniformTypeIdentifiers
 
 /// Hierarchical Pre-Prompt Catalog Browser
 struct PrePromptCatalogView: View {
@@ -10,6 +11,12 @@ struct PrePromptCatalogView: View {
     @State private var editingPreset: AIPrePromptPreset? = nil
     @State private var editingFolder: PrePromptMenuItem? = nil
     @State private var newFolderName = ""
+    @State private var showImportPicker = false
+    @State private var showExportShare = false
+    @State private var exportURL: URL? = nil
+    @State private var showImportAlert = false
+    @State private var importAlertMessage = ""
+    @State private var importAlertSuccess = false
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
@@ -97,6 +104,45 @@ struct PrePromptCatalogView: View {
                 ToolbarItem(placement: .navigationBarTrailing) {
                     EditButton()
                 }
+
+                // Export/Import menu (only at root level)
+                if currentFolderID == nil {
+                    ToolbarItem(placement: .navigationBarTrailing) {
+                        Menu {
+                            Button {
+                                exportCatalog()
+                            } label: {
+                                Label(String(localized: "catalog.action.export"), systemImage: "square.and.arrow.up")
+                            }
+
+                            Button {
+                                showImportPicker = true
+                            } label: {
+                                Label(String(localized: "catalog.action.import"), systemImage: "square.and.arrow.down")
+                            }
+                        } label: {
+                            Image(systemName: "ellipsis.circle")
+                        }
+                    }
+                }
+            }
+            .fileImporter(
+                isPresented: $showImportPicker,
+                allowedContentTypes: [.json],
+                onCompletion: handleImport
+            )
+            .sheet(isPresented: $showExportShare) {
+                if let url = exportURL {
+                    ShareSheet(activityItems: [url])
+                }
+            }
+            .alert(
+                importAlertSuccess ? String(localized: "catalog.import.success") : String(localized: "catalog.import.error"),
+                isPresented: $showImportAlert
+            ) {
+                Button("OK", role: .cancel) {}
+            } message: {
+                Text(importAlertMessage)
             }
             .sheet(isPresented: $showNewFolderSheet) {
                 NewFolderSheet(
@@ -297,6 +343,69 @@ struct PrePromptCatalogView: View {
     private func moveItems(from source: IndexSet, to destination: Int) {
         manager.reorderItems(in: currentFolderID, from: source, to: destination)
     }
+
+    // MARK: - Export/Import
+
+    private func exportCatalog() {
+        guard let data = manager.exportCatalog() else { return }
+
+        let tempDir = FileManager.default.temporaryDirectory
+        let filename = manager.exportFilename()
+        let fileURL = tempDir.appendingPathComponent(filename)
+
+        do {
+            try data.write(to: fileURL)
+            exportURL = fileURL
+            showExportShare = true
+        } catch {
+            importAlertSuccess = false
+            importAlertMessage = error.localizedDescription
+            showImportAlert = true
+        }
+    }
+
+    private func handleImport(_ result: Result<URL, Error>) {
+        switch result {
+        case .success(let url):
+            // Start accessing security-scoped resource
+            guard url.startAccessingSecurityScopedResource() else {
+                importAlertSuccess = false
+                importAlertMessage = String(localized: "catalog.import.access.error")
+                showImportAlert = true
+                return
+            }
+            defer { url.stopAccessingSecurityScopedResource() }
+
+            do {
+                let data = try Data(contentsOf: url)
+                try manager.importCatalog(from: data)
+                importAlertSuccess = true
+                importAlertMessage = String(localized: "catalog.import.success.message")
+                showImportAlert = true
+            } catch {
+                importAlertSuccess = false
+                importAlertMessage = error.localizedDescription
+                showImportAlert = true
+            }
+
+        case .failure(let error):
+            importAlertSuccess = false
+            importAlertMessage = error.localizedDescription
+            showImportAlert = true
+        }
+    }
+}
+
+// MARK: - Share Sheet Wrapper
+
+private struct ShareSheet: UIViewControllerRepresentable {
+    let activityItems: [Any]
+
+    func makeUIViewController(context: Context) -> UIActivityViewController {
+        UIActivityViewController(activityItems: activityItems, applicationActivities: nil)
+    }
+
+    func updateUIViewController(_ uiViewController: UIActivityViewController, context: Context) {}
 }
 
 // MARK: - New Folder Popup

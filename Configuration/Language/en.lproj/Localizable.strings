@@ -444,6 +444,15 @@
 "catalog.recipe.preview.keywords" = "Combined Keywords";
 "catalog.recipe.preview.prompt" = "Generated Prompt";
 
+/* Catalog Export/Import */
+"catalog.action.export" = "Export Catalog";
+"catalog.action.import" = "Import Catalog";
+"catalog.import.success" = "Import Successful";
+"catalog.import.error" = "Import Failed";
+"catalog.import.success.message" = "The catalog was imported successfully.";
+"catalog.import.access.error" = "Cannot access file.";
+"catalog.export.filename" = "PrePrompt-Catalog";
+
 /* MARK: - Pre-Prompt Picker */
 "preprompt.picker.title" = "Choose Pre-Prompt";
 "preprompt.picker.cancel" = "Cancel";
