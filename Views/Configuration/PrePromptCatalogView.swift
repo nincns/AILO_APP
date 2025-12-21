@@ -507,7 +507,7 @@ private struct PresetEditorSheet: View {
                     .padding(.horizontal)
 
                 TextEditor(text: $text)
-                    .frame(minHeight: 120, maxWidth: .infinity)
+                    .frame(maxWidth: .infinity, minHeight: 120)
                     .padding(8)
                     .scrollContentBackground(.hidden)
                     .background(Color(.secondarySystemBackground))
