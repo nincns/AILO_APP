@@ -15,6 +15,7 @@ let kPrePromptMenuKey     = "config.ai.preprompt.menu"       // JSON [PrePromptM
 let kPrePromptRecipesKey  = "config.ai.preprompt.recipes"    // JSON [PrePromptRecipe]
 let kRecipeMenuKey        = "config.ai.preprompt.recipemenu" // JSON [RecipeMenuItem] - Kapitel/Rezepte in Kochbüchern
 let kCookbooksKey         = "config.ai.preprompt.cookbooks"  // JSON [Cookbook] - Kochbücher
+let kCatalogInitializedKey = "config.ai.preprompt.initialized" // Bool - prevents demo data recreation
 
 // Schreiben/Kategorien
 let kCategories           = "config.categories"

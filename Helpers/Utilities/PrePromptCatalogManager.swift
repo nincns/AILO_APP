@@ -27,24 +27,32 @@ public final class PrePromptCatalogManager: ObservableObject {
         loadCookbooks()
         loadRecipeMenuItems()
 
-        // Migration: If menu is empty but presets exist, create menu entries
-        if menuItems.isEmpty && !presets.isEmpty {
-            migrateFromLegacy()
-        }
+        // Check if this is the very first launch (never initialized before)
+        let hasInitialized = UserDefaults.standard.bool(forKey: kCatalogInitializedKey)
 
-        // First install: Create default structure
-        if menuItems.isEmpty && presets.isEmpty {
-            createDefaultStructure()
-        }
+        if !hasInitialized {
+            // Migration: If menu is empty but presets exist, create menu entries
+            if menuItems.isEmpty && !presets.isEmpty {
+                migrateFromLegacy()
+            }
 
-        // Migration: If cookbooks empty but recipes exist, create default cookbook
-        if cookbooks.isEmpty && !recipes.isEmpty {
-            migrateRecipesToCookbook()
-        }
+            // First install: Create default structure only on very first launch
+            if menuItems.isEmpty && presets.isEmpty {
+                createDefaultStructure()
+            }
 
-        // First install: Create default cookbook if none exists
-        if cookbooks.isEmpty {
-            createDefaultCookbook()
+            // Migration: If cookbooks empty but recipes exist, create default cookbook
+            if cookbooks.isEmpty && !recipes.isEmpty {
+                migrateRecipesToCookbook()
+            }
+
+            // First install: Create default cookbook if none exists
+            if cookbooks.isEmpty {
+                createDefaultCookbook()
+            }
+
+            // Mark as initialized so demo data won't be recreated
+            UserDefaults.standard.set(true, forKey: kCatalogInitializedKey)
         }
     }
 
