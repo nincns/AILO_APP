@@ -398,13 +398,9 @@ private struct PresetEditorSheet: View {
     @State private var name: String
     @State private var text: String
     @State private var icon: String
+    @State private var keywords: String
     @State private var isDefault: Bool
     @Environment(\.dismiss) private var dismiss
-
-    private let iconOptions = [
-        "💬", "🗨️", "📄", "📃", "📋", "✏️", "✨", "🪄",
-        "💡", "🎯", "📌", "🔖", "📝", "📎", "🏷️", "⚡"
-    ]
 
     init(preset: AIPrePromptPreset?, onSave: @escaping (AIPrePromptPreset) -> Void) {
         self.preset = preset
@@ -412,33 +408,44 @@ private struct PresetEditorSheet: View {
         _name = State(initialValue: preset?.name ?? "")
         _text = State(initialValue: preset?.text ?? "")
         _icon = State(initialValue: preset?.icon ?? "💬")
+        _keywords = State(initialValue: preset?.keywords ?? "")
         _isDefault = State(initialValue: preset?.isDefault ?? false)
     }
 
     var body: some View {
         NavigationView {
             Form {
+                // Symbol + Name in einer Zeile
                 Section(header: Text("preprompts.field.name")) {
-                    TextField(String(localized: "preprompts.field.name.placeholder"), text: $name)
-                }
-
-                Section(header: Text("catalog.folder.icon")) {
-                    LazyVGrid(columns: [GridItem(.adaptive(minimum: 44))], spacing: 12) {
-                        ForEach(iconOptions, id: \.self) { emoji in
-                            Button {
-                                icon = emoji
-                            } label: {
-                                Text(emoji)
-                                    .font(.title)
-                                    .frame(width: 44, height: 44)
-                                    .background(icon == emoji ? Color.blue.opacity(0.2) : Color.clear)
-                                    .clipShape(RoundedRectangle(cornerRadius: 8))
+                    HStack(spacing: 8) {
+                        TextField("💬", text: $icon)
+                            .frame(width: 50)
+                            .multilineTextAlignment(.center)
+                            .font(.title2)
+                            .onChange(of: icon) { _, newValue in
+                                // Max 3 Zeichen
+                                if newValue.count > 3 {
+                                    icon = String(newValue.prefix(3))
+                                }
                             }
-                            .buttonStyle(.plain)
-                        }
+
+                        TextField(String(localized: "preprompts.field.name.placeholder"), text: $name)
                     }
                 }
 
+                // Schlagwörter/Metadaten
+                Section(header: Text("preprompts.field.keywords")) {
+                    TextField(String(localized: "preprompts.field.keywords.placeholder"), text: $keywords)
+                        .font(.subheadline)
+
+                    if !keywords.isEmpty {
+                        Text("preprompts.field.keywords.hint")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+
+                // Prompt-Inhalt
                 Section(header: Text("preprompts.field.content")) {
                     TextEditor(text: $text)
                         .frame(minHeight: 150)
@@ -465,6 +472,7 @@ private struct PresetEditorSheet: View {
                                 name: name,
                                 text: text,
                                 icon: icon,
+                                keywords: keywords,
                                 isDefault: isDefault
                             )
                         } else {
@@ -472,6 +480,7 @@ private struct PresetEditorSheet: View {
                                 name: name,
                                 text: text,
                                 icon: icon,
+                                keywords: keywords,
                                 isDefault: isDefault
                             )
                         }

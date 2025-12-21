@@ -287,6 +287,9 @@
 /* MARK: - Pre-Prompt Manager (fields & placeholders) */
 "preprompts.field.name" = "Name";
 "preprompts.field.name.placeholder" = "Kurzes Label (z. B. Korrektur)";
+"preprompts.field.keywords" = "Schlagwörter";
+"preprompts.field.keywords.placeholder" = "Anrede: Du; Stil: formell";
+"preprompts.field.keywords.hint" = "Format: Schlüssel: Wert; getrennt durch Semikolon";
 "preprompts.field.content" = "Inhalt";
 "preprompts.field.content.placeholder" = "Pre-Prompt-Inhalt hier eingeben…";
 

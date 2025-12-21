@@ -383,6 +383,9 @@
 /* MARK: - Pre-Prompt Manager (fields & placeholders) */
 "preprompts.field.name" = "Name";
 "preprompts.field.name.placeholder" = "Short label (e.g. Correction)";
+"preprompts.field.keywords" = "Keywords";
+"preprompts.field.keywords.placeholder" = "Salutation: You; Style: formal";
+"preprompts.field.keywords.hint" = "Format: Key: Value; separated by semicolon";
 "preprompts.field.content" = "Content";
 "preprompts.field.content.placeholder" = "Write the pre-prompt content here…";
 
