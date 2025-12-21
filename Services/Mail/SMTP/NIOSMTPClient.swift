@@ -354,46 +354,99 @@ public final class NIOSMTPClient: SMTPClientProtocol {
     private func buildMIMEMessage(_ message: MailMessage) -> String {
         var lines: [String] = []
 
-        // Headers
-        lines.append("From: \(formatAddress(message.from))")
+        // Extract sender domain for Message-ID
+        let senderDomain = extractDomain(from: message.from.email) ?? "mail.ailo.network"
+
+        // Generate unique identifiers
+        let messageId = "<\(UUID().uuidString.lowercased())@\(senderDomain)>"
+        let boundary = "----=_NextPart_\(UUID().uuidString.replacingOccurrences(of: "-", with: "").prefix(16))"
+
+        // === Required Headers (RFC 5322) ===
+        lines.append("From: \(formatRFC2822Address(message.from))")
+
         if !message.to.isEmpty {
-            lines.append("To: \(message.to.map { formatAddress($0) }.joined(separator: ", "))")
+            lines.append("To: \(message.to.map { formatRFC2822Address($0) }.joined(separator: ",\r\n\t"))")
         }
+
         if !message.cc.isEmpty {
-            lines.append("Cc: \(message.cc.map { formatAddress($0) }.joined(separator: ", "))")
+            lines.append("Cc: \(message.cc.map { formatRFC2822Address($0) }.joined(separator: ",\r\n\t"))")
         }
-        lines.append("Subject: \(encodeHeader(message.subject))")
+
+        // Subject with proper encoding
+        lines.append("Subject: \(encodeHeaderRFC2047(message.subject))")
+
+        // Date in RFC 2822 format
         lines.append("Date: \(formatRFC2822Date(Date()))")
+
+        // Message-ID with sender's domain (important for DKIM alignment)
+        lines.append("Message-ID: \(messageId)")
+
+        // === MIME Headers ===
         lines.append("MIME-Version: 1.0")
-        lines.append("Message-ID: <\(UUID().uuidString)@ailo.local>")
 
-        // Determine content type - MailMessage only has textBody and htmlBody
-        let hasHTML = message.htmlBody != nil && !message.htmlBody!.isEmpty
+        // === Delivery & Anti-Spam Headers ===
+        lines.append("X-Mailer: AILO Mail/1.0")
+        lines.append("X-Priority: 3")  // Normal priority
+        lines.append("X-MSMail-Priority: Normal")
 
-        if hasHTML {
-            let boundary = "----=_Alt_\(UUID().uuidString.replacingOccurrences(of: "-", with: ""))"
-            lines.append("Content-Type: multipart/alternative; boundary=\"\(boundary)\"")
+        // Auto-Submitted header (prevents auto-reply loops)
+        // Only add for automated/generated messages - skip for user-composed
+
+        // === Content Type ===
+        let hasHTML = message.htmlBody != nil && !(message.htmlBody?.isEmpty ?? true)
+        let hasText = message.textBody != nil && !(message.textBody?.isEmpty ?? true)
+
+        if hasHTML && hasText {
+            // Multipart/alternative with both text and HTML
+            lines.append("Content-Type: multipart/alternative;")
+            lines.append("\tboundary=\"\(boundary)\"")
             lines.append("")
 
-            // Plain text
+            // Plain text part (should come first per RFC 2046)
             lines.append("--\(boundary)")
-            lines.append("Content-Type: text/plain; charset=utf-8")
+            lines.append("Content-Type: text/plain; charset=\"UTF-8\"")
             lines.append("Content-Transfer-Encoding: quoted-printable")
             lines.append("")
             lines.append(quotedPrintableEncode(message.textBody ?? ""))
             lines.append("")
 
-            // HTML
+            // HTML part
             lines.append("--\(boundary)")
-            lines.append("Content-Type: text/html; charset=utf-8")
+            lines.append("Content-Type: text/html; charset=\"UTF-8\"")
             lines.append("Content-Transfer-Encoding: quoted-printable")
             lines.append("")
-            lines.append(quotedPrintableEncode(message.htmlBody ?? ""))
+            lines.append(quotedPrintableEncode(sanitizeHTML(message.htmlBody ?? "")))
             lines.append("")
+
+            lines.append("--\(boundary)--")
+        } else if hasHTML {
+            // HTML only - generate text version automatically
+            let textVersion = htmlToPlainText(message.htmlBody ?? "")
+
+            lines.append("Content-Type: multipart/alternative;")
+            lines.append("\tboundary=\"\(boundary)\"")
+            lines.append("")
+
+            // Auto-generated plain text part
+            lines.append("--\(boundary)")
+            lines.append("Content-Type: text/plain; charset=\"UTF-8\"")
+            lines.append("Content-Transfer-Encoding: quoted-printable")
+            lines.append("")
+            lines.append(quotedPrintableEncode(textVersion))
+            lines.append("")
+
+            // HTML part
+            lines.append("--\(boundary)")
+            lines.append("Content-Type: text/html; charset=\"UTF-8\"")
+            lines.append("Content-Transfer-Encoding: quoted-printable")
+            lines.append("")
+            lines.append(quotedPrintableEncode(sanitizeHTML(message.htmlBody ?? "")))
+            lines.append("")
+
             lines.append("--\(boundary)--")
         } else {
             // Plain text only
-            lines.append("Content-Type: text/plain; charset=utf-8")
+            lines.append("Content-Type: text/plain; charset=\"UTF-8\"")
             lines.append("Content-Transfer-Encoding: quoted-printable")
             lines.append("")
             lines.append(quotedPrintableEncode(message.textBody ?? ""))
@@ -402,26 +455,118 @@ public final class NIOSMTPClient: SMTPClientProtocol {
         return lines.joined(separator: "\r\n")
     }
 
-    private func formatAddress(_ addr: MailAddress) -> String {
-        if let name = addr.name, !name.isEmpty {
-            return "\"\(name)\" <\(addr.email)>"
-        }
-        return addr.email
+    /// Extracts domain from email address
+    private func extractDomain(from email: String) -> String? {
+        guard let atIndex = email.lastIndex(of: "@") else { return nil }
+        let domain = String(email[email.index(after: atIndex)...])
+        return domain.isEmpty ? nil : domain
     }
 
-    private func encodeHeader(_ text: String) -> String {
-        // RFC 2047 encoding for non-ASCII characters
-        if text.unicodeScalars.allSatisfy({ $0.isASCII }) {
-            return text
+    /// Formats address according to RFC 2822
+    private func formatRFC2822Address(_ addr: MailAddress) -> String {
+        if let name = addr.name, !name.isEmpty {
+            // Encode name if it contains non-ASCII or special characters
+            let encodedName = encodeHeaderRFC2047(name)
+            if encodedName.hasPrefix("=?") {
+                // Already encoded
+                return "\(encodedName) <\(addr.email)>"
+            } else {
+                // Quote the name if it contains special chars
+                let needsQuoting = name.contains(where: { "\"(),.:;<>@[\\]".contains($0) })
+                if needsQuoting {
+                    let escaped = name.replacingOccurrences(of: "\\", with: "\\\\")
+                                       .replacingOccurrences(of: "\"", with: "\\\"")
+                    return "\"\(escaped)\" <\(addr.email)>"
+                }
+                return "\(name) <\(addr.email)>"
+            }
         }
-        let encoded = Data(text.utf8).base64EncodedString()
-        return "=?UTF-8?B?\(encoded)?="
+        return "<\(addr.email)>"
+    }
+
+    /// RFC 2047 encoding for header fields with non-ASCII characters
+    private func encodeHeaderRFC2047(_ text: String) -> String {
+        // Check if encoding is needed
+        let needsEncoding = text.unicodeScalars.contains { !$0.isASCII } ||
+                           text.contains(where: { "=?".contains($0) })
+
+        guard needsEncoding else { return text }
+
+        // Use Base64 for reliability (Q-encoding has more edge cases)
+        let base64 = Data(text.utf8).base64EncodedString()
+
+        // Split into 75-character chunks (RFC 2047 limit)
+        var result = ""
+        var remaining = base64
+        let maxChunkSize = 45 // Leaves room for =?UTF-8?B?...?= wrapper
+
+        while !remaining.isEmpty {
+            let chunk = String(remaining.prefix(maxChunkSize))
+            remaining = String(remaining.dropFirst(maxChunkSize))
+
+            if !result.isEmpty {
+                result += "\r\n " // Continuation line
+            }
+            result += "=?UTF-8?B?\(chunk)?="
+        }
+
+        return result
+    }
+
+    /// Sanitizes HTML to remove potentially problematic content
+    private func sanitizeHTML(_ html: String) -> String {
+        var sanitized = html
+
+        // Remove script tags (security + spam filter)
+        while let scriptRange = sanitized.range(of: "<script[^>]*>[\\s\\S]*?</script>", options: [.regularExpression, .caseInsensitive]) {
+            sanitized.removeSubrange(scriptRange)
+        }
+
+        // Remove event handlers (onclick, onload, etc.)
+        while let eventRange = sanitized.range(of: "\\s+on\\w+\\s*=\\s*[\"'][^\"']*[\"']", options: [.regularExpression, .caseInsensitive]) {
+            sanitized.removeSubrange(eventRange)
+        }
+
+        // Remove javascript: URLs
+        sanitized = sanitized.replacingOccurrences(of: "javascript:", with: "", options: .caseInsensitive)
+
+        return sanitized
+    }
+
+    /// Converts HTML to plain text for multipart/alternative
+    private func htmlToPlainText(_ html: String) -> String {
+        var text = html
+
+        // Replace common block elements with newlines
+        text = text.replacingOccurrences(of: "<br[^>]*>", with: "\n", options: .regularExpression)
+        text = text.replacingOccurrences(of: "</p>", with: "\n\n", options: .caseInsensitive)
+        text = text.replacingOccurrences(of: "</div>", with: "\n", options: .caseInsensitive)
+        text = text.replacingOccurrences(of: "</li>", with: "\n", options: .caseInsensitive)
+        text = text.replacingOccurrences(of: "</tr>", with: "\n", options: .caseInsensitive)
+
+        // Remove all HTML tags
+        text = text.replacingOccurrences(of: "<[^>]+>", with: "", options: .regularExpression)
+
+        // Decode HTML entities
+        text = text.replacingOccurrences(of: "&nbsp;", with: " ")
+        text = text.replacingOccurrences(of: "&amp;", with: "&")
+        text = text.replacingOccurrences(of: "&lt;", with: "<")
+        text = text.replacingOccurrences(of: "&gt;", with: ">")
+        text = text.replacingOccurrences(of: "&quot;", with: "\"")
+        text = text.replacingOccurrences(of: "&#39;", with: "'")
+
+        // Clean up whitespace
+        text = text.replacingOccurrences(of: "[ \t]+", with: " ", options: .regularExpression)
+        text = text.replacingOccurrences(of: "\n{3,}", with: "\n\n", options: .regularExpression)
+
+        return text.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
     private func formatRFC2822Date(_ date: Date) -> String {
         let formatter = DateFormatter()
         formatter.dateFormat = "EEE, dd MMM yyyy HH:mm:ss Z"
         formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.timeZone = TimeZone.current
         return formatter.string(from: date)
     }
 
@@ -431,21 +576,30 @@ public final class NIOSMTPClient: SMTPClientProtocol {
 
         for scalar in text.unicodeScalars {
             let char = Character(scalar)
-            let encoded: String
+            var encoded: String
 
-            if scalar == "\r" || scalar == "\n" {
-                encoded = String(char)
+            if scalar == "\r" {
+                // Skip CR, we'll handle CRLF properly
+                continue
+            } else if scalar == "\n" {
+                // Line break
+                result += "\r\n"
                 lineLength = 0
+                continue
             } else if scalar.isASCII && scalar.value >= 33 && scalar.value <= 126 && scalar != "=" {
+                // Printable ASCII except =
                 encoded = String(char)
             } else if scalar == " " || scalar == "\t" {
+                // Space/tab - encode at end of line
                 encoded = String(char)
             } else {
+                // Encode as =XX
                 let bytes = String(char).utf8
                 encoded = bytes.map { String(format: "=%02X", $0) }.joined()
             }
 
-            if lineLength + encoded.count > 76 {
+            // Soft line break if line would exceed 76 chars
+            if lineLength + encoded.count > 75 {
                 result += "=\r\n"
                 lineLength = 0
             }
@@ -458,12 +612,19 @@ public final class NIOSMTPClient: SMTPClientProtocol {
     }
 
     private func extractMessageId(from response: String) -> String? {
-        // Try to extract message ID from server response
-        // Common format: "250 2.0.0 OK <message-id>"
         if let range = response.range(of: "<[^>]+>", options: .regularExpression) {
             return String(response[range])
         }
         return nil
+    }
+
+    // Keep legacy method for compatibility
+    private func formatAddress(_ addr: MailAddress) -> String {
+        return formatRFC2822Address(addr)
+    }
+
+    private func encodeHeader(_ text: String) -> String {
+        return encodeHeaderRFC2047(text)
     }
 }
 
