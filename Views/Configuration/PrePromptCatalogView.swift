@@ -2,7 +2,7 @@ import SwiftUI
 
 /// Hierarchical Pre-Prompt Catalog Browser
 struct PrePromptCatalogView: View {
-    @StateObject private var manager = PrePromptCatalogManager.shared
+    @ObservedObject private var manager = PrePromptCatalogManager.shared
     @State private var currentFolderID: UUID? = nil
     @State private var showNewFolderSheet = false
     @State private var showNewPresetSheet = false

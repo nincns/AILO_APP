@@ -1,10 +1,9 @@
 import Foundation
-import SwiftUI
+import Combine
 
 /// Manager for hierarchical Pre-Prompt catalog
 /// Handles both menu structure (PrePromptMenuItem) and content (AIPrePromptPreset)
-@MainActor
-public class PrePromptCatalogManager: ObservableObject {
+public final class PrePromptCatalogManager: ObservableObject {
     public static let shared = PrePromptCatalogManager()
 
     @Published public private(set) var menuItems: [PrePromptMenuItem] = []
@@ -109,11 +108,11 @@ public class PrePromptCatalogManager: ObservableObject {
 
     /// Reorder items within a parent
     public func reorderItems(in parentID: UUID?, from source: IndexSet, to destination: Int) {
-        var children = menuItems.children(of: parentID)
-        children.move(fromOffsets: source, toOffset: destination)
+        var childrenList = menuItems.children(of: parentID)
+        childrenList.move(fromOffsets: source, toOffset: destination)
 
         // Update sort orders
-        for (index, child) in children.enumerated() {
+        for (index, child) in childrenList.enumerated() {
             if let menuIndex = menuItems.firstIndex(where: { $0.id == child.id }) {
                 menuItems[menuIndex].sortOrder = index
             }
