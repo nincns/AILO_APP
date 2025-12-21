@@ -1,57 +1,46 @@
 import SwiftUI
 import Foundation
 
-/// Context-based Pre-Prompt Picker
-/// Shows only prompts relevant to the given context
+/// Hierarchical Pre-Prompt Picker
+/// Allows browsing the folder structure and selecting a preset
 struct PrePromptPicker: View {
-    let context: PrePromptContext
-    @Binding var selectedId: UUID?
-    let onSelect: (AIPrePromptPreset) -> Void
+    let rootID: UUID?                      // Start folder (nil = root)
+    @Binding var selectedPresetID: UUID?
+    var onSelect: ((AIPrePromptPreset) -> Void)?
 
-    @State private var presets: [AIPrePromptPreset] = []
+    @StateObject private var manager = PrePromptCatalogManager.shared
+    @State private var currentFolderID: UUID?
+    @State private var navigationPath: [UUID] = []
     @Environment(\.dismiss) private var dismiss
 
-    /// Filtered presets for the given context
-    private var filteredPresets: [AIPrePromptPreset] {
-        presets
-            .filter { $0.context == context || $0.context == .general }
-            .sorted { lhs, rhs in
-                // Context-specific first, then by sortOrder
-                if lhs.context == context && rhs.context != context { return true }
-                if lhs.context != context && rhs.context == context { return false }
-                // Then defaults first
-                if lhs.isDefault && !rhs.isDefault { return true }
-                if !lhs.isDefault && rhs.isDefault { return false }
-                return lhs.sortOrder < rhs.sortOrder
-            }
+    init(
+        rootID: UUID? = nil,
+        selectedPresetID: Binding<UUID?> = .constant(nil),
+        onSelect: ((AIPrePromptPreset) -> Void)? = nil
+    ) {
+        self.rootID = rootID
+        self._selectedPresetID = selectedPresetID
+        self.onSelect = onSelect
+        self._currentFolderID = State(initialValue: rootID)
     }
 
     var body: some View {
         NavigationView {
             List {
-                if filteredPresets.isEmpty {
+                // Breadcrumb if not at root
+                if currentFolderID != nil {
+                    breadcrumbSection
+                }
+
+                // Content
+                if manager.children(of: currentFolderID).isEmpty {
                     emptyState
                 } else {
-                    // Context-specific presets
-                    let contextSpecific = filteredPresets.filter { $0.context == context }
-                    if !contextSpecific.isEmpty {
-                        Section(header: Label(context.localizedName, systemImage: context.icon)) {
-                            ForEach(contextSpecific) { preset in
-                                presetRow(preset)
-                            }
-                        }
-                    }
-
-                    // General presets (fallback)
-                    let generalPresets = filteredPresets.filter { $0.context == .general }
-                    if !generalPresets.isEmpty {
-                        Section(header: Label(
-                            String(localized: "preprompt.category.general"),
-                            systemImage: "text.bubble"
-                        )) {
-                            ForEach(generalPresets) { preset in
-                                presetRow(preset)
-                            }
+                    ForEach(manager.children(of: currentFolderID)) { item in
+                        if item.isFolder {
+                            folderRow(item)
+                        } else {
+                            presetRow(item)
                         }
                     }
                 }
@@ -65,49 +54,39 @@ struct PrePromptPicker: View {
                     }
                 }
             }
-            .onAppear(perform: loadPresets)
         }
     }
 
     // MARK: - Views
 
-    private func presetRow(_ preset: AIPrePromptPreset) -> some View {
-        Button {
-            selectedId = preset.id
-            onSelect(preset)
-            dismiss()
-        } label: {
-            HStack(spacing: 12) {
-                Image(systemName: preset.icon)
-                    .foregroundStyle(selectedId == preset.id ? .blue : .secondary)
-                    .frame(width: 24)
-
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(preset.name)
-                        .font(.body)
-                        .foregroundStyle(.primary)
-
-                    Text(preset.text.prefix(60) + (preset.text.count > 60 ? "..." : ""))
+    private var breadcrumbSection: some View {
+        Section {
+            Button {
+                navigateUp()
+            } label: {
+                HStack(spacing: 8) {
+                    Image(systemName: "chevron.left")
                         .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(2)
-                }
 
-                Spacer()
+                    if let folderID = currentFolderID {
+                        let path = manager.path(to: folderID)
+                        ForEach(Array(path.enumerated()), id: \.element.id) { index, item in
+                            if index > 0 {
+                                Image(systemName: "chevron.right")
+                                    .font(.caption2)
+                                    .foregroundStyle(.secondary)
+                            }
+                            Text(item.name)
+                                .font(.caption)
+                        }
+                    }
 
-                if preset.isDefault {
-                    Image(systemName: "star.fill")
-                        .foregroundStyle(.yellow)
-                        .font(.caption)
-                }
-
-                if selectedId == preset.id {
-                    Image(systemName: "checkmark")
-                        .foregroundStyle(.blue)
+                    Spacer()
                 }
             }
+            .buttonStyle(.plain)
+            .foregroundStyle(.secondary)
         }
-        .buttonStyle(.plain)
     }
 
     private var emptyState: some View {
@@ -129,12 +108,95 @@ struct PrePromptPicker: View {
         .padding(.vertical, 40)
     }
 
-    // MARK: - Helpers
+    private func folderRow(_ item: PrePromptMenuItem) -> some View {
+        Button {
+            navigationPath.append(item.id)
+            currentFolderID = item.id
+        } label: {
+            HStack(spacing: 12) {
+                Image(systemName: item.icon)
+                    .foregroundStyle(.blue)
+                    .frame(width: 28)
 
-    private func loadPresets() {
-        if let data = UserDefaults.standard.data(forKey: kAIPresetsKey),
-           let arr = try? JSONDecoder().decode([AIPrePromptPreset].self, from: data) {
-            presets = arr
+                Text(item.name)
+                    .foregroundStyle(.primary)
+
+                Spacer()
+
+                let childCount = manager.children(of: item.id).count
+                if childCount > 0 {
+                    Text("\(childCount)")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 2)
+                        .background(Color.secondary.opacity(0.2))
+                        .clipShape(Capsule())
+                }
+
+                Image(systemName: "chevron.right")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .buttonStyle(.plain)
+    }
+
+    private func presetRow(_ item: PrePromptMenuItem) -> some View {
+        Button {
+            if let presetID = item.presetID,
+               let preset = manager.preset(withID: presetID) {
+                selectedPresetID = preset.id
+                onSelect?(preset)
+                dismiss()
+            }
+        } label: {
+            HStack(spacing: 12) {
+                Image(systemName: item.icon)
+                    .foregroundStyle(selectedPresetID == item.presetID ? .blue : .secondary)
+                    .frame(width: 28)
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(item.name)
+                        .font(.body)
+                        .foregroundStyle(.primary)
+
+                    if let presetID = item.presetID,
+                       let preset = manager.preset(withID: presetID) {
+                        Text(preset.text.prefix(60) + (preset.text.count > 60 ? "..." : ""))
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(2)
+                    }
+                }
+
+                Spacer()
+
+                if let presetID = item.presetID,
+                   let preset = manager.preset(withID: presetID),
+                   preset.isDefault {
+                    Image(systemName: "star.fill")
+                        .foregroundStyle(.yellow)
+                        .font(.caption)
+                }
+
+                if selectedPresetID == item.presetID {
+                    Image(systemName: "checkmark")
+                        .foregroundStyle(.blue)
+                }
+            }
+        }
+        .buttonStyle(.plain)
+    }
+
+    // MARK: - Actions
+
+    private func navigateUp() {
+        if navigationPath.isEmpty {
+            currentFolderID = rootID
+        } else {
+            navigationPath.removeLast()
+            currentFolderID = navigationPath.last ?? rootID
         }
     }
 }
@@ -142,51 +204,103 @@ struct PrePromptPicker: View {
 // MARK: - Convenience Modifier
 
 extension View {
-    /// Shows a pre-prompt picker sheet for the given context
+    /// Shows a pre-prompt picker sheet
     func prePromptPicker(
         isPresented: Binding<Bool>,
-        context: PrePromptContext,
-        selectedId: Binding<UUID?> = .constant(nil),
+        rootID: UUID? = nil,
+        selectedID: Binding<UUID?> = .constant(nil),
         onSelect: @escaping (AIPrePromptPreset) -> Void
     ) -> some View {
         self.sheet(isPresented: isPresented) {
             PrePromptPicker(
-                context: context,
-                selectedId: selectedId,
+                rootID: rootID,
+                selectedPresetID: selectedID,
                 onSelect: onSelect
             )
         }
     }
 }
 
-// MARK: - Helper to get default preset for context
+// MARK: - Quick Picker (flat list from folder)
 
-extension Array where Element == AIPrePromptPreset {
-    /// Returns the default preset for the given context, or nil if none
-    func defaultPreset(for context: PrePromptContext) -> AIPrePromptPreset? {
-        // First try context-specific default
-        if let contextDefault = first(where: { $0.context == context && $0.isDefault }) {
-            return contextDefault
-        }
-        // Fall back to general default
-        if let generalDefault = first(where: { $0.context == .general && $0.isDefault }) {
-            return generalDefault
-        }
-        // Fall back to first context-specific
-        if let first = first(where: { $0.context == context }) {
-            return first
-        }
-        // Fall back to first general
-        return first(where: { $0.context == .general })
+/// A simpler picker that shows all presets from a folder (recursively)
+struct PrePromptQuickPicker: View {
+    let folderID: UUID?
+    @Binding var selectedPresetID: UUID?
+    var onSelect: ((AIPrePromptPreset) -> Void)?
+
+    @StateObject private var manager = PrePromptCatalogManager.shared
+    @Environment(\.dismiss) private var dismiss
+
+    private var allPresets: [AIPrePromptPreset] {
+        manager.presets(in: folderID)
     }
-}
 
-// MARK: - Load helper
+    var body: some View {
+        NavigationView {
+            List {
+                if allPresets.isEmpty {
+                    VStack(spacing: 16) {
+                        Image(systemName: "text.bubble")
+                            .font(.system(size: 48))
+                            .foregroundStyle(.secondary)
 
-func loadPrePromptPresets() -> [AIPrePromptPreset] {
-    if let data = UserDefaults.standard.data(forKey: kAIPresetsKey),
-       let arr = try? JSONDecoder().decode([AIPrePromptPreset].self, from: data) {
-        return arr
+                        Text("preprompt.picker.empty")
+                            .font(.headline)
+                            .foregroundStyle(.secondary)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 40)
+                } else {
+                    ForEach(allPresets) { preset in
+                        Button {
+                            selectedPresetID = preset.id
+                            onSelect?(preset)
+                            dismiss()
+                        } label: {
+                            HStack(spacing: 12) {
+                                Image(systemName: preset.icon)
+                                    .foregroundStyle(selectedPresetID == preset.id ? .blue : .secondary)
+                                    .frame(width: 28)
+
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(preset.name)
+                                        .font(.body)
+                                        .foregroundStyle(.primary)
+
+                                    Text(preset.text.prefix(60) + (preset.text.count > 60 ? "..." : ""))
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                        .lineLimit(2)
+                                }
+
+                                Spacer()
+
+                                if preset.isDefault {
+                                    Image(systemName: "star.fill")
+                                        .foregroundStyle(.yellow)
+                                        .font(.caption)
+                                }
+
+                                if selectedPresetID == preset.id {
+                                    Image(systemName: "checkmark")
+                                        .foregroundStyle(.blue)
+                                }
+                            }
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+            }
+            .navigationTitle(Text("preprompt.picker.title"))
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button(String(localized: "preprompt.picker.cancel")) {
+                        dismiss()
+                    }
+                }
+            }
+        }
     }
-    return []
 }
