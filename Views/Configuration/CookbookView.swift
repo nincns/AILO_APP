@@ -466,7 +466,7 @@ private struct CookbookEditorSheet: View {
                     .multilineTextAlignment(.center)
                     .font(.title2)
                     .padding(8)
-                    .background(Color(.systemGray6))
+                    .background(Color.white)
                     .clipShape(RoundedRectangle(cornerRadius: 8))
                     .onChange(of: icon) { _, newValue in
                         if newValue.count > 3 {
@@ -475,7 +475,9 @@ private struct CookbookEditorSheet: View {
                     }
 
                 TextField(String(localized: "cookbook.name.placeholder"), text: $name)
-                    .textFieldStyle(.roundedBorder)
+                    .padding(8)
+                    .background(Color.white)
+                    .clipShape(RoundedRectangle(cornerRadius: 8))
             }
             .padding(.horizontal)
 
@@ -499,6 +501,8 @@ private struct CookbookEditorSheet: View {
             .padding(.bottom, 8)
         }
         .padding()
+        .background(Color.white)
+        .clipShape(RoundedRectangle(cornerRadius: 16))
         .presentationDetents([.height(220)])
         .presentationDragIndicator(.visible)
     }
@@ -536,7 +540,7 @@ private struct ChapterEditorSheet: View {
                     .multilineTextAlignment(.center)
                     .font(.title2)
                     .padding(8)
-                    .background(Color(.systemGray6))
+                    .background(Color.white)
                     .clipShape(RoundedRectangle(cornerRadius: 8))
                     .onChange(of: icon) { _, newValue in
                         if newValue.count > 3 {
@@ -545,7 +549,9 @@ private struct ChapterEditorSheet: View {
                     }
 
                 TextField(String(localized: "cookbook.chapter.name.placeholder"), text: $name)
-                    .textFieldStyle(.roundedBorder)
+                    .padding(8)
+                    .background(Color.white)
+                    .clipShape(RoundedRectangle(cornerRadius: 8))
             }
             .padding(.horizontal)
 
@@ -569,6 +575,8 @@ private struct ChapterEditorSheet: View {
             .padding(.bottom, 8)
         }
         .padding()
+        .background(Color.white)
+        .clipShape(RoundedRectangle(cornerRadius: 16))
         .presentationDetents([.height(220)])
         .presentationDragIndicator(.visible)
     }
@@ -596,6 +604,7 @@ struct KeywordBubbleInput: View {
                 // Eingabefeld
                 TextField(tags.isEmpty ? String(localized: "keywords.placeholder") : "", text: $inputText)
                     .font(.subheadline)
+                    .foregroundStyle(.black)
                     .frame(minWidth: 100)
                     .onChange(of: inputText) { _, newValue in
                         checkForSemicolon(newValue)
@@ -605,7 +614,7 @@ struct KeywordBubbleInput: View {
                     }
             }
             .padding(10)
-            .background(Color(.systemBackground))
+            .background(Color.white)
             .clipShape(RoundedRectangle(cornerRadius: 8))
         }
         .onAppear {
