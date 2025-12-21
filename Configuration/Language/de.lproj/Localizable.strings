@@ -626,3 +626,10 @@
 "cookbook.chapter.migrated" = "Importierte Rezepte";
 "cookbook.recipe.new" = "Neues Rezept";
 "cookbook.empty" = "Keine Einträge";
+
+"cookbook.new" = "Neues Kochbuch";
+"cookbook.edit" = "Kochbuch bearbeiten";
+"cookbook.name.placeholder" = "Kochbuchname";
+"cookbook.list.empty" = "Keine Kochbücher";
+"cookbook.default" = "Mein Kochbuch";
+"cookbook.migrated" = "Importierte Rezepte";

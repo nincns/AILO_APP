@@ -4,13 +4,14 @@ import SwiftUI
 
 /// Manager for hierarchical Pre-Prompt catalog
 /// Handles menu structure (PrePromptMenuItem), content (AIPrePromptPreset), recipes (PrePromptRecipe),
-/// and cookbook structure (RecipeMenuItem)
+/// cookbooks (Cookbook), and cookbook structure (RecipeMenuItem)
 public final class PrePromptCatalogManager: ObservableObject {
     public static let shared = PrePromptCatalogManager()
 
     @Published public private(set) var menuItems: [PrePromptMenuItem] = []
     @Published public private(set) var presets: [AIPrePromptPreset] = []
     @Published public private(set) var recipes: [PrePromptRecipe] = []
+    @Published public private(set) var cookbooks: [Cookbook] = []
     @Published public private(set) var recipeMenuItems: [RecipeMenuItem] = []
 
     private init() {
@@ -23,6 +24,7 @@ public final class PrePromptCatalogManager: ObservableObject {
         loadMenuItems()
         loadPresets()
         loadRecipes()
+        loadCookbooks()
         loadRecipeMenuItems()
 
         // Migration: If menu is empty but presets exist, create menu entries
@@ -35,9 +37,14 @@ public final class PrePromptCatalogManager: ObservableObject {
             createDefaultStructure()
         }
 
-        // Migration: If recipe menu is empty but recipes exist, create menu entries
-        if recipeMenuItems.isEmpty && !recipes.isEmpty {
+        // Migration: If cookbooks empty but recipes exist, create default cookbook
+        if cookbooks.isEmpty && !recipes.isEmpty {
             migrateRecipesToCookbook()
+        }
+
+        // First install: Create default cookbook if none exists
+        if cookbooks.isEmpty {
+            createDefaultCookbook()
         }
     }
 
@@ -68,6 +75,15 @@ public final class PrePromptCatalogManager: ObservableObject {
         recipes = items
     }
 
+    private func loadCookbooks() {
+        guard let data = UserDefaults.standard.data(forKey: kCookbooksKey),
+              let items = try? JSONDecoder().decode([Cookbook].self, from: data) else {
+            cookbooks = []
+            return
+        }
+        cookbooks = items.sorted()
+    }
+
     private func loadRecipeMenuItems() {
         guard let data = UserDefaults.standard.data(forKey: kRecipeMenuKey),
               let items = try? JSONDecoder().decode([RecipeMenuItem].self, from: data) else {
@@ -81,6 +97,7 @@ public final class PrePromptCatalogManager: ObservableObject {
         saveMenuItems()
         savePresets()
         saveRecipes()
+        saveCookbooks()
         saveRecipeMenuItems()
     }
 
@@ -97,6 +114,11 @@ public final class PrePromptCatalogManager: ObservableObject {
     private func saveRecipes() {
         guard let data = try? JSONEncoder().encode(recipes) else { return }
         UserDefaults.standard.set(data, forKey: kPrePromptRecipesKey)
+    }
+
+    private func saveCookbooks() {
+        guard let data = try? JSONEncoder().encode(cookbooks) else { return }
+        UserDefaults.standard.set(data, forKey: kCookbooksKey)
     }
 
     private func saveRecipeMenuItems() {
@@ -265,7 +287,72 @@ public final class PrePromptCatalogManager: ObservableObject {
         menuItems.first(where: { $0.id == id })
     }
 
-    // MARK: - Recipe Menu (Cookbook) CRUD
+    // MARK: - Cookbook CRUD
+
+    /// Add a new cookbook
+    public func addCookbook(_ cookbook: Cookbook) {
+        cookbooks.append(cookbook)
+        saveCookbooks()
+    }
+
+    /// Create a new cookbook with name and icon
+    public func createCookbook(name: String, icon: String = "📚", keywords: String = "") {
+        let cookbook = Cookbook(
+            name: name,
+            icon: icon,
+            keywords: keywords,
+            sortOrder: cookbooks.count
+        )
+        cookbooks.append(cookbook)
+        saveCookbooks()
+    }
+
+    /// Update an existing cookbook
+    public func updateCookbook(_ cookbook: Cookbook) {
+        guard let index = cookbooks.firstIndex(where: { $0.id == cookbook.id }) else { return }
+        cookbooks[index] = cookbook
+        saveCookbooks()
+    }
+
+    /// Delete a cookbook and all its contents
+    public func deleteCookbook(_ cookbookID: UUID) {
+        // Get all recipe menu items in this cookbook
+        let itemsToDelete = recipeMenuItems.items(in: cookbookID)
+        let recipeIDsToDelete = itemsToDelete.compactMap { $0.recipeID }
+
+        // Remove menu items
+        recipeMenuItems.removeAll { $0.cookbookID == cookbookID }
+
+        // Remove associated recipes
+        recipes.removeAll { recipeIDsToDelete.contains($0.id) }
+
+        // Remove cookbook
+        cookbooks.removeAll { $0.id == cookbookID }
+
+        save()
+    }
+
+    /// Get cookbook by ID
+    public func cookbook(withID id: UUID) -> Cookbook? {
+        cookbooks.first(where: { $0.id == id })
+    }
+
+    /// Reorder cookbooks
+    public func reorderCookbooks(from source: IndexSet, to destination: Int) {
+        var sortedCookbooks = cookbooks.sorted()
+        sortedCookbooks.move(fromOffsets: source, toOffset: destination)
+
+        // Update sort orders
+        for (index, cookbook) in sortedCookbooks.enumerated() {
+            if let cookbookIndex = cookbooks.firstIndex(where: { $0.id == cookbook.id }) {
+                cookbooks[cookbookIndex].sortOrder = index
+            }
+        }
+
+        saveCookbooks()
+    }
+
+    // MARK: - Recipe Menu (Cookbook Content) CRUD
 
     /// Add a new recipe menu item (chapter or recipe reference)
     public func addRecipeMenuItem(_ item: RecipeMenuItem) {
@@ -300,17 +387,18 @@ public final class PrePromptCatalogManager: ObservableObject {
         save()
     }
 
-    /// Move a recipe menu item to a new parent
+    /// Move a recipe menu item to a new parent (within same cookbook)
     public func moveRecipeMenuItem(_ itemID: UUID, to newParentID: UUID?) {
         guard let index = recipeMenuItems.firstIndex(where: { $0.id == itemID }) else { return }
+        let cookbookID = recipeMenuItems[index].cookbookID
         recipeMenuItems[index].parentID = newParentID
-        recipeMenuItems[index].sortOrder = recipeMenuItems.children(of: newParentID).count
+        recipeMenuItems[index].sortOrder = recipeMenuItems.children(of: newParentID, in: cookbookID).count
         saveRecipeMenuItems()
     }
 
     /// Reorder recipe items within a parent
-    public func reorderRecipeItems(in parentID: UUID?, from source: IndexSet, to destination: Int) {
-        var childrenList = recipeMenuItems.children(of: parentID)
+    public func reorderRecipeItems(in parentID: UUID?, cookbookID: UUID, from source: IndexSet, to destination: Int) {
+        var childrenList = recipeMenuItems.children(of: parentID, in: cookbookID)
         childrenList.move(fromOffsets: source, toOffset: destination)
 
         // Update sort orders
@@ -323,28 +411,30 @@ public final class PrePromptCatalogManager: ObservableObject {
         saveRecipeMenuItems()
     }
 
-    /// Create a new chapter in the cookbook
-    public func createChapter(name: String, icon: String = "📚", keywords: String = "", in parentID: UUID?) {
+    /// Create a new chapter in a cookbook
+    public func createChapter(name: String, icon: String = "📚", keywords: String = "", in cookbookID: UUID, parentID: UUID? = nil) {
         let chapter = RecipeMenuItem.chapter(
+            cookbookID: cookbookID,
             name: name,
             icon: icon,
             keywords: keywords,
             parentID: parentID,
-            sortOrder: recipeMenuItems.children(of: parentID).count
+            sortOrder: recipeMenuItems.children(of: parentID, in: cookbookID).count
         )
         recipeMenuItems.append(chapter)
         saveRecipeMenuItems()
     }
 
-    /// Add a recipe and create a menu item for it in the cookbook
-    public func addRecipeInCookbook(_ recipe: PrePromptRecipe, in parentID: UUID?) {
+    /// Add a recipe and create a menu item for it in a cookbook
+    public func addRecipeInCookbook(_ recipe: PrePromptRecipe, in cookbookID: UUID, parentID: UUID? = nil) {
         recipes.append(recipe)
 
         let menuItem = RecipeMenuItem.recipe(
+            cookbookID: cookbookID,
             name: recipe.name,
             icon: recipe.icon,
             parentID: parentID,
-            sortOrder: recipeMenuItems.children(of: parentID).count,
+            sortOrder: recipeMenuItems.children(of: parentID, in: cookbookID).count,
             recipeID: recipe.id
         )
         recipeMenuItems.append(menuItem)
@@ -375,9 +465,9 @@ public final class PrePromptCatalogManager: ObservableObject {
 
     // MARK: - Recipe Menu Query Helpers
 
-    /// Get children of a recipe menu parent (nil = root)
-    public func recipeChildren(of parentID: UUID?) -> [RecipeMenuItem] {
-        recipeMenuItems.children(of: parentID)
+    /// Get children of a recipe menu parent in a specific cookbook (nil = root)
+    public func recipeChildren(of parentID: UUID?, in cookbookID: UUID) -> [RecipeMenuItem] {
+        recipeMenuItems.children(of: parentID, in: cookbookID)
     }
 
     /// Get breadcrumb path to a recipe menu item
@@ -393,6 +483,15 @@ public final class PrePromptCatalogManager: ObservableObject {
     /// Get all recipes in a chapter (recursively)
     public func recipes(in chapterID: UUID?) -> [PrePromptRecipe] {
         let recipeIDs = recipeMenuItems.recipeIDs(in: chapterID)
+        return recipeIDs.compactMap { id in
+            recipes.first(where: { $0.id == id })
+        }
+    }
+
+    /// Get all recipes in a cookbook
+    public func recipes(inCookbook cookbookID: UUID) -> [PrePromptRecipe] {
+        let items = recipeMenuItems.items(in: cookbookID)
+        let recipeIDs = items.compactMap { $0.recipeID }
         return recipeIDs.compactMap { id in
             recipes.first(where: { $0.id == id })
         }
@@ -453,28 +552,48 @@ public final class PrePromptCatalogManager: ObservableObject {
 
     /// Migrate existing recipes to cookbook structure
     private func migrateRecipesToCookbook() {
-        // Create root chapter "Migrierte Rezepte"
-        let migratedChapter = RecipeMenuItem.chapter(
-            name: String(localized: "cookbook.chapter.migrated"),
+        // Create default cookbook for migration
+        let migratedCookbook = Cookbook(
+            name: String(localized: "cookbook.migrated"),
             icon: "📤",
-            parentID: nil,
             sortOrder: 0
         )
-        recipeMenuItems.append(migratedChapter)
+        cookbooks.append(migratedCookbook)
 
-        // Create menu items for each existing recipe
+        // Update existing recipe menu items to belong to this cookbook
+        // or create new ones if they don't exist
         for (index, recipe) in recipes.enumerated() {
-            let menuItem = RecipeMenuItem.recipe(
-                name: recipe.name,
-                icon: recipe.icon,
-                parentID: migratedChapter.id,
-                sortOrder: index,
-                recipeID: recipe.id
-            )
-            recipeMenuItems.append(menuItem)
+            // Check if recipe already has a menu item
+            if recipeMenuItems.first(where: { $0.recipeID == recipe.id }) == nil {
+                let menuItem = RecipeMenuItem.recipe(
+                    cookbookID: migratedCookbook.id,
+                    name: recipe.name,
+                    icon: recipe.icon,
+                    parentID: nil,
+                    sortOrder: index,
+                    recipeID: recipe.id
+                )
+                recipeMenuItems.append(menuItem)
+            } else {
+                // Update existing menu item with cookbook ID
+                if let menuIndex = recipeMenuItems.firstIndex(where: { $0.recipeID == recipe.id }) {
+                    recipeMenuItems[menuIndex].cookbookID = migratedCookbook.id
+                }
+            }
         }
 
-        saveRecipeMenuItems()
+        save()
+    }
+
+    /// Create default cookbook for new installations
+    private func createDefaultCookbook() {
+        let defaultCookbook = Cookbook(
+            name: String(localized: "cookbook.default"),
+            icon: "📚",
+            sortOrder: 0
+        )
+        cookbooks.append(defaultCookbook)
+        saveCookbooks()
     }
 
     // MARK: - Default Structure

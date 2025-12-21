@@ -1,73 +1,59 @@
 import SwiftUI
 
 /// Hierarchical Cookbook Browser for Recipes
+/// Shows list of cookbooks, then chapters/recipes within a cookbook
 struct CookbookView: View {
     @ObservedObject private var manager = PrePromptCatalogManager.shared
+    @State private var selectedCookbookID: UUID? = nil
     @State private var currentChapterID: UUID? = nil
+    @State private var showNewCookbookSheet = false
     @State private var showNewChapterSheet = false
     @State private var showNewRecipeSheet = false
+    @State private var editingCookbook: Cookbook? = nil
     @State private var editingRecipe: PrePromptRecipe? = nil
     @State private var editingChapter: RecipeMenuItem? = nil
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
         NavigationStack {
-            List {
-                // Chapters and recipes
-                if manager.recipeChildren(of: currentChapterID).isEmpty {
-                    emptyState
+            Group {
+                if selectedCookbookID == nil {
+                    // Show list of cookbooks
+                    cookbookListView
                 } else {
-                    ForEach(manager.recipeChildren(of: currentChapterID)) { item in
-                        if item.isChapter {
-                            chapterRow(item)
-                        } else {
-                            recipeRow(item)
-                        }
-                    }
-                    .onDelete(perform: deleteItems)
-                    .onMove(perform: moveItems)
+                    // Show cookbook content
+                    cookbookContentView
                 }
             }
             .navigationTitle(navigationTitle)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .navigationBarLeading) {
-                    if currentChapterID != nil {
-                        Button {
-                            navigateUp()
-                        } label: {
-                            Image(systemName: "chevron.left")
-                        }
+                toolbarContent
+            }
+            .sheet(isPresented: $showNewCookbookSheet) {
+                CookbookEditorSheet(
+                    cookbook: nil,
+                    onSave: { name, icon, keywords in
+                        manager.createCookbook(name: name, icon: icon, keywords: keywords)
                     }
-                }
-
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Menu {
-                        Button {
-                            showNewChapterSheet = true
-                        } label: {
-                            Label(String(localized: "cookbook.chapter.new"), systemImage: "folder.badge.plus")
-                        }
-
-                        Button {
-                            showNewRecipeSheet = true
-                        } label: {
-                            Label(String(localized: "cookbook.recipe.new"), systemImage: "book.closed.fill")
-                        }
-                    } label: {
-                        Image(systemName: "plus")
+                )
+            }
+            .sheet(item: $editingCookbook) { cookbook in
+                CookbookEditorSheet(
+                    cookbook: cookbook,
+                    onSave: { name, icon, keywords in
+                        let updated = cookbook.updated(name: name, icon: icon, keywords: keywords)
+                        manager.updateCookbook(updated)
                     }
-                }
-
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    EditButton()
-                }
+                )
             }
             .sheet(isPresented: $showNewChapterSheet) {
                 ChapterEditorSheet(
                     chapter: nil,
                     onSave: { name, icon, keywords in
-                        manager.createChapter(name: name, icon: icon, keywords: keywords, in: currentChapterID)
+                        if let cookbookID = selectedCookbookID {
+                            manager.createChapter(name: name, icon: icon, keywords: keywords, in: cookbookID, parentID: currentChapterID)
+                        }
                     }
                 )
             }
@@ -75,7 +61,9 @@ struct CookbookView: View {
                 RecipeEditorSheet(
                     recipe: nil,
                     onSave: { recipe in
-                        manager.addRecipeInCookbook(recipe, in: currentChapterID)
+                        if let cookbookID = selectedCookbookID {
+                            manager.addRecipeInCookbook(recipe, in: cookbookID, parentID: currentChapterID)
+                        }
                     }
                 )
             }
@@ -102,19 +90,185 @@ struct CookbookView: View {
         }
     }
 
-    // MARK: - Views
+    // MARK: - Navigation Title
 
     private var navigationTitle: String {
-        if let chapterID = currentChapterID,
-           let chapter = manager.recipeMenuItem(withID: chapterID) {
-            return chapter.name
+        if let cookbookID = selectedCookbookID {
+            if let chapterID = currentChapterID,
+               let chapter = manager.recipeMenuItem(withID: chapterID) {
+                return chapter.name
+            }
+            if let cookbook = manager.cookbook(withID: cookbookID) {
+                return cookbook.name
+            }
         }
         return String(localized: "cookbook.title")
     }
 
-    private var emptyState: some View {
+    // MARK: - Toolbar
+
+    @ToolbarContentBuilder
+    private var toolbarContent: some ToolbarContent {
+        ToolbarItem(placement: .navigationBarLeading) {
+            if selectedCookbookID != nil {
+                Button {
+                    navigateUp()
+                } label: {
+                    Image(systemName: "chevron.left")
+                }
+            }
+        }
+
+        ToolbarItem(placement: .navigationBarTrailing) {
+            if selectedCookbookID == nil {
+                // Cookbook list: Add new cookbook
+                Button {
+                    showNewCookbookSheet = true
+                } label: {
+                    Image(systemName: "plus")
+                }
+            } else {
+                // Cookbook content: Add chapter or recipe
+                Menu {
+                    Button {
+                        showNewChapterSheet = true
+                    } label: {
+                        Label(String(localized: "cookbook.chapter.new"), systemImage: "folder.badge.plus")
+                    }
+
+                    Button {
+                        showNewRecipeSheet = true
+                    } label: {
+                        Label(String(localized: "cookbook.recipe.new"), systemImage: "book.closed.fill")
+                    }
+                } label: {
+                    Image(systemName: "plus")
+                }
+            }
+        }
+
+        ToolbarItem(placement: .navigationBarTrailing) {
+            EditButton()
+        }
+    }
+
+    // MARK: - Cookbook List View
+
+    private var cookbookListView: some View {
+        List {
+            if manager.cookbooks.isEmpty {
+                cookbookEmptyState
+            } else {
+                ForEach(manager.cookbooks.sorted()) { cookbook in
+                    cookbookRow(cookbook)
+                }
+                .onDelete(perform: deleteCookbooks)
+                .onMove(perform: moveCookbooks)
+            }
+        }
+    }
+
+    private var cookbookEmptyState: some View {
         VStack(spacing: 16) {
             Text("📚")
+                .font(.system(size: 48))
+
+            Text("cookbook.list.empty")
+                .font(.headline)
+                .foregroundStyle(.secondary)
+
+            Button {
+                showNewCookbookSheet = true
+            } label: {
+                Label(String(localized: "cookbook.new"), systemImage: "plus.circle.fill")
+            }
+            .buttonStyle(.bordered)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 40)
+    }
+
+    private func cookbookRow(_ cookbook: Cookbook) -> some View {
+        Button {
+            selectedCookbookID = cookbook.id
+        } label: {
+            HStack(spacing: 12) {
+                Text(cookbook.icon)
+                    .font(.title2)
+                    .frame(width: 44, alignment: .leading)
+                    .lineLimit(1)
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(cookbook.name)
+                        .foregroundStyle(.primary)
+
+                    let recipeCount = manager.recipes(inCookbook: cookbook.id).count
+                    Text(String(localized: "cookbook.recipes.count \(recipeCount)"))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+
+                Spacer()
+
+                Image(systemName: "chevron.right")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .buttonStyle(.plain)
+        .swipeActions(edge: .trailing) {
+            Button(role: .destructive) {
+                manager.deleteCookbook(cookbook.id)
+            } label: {
+                Label("catalog.action.delete", systemImage: "trash")
+            }
+
+            Button {
+                editingCookbook = cookbook
+            } label: {
+                Label("catalog.action.edit", systemImage: "pencil")
+            }
+            .tint(.orange)
+        }
+    }
+
+    private func deleteCookbooks(at offsets: IndexSet) {
+        let sorted = manager.cookbooks.sorted()
+        for index in offsets {
+            manager.deleteCookbook(sorted[index].id)
+        }
+    }
+
+    private func moveCookbooks(from source: IndexSet, to destination: Int) {
+        manager.reorderCookbooks(from: source, to: destination)
+    }
+
+    // MARK: - Cookbook Content View
+
+    private var cookbookContentView: some View {
+        List {
+            if let cookbookID = selectedCookbookID {
+                let children = manager.recipeChildren(of: currentChapterID, in: cookbookID)
+                if children.isEmpty {
+                    contentEmptyState
+                } else {
+                    ForEach(children) { item in
+                        if item.isChapter {
+                            chapterRow(item)
+                        } else {
+                            recipeRow(item)
+                        }
+                    }
+                    .onDelete(perform: deleteItems)
+                    .onMove(perform: moveItems)
+                }
+            }
+        }
+    }
+
+    private var contentEmptyState: some View {
+        VStack(spacing: 16) {
+            Text("📖")
                 .font(.system(size: 48))
 
             Text("cookbook.empty")
@@ -165,15 +319,17 @@ struct CookbookView: View {
 
                 Spacer()
 
-                let childCount = manager.recipeChildren(of: item.id).count
-                if childCount > 0 {
-                    Text("\(childCount)")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 2)
-                        .background(Color.secondary.opacity(0.2))
-                        .clipShape(Capsule())
+                if let cookbookID = selectedCookbookID {
+                    let childCount = manager.recipeChildren(of: item.id, in: cookbookID).count
+                    if childCount > 0 {
+                        Text("\(childCount)")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 2)
+                            .background(Color.secondary.opacity(0.2))
+                            .clipShape(Capsule())
+                    }
                 }
 
                 Image(systemName: "chevron.right")
@@ -247,14 +403,21 @@ struct CookbookView: View {
     // MARK: - Actions
 
     private func navigateUp() {
-        if let chapterID = currentChapterID,
-           let chapter = manager.recipeMenuItem(withID: chapterID) {
-            currentChapterID = chapter.parentID
+        if currentChapterID != nil {
+            // Navigate up within cookbook
+            if let chapterID = currentChapterID,
+               let chapter = manager.recipeMenuItem(withID: chapterID) {
+                currentChapterID = chapter.parentID
+            }
+        } else {
+            // Go back to cookbook list
+            selectedCookbookID = nil
         }
     }
 
     private func deleteItems(at offsets: IndexSet) {
-        let items = manager.recipeChildren(of: currentChapterID)
+        guard let cookbookID = selectedCookbookID else { return }
+        let items = manager.recipeChildren(of: currentChapterID, in: cookbookID)
         for index in offsets {
             let item = items[index]
             if item.isChapter {
@@ -266,7 +429,78 @@ struct CookbookView: View {
     }
 
     private func moveItems(from source: IndexSet, to destination: Int) {
-        manager.reorderRecipeItems(in: currentChapterID, from: source, to: destination)
+        guard let cookbookID = selectedCookbookID else { return }
+        manager.reorderRecipeItems(in: currentChapterID, cookbookID: cookbookID, from: source, to: destination)
+    }
+}
+
+// MARK: - Cookbook Editor Sheet
+
+private struct CookbookEditorSheet: View {
+    let cookbook: Cookbook?
+    let onSave: (String, String, String) -> Void  // name, icon, keywords
+
+    @State private var name: String
+    @State private var icon: String
+    @State private var keywords: String
+    @Environment(\.dismiss) private var dismiss
+
+    init(cookbook: Cookbook?, onSave: @escaping (String, String, String) -> Void) {
+        self.cookbook = cookbook
+        self.onSave = onSave
+        _name = State(initialValue: cookbook?.name ?? "")
+        _icon = State(initialValue: cookbook?.icon ?? "📚")
+        _keywords = State(initialValue: cookbook?.keywords ?? "")
+    }
+
+    var body: some View {
+        VStack(spacing: 12) {
+            Text(cookbook == nil ? "cookbook.new" : "cookbook.edit")
+                .font(.headline)
+                .padding(.top, 8)
+
+            // Icon + Name
+            HStack(spacing: 8) {
+                TextField("📚", text: $icon)
+                    .frame(width: 50)
+                    .multilineTextAlignment(.center)
+                    .font(.title2)
+                    .padding(8)
+                    .background(Color(.systemGray6))
+                    .clipShape(RoundedRectangle(cornerRadius: 8))
+                    .onChange(of: icon) { _, newValue in
+                        if newValue.count > 3 {
+                            icon = String(newValue.prefix(3))
+                        }
+                    }
+
+                TextField(String(localized: "cookbook.name.placeholder"), text: $name)
+                    .textFieldStyle(.roundedBorder)
+            }
+            .padding(.horizontal)
+
+            // Keywords
+            KeywordBubbleInput(keywords: $keywords)
+                .padding(.horizontal)
+
+            HStack(spacing: 16) {
+                Button(String(localized: "catalog.action.cancel")) {
+                    dismiss()
+                }
+                .foregroundStyle(.secondary)
+
+                Button(String(localized: "catalog.action.save")) {
+                    onSave(name, icon, keywords)
+                    dismiss()
+                }
+                .buttonStyle(.borderedProminent)
+                .disabled(name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+            }
+            .padding(.bottom, 8)
+        }
+        .padding()
+        .presentationDetents([.height(220)])
+        .presentationDragIndicator(.visible)
     }
 }
 
@@ -494,7 +728,7 @@ struct FlowLayout: Layout {
     }
 }
 
-// MARK: - Recipe Editor Sheet (shared with PrePromptCatalogView)
+// MARK: - Recipe Editor Sheet
 
 struct RecipeEditorSheet: View {
     let recipe: PrePromptRecipe?
@@ -718,17 +952,14 @@ struct RecipeEditorSheet: View {
     private func collectAllKeywords() -> [(key: String, value: String)] {
         var result: [(key: String, value: String)] = []
 
-        // From selected elements (categories and items)
         for elementID in selectedElementIDs {
             if let menuItem = manager.menuItem(withID: elementID) {
-                // Add menu item keywords (category or item reference)
                 for pair in menuItem.keywordPairs {
                     if !result.contains(where: { $0.key.lowercased() == pair.key.lowercased() }) {
                         result.append(pair)
                     }
                 }
 
-                // If it's an item, also add preset keywords
                 if let presetID = menuItem.presetID,
                    let preset = manager.preset(withID: presetID) {
                     for pair in preset.keywordPairs {
@@ -740,7 +971,6 @@ struct RecipeEditorSheet: View {
             }
         }
 
-        // Recipe keywords override
         let recipeKeywords = keywords.split(separator: ";")
             .map { $0.trimmingCharacters(in: .whitespaces) }
             .filter { !$0.isEmpty }
@@ -772,7 +1002,6 @@ struct RecipeEditorSheet: View {
         for elementID in selectedElementIDs {
             if let menuItem = manager.menuItem(withID: elementID) {
                 if menuItem.isFolder {
-                    // Category: Section header with metadata
                     var sectionParts: [String] = []
                     sectionParts.append("## \(menuItem.name)")
 
@@ -784,7 +1013,6 @@ struct RecipeEditorSheet: View {
                     parts.append(sectionParts.joined(separator: "\n"))
                 } else if let presetID = menuItem.presetID,
                           let preset = manager.preset(withID: presetID) {
-                    // Item: Preset content
                     parts.append(preset.text)
                 }
             }
@@ -813,7 +1041,6 @@ struct RecipeElementPicker: View {
     var body: some View {
         NavigationView {
             List {
-                // Back button if in subfolder
                 if currentFolderID != nil {
                     Button {
                         navigateUp()
@@ -828,13 +1055,11 @@ struct RecipeElementPicker: View {
                     }
                 }
 
-                // Categories section
                 let folders = manager.children(of: currentFolderID).filter { $0.isFolder }
                 if !folders.isEmpty {
                     Section(header: Text("catalog.recipe.picker.categories")) {
                         ForEach(folders) { folder in
                             HStack {
-                                // Navigate into folder
                                 Button {
                                     currentFolderID = folder.id
                                 } label: {
@@ -865,7 +1090,6 @@ struct RecipeElementPicker: View {
                                 }
                                 .buttonStyle(.plain)
 
-                                // Add category button
                                 Button {
                                     if !selectedIDs.contains(folder.id) {
                                         selectedIDs.append(folder.id)
@@ -883,7 +1107,6 @@ struct RecipeElementPicker: View {
                     }
                 }
 
-                // Items section
                 let items = manager.children(of: currentFolderID).filter { $0.isPreset }
                 if !items.isEmpty {
                     Section(header: Text("catalog.recipe.picker.items")) {
@@ -926,7 +1149,6 @@ struct RecipeElementPicker: View {
                     }
                 }
 
-                // Empty state
                 if folders.isEmpty && items.isEmpty {
                     VStack(spacing: 8) {
                         Text("📭")

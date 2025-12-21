@@ -4,10 +4,11 @@ import Foundation
 /// Kann entweder ein Kapitel (Ordner) oder ein Rezept-Verweis sein
 public struct RecipeMenuItem: Identifiable, Codable, Equatable, Sendable {
     public var id: UUID
-    public var parentID: UUID?              // nil = Root-Level
-    public var name: String                 // Anzeigename im Menü
-    public var icon: String                 // Emoji
-    public var keywords: String             // Semikolon-getrennte Schlagwörter (Metadaten)
+    public var cookbookID: UUID                 // Zugehöriges Kochbuch
+    public var parentID: UUID?                  // nil = Root-Level im Kochbuch
+    public var name: String                     // Anzeigename im Menü
+    public var icon: String                     // Emoji
+    public var keywords: String                 // Semikolon-getrennte Schlagwörter (Metadaten)
     public var sortOrder: Int
 
     // Wenn recipeID gesetzt → Blatt-Element (verweist auf Rezept)
@@ -20,6 +21,7 @@ public struct RecipeMenuItem: Identifiable, Codable, Equatable, Sendable {
     // Full initializer
     public init(
         id: UUID = UUID(),
+        cookbookID: UUID,
         parentID: UUID? = nil,
         name: String,
         icon: String = "📁",
@@ -28,6 +30,7 @@ public struct RecipeMenuItem: Identifiable, Codable, Equatable, Sendable {
         recipeID: UUID? = nil
     ) {
         self.id = id
+        self.cookbookID = cookbookID
         self.parentID = parentID
         self.name = name
         self.icon = icon
@@ -36,10 +39,12 @@ public struct RecipeMenuItem: Identifiable, Codable, Equatable, Sendable {
         self.recipeID = recipeID
     }
 
-    // Custom decoding for migration from old format
+    // Custom decoding for migration from old format (without cookbookID)
     public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         id = try container.decode(UUID.self, forKey: .id)
+        // Migration: If no cookbookID, use a default UUID (will be fixed during migration)
+        cookbookID = try container.decodeIfPresent(UUID.self, forKey: .cookbookID) ?? UUID()
         parentID = try container.decodeIfPresent(UUID.self, forKey: .parentID)
         name = try container.decode(String.self, forKey: .name)
         icon = try container.decodeIfPresent(String.self, forKey: .icon) ?? "📁"
@@ -49,11 +54,12 @@ public struct RecipeMenuItem: Identifiable, Codable, Equatable, Sendable {
     }
 
     private enum CodingKeys: String, CodingKey {
-        case id, parentID, name, icon, keywords, sortOrder, recipeID
+        case id, cookbookID, parentID, name, icon, keywords, sortOrder, recipeID
     }
 
     /// Convenience initializer for chapter/folder
     public static func chapter(
+        cookbookID: UUID,
         name: String,
         icon: String = "📚",
         keywords: String = "",
@@ -61,6 +67,7 @@ public struct RecipeMenuItem: Identifiable, Codable, Equatable, Sendable {
         sortOrder: Int = 0
     ) -> RecipeMenuItem {
         RecipeMenuItem(
+            cookbookID: cookbookID,
             parentID: parentID,
             name: name,
             icon: icon,
@@ -72,6 +79,7 @@ public struct RecipeMenuItem: Identifiable, Codable, Equatable, Sendable {
 
     /// Convenience initializer for recipe reference
     public static func recipe(
+        cookbookID: UUID,
         name: String,
         icon: String = "📖",
         keywords: String = "",
@@ -80,6 +88,7 @@ public struct RecipeMenuItem: Identifiable, Codable, Equatable, Sendable {
         recipeID: UUID
     ) -> RecipeMenuItem {
         RecipeMenuItem(
+            cookbookID: cookbookID,
             parentID: parentID,
             name: name,
             icon: icon,
@@ -115,7 +124,18 @@ public struct RecipeMenuItem: Identifiable, Codable, Equatable, Sendable {
 // MARK: - Array Extensions
 
 extension Array where Element == RecipeMenuItem {
-    /// Returns children of the given parent (nil = root level)
+    /// Returns all items in a specific cookbook
+    func items(in cookbookID: UUID) -> [RecipeMenuItem] {
+        filter { $0.cookbookID == cookbookID }
+    }
+
+    /// Returns children of the given parent in a specific cookbook (nil = root level)
+    func children(of parentID: UUID?, in cookbookID: UUID) -> [RecipeMenuItem] {
+        filter { $0.cookbookID == cookbookID && $0.parentID == parentID }
+            .sorted { $0.sortOrder < $1.sortOrder }
+    }
+
+    /// Returns children of the given parent (nil = root level) - legacy support
     func children(of parentID: UUID?) -> [RecipeMenuItem] {
         filter { $0.parentID == parentID }
             .sorted { $0.sortOrder < $1.sortOrder }
