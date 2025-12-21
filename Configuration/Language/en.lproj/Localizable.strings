@@ -640,9 +640,9 @@
 /* MARK: - Prompt Manager */
 "cookbook.title" = "Prompt Manager";
 "cookbook.recipes.count %lld" = "%lld Elements";
-"cookbook.chapter.new" = "New Chapter";
-"cookbook.chapter.edit" = "Edit Chapter";
-"cookbook.chapter.name.placeholder" = "Chapter Name";
+"cookbook.chapter.new" = "New Action";
+"cookbook.chapter.edit" = "Edit Action";
+"cookbook.chapter.name.placeholder" = "Action Name";
 "cookbook.chapter.migrated" = "Imported Prompts";
 "cookbook.recipe.new" = "New Prompt";
 "cookbook.empty" = "No entries";
