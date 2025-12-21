@@ -45,15 +45,15 @@ public class MailOutboxDAOImpl: BaseDAO, MailOutboxDAO {
                 
                 let sql = """
                     INSERT OR REPLACE INTO \(MailSchema.tOutbox)
-                    (id, account_id, created_at, last_attempt_at, attempts, status, 
-                     last_error, from_addr, to_addr, cc_addr, bcc_addr, subject, 
-                     text_body, html_body)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    (id, account_id, created_at, last_attempt_at, attempts, status,
+                     last_error, from_addr, to_addr, cc_addr, bcc_addr, subject,
+                     text_body, html_body, attachments_json)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """
-                
+
                 let stmt = try prepare(sql)
                 defer { finalize(stmt) }
-                
+
                 bindUUID(stmt, 1, item.id)
                 bindUUID(stmt, 2, item.accountId)
                 bindDate(stmt, 3, item.createdAt)
@@ -68,6 +68,7 @@ public class MailOutboxDAOImpl: BaseDAO, MailOutboxDAO {
                 bindText(stmt, 12, item.subject)
                 bindText(stmt, 13, item.textBody)
                 bindText(stmt, 14, item.htmlBody)
+                bindText(stmt, 15, item.attachmentsJson)
                 
                 guard sqlite3_step(stmt) == SQLITE_DONE else {
                     throw DAOError.sqlError("Failed to enqueue outbox item: \(item.id)")
@@ -84,9 +85,9 @@ public class MailOutboxDAOImpl: BaseDAO, MailOutboxDAO {
                 let sql = """
                     SELECT id, account_id, created_at, last_attempt_at, attempts, status,
                            last_error, from_addr, to_addr, cc_addr, bcc_addr, subject,
-                           text_body, html_body
+                           text_body, html_body, attachments_json
                     FROM \(MailSchema.tOutbox)
-                    WHERE account_id = ? AND status = ? 
+                    WHERE account_id = ? AND status = ?
                     ORDER BY created_at ASC
                     LIMIT 1
                 """
@@ -161,7 +162,7 @@ public class MailOutboxDAOImpl: BaseDAO, MailOutboxDAO {
             let sql = """
                 SELECT id, account_id, created_at, last_attempt_at, attempts, status,
                        last_error, from_addr, to_addr, cc_addr, bcc_addr, subject,
-                       text_body, html_body
+                       text_body, html_body, attachments_json
                 FROM \(MailSchema.tOutbox)
                 WHERE account_id = ? AND status = ?
                 ORDER BY created_at ASC
@@ -192,7 +193,7 @@ public class MailOutboxDAOImpl: BaseDAO, MailOutboxDAO {
             let sql = """
                 SELECT id, account_id, created_at, last_attempt_at, attempts, status,
                        last_error, from_addr, to_addr, cc_addr, bcc_addr, subject,
-                       text_body, html_body
+                       text_body, html_body, attachments_json
                 FROM \(MailSchema.tOutbox)
                 WHERE account_id = ? AND status = ?
                 ORDER BY created_at DESC
@@ -331,7 +332,8 @@ public class MailOutboxDAOImpl: BaseDAO, MailOutboxDAO {
         let subject = stmt.columnText(11) ?? ""
         let textBody = stmt.columnText(12)
         let htmlBody = stmt.columnText(13)
-        
+        let attachmentsJson = stmt.columnText(14)
+
         return OutboxItemEntity(
             id: id,
             accountId: accountId,
@@ -346,7 +348,8 @@ public class MailOutboxDAOImpl: BaseDAO, MailOutboxDAO {
             bcc: bcc,
             subject: subject,
             textBody: textBody,
-            htmlBody: htmlBody
+            htmlBody: htmlBody,
+            attachmentsJson: attachmentsJson
         )
     }
 }

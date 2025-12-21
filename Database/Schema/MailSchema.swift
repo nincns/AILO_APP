@@ -211,13 +211,31 @@ public struct OutboxItemEntity: Sendable, Identifiable, Equatable {
     public var subject: String
     public var textBody: String?
     public var htmlBody: String?
+    public var attachmentsJson: String?  // JSON-serialized attachments (v4)
+}
+
+/// Attachment data for Outbox serialization (Codable for JSON storage)
+public struct OutboxAttachment: Codable, Sendable, Equatable {
+    public let filename: String
+    public let mimeType: String
+    public let dataBase64: String  // Base64-encoded binary data
+
+    public init(filename: String, mimeType: String, data: Data) {
+        self.filename = filename
+        self.mimeType = mimeType
+        self.dataBase64 = data.base64EncodedString()
+    }
+
+    public var data: Data? {
+        Data(base64Encoded: dataBase64)
+    }
 }
 
 // MARK: - SQLite DDL (no external deps)
 
 public enum MailSchema {
     /// Increase when schema changes; DAO should store this in SQLite PRAGMA user_version (or similar)
-    public static let currentVersion: Int = 3
+    public static let currentVersion: Int = 4
 
     // Table names
     public static let tAccounts = "accounts"
@@ -334,7 +352,8 @@ public enum MailSchema {
             bcc_addr TEXT,
             subject TEXT,
             text_body TEXT,
-            html_body TEXT
+            html_body TEXT,
+            attachments_json TEXT
         );
         """,
 
@@ -455,6 +474,15 @@ public enum MailSchema {
         """
     ]
 
+    // MARK: DDL v4 - Outbox attachments support
+
+    public static let ddl_v4_migrations: [String] = [
+        // Add attachments_json column for outgoing mail attachments
+        """
+        ALTER TABLE \(tOutbox) ADD COLUMN attachments_json TEXT;
+        """
+    ]
+
     // MARK: - Migration API (storage-agnostic)
 
     /// Returns the DDL statements to create the schema for a specific version.
@@ -463,6 +491,7 @@ public enum MailSchema {
         case 1: return ddl_v1
         case 2: return ddl_v1 // v2 creates full schema with enhanced columns already in ddl_v1
         case 3: return ddl_v1 // v3 creates full schema with raw_body already in ddl_v1
+        case 4: return ddl_v1 // v4 creates full schema with attachments_json already in ddl_v1
         default: return ddl_v1
         }
     }
@@ -484,6 +513,9 @@ public enum MailSchema {
             case 2:
                 // v2 → v3: Add raw_body column
                 steps.append(ddl_v3_migrations)
+            case 3:
+                // v3 → v4: Add attachments_json column to outbox
+                steps.append(ddl_v4_migrations)
             default:
                 steps.append([])
             }

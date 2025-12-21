@@ -12,6 +12,17 @@ public class OutboxDAOAdapter: OutboxDAO {
     }
 
     public func enqueue(_ item: OutboxItem) throws {
+        // Serialize attachments to JSON
+        let attachmentsJson: String? = {
+            guard !item.draft.attachments.isEmpty else { return nil }
+            let outboxAttachments = item.draft.attachments.map { att in
+                OutboxAttachment(filename: att.filename, mimeType: att.mimeType, data: att.data)
+            }
+            guard let data = try? JSONEncoder().encode(outboxAttachments),
+                  let json = String(data: data, encoding: .utf8) else { return nil }
+            return json
+        }()
+
         let entity = OutboxItemEntity(
             id: item.id,
             accountId: item.accountId,
@@ -26,7 +37,8 @@ public class OutboxDAOAdapter: OutboxDAO {
             bcc: item.draft.bcc.map { Self.formatAddress($0) }.joined(separator: ", "),
             subject: item.draft.subject,
             textBody: item.draft.textBody,
-            htmlBody: item.draft.htmlBody
+            htmlBody: item.draft.htmlBody,
+            attachmentsJson: attachmentsJson
         )
         try dao.enqueue(entity)
     }
@@ -102,6 +114,19 @@ extension OutboxItemEntity {
         let ccAddrs = Self.parseAddressList(cc)
         let bccAddrs = Self.parseAddressList(bcc)
 
+        // Deserialize attachments from JSON
+        let mailAttachments: [MailSendAttachment] = {
+            guard let json = attachmentsJson,
+                  let data = json.data(using: .utf8),
+                  let decoded = try? JSONDecoder().decode([OutboxAttachment].self, from: data) else {
+                return []
+            }
+            return decoded.compactMap { att in
+                guard let data = att.data else { return nil }
+                return MailSendAttachment(filename: att.filename, mimeType: att.mimeType, data: data)
+            }
+        }()
+
         let draft = MailDraft(
             from: fromAddr,
             to: toAddrs,
@@ -109,7 +134,8 @@ extension OutboxItemEntity {
             bcc: bccAddrs,
             subject: subject,
             textBody: textBody,
-            htmlBody: htmlBody
+            htmlBody: htmlBody,
+            attachments: mailAttachments
         )
 
         return OutboxItem(

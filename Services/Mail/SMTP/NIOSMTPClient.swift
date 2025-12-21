@@ -352,6 +352,13 @@ public final class NIOSMTPClient: SMTPClientProtocol {
     // MARK: - MIME Message Building
 
     private func buildMIMEMessage(_ message: MailMessage) -> String {
+        // Debug: Log attachment info
+        print("📎 [NIO-SMTP] Building MIME message")
+        print("📎 [NIO-SMTP] Attachments count: \(message.attachments.count)")
+        for (idx, att) in message.attachments.enumerated() {
+            print("📎 [NIO-SMTP] Attachment \(idx): \(att.filename) (\(att.mimeType), \(att.data.count) bytes)")
+        }
+
         var lines: [String] = []
 
         // Extract sender domain for Message-ID
@@ -600,6 +607,32 @@ public final class NIOSMTPClient: SMTPClientProtocol {
         // Remove external stylesheet references
         sanitized = sanitized.replacingOccurrences(of: "@import[^;]+;", with: "", options: .regularExpression)
 
+        // Remove -webkit- prefixed styles from inline style attributes (WKWebView adds these)
+        sanitized = sanitized.replacingOccurrences(
+            of: "-webkit-[^;:]+:[^;\"]+;?",
+            with: "",
+            options: .regularExpression
+        )
+
+        // Remove empty style attributes left after cleaning
+        sanitized = sanitized.replacingOccurrences(
+            of: "\\s*style\\s*=\\s*\"\\s*\"",
+            with: "",
+            options: .regularExpression
+        )
+
+        // Remove empty spans (often left by WKWebView editor)
+        while let range = sanitized.range(of: "<span[^>]*>\\s*</span>", options: .regularExpression) {
+            sanitized.removeSubrange(range)
+        }
+
+        // Simplify spans that have no meaningful attributes
+        sanitized = sanitized.replacingOccurrences(
+            of: "<span\\s*>([^<]*)</span>",
+            with: "$1",
+            options: .regularExpression
+        )
+
         // Ensure proper HTML structure (many spam filters require this)
         return wrapInHTMLStructure(sanitized)
     }
@@ -614,19 +647,18 @@ public final class NIOSMTPClient: SMTPClientProtocol {
             return html
         }
 
-        // Wrap in minimal valid HTML5 structure
+        // Wrap in minimal valid HTML5 structure for email
         return """
-        <!DOCTYPE html>
-        <html>
-        <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        </head>
-        <body>
-        \(html)
-        </body>
-        </html>
-        """
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+</head>
+<body>
+\(html)
+</body>
+</html>
+"""
     }
 
     /// Converts HTML to plain text for multipart/alternative
