@@ -616,3 +616,13 @@
 "app.mail.compose.add_file" = "Datei hinzufügen";
 "app.mail.send" = "Senden";
 "app.common.cancel" = "Abbrechen";
+
+/* MARK: - Cookbook */
+"cookbook.title" = "Kochbuch";
+"cookbook.recipes.count %lld" = "%lld Rezepte";
+"cookbook.chapter.new" = "Neues Kapitel";
+"cookbook.chapter.edit" = "Kapitel bearbeiten";
+"cookbook.chapter.name.placeholder" = "Kapitelname";
+"cookbook.chapter.migrated" = "Importierte Rezepte";
+"cookbook.recipe.new" = "Neues Rezept";
+"cookbook.empty" = "Keine Einträge";

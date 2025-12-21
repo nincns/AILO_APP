@@ -636,3 +636,13 @@
 
 /* Additional permissions keys (missing in EN, present only in DE) */
 "perm.contacts.tooltip" = "Kontakte-Zugriff erlauben";
+
+/* MARK: - Cookbook */
+"cookbook.title" = "Cookbook";
+"cookbook.recipes.count %lld" = "%lld Recipes";
+"cookbook.chapter.new" = "New Chapter";
+"cookbook.chapter.edit" = "Edit Chapter";
+"cookbook.chapter.name.placeholder" = "Chapter Name";
+"cookbook.chapter.migrated" = "Imported Recipes";
+"cookbook.recipe.new" = "New Recipe";
+"cookbook.empty" = "No entries";
