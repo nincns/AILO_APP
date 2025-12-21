@@ -454,7 +454,7 @@ private struct NewFolderSheet: View {
         .padding()
         .background(Color(.systemBackground))
         .clipShape(RoundedRectangle(cornerRadius: 16))
-        .presentationDetents([.height(220)])
+        .presentationDetents([.medium, .large])
         .presentationDragIndicator(.visible)
     }
 }
@@ -533,7 +533,7 @@ private struct FolderEditorSheet: View {
         .padding()
         .background(Color(.systemBackground))
         .clipShape(RoundedRectangle(cornerRadius: 16))
-        .presentationDetents([.height(220)])
+        .presentationDetents([.medium, .large])
         .presentationDragIndicator(.visible)
     }
 }
@@ -643,7 +643,7 @@ private struct PresetEditorSheet: View {
         .padding()
         .background(Color(.systemBackground))
         .clipShape(RoundedRectangle(cornerRadius: 16))
-        .presentationDetents([.medium])
+        .presentationDetents([.medium, .large])
         .presentationDragIndicator(.visible)
     }
 }

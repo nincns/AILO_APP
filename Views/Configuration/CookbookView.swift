@@ -504,7 +504,7 @@ private struct CookbookEditorSheet: View {
         .padding()
         .background(Color(.systemBackground))
         .clipShape(RoundedRectangle(cornerRadius: 16))
-        .presentationDetents([.height(220)])
+        .presentationDetents([.medium, .large])
         .presentationDragIndicator(.visible)
     }
 }
@@ -579,7 +579,7 @@ private struct ChapterEditorSheet: View {
         .padding()
         .background(Color(.systemBackground))
         .clipShape(RoundedRectangle(cornerRadius: 16))
-        .presentationDetents([.height(220)])
+        .presentationDetents([.medium, .large])
         .presentationDragIndicator(.visible)
     }
 }
