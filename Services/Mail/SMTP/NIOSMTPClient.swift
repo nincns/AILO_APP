@@ -381,9 +381,6 @@ public final class NIOSMTPClient: SMTPClientProtocol {
         // Message-ID with sender's domain (important for DKIM alignment)
         lines.append("Message-ID: \(messageId)")
 
-        // Reply-To (improves deliverability - shows legitimate sender)
-        lines.append("Reply-To: \(formatRFC2822Address(message.from))")
-
         // === MIME Headers ===
         lines.append("MIME-Version: 1.0")
 
