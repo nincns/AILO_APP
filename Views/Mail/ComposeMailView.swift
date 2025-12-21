@@ -81,6 +81,7 @@ struct ComposeMailView: View {
                                 }
                             }
                             .labelsHidden()
+                            .scaleEffect(0.85)
                         }
 
                         Spacer()
