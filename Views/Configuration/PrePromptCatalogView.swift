@@ -133,7 +133,7 @@ struct PrePromptCatalogView: View {
             )
             .sheet(isPresented: $showExportShare) {
                 if let url = exportURL {
-                    ShareSheet(activityItems: [url])
+                    ShareSheet(items: [url])
                 }
             }
             .alert(
@@ -394,18 +394,6 @@ struct PrePromptCatalogView: View {
             showImportAlert = true
         }
     }
-}
-
-// MARK: - Share Sheet Wrapper
-
-private struct ShareSheet: UIViewControllerRepresentable {
-    let activityItems: [Any]
-
-    func makeUIViewController(context: Context) -> UIActivityViewController {
-        UIActivityViewController(activityItems: activityItems, applicationActivities: nil)
-    }
-
-    func updateUIViewController(_ uiViewController: UIActivityViewController, context: Context) {}
 }
 
 // MARK: - New Folder Popup
