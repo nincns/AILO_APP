@@ -461,7 +461,6 @@ public final class SMTPClient {
     private func buildRFC5322(_ msg: MailSendMessage) -> String {
         let adapted = MailMessage(
             from: MailAddress(msg.from.email, name: msg.from.name),
-            replyTo: msg.replyTo.map { MailAddress($0.email, name: $0.name) },
             to: msg.to.map { MailAddress($0.email, name: $0.name) },
             cc: msg.cc.map { MailAddress($0.email, name: $0.name) },
             bcc: msg.bcc.map { MailAddress($0.email, name: $0.name) },
@@ -475,7 +474,6 @@ public final class SMTPClient {
     private func buildRFC5322(_ msg: MailMessage) -> String {
         var headers: [String] = []
         headers.append("From: \(msg.from.rfc822)")
-        if let replyTo = msg.replyTo { headers.append("Reply-To: \(replyTo.rfc822)") }
         if !msg.to.isEmpty { headers.append("To: " + msg.to.map { $0.rfc822 }.joined(separator: ", ")) }
         if !msg.cc.isEmpty { headers.append("Cc: " + msg.cc.map { $0.rfc822 }.joined(separator: ", ")) }
         headers.append("Subject: \(msg.subject)")

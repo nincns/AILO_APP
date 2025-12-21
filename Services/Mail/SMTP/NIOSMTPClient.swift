@@ -381,10 +381,8 @@ public final class NIOSMTPClient: SMTPClientProtocol {
         // Message-ID with sender's domain (important for DKIM alignment)
         lines.append("Message-ID: \(messageId)")
 
-        // Reply-To from account settings (only if configured)
-        if let replyTo = message.replyTo {
-            lines.append("Reply-To: \(formatRFC2822Address(replyTo))")
-        }
+        // Reply-To (improves deliverability - shows legitimate sender)
+        lines.append("Reply-To: \(formatRFC2822Address(message.from))")
 
         // === MIME Headers ===
         lines.append("MIME-Version: 1.0")

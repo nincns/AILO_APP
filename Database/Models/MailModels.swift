@@ -18,7 +18,6 @@ public struct MailAddress: Sendable, Hashable {
 
 public struct MailMessage: Sendable {
     public let from: MailAddress
-    public let replyTo: MailAddress?
     public let to: [MailAddress]
     public let cc: [MailAddress]
     public let bcc: [MailAddress]
@@ -27,7 +26,6 @@ public struct MailMessage: Sendable {
     public let htmlBody: String?
 
     public init(from: MailAddress,
-                replyTo: MailAddress? = nil,
                 to: [MailAddress],
                 cc: [MailAddress] = [],
                 bcc: [MailAddress] = [],
@@ -35,7 +33,6 @@ public struct MailMessage: Sendable {
                 textBody: String? = nil,
                 htmlBody: String? = nil) {
         self.from = from
-        self.replyTo = replyTo
         self.to = to
         self.cc = cc
         self.bcc = bcc

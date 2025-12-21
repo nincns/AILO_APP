@@ -42,18 +42,18 @@ public class MailOutboxDAOImpl: BaseDAO, MailOutboxDAO {
         try DAOPerformanceMonitor.measure("enqueue_outbox_item") {
             try dbQueue.sync {
                 try ensureOpen()
-
+                
                 let sql = """
                     INSERT OR REPLACE INTO \(MailSchema.tOutbox)
-                    (id, account_id, created_at, last_attempt_at, attempts, status,
-                     last_error, from_addr, reply_to, to_addr, cc_addr, bcc_addr, subject,
+                    (id, account_id, created_at, last_attempt_at, attempts, status, 
+                     last_error, from_addr, to_addr, cc_addr, bcc_addr, subject, 
                      text_body, html_body)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """
-
+                
                 let stmt = try prepare(sql)
                 defer { finalize(stmt) }
-
+                
                 bindUUID(stmt, 1, item.id)
                 bindUUID(stmt, 2, item.accountId)
                 bindDate(stmt, 3, item.createdAt)
@@ -62,14 +62,13 @@ public class MailOutboxDAOImpl: BaseDAO, MailOutboxDAO {
                 bindText(stmt, 6, item.status.rawValue)
                 bindText(stmt, 7, item.lastError)
                 bindText(stmt, 8, item.from)
-                bindText(stmt, 9, item.replyTo)
-                bindText(stmt, 10, item.to)
-                bindText(stmt, 11, item.cc)
-                bindText(stmt, 12, item.bcc)
-                bindText(stmt, 13, item.subject)
-                bindText(stmt, 14, item.textBody)
-                bindText(stmt, 15, item.htmlBody)
-
+                bindText(stmt, 9, item.to)
+                bindText(stmt, 10, item.cc)
+                bindText(stmt, 11, item.bcc)
+                bindText(stmt, 12, item.subject)
+                bindText(stmt, 13, item.textBody)
+                bindText(stmt, 14, item.htmlBody)
+                
                 guard sqlite3_step(stmt) == SQLITE_DONE else {
                     throw DAOError.sqlError("Failed to enqueue outbox item: \(item.id)")
                 }
@@ -81,27 +80,27 @@ public class MailOutboxDAOImpl: BaseDAO, MailOutboxDAO {
         return try DAOPerformanceMonitor.measure("dequeue_outbox_item") {
             return try dbQueue.sync {
                 try ensureOpen()
-
+                
                 let sql = """
                     SELECT id, account_id, created_at, last_attempt_at, attempts, status,
-                           last_error, from_addr, reply_to, to_addr, cc_addr, bcc_addr, subject,
+                           last_error, from_addr, to_addr, cc_addr, bcc_addr, subject,
                            text_body, html_body
                     FROM \(MailSchema.tOutbox)
-                    WHERE account_id = ? AND status = ?
+                    WHERE account_id = ? AND status = ? 
                     ORDER BY created_at ASC
                     LIMIT 1
                 """
-
+                
                 let stmt = try prepare(sql)
                 defer { finalize(stmt) }
-
+                
                 bindUUID(stmt, 1, accountId)
                 bindText(stmt, 2, OutboxStatusEntity.pending.rawValue)
-
+                
                 guard sqlite3_step(stmt) == SQLITE_ROW else {
                     return nil
                 }
-
+                
                 return buildOutboxItem(from: stmt)
             }
         }
@@ -158,26 +157,26 @@ public class MailOutboxDAOImpl: BaseDAO, MailOutboxDAO {
     public func getPendingItems(for accountId: UUID, limit: Int) throws -> [OutboxItemEntity] {
         return try dbQueue.sync {
             try ensureOpen()
-
+            
             let sql = """
                 SELECT id, account_id, created_at, last_attempt_at, attempts, status,
-                       last_error, from_addr, reply_to, to_addr, cc_addr, bcc_addr, subject,
+                       last_error, from_addr, to_addr, cc_addr, bcc_addr, subject,
                        text_body, html_body
                 FROM \(MailSchema.tOutbox)
                 WHERE account_id = ? AND status = ?
                 ORDER BY created_at ASC
                 LIMIT ?
             """
-
+            
             let stmt = try prepare(sql)
             defer { finalize(stmt) }
-
+            
             bindUUID(stmt, 1, accountId)
             bindText(stmt, 2, OutboxStatusEntity.pending.rawValue)
             bindInt(stmt, 3, limit)
-
+            
             var items: [OutboxItemEntity] = []
-
+            
             while sqlite3_step(stmt) == SQLITE_ROW {
                 items.append(buildOutboxItem(from: stmt))
             }
@@ -189,28 +188,28 @@ public class MailOutboxDAOImpl: BaseDAO, MailOutboxDAO {
     public func getFailedItems(for accountId: UUID) throws -> [OutboxItemEntity] {
         return try dbQueue.sync {
             try ensureOpen()
-
+            
             let sql = """
                 SELECT id, account_id, created_at, last_attempt_at, attempts, status,
-                       last_error, from_addr, reply_to, to_addr, cc_addr, bcc_addr, subject,
+                       last_error, from_addr, to_addr, cc_addr, bcc_addr, subject,
                        text_body, html_body
                 FROM \(MailSchema.tOutbox)
                 WHERE account_id = ? AND status = ?
                 ORDER BY created_at DESC
             """
-
+            
             let stmt = try prepare(sql)
             defer { finalize(stmt) }
-
+            
             bindUUID(stmt, 1, accountId)
             bindText(stmt, 2, OutboxStatusEntity.failed.rawValue)
-
+            
             var items: [OutboxItemEntity] = []
-
+            
             while sqlite3_step(stmt) == SQLITE_ROW {
                 items.append(buildOutboxItem(from: stmt))
             }
-
+            
             return items
         }
     }
@@ -326,14 +325,13 @@ public class MailOutboxDAOImpl: BaseDAO, MailOutboxDAO {
         let status = OutboxStatusEntity(rawValue: statusString) ?? .pending
         let lastError = stmt.columnText(6)
         let from = stmt.columnText(7) ?? ""
-        let replyTo = stmt.columnText(8)
-        let to = stmt.columnText(9) ?? ""
-        let cc = stmt.columnText(10) ?? ""
-        let bcc = stmt.columnText(11) ?? ""
-        let subject = stmt.columnText(12) ?? ""
-        let textBody = stmt.columnText(13)
-        let htmlBody = stmt.columnText(14)
-
+        let to = stmt.columnText(8) ?? ""
+        let cc = stmt.columnText(9) ?? ""
+        let bcc = stmt.columnText(10) ?? ""
+        let subject = stmt.columnText(11) ?? ""
+        let textBody = stmt.columnText(12)
+        let htmlBody = stmt.columnText(13)
+        
         return OutboxItemEntity(
             id: id,
             accountId: accountId,
@@ -343,7 +341,6 @@ public class MailOutboxDAOImpl: BaseDAO, MailOutboxDAO {
             status: status,
             lastError: lastError,
             from: from,
-            replyTo: replyTo,
             to: to,
             cc: cc,
             bcc: bcc,
