@@ -381,6 +381,9 @@ public final class NIOSMTPClient: SMTPClientProtocol {
         // Message-ID with sender's domain (important for DKIM alignment)
         lines.append("Message-ID: \(messageId)")
 
+        // Reply-To (improves deliverability - shows legitimate sender)
+        lines.append("Reply-To: \(formatRFC2822Address(message.from))")
+
         // === MIME Headers ===
         lines.append("MIME-Version: 1.0")
 
@@ -388,6 +391,7 @@ public final class NIOSMTPClient: SMTPClientProtocol {
         lines.append("X-Mailer: AILO Mail/1.0")
         lines.append("X-Priority: 3")  // Normal priority
         lines.append("X-MSMail-Priority: Normal")
+        lines.append("Importance: Normal")
 
         // Auto-Submitted header (prevents auto-reply loops)
         // Only add for automated/generated messages - skip for user-composed
@@ -481,7 +485,9 @@ public final class NIOSMTPClient: SMTPClientProtocol {
                 return "\(name) <\(addr.email)>"
             }
         }
-        return "<\(addr.email)>"
+        // No name - return plain email without angle brackets (RFC 5321 compatible)
+        // Using <email> without name triggers spam filters
+        return addr.email
     }
 
     /// RFC 2047 encoding for header fields with non-ASCII characters
