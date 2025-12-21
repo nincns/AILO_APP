@@ -212,9 +212,9 @@ public final class PrePromptCatalogManager: ObservableObject {
 
     /// Migrate from legacy flat preset list
     private func migrateFromLegacy() {
-        // Create root folder "Migriert"
+        // Create root category "Migriert"
         let migratedFolder = PrePromptMenuItem.folder(
-            name: String(localized: "catalog.folder.migrated"),
+            name: String(localized: "catalog.category.migrated"),
             icon: "📤",
             parentID: nil,
             sortOrder: 0
@@ -238,20 +238,20 @@ public final class PrePromptCatalogManager: ObservableObject {
 
     // MARK: - Default Structure
 
-    /// Create default folder structure for new installations
+    /// Create default category structure for new installations
     private func createDefaultStructure() {
-        // Mail folder
+        // Mail category
         let mailFolder = PrePromptMenuItem.folder(
-            name: String(localized: "catalog.folder.mail"),
+            name: String(localized: "catalog.category.mail"),
             icon: "📧",
             parentID: nil,
             sortOrder: 0
         )
         menuItems.append(mailFolder)
 
-        // Mail subfolders
+        // Mail subcategories
         let replyFolder = PrePromptMenuItem.folder(
-            name: String(localized: "catalog.folder.reply"),
+            name: String(localized: "catalog.category.reply"),
             icon: "↩️",
             parentID: mailFolder.id,
             sortOrder: 0
@@ -259,7 +259,7 @@ public final class PrePromptCatalogManager: ObservableObject {
         menuItems.append(replyFolder)
 
         let forwardFolder = PrePromptMenuItem.folder(
-            name: String(localized: "catalog.folder.forward"),
+            name: String(localized: "catalog.category.forward"),
             icon: "↪️",
             parentID: mailFolder.id,
             sortOrder: 1
@@ -267,16 +267,16 @@ public final class PrePromptCatalogManager: ObservableObject {
         menuItems.append(forwardFolder)
 
         let analyzeFolder = PrePromptMenuItem.folder(
-            name: String(localized: "catalog.folder.analyze"),
+            name: String(localized: "catalog.category.analyze"),
             icon: "🔍",
             parentID: mailFolder.id,
             sortOrder: 2
         )
         menuItems.append(analyzeFolder)
 
-        // Notes folder
+        // Notes category
         let notesFolder = PrePromptMenuItem.folder(
-            name: String(localized: "catalog.folder.notes"),
+            name: String(localized: "catalog.category.notes"),
             icon: "📝",
             parentID: nil,
             sortOrder: 1
@@ -301,9 +301,9 @@ public final class PrePromptCatalogManager: ObservableObject {
         )
         menuItems.append(protocolMenuItem)
 
-        // General folder
+        // General category
         let generalFolder = PrePromptMenuItem.folder(
-            name: String(localized: "catalog.folder.general"),
+            name: String(localized: "catalog.category.general"),
             icon: "💬",
             parentID: nil,
             sortOrder: 2

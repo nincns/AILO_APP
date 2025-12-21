@@ -408,19 +408,17 @@
 
 /* MARK: - Pre-Prompt Catalog */
 "catalog.title" = "Pre-Prompt Catalog";
-"catalog.folder.new" = "New Folder";
-"catalog.folder.edit" = "Edit Folder";
-"catalog.folder.name" = "Folder Name";
-"catalog.folder.name.placeholder" = "Enter name";
-"catalog.folder.icon" = "Icon";
-"catalog.folder.migrated" = "Imported";
-"catalog.folder.mail" = "Mail";
-"catalog.folder.reply" = "Reply";
-"catalog.folder.forward" = "Forward";
-"catalog.folder.analyze" = "Analysis";
-"catalog.folder.notes" = "Notes";
-"catalog.folder.general" = "General";
-"catalog.prompt.new" = "New Pre-Prompt";
+"catalog.category.new" = "New Category";
+"catalog.category.edit" = "Edit Category";
+"catalog.category.name.placeholder" = "Enter name";
+"catalog.category.migrated" = "Imported";
+"catalog.category.mail" = "Mail";
+"catalog.category.reply" = "Reply";
+"catalog.category.forward" = "Forward";
+"catalog.category.analyze" = "Analysis";
+"catalog.category.notes" = "Notes";
+"catalog.category.general" = "General";
+"catalog.item.new" = "New Item";
 "catalog.action.move" = "Move";
 "catalog.action.delete" = "Delete";
 "catalog.action.edit" = "Edit";

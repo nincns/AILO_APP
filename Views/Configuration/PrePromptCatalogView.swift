@@ -46,13 +46,13 @@ struct PrePromptCatalogView: View {
                         Button {
                             showNewFolderSheet = true
                         } label: {
-                            Label(String(localized: "catalog.folder.new"), systemImage: "folder.badge.plus")
+                            Label(String(localized: "catalog.category.new"), systemImage: "folder.badge.plus")
                         }
 
                         Button {
                             showNewPresetSheet = true
                         } label: {
-                            Label(String(localized: "catalog.prompt.new"), systemImage: "plus.circle")
+                            Label(String(localized: "catalog.item.new"), systemImage: "plus.circle")
                         }
                     } label: {
                         Image(systemName: "plus")
@@ -117,20 +117,20 @@ struct PrePromptCatalogView: View {
                 .font(.headline)
                 .foregroundStyle(.secondary)
 
-            HStack(spacing: 16) {
+            HStack(spacing: 12) {
                 Button {
                     showNewFolderSheet = true
                 } label: {
-                    Label(String(localized: "catalog.folder.new"), systemImage: "folder.badge.plus")
+                    Label(String(localized: "catalog.category.new"), systemImage: "folder.badge.plus")
                 }
                 .buttonStyle(.bordered)
 
                 Button {
                     showNewPresetSheet = true
                 } label: {
-                    Label(String(localized: "catalog.prompt.new"), systemImage: "plus.circle")
+                    Label(String(localized: "catalog.item.new"), systemImage: "doc.badge.plus")
                 }
-                .buttonStyle(.borderedProminent)
+                .buttonStyle(.bordered)
             }
         }
         .frame(maxWidth: .infinity)
@@ -274,7 +274,7 @@ private struct NewFolderSheet: View {
 
     var body: some View {
         VStack(spacing: 12) {
-            Text("catalog.folder.new")
+            Text("catalog.category.new")
                 .font(.headline)
                 .padding(.top, 8)
 
@@ -293,7 +293,7 @@ private struct NewFolderSheet: View {
                         }
                     }
 
-                TextField(String(localized: "catalog.folder.name.placeholder"), text: $name)
+                TextField(String(localized: "catalog.category.name.placeholder"), text: $name)
                     .textFieldStyle(.roundedBorder)
             }
             .padding(.horizontal)
@@ -344,7 +344,7 @@ private struct FolderEditorSheet: View {
 
     var body: some View {
         VStack(spacing: 12) {
-            Text("catalog.folder.edit")
+            Text("catalog.category.edit")
                 .font(.headline)
                 .padding(.top, 8)
 
@@ -363,7 +363,7 @@ private struct FolderEditorSheet: View {
                         }
                     }
 
-                TextField(String(localized: "catalog.folder.name.placeholder"), text: $name)
+                TextField(String(localized: "catalog.category.name.placeholder"), text: $name)
                     .textFieldStyle(.roundedBorder)
             }
             .padding(.horizontal)
