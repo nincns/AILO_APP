@@ -637,8 +637,8 @@
 /* Additional permissions keys (missing in EN, present only in DE) */
 "perm.contacts.tooltip" = "Kontakte-Zugriff erlauben";
 
-/* MARK: - Cookbook */
-"cookbook.title" = "Cookbook";
+/* MARK: - Prompt Manager */
+"cookbook.title" = "Prompt Manager";
 "cookbook.recipes.count %lld" = "%lld Recipes";
 "cookbook.chapter.new" = "New Chapter";
 "cookbook.chapter.edit" = "Edit Chapter";
@@ -647,11 +647,11 @@
 "cookbook.recipe.new" = "New Recipe";
 "cookbook.empty" = "No entries";
 
-"cookbook.new" = "New Cookbook";
-"cookbook.edit" = "Edit Cookbook";
-"cookbook.name.placeholder" = "Cookbook Name";
-"cookbook.list.empty" = "No Cookbooks";
-"cookbook.default" = "My Cookbook";
+"cookbook.new" = "New Prompt Manager";
+"cookbook.edit" = "Edit Prompt Manager";
+"cookbook.name.placeholder" = "Name";
+"cookbook.list.empty" = "No Prompt Managers";
+"cookbook.default" = "My Prompt Manager";
 "cookbook.migrated" = "Imported Recipes";
 
 "keywords.placeholder" = "Keywords: separated by semicolon";

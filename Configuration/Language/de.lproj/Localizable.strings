@@ -617,8 +617,8 @@
 "app.mail.send" = "Senden";
 "app.common.cancel" = "Abbrechen";
 
-/* MARK: - Cookbook */
-"cookbook.title" = "Kochbuch";
+/* MARK: - Prompt Manager */
+"cookbook.title" = "Prompt Manager";
 "cookbook.recipes.count %lld" = "%lld Rezepte";
 "cookbook.chapter.new" = "Neues Kapitel";
 "cookbook.chapter.edit" = "Kapitel bearbeiten";
@@ -627,11 +627,11 @@
 "cookbook.recipe.new" = "Neues Rezept";
 "cookbook.empty" = "Keine Einträge";
 
-"cookbook.new" = "Neues Kochbuch";
-"cookbook.edit" = "Kochbuch bearbeiten";
-"cookbook.name.placeholder" = "Kochbuchname";
-"cookbook.list.empty" = "Keine Kochbücher";
-"cookbook.default" = "Mein Kochbuch";
+"cookbook.new" = "Neuer Prompt Manager";
+"cookbook.edit" = "Prompt Manager bearbeiten";
+"cookbook.name.placeholder" = "Name";
+"cookbook.list.empty" = "Keine Prompt Manager";
+"cookbook.default" = "Mein Prompt Manager";
 "cookbook.migrated" = "Importierte Rezepte";
 
 "keywords.placeholder" = "Schlagwörter: mit Semikolon getrennt";
