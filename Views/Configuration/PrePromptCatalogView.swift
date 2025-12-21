@@ -110,9 +110,8 @@ struct PrePromptCatalogView: View {
 
     private var emptyState: some View {
         VStack(spacing: 16) {
-            Image(systemName: "folder")
+            Text("📁")
                 .font(.system(size: 48))
-                .foregroundStyle(.secondary)
 
             Text("catalog.empty")
                 .font(.headline)
@@ -143,8 +142,8 @@ struct PrePromptCatalogView: View {
             currentFolderID = item.id
         } label: {
             HStack(spacing: 12) {
-                Image(systemName: item.icon)
-                    .foregroundStyle(.blue)
+                Text(item.icon)
+                    .font(.title2)
                     .frame(width: 28)
 
                 Text(item.name)
@@ -193,8 +192,8 @@ struct PrePromptCatalogView: View {
             }
         } label: {
             HStack(spacing: 12) {
-                Image(systemName: item.icon)
-                    .foregroundStyle(.secondary)
+                Text(item.icon)
+                    .font(.title2)
                     .frame(width: 28)
 
                 VStack(alignment: .leading, spacing: 2) {
@@ -267,12 +266,12 @@ private struct NewFolderSheet: View {
     let onSave: (String, String) -> Void
 
     @State private var name = ""
-    @State private var icon = "folder"
+    @State private var icon = "📁"
     @Environment(\.dismiss) private var dismiss
 
     private let iconOptions = [
-        "folder", "folder.fill", "star.fill", "heart.fill",
-        "bookmark.fill", "flag.fill", "tag.fill", "pin.fill"
+        "📁", "📂", "⭐", "❤️", "🔖", "🏷️", "📌", "🎯",
+        "📧", "📝", "💬", "📋", "🔍", "✨", "💡", "🎨"
     ]
 
     var body: some View {
@@ -284,14 +283,14 @@ private struct NewFolderSheet: View {
 
                 Section(header: Text("catalog.folder.icon")) {
                     LazyVGrid(columns: [GridItem(.adaptive(minimum: 44))], spacing: 12) {
-                        ForEach(iconOptions, id: \.self) { iconName in
+                        ForEach(iconOptions, id: \.self) { emoji in
                             Button {
-                                icon = iconName
+                                icon = emoji
                             } label: {
-                                Image(systemName: iconName)
-                                    .font(.title2)
+                                Text(emoji)
+                                    .font(.title)
                                     .frame(width: 44, height: 44)
-                                    .background(icon == iconName ? Color.blue.opacity(0.2) : Color.clear)
+                                    .background(icon == emoji ? Color.blue.opacity(0.2) : Color.clear)
                                     .clipShape(RoundedRectangle(cornerRadius: 8))
                             }
                             .buttonStyle(.plain)
@@ -331,9 +330,8 @@ private struct FolderEditorSheet: View {
     @Environment(\.dismiss) private var dismiss
 
     private let iconOptions = [
-        "folder", "folder.fill", "star.fill", "heart.fill",
-        "bookmark.fill", "flag.fill", "tag.fill", "pin.fill",
-        "envelope", "note.text", "text.bubble", "list.clipboard"
+        "📁", "📂", "⭐", "❤️", "🔖", "🏷️", "📌", "🎯",
+        "📧", "📝", "💬", "📋", "🔍", "✨", "💡", "🎨"
     ]
 
     init(folder: PrePromptMenuItem, onSave: @escaping (PrePromptMenuItem) -> Void) {
@@ -352,14 +350,14 @@ private struct FolderEditorSheet: View {
 
                 Section(header: Text("catalog.folder.icon")) {
                     LazyVGrid(columns: [GridItem(.adaptive(minimum: 44))], spacing: 12) {
-                        ForEach(iconOptions, id: \.self) { iconName in
+                        ForEach(iconOptions, id: \.self) { emoji in
                             Button {
-                                icon = iconName
+                                icon = emoji
                             } label: {
-                                Image(systemName: iconName)
-                                    .font(.title2)
+                                Text(emoji)
+                                    .font(.title)
                                     .frame(width: 44, height: 44)
-                                    .background(icon == iconName ? Color.blue.opacity(0.2) : Color.clear)
+                                    .background(icon == emoji ? Color.blue.opacity(0.2) : Color.clear)
                                     .clipShape(RoundedRectangle(cornerRadius: 8))
                             }
                             .buttonStyle(.plain)
@@ -404,8 +402,8 @@ private struct PresetEditorSheet: View {
     @Environment(\.dismiss) private var dismiss
 
     private let iconOptions = [
-        "text.bubble", "text.bubble.fill", "doc.text", "doc.text.fill",
-        "list.clipboard", "pencil", "wand.and.stars", "sparkles"
+        "💬", "🗨️", "📄", "📃", "📋", "✏️", "✨", "🪄",
+        "💡", "🎯", "📌", "🔖", "📝", "📎", "🏷️", "⚡"
     ]
 
     init(preset: AIPrePromptPreset?, onSave: @escaping (AIPrePromptPreset) -> Void) {
@@ -413,7 +411,7 @@ private struct PresetEditorSheet: View {
         self.onSave = onSave
         _name = State(initialValue: preset?.name ?? "")
         _text = State(initialValue: preset?.text ?? "")
-        _icon = State(initialValue: preset?.icon ?? "text.bubble")
+        _icon = State(initialValue: preset?.icon ?? "💬")
         _isDefault = State(initialValue: preset?.isDefault ?? false)
     }
 
@@ -426,14 +424,14 @@ private struct PresetEditorSheet: View {
 
                 Section(header: Text("catalog.folder.icon")) {
                     LazyVGrid(columns: [GridItem(.adaptive(minimum: 44))], spacing: 12) {
-                        ForEach(iconOptions, id: \.self) { iconName in
+                        ForEach(iconOptions, id: \.self) { emoji in
                             Button {
-                                icon = iconName
+                                icon = emoji
                             } label: {
-                                Image(systemName: iconName)
-                                    .font(.title2)
+                                Text(emoji)
+                                    .font(.title)
                                     .frame(width: 44, height: 44)
-                                    .background(icon == iconName ? Color.blue.opacity(0.2) : Color.clear)
+                                    .background(icon == emoji ? Color.blue.opacity(0.2) : Color.clear)
                                     .clipShape(RoundedRectangle(cornerRadius: 8))
                             }
                             .buttonStyle(.plain)

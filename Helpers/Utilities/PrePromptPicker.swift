@@ -8,7 +8,7 @@ struct PrePromptPicker: View {
     @Binding var selectedPresetID: UUID?
     var onSelect: ((AIPrePromptPreset) -> Void)?
 
-    @StateObject private var manager = PrePromptCatalogManager.shared
+    @ObservedObject private var manager = PrePromptCatalogManager.shared
     @State private var currentFolderID: UUID?
     @State private var navigationPath: [UUID] = []
     @Environment(\.dismiss) private var dismiss
@@ -91,9 +91,8 @@ struct PrePromptPicker: View {
 
     private var emptyState: some View {
         VStack(spacing: 16) {
-            Image(systemName: "text.bubble")
+            Text("💬")
                 .font(.system(size: 48))
-                .foregroundStyle(.secondary)
 
             Text("preprompt.picker.empty")
                 .font(.headline)
@@ -114,8 +113,8 @@ struct PrePromptPicker: View {
             currentFolderID = item.id
         } label: {
             HStack(spacing: 12) {
-                Image(systemName: item.icon)
-                    .foregroundStyle(.blue)
+                Text(item.icon)
+                    .font(.title2)
                     .frame(width: 28)
 
                 Text(item.name)
@@ -152,8 +151,8 @@ struct PrePromptPicker: View {
             }
         } label: {
             HStack(spacing: 12) {
-                Image(systemName: item.icon)
-                    .foregroundStyle(selectedPresetID == item.presetID ? .blue : .secondary)
+                Text(item.icon)
+                    .font(.title2)
                     .frame(width: 28)
 
                 VStack(alignment: .leading, spacing: 2) {
@@ -229,7 +228,7 @@ struct PrePromptQuickPicker: View {
     @Binding var selectedPresetID: UUID?
     var onSelect: ((AIPrePromptPreset) -> Void)?
 
-    @StateObject private var manager = PrePromptCatalogManager.shared
+    @ObservedObject private var manager = PrePromptCatalogManager.shared
     @Environment(\.dismiss) private var dismiss
 
     private var allPresets: [AIPrePromptPreset] {
@@ -241,9 +240,8 @@ struct PrePromptQuickPicker: View {
             List {
                 if allPresets.isEmpty {
                     VStack(spacing: 16) {
-                        Image(systemName: "text.bubble")
+                        Text("💬")
                             .font(.system(size: 48))
-                            .foregroundStyle(.secondary)
 
                         Text("preprompt.picker.empty")
                             .font(.headline)
@@ -259,8 +257,8 @@ struct PrePromptQuickPicker: View {
                             dismiss()
                         } label: {
                             HStack(spacing: 12) {
-                                Image(systemName: preset.icon)
-                                    .foregroundStyle(selectedPresetID == preset.id ? .blue : .secondary)
+                                Text(preset.icon)
+                                    .font(.title2)
                                     .frame(width: 28)
 
                                 VStack(alignment: .leading, spacing: 2) {

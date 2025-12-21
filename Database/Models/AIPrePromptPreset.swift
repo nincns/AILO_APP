@@ -19,7 +19,7 @@ public struct AIPrePromptPreset: Identifiable, Codable, Equatable, Sendable {
         id: UUID = UUID(),
         name: String,
         text: String,
-        icon: String = "text.bubble",
+        icon: String = "💬",
         isDefault: Bool = false,
         createdAt: Date = Date(),
         updatedAt: Date = Date()
@@ -38,7 +38,7 @@ public struct AIPrePromptPreset: Identifiable, Codable, Equatable, Sendable {
         self.id = id
         self.name = name
         self.text = text
-        self.icon = "text.bubble"
+        self.icon = "💬"
         self.isDefault = false
         self.createdAt = Date()
         self.updatedAt = Date()
@@ -52,7 +52,7 @@ public struct AIPrePromptPreset: Identifiable, Codable, Equatable, Sendable {
         text = try container.decode(String.self, forKey: .text)
 
         // Optional fields with defaults for migration
-        icon = try container.decodeIfPresent(String.self, forKey: .icon) ?? "text.bubble"
+        icon = try container.decodeIfPresent(String.self, forKey: .icon) ?? "💬"
         isDefault = try container.decodeIfPresent(Bool.self, forKey: .isDefault) ?? false
         createdAt = try container.decodeIfPresent(Date.self, forKey: .createdAt) ?? Date()
         updatedAt = try container.decodeIfPresent(Date.self, forKey: .updatedAt) ?? Date()

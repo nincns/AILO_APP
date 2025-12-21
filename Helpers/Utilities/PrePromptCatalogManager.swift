@@ -214,7 +214,7 @@ public final class PrePromptCatalogManager: ObservableObject {
         // Create root folder "Migriert"
         let migratedFolder = PrePromptMenuItem.folder(
             name: String(localized: "catalog.folder.migrated"),
-            icon: "arrow.up.doc",
+            icon: "📤",
             parentID: nil,
             sortOrder: 0
         )
@@ -242,7 +242,7 @@ public final class PrePromptCatalogManager: ObservableObject {
         // Mail folder
         let mailFolder = PrePromptMenuItem.folder(
             name: String(localized: "catalog.folder.mail"),
-            icon: "envelope",
+            icon: "📧",
             parentID: nil,
             sortOrder: 0
         )
@@ -251,7 +251,7 @@ public final class PrePromptCatalogManager: ObservableObject {
         // Mail subfolders
         let replyFolder = PrePromptMenuItem.folder(
             name: String(localized: "catalog.folder.reply"),
-            icon: "arrowshape.turn.up.left",
+            icon: "↩️",
             parentID: mailFolder.id,
             sortOrder: 0
         )
@@ -259,7 +259,7 @@ public final class PrePromptCatalogManager: ObservableObject {
 
         let forwardFolder = PrePromptMenuItem.folder(
             name: String(localized: "catalog.folder.forward"),
-            icon: "arrowshape.turn.up.right",
+            icon: "↪️",
             parentID: mailFolder.id,
             sortOrder: 1
         )
@@ -267,7 +267,7 @@ public final class PrePromptCatalogManager: ObservableObject {
 
         let analyzeFolder = PrePromptMenuItem.folder(
             name: String(localized: "catalog.folder.analyze"),
-            icon: "magnifyingglass.circle",
+            icon: "🔍",
             parentID: mailFolder.id,
             sortOrder: 2
         )
@@ -276,7 +276,7 @@ public final class PrePromptCatalogManager: ObservableObject {
         // Notes folder
         let notesFolder = PrePromptMenuItem.folder(
             name: String(localized: "catalog.folder.notes"),
-            icon: "note.text",
+            icon: "📝",
             parentID: nil,
             sortOrder: 1
         )
@@ -286,7 +286,7 @@ public final class PrePromptCatalogManager: ObservableObject {
         let protocolPreset = AIPrePromptPreset(
             name: String(localized: "preprompts.default.name"),
             text: String(localized: "preprompts.default.text"),
-            icon: "list.clipboard",
+            icon: "📋",
             isDefault: true
         )
         presets.append(protocolPreset)
@@ -303,7 +303,7 @@ public final class PrePromptCatalogManager: ObservableObject {
         // General folder
         let generalFolder = PrePromptMenuItem.folder(
             name: String(localized: "catalog.folder.general"),
-            icon: "text.bubble",
+            icon: "💬",
             parentID: nil,
             sortOrder: 2
         )

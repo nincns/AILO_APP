@@ -6,7 +6,7 @@ public struct PrePromptMenuItem: Identifiable, Codable, Equatable, Sendable {
     public var id: UUID
     public var parentID: UUID?              // nil = Root-Level
     public var name: String                 // Anzeigename im Menü
-    public var icon: String                 // SF Symbol
+    public var icon: String                 // Emoji
     public var sortOrder: Int
 
     // Wenn presetID gesetzt → Blatt-Element (verweist auf Pre-Prompt)
@@ -21,7 +21,7 @@ public struct PrePromptMenuItem: Identifiable, Codable, Equatable, Sendable {
         id: UUID = UUID(),
         parentID: UUID? = nil,
         name: String,
-        icon: String = "folder",
+        icon: String = "📁",
         sortOrder: Int = 0,
         presetID: UUID? = nil
     ) {
@@ -36,7 +36,7 @@ public struct PrePromptMenuItem: Identifiable, Codable, Equatable, Sendable {
     /// Convenience initializer for folder
     public static func folder(
         name: String,
-        icon: String = "folder",
+        icon: String = "📁",
         parentID: UUID? = nil,
         sortOrder: Int = 0
     ) -> PrePromptMenuItem {
@@ -52,7 +52,7 @@ public struct PrePromptMenuItem: Identifiable, Codable, Equatable, Sendable {
     /// Convenience initializer for preset reference
     public static func preset(
         name: String,
-        icon: String = "text.bubble",
+        icon: String = "💬",
         parentID: UUID? = nil,
         sortOrder: Int = 0,
         presetID: UUID
