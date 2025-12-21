@@ -48,6 +48,7 @@
 		C9B7A08D2EF823CB00D0D81D /* PrePromptRecipe.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9B7A08C2EF823CB00D0D81D /* PrePromptRecipe.swift */; };
 		C9B7A08F2EF82DAC00D0D81D /* CookbookView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9B7A08E2EF82DAC00D0D81D /* CookbookView.swift */; };
 		C9B7A0912EF82E3D00D0D81D /* RecipeMenuItem.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9B7A0902EF82E3D00D0D81D /* RecipeMenuItem.swift */; };
+		C9B7A0932EF8323900D0D81D /* Cookbook.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9B7A0922EF8323900D0D81D /* Cookbook.swift */; };
 		C9C33C352EB2C0E4006390C7 /* ContentAnalyzer.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9C33C342EB2C0E4006390C7 /* ContentAnalyzer.swift */; };
 		C9C33C372EB2C341006390C7 /* TransferEncodingDecoder.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9C33C362EB2C341006390C7 /* TransferEncodingDecoder.swift */; };
 		C9C33C392EB2C35A006390C7 /* HeaderCharsetDetector.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9C33C382EB2C35A006390C7 /* HeaderCharsetDetector.swift */; };
@@ -176,6 +177,7 @@
 		C9B7A08C2EF823CB00D0D81D /* PrePromptRecipe.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PrePromptRecipe.swift; sourceTree = "<group>"; };
 		C9B7A08E2EF82DAC00D0D81D /* CookbookView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CookbookView.swift; sourceTree = "<group>"; };
 		C9B7A0902EF82E3D00D0D81D /* RecipeMenuItem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecipeMenuItem.swift; sourceTree = "<group>"; };
+		C9B7A0922EF8323900D0D81D /* Cookbook.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Cookbook.swift; sourceTree = "<group>"; };
 		C9C33C342EB2C0E4006390C7 /* ContentAnalyzer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentAnalyzer.swift; sourceTree = "<group>"; };
 		C9C33C362EB2C341006390C7 /* TransferEncodingDecoder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TransferEncodingDecoder.swift; sourceTree = "<group>"; };
 		C9C33C382EB2C35A006390C7 /* HeaderCharsetDetector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HeaderCharsetDetector.swift; sourceTree = "<group>"; };
@@ -345,6 +347,7 @@
 		C9DEDF982EAECC4D00C40B92 /* Models */ = {
 			isa = PBXGroup;
 			children = (
+				C9B7A0922EF8323900D0D81D /* Cookbook.swift */,
 				C9B7A0902EF82E3D00D0D81D /* RecipeMenuItem.swift */,
 				C9B7A08C2EF823CB00D0D81D /* PrePromptRecipe.swift */,
 				C9B7A0842EF7EBC000D0D81D /* PrePromptMenuItem.swift */,
@@ -838,6 +841,7 @@
 				C947E90A2EB41349007634FC /* FolderDAO.swift in Sources */,
 				C9DEE02E2EAECC4D00C40B92 /* MIMEParser.swift in Sources */,
 				C9DEE0302EAECC4D00C40B92 /* RetryPolicy.swift in Sources */,
+				C9B7A0932EF8323900D0D81D /* Cookbook.swift in Sources */,
 				C96E33B32EB157C40058CB0A /* HTMLEntityDecoder.swift in Sources */,
 				C9DEE0312EAECC4D00C40B92 /* MailEntities.swift in Sources */,
 				C9DEE0332EAECC4D00C40B92 /* DashboardView.swift in Sources */,
