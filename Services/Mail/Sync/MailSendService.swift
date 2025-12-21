@@ -18,6 +18,19 @@ public struct MailSendAddress: Sendable, Hashable {
     }
 }
 
+/// Attachment for outgoing emails
+public struct MailSendAttachment: Sendable {
+    public let filename: String
+    public let mimeType: String
+    public let data: Data
+
+    public init(filename: String, mimeType: String, data: Data) {
+        self.filename = filename
+        self.mimeType = mimeType
+        self.data = data
+    }
+}
+
 public struct MailSendMessage: Sendable {
     public let from: MailSendAddress
     public let to: [MailSendAddress]
@@ -26,6 +39,7 @@ public struct MailSendMessage: Sendable {
     public let subject: String
     public let textBody: String?
     public let htmlBody: String?
+    public let attachments: [MailSendAttachment]
 
     public init(from: MailSendAddress,
                 to: [MailSendAddress],
@@ -33,7 +47,8 @@ public struct MailSendMessage: Sendable {
                 bcc: [MailSendAddress] = [],
                 subject: String,
                 textBody: String? = nil,
-                htmlBody: String? = nil) {
+                htmlBody: String? = nil,
+                attachments: [MailSendAttachment] = []) {
         self.from = from
         self.to = to
         self.cc = cc
@@ -41,6 +56,7 @@ public struct MailSendMessage: Sendable {
         self.subject = subject
         self.textBody = textBody
         self.htmlBody = htmlBody
+        self.attachments = attachments
     }
 }
 
@@ -107,6 +123,7 @@ public struct MailDraft: Sendable {
     public let subject: String
     public let textBody: String?
     public let htmlBody: String?
+    public let attachments: [MailSendAttachment]
 
     public init(from: MailSendAddress,
                 to: [MailSendAddress],
@@ -114,7 +131,8 @@ public struct MailDraft: Sendable {
                 bcc: [MailSendAddress] = [],
                 subject: String,
                 textBody: String? = nil,
-                htmlBody: String? = nil) {
+                htmlBody: String? = nil,
+                attachments: [MailSendAttachment] = []) {
         self.from = from
         self.to = to
         self.cc = cc
@@ -122,6 +140,7 @@ public struct MailDraft: Sendable {
         self.subject = subject
         self.textBody = textBody
         self.htmlBody = htmlBody
+        self.attachments = attachments
     }
 
     public func toMailMessage() -> MailSendMessage {
@@ -132,7 +151,8 @@ public struct MailDraft: Sendable {
             bcc: bcc,
             subject: subject,
             textBody: textBody,
-            htmlBody: htmlBody
+            htmlBody: htmlBody,
+            attachments: attachments
         )
     }
 }
@@ -417,7 +437,8 @@ public final class MailSendService {
             bcc: msg.bcc.map { MailAddress($0.email, name: $0.name) },
             subject: msg.subject,
             textBody: msg.textBody,
-            htmlBody: msg.htmlBody
+            htmlBody: msg.htmlBody,
+            attachments: msg.attachments.map { MailAttachment(filename: $0.filename, mimeType: $0.mimeType, data: $0.data) }
         )
         return await smtp.send(adapted, using: config)
     }

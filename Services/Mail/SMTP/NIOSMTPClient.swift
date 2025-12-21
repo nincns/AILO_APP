@@ -359,7 +359,8 @@ public final class NIOSMTPClient: SMTPClientProtocol {
 
         // Generate unique identifiers
         let messageId = "<\(UUID().uuidString.lowercased())@\(senderDomain)>"
-        let boundary = "----=_NextPart_\(UUID().uuidString.replacingOccurrences(of: "-", with: "").prefix(16))"
+        let mixedBoundary = "----=_MixedPart_\(UUID().uuidString.replacingOccurrences(of: "-", with: "").prefix(16))"
+        let altBoundary = "----=_AltPart_\(UUID().uuidString.replacingOccurrences(of: "-", with: "").prefix(16))"
 
         // === Required Headers (RFC 5322) ===
         lines.append("From: \(formatRFC2822Address(message.from))")
@@ -390,46 +391,79 @@ public final class NIOSMTPClient: SMTPClientProtocol {
         lines.append("X-MSMail-Priority: Normal")
         lines.append("Importance: Normal")
 
-        // Auto-Submitted header (prevents auto-reply loops)
-        // Only add for automated/generated messages - skip for user-composed
-
         // === Content Type ===
         let hasHTML = message.htmlBody != nil && !(message.htmlBody?.isEmpty ?? true)
         let hasText = message.textBody != nil && !(message.textBody?.isEmpty ?? true)
+        let hasAttachments = !message.attachments.isEmpty
 
-        if hasHTML && hasText {
-            // Multipart/alternative with both text and HTML
-            lines.append("Content-Type: multipart/alternative;")
-            lines.append("\tboundary=\"\(boundary)\"")
-            lines.append("")
-
-            // Plain text part (should come first per RFC 2046)
-            lines.append("--\(boundary)")
-            lines.append("Content-Type: text/plain; charset=\"UTF-8\"")
-            lines.append("Content-Transfer-Encoding: quoted-printable")
-            lines.append("")
-            lines.append(quotedPrintableEncode(message.textBody ?? ""))
+        if hasAttachments {
+            // Multipart/mixed for attachments
+            lines.append("Content-Type: multipart/mixed;")
+            lines.append("\tboundary=\"\(mixedBoundary)\"")
             lines.append("")
 
-            // HTML part
-            lines.append("--\(boundary)")
-            lines.append("Content-Type: text/html; charset=\"UTF-8\"")
-            lines.append("Content-Transfer-Encoding: quoted-printable")
-            lines.append("")
-            lines.append(quotedPrintableEncode(sanitizeHTML(message.htmlBody ?? "")))
+            // First part: the message body
+            lines.append("--\(mixedBoundary)")
+
+            if hasHTML {
+                // Body is multipart/alternative (text + HTML)
+                let textVersion = hasText ? message.textBody! : htmlToPlainText(message.htmlBody ?? "")
+
+                lines.append("Content-Type: multipart/alternative;")
+                lines.append("\tboundary=\"\(altBoundary)\"")
+                lines.append("")
+
+                // Plain text part
+                lines.append("--\(altBoundary)")
+                lines.append("Content-Type: text/plain; charset=\"UTF-8\"")
+                lines.append("Content-Transfer-Encoding: quoted-printable")
+                lines.append("")
+                lines.append(quotedPrintableEncode(textVersion))
+                lines.append("")
+
+                // HTML part
+                lines.append("--\(altBoundary)")
+                lines.append("Content-Type: text/html; charset=\"UTF-8\"")
+                lines.append("Content-Transfer-Encoding: quoted-printable")
+                lines.append("")
+                lines.append(quotedPrintableEncode(sanitizeHTML(message.htmlBody ?? "")))
+                lines.append("")
+
+                lines.append("--\(altBoundary)--")
+            } else {
+                // Plain text only
+                lines.append("Content-Type: text/plain; charset=\"UTF-8\"")
+                lines.append("Content-Transfer-Encoding: quoted-printable")
+                lines.append("")
+                lines.append(quotedPrintableEncode(message.textBody ?? ""))
+            }
             lines.append("")
 
-            lines.append("--\(boundary)--")
+            // Attachment parts
+            for attachment in message.attachments {
+                lines.append("--\(mixedBoundary)")
+                lines.append("Content-Type: \(attachment.mimeType);")
+                lines.append("\tname=\"\(encodeHeaderRFC2047(attachment.filename))\"")
+                lines.append("Content-Transfer-Encoding: base64")
+                lines.append("Content-Disposition: attachment;")
+                lines.append("\tfilename=\"\(encodeHeaderRFC2047(attachment.filename))\"")
+                lines.append("")
+                // Base64 encode with line wrapping (76 chars per line)
+                lines.append(base64EncodeWithLineBreaks(attachment.data))
+                lines.append("")
+            }
+
+            lines.append("--\(mixedBoundary)--")
         } else if hasHTML {
-            // HTML only - generate text version automatically
-            let textVersion = htmlToPlainText(message.htmlBody ?? "")
+            // No attachments, HTML body - use multipart/alternative
+            let textVersion = hasText ? message.textBody! : htmlToPlainText(message.htmlBody ?? "")
 
             lines.append("Content-Type: multipart/alternative;")
-            lines.append("\tboundary=\"\(boundary)\"")
+            lines.append("\tboundary=\"\(altBoundary)\"")
             lines.append("")
 
-            // Auto-generated plain text part
-            lines.append("--\(boundary)")
+            // Plain text part
+            lines.append("--\(altBoundary)")
             lines.append("Content-Type: text/plain; charset=\"UTF-8\"")
             lines.append("Content-Transfer-Encoding: quoted-printable")
             lines.append("")
@@ -437,16 +471,16 @@ public final class NIOSMTPClient: SMTPClientProtocol {
             lines.append("")
 
             // HTML part
-            lines.append("--\(boundary)")
+            lines.append("--\(altBoundary)")
             lines.append("Content-Type: text/html; charset=\"UTF-8\"")
             lines.append("Content-Transfer-Encoding: quoted-printable")
             lines.append("")
             lines.append(quotedPrintableEncode(sanitizeHTML(message.htmlBody ?? "")))
             lines.append("")
 
-            lines.append("--\(boundary)--")
+            lines.append("--\(altBoundary)--")
         } else {
-            // Plain text only
+            // Plain text only, no attachments
             lines.append("Content-Type: text/plain; charset=\"UTF-8\"")
             lines.append("Content-Transfer-Encoding: quoted-printable")
             lines.append("")
@@ -454,6 +488,22 @@ public final class NIOSMTPClient: SMTPClientProtocol {
         }
 
         return lines.joined(separator: "\r\n")
+    }
+
+    /// Base64 encode data with line breaks every 76 characters (RFC 2045)
+    private func base64EncodeWithLineBreaks(_ data: Data) -> String {
+        let base64 = data.base64EncodedString()
+        var result = ""
+        var index = base64.startIndex
+        while index < base64.endIndex {
+            let endIndex = base64.index(index, offsetBy: 76, limitedBy: base64.endIndex) ?? base64.endIndex
+            result += base64[index..<endIndex]
+            if endIndex < base64.endIndex {
+                result += "\r\n"
+            }
+            index = endIndex
+        }
+        return result
     }
 
     /// Extracts domain from email address

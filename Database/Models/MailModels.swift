@@ -14,6 +14,20 @@ public struct MailAddress: Sendable, Hashable {
     }
 }
 
+// MARK: - Mail Attachment Model
+
+public struct MailAttachment: Sendable {
+    public let filename: String
+    public let mimeType: String
+    public let data: Data
+
+    public init(filename: String, mimeType: String, data: Data) {
+        self.filename = filename
+        self.mimeType = mimeType
+        self.data = data
+    }
+}
+
 // MARK: - Mail Message Model
 
 public struct MailMessage: Sendable {
@@ -24,6 +38,7 @@ public struct MailMessage: Sendable {
     public let subject: String
     public let textBody: String?
     public let htmlBody: String?
+    public let attachments: [MailAttachment]
 
     public init(from: MailAddress,
                 to: [MailAddress],
@@ -31,7 +46,8 @@ public struct MailMessage: Sendable {
                 bcc: [MailAddress] = [],
                 subject: String,
                 textBody: String? = nil,
-                htmlBody: String? = nil) {
+                htmlBody: String? = nil,
+                attachments: [MailAttachment] = []) {
         self.from = from
         self.to = to
         self.cc = cc
@@ -39,6 +55,7 @@ public struct MailMessage: Sendable {
         self.subject = subject
         self.textBody = textBody
         self.htmlBody = htmlBody
+        self.attachments = attachments
     }
 }
 

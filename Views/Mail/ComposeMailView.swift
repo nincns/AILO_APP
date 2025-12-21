@@ -334,6 +334,11 @@ struct ComposeMailView: View {
             return html.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : html
         }()
 
+        // Convert attachments to MailSendAttachment
+        let mailAttachments = attachments.map { att in
+            MailSendAttachment(filename: att.filename, mimeType: att.mimeType, data: att.data)
+        }
+
         let draft = MailDraft(
             from: from,
             to: toList,
@@ -341,7 +346,8 @@ struct ComposeMailView: View {
             bcc: bccList,
             subject: subject,
             textBody: isHTML ? nil : textBody,
-            htmlBody: cleanedHtmlBody
+            htmlBody: cleanedHtmlBody,
+            attachments: mailAttachments
         )
         // Queue for sending via repository
         _ = MailRepository.shared.send(draft, accountId: accId)
