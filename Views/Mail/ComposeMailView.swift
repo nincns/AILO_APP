@@ -33,6 +33,12 @@ struct ComposeMailView: View {
     @State private var textBody: String = ""
     @State private var htmlBody: String = ""
 
+    // MARK: - Pre-Prompt Catalog Navigation
+    @ObservedObject private var catalogManager = PrePromptCatalogManager.shared
+    @State private var showPrePromptPicker = false
+    @State private var prePromptNavigationPath: [UUID] = []  // Stack of folder IDs
+    @State private var selectedPrePromptItem: PrePromptMenuItem? = nil
+
     // MARK: - Attachments
     struct Attachment: Identifiable, Equatable {
         let id = UUID()
@@ -62,7 +68,7 @@ struct ComposeMailView: View {
             VStack(spacing: 0) {
                 // Compact header section
                 VStack(spacing: 0) {
-                    // From row with HTML toggle
+                    // From row with Pre-Prompt picker and HTML toggle
                     HStack {
                         Text("Von")
                             .font(.subheadline)
@@ -76,6 +82,26 @@ struct ComposeMailView: View {
                         .labelsHidden()
 
                         Spacer()
+
+                        // Pre-Prompt Catalog Picker
+                        Button {
+                            showPrePromptPicker = true
+                        } label: {
+                            HStack(spacing: 4) {
+                                Text("🔙")
+                                    .font(.caption)
+                                Image(systemName: "chevron.down")
+                                    .font(.system(size: 8))
+                                Text("⏎")
+                                    .font(.caption)
+                                    .foregroundStyle(selectedPrePromptItem != nil ? .blue : .secondary)
+                            }
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 4)
+                            .background(Color(UIColor.tertiarySystemBackground))
+                            .clipShape(RoundedRectangle(cornerRadius: 6))
+                        }
+                        .buttonStyle(.plain)
 
                         // HTML Toggle
                         HStack(spacing: 4) {
@@ -254,6 +280,15 @@ struct ComposeMailView: View {
                 case .failure:
                     break
                 }
+            }
+            .sheet(isPresented: $showPrePromptPicker) {
+                PrePromptCatalogPickerSheet(
+                    navigationPath: $prePromptNavigationPath,
+                    onSelectItem: { item in
+                        applyPrePromptItem(item)
+                        showPrePromptPicker = false
+                    }
+                )
             }
             .onChange(of: photoItems) { _, items in
                 Task {
@@ -588,6 +623,38 @@ struct ComposeMailView: View {
         default: return "application/octet-stream"
         }
     }
+
+    // MARK: - Pre-Prompt Application
+    private func applyPrePromptItem(_ item: PrePromptMenuItem) {
+        selectedPrePromptItem = item
+
+        // Get the preset text
+        guard let presetID = item.presetID,
+              let preset = catalogManager.preset(withID: presetID) else { return }
+
+        let promptText = preset.text
+
+        // Insert at the beginning of the body (before quoted content)
+        if isHTML {
+            // For HTML: Insert as paragraph before existing content
+            let htmlPrompt = "<p>\(promptText.replacingOccurrences(of: "\n", with: "<br>"))</p><p><br></p>"
+            if htmlBody.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                htmlBody = htmlPrompt
+            } else {
+                htmlBody = htmlPrompt + htmlBody
+            }
+        } else {
+            // For plain text: Insert at beginning with newlines
+            if textBody.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                textBody = promptText
+            } else {
+                textBody = promptText + "\n\n" + textBody
+            }
+        }
+
+        // Reset navigation for next use
+        prePromptNavigationPath.removeAll()
+    }
 }
 
 // MARK: - Rich Text Editor Controller
@@ -916,6 +983,177 @@ private struct HTMLPreviewView: UIViewRepresentable {
         </html>
         """
         webView.loadHTMLString(styledHTML, baseURL: nil)
+    }
+}
+
+// MARK: - Pre-Prompt Catalog Picker Sheet
+private struct PrePromptCatalogPickerSheet: View {
+    @Binding var navigationPath: [UUID]
+    let onSelectItem: (PrePromptMenuItem) -> Void
+
+    @ObservedObject private var manager = PrePromptCatalogManager.shared
+    @Environment(\.dismiss) private var dismiss
+
+    // Current folder ID (nil = root)
+    private var currentFolderID: UUID? {
+        navigationPath.last
+    }
+
+    // Current folder name for title
+    private var currentTitle: String {
+        if let folderID = currentFolderID,
+           let folder = manager.menuItems.first(where: { $0.id == folderID }) {
+            return folder.name
+        }
+        return String(localized: "catalog.title")
+    }
+
+    // Get sorted children: categories first, then items
+    private var sortedChildren: [PrePromptMenuItem] {
+        let children = manager.children(of: currentFolderID)
+        return children.sorted { a, b in
+            // Folders first, then presets
+            if a.isFolder && !b.isFolder { return true }
+            if !a.isFolder && b.isFolder { return false }
+            // Same type: sort by sortOrder
+            return a.sortOrder < b.sortOrder
+        }
+    }
+
+    // Check if we can go back
+    private var canGoBack: Bool {
+        !navigationPath.isEmpty
+    }
+
+    var body: some View {
+        NavigationStack {
+            List {
+                // Back button row (if not at root)
+                if canGoBack {
+                    Button {
+                        navigateBack()
+                    } label: {
+                        HStack(spacing: 8) {
+                            Text("🔙")
+                                .font(.body)
+                            Text(String(localized: "catalog.recipe.picker.back"))
+                                .foregroundStyle(.blue)
+                            Spacer()
+                        }
+                    }
+                    .listRowBackground(Color(UIColor.systemBackground))
+                }
+
+                // Categories and Items
+                if sortedChildren.isEmpty {
+                    VStack(spacing: 12) {
+                        Text("📭")
+                            .font(.largeTitle)
+                        Text("catalog.empty")
+                            .foregroundStyle(.secondary)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 40)
+                    .listRowBackground(Color.clear)
+                } else {
+                    ForEach(sortedChildren) { item in
+                        if item.isFolder {
+                            // Category row - navigates deeper
+                            Button {
+                                navigateInto(item)
+                            } label: {
+                                HStack(spacing: 12) {
+                                    Text(item.icon)
+                                        .font(.title2)
+                                        .frame(width: 36, alignment: .leading)
+
+                                    Text(item.name)
+                                        .foregroundStyle(.primary)
+
+                                    Text("🔜")
+                                        .font(.caption)
+
+                                    Spacer()
+
+                                    // Child count badge
+                                    let childCount = manager.children(of: item.id).count
+                                    if childCount > 0 {
+                                        Text("\(childCount)")
+                                            .font(.caption2)
+                                            .foregroundStyle(.secondary)
+                                            .padding(.horizontal, 6)
+                                            .padding(.vertical, 2)
+                                            .background(Color.secondary.opacity(0.2))
+                                            .clipShape(Capsule())
+                                    }
+
+                                    Image(systemName: "chevron.right")
+                                        .font(.caption)
+                                        .foregroundStyle(.tertiary)
+                                }
+                            }
+                            .buttonStyle(.plain)
+                        } else {
+                            // Item row - can be selected
+                            Button {
+                                onSelectItem(item)
+                            } label: {
+                                HStack(spacing: 12) {
+                                    Text(item.icon)
+                                        .font(.title2)
+                                        .frame(width: 36, alignment: .leading)
+
+                                    VStack(alignment: .leading, spacing: 2) {
+                                        Text(item.name)
+                                            .foregroundStyle(.primary)
+
+                                        // Show preview of preset text
+                                        if let presetID = item.presetID,
+                                           let preset = manager.preset(withID: presetID) {
+                                            Text(preset.text.prefix(50) + (preset.text.count > 50 ? "..." : ""))
+                                                .font(.caption)
+                                                .foregroundStyle(.secondary)
+                                                .lineLimit(1)
+                                        }
+                                    }
+
+                                    Spacer()
+
+                                    // Return indicator - item can be selected
+                                    Text("⏎")
+                                        .font(.caption)
+                                        .foregroundStyle(.blue)
+                                }
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
+                }
+            }
+            .listStyle(.insetGrouped)
+            .navigationTitle(currentTitle)
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button(String(localized: "common.cancel")) {
+                        navigationPath.removeAll()
+                        dismiss()
+                    }
+                }
+            }
+        }
+        .presentationDetents([.medium, .large])
+        .presentationDragIndicator(.visible)
+    }
+
+    private func navigateInto(_ folder: PrePromptMenuItem) {
+        navigationPath.append(folder.id)
+    }
+
+    private func navigateBack() {
+        if !navigationPath.isEmpty {
+            navigationPath.removeLast()
+        }
     }
 }
 
