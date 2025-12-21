@@ -21,6 +21,7 @@ public class OutboxDAOAdapter: OutboxDAO {
             status: OutboxStatusEntity(rawValue: item.status.rawValue) ?? .pending,
             lastError: item.lastError,
             from: Self.formatAddress(item.draft.from),
+            replyTo: item.draft.replyTo.map { Self.formatAddress($0) },
             to: item.draft.to.map { Self.formatAddress($0) }.joined(separator: ", "),
             cc: item.draft.cc.map { Self.formatAddress($0) }.joined(separator: ", "),
             bcc: item.draft.bcc.map { Self.formatAddress($0) }.joined(separator: ", "),
@@ -98,12 +99,14 @@ public class OutboxDAOAdapter: OutboxDAO {
 extension OutboxItemEntity {
     func toOutboxItem() -> OutboxItem {
         let fromAddr = Self.parseAddress(from)
+        let replyToAddr = replyTo.map { Self.parseAddress($0) }
         let toAddrs = Self.parseAddressList(to)
         let ccAddrs = Self.parseAddressList(cc)
         let bccAddrs = Self.parseAddressList(bcc)
 
         let draft = MailDraft(
             from: fromAddr,
+            replyTo: replyToAddr,
             to: toAddrs,
             cc: ccAddrs,
             bcc: bccAddrs,

@@ -205,6 +205,7 @@ public struct OutboxItemEntity: Sendable, Identifiable, Equatable {
 
     // Draft fields for convenience (denormalized)
     public var from: String
+    public var replyTo: String?  // Reply-To address from account settings
     public var to: String        // serialized list (comma-separated)
     public var cc: String
     public var bcc: String
@@ -217,7 +218,7 @@ public struct OutboxItemEntity: Sendable, Identifiable, Equatable {
 
 public enum MailSchema {
     /// Increase when schema changes; DAO should store this in SQLite PRAGMA user_version (or similar)
-    public static let currentVersion: Int = 3
+    public static let currentVersion: Int = 4
 
     // Table names
     public static let tAccounts = "accounts"
@@ -447,11 +448,20 @@ public enum MailSchema {
     ]
     
     // MARK: DDL v3 - RAW mail storage
-    
+
     public static let ddl_v3_migrations: [String] = [
         // Add raw_body column for forensics and validation
         """
         ALTER TABLE \(tMsgBody) ADD COLUMN raw_body TEXT;
+        """
+    ]
+
+    // MARK: DDL v4 - Reply-To support for outbox
+
+    public static let ddl_v4_migrations: [String] = [
+        // Add reply_to column for outbox items
+        """
+        ALTER TABLE \(tOutbox) ADD COLUMN reply_to TEXT;
         """
     ]
 
@@ -484,6 +494,9 @@ public enum MailSchema {
             case 2:
                 // v2 → v3: Add raw_body column
                 steps.append(ddl_v3_migrations)
+            case 3:
+                // v3 → v4: Add reply_to column to outbox
+                steps.append(ddl_v4_migrations)
             default:
                 steps.append([])
             }

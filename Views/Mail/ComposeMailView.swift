@@ -316,9 +316,18 @@ struct ComposeMailView: View {
     private func sendAndDismiss() {
         guard let accId = selectedAccountId, let account = accounts.first(where: { $0.id == accId }) else { return }
         // Build draft model with display name for proper From header
-        let fromEmail = account.replyTo ?? account.recvUsername
+        let fromEmail = account.recvUsername
         let fromName = account.displayName ?? account.accountName
         let from = MailSendAddress(fromEmail, name: fromName)
+
+        // Reply-To from account settings (only if different from From)
+        let replyToAddr: MailSendAddress?
+        if let replyToEmail = account.replyTo, !replyToEmail.isEmpty, replyToEmail != fromEmail {
+            replyToAddr = MailSendAddress(replyToEmail, name: fromName)
+        } else {
+            replyToAddr = nil
+        }
+
         let toList = splitEmails(to)
         let ccList = splitEmails(cc)
         let bccList = splitEmails(bcc)
@@ -336,6 +345,7 @@ struct ComposeMailView: View {
 
         let draft = MailDraft(
             from: from,
+            replyTo: replyToAddr,
             to: toList,
             cc: ccList,
             bcc: bccList,
@@ -520,7 +530,7 @@ struct ComposeMailView: View {
 
     private func getMyEmail(for accountId: UUID) -> String {
         if let account = accounts.first(where: { $0.id == accountId }) {
-            return account.replyTo ?? account.recvUsername
+            return account.recvUsername
         }
         return ""
     }

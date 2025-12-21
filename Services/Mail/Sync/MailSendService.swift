@@ -20,6 +20,7 @@ public struct MailSendAddress: Sendable, Hashable {
 
 public struct MailSendMessage: Sendable {
     public let from: MailSendAddress
+    public let replyTo: MailSendAddress?
     public let to: [MailSendAddress]
     public let cc: [MailSendAddress]
     public let bcc: [MailSendAddress]
@@ -28,6 +29,7 @@ public struct MailSendMessage: Sendable {
     public let htmlBody: String?
 
     public init(from: MailSendAddress,
+                replyTo: MailSendAddress? = nil,
                 to: [MailSendAddress],
                 cc: [MailSendAddress] = [],
                 bcc: [MailSendAddress] = [],
@@ -35,6 +37,7 @@ public struct MailSendMessage: Sendable {
                 textBody: String? = nil,
                 htmlBody: String? = nil) {
         self.from = from
+        self.replyTo = replyTo
         self.to = to
         self.cc = cc
         self.bcc = bcc
@@ -101,6 +104,7 @@ public struct OutboxItem: Sendable, Identifiable {
 
 public struct MailDraft: Sendable {
     public let from: MailSendAddress
+    public let replyTo: MailSendAddress?
     public let to: [MailSendAddress]
     public let cc: [MailSendAddress]
     public let bcc: [MailSendAddress]
@@ -109,6 +113,7 @@ public struct MailDraft: Sendable {
     public let htmlBody: String?
 
     public init(from: MailSendAddress,
+                replyTo: MailSendAddress? = nil,
                 to: [MailSendAddress],
                 cc: [MailSendAddress] = [],
                 bcc: [MailSendAddress] = [],
@@ -116,6 +121,7 @@ public struct MailDraft: Sendable {
                 textBody: String? = nil,
                 htmlBody: String? = nil) {
         self.from = from
+        self.replyTo = replyTo
         self.to = to
         self.cc = cc
         self.bcc = bcc
@@ -127,6 +133,7 @@ public struct MailDraft: Sendable {
     public func toMailMessage() -> MailSendMessage {
         MailSendMessage(
             from: from,
+            replyTo: replyTo,
             to: to,
             cc: cc,
             bcc: bcc,
@@ -412,6 +419,7 @@ public final class MailSendService {
         let msg = item.draft.toMailMessage()
         let adapted = MailMessage(
             from: MailAddress(msg.from.email, name: msg.from.name),
+            replyTo: msg.replyTo.map { MailAddress($0.email, name: $0.name) },
             to: msg.to.map { MailAddress($0.email, name: $0.name) },
             cc: msg.cc.map { MailAddress($0.email, name: $0.name) },
             bcc: msg.bcc.map { MailAddress($0.email, name: $0.name) },
