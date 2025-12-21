@@ -259,7 +259,7 @@ struct PrePromptCatalogView: View {
     }
 }
 
-// MARK: - New Folder Sheet
+// MARK: - New Folder Popup
 
 private struct NewFolderSheet: View {
     let parentID: UUID?
@@ -269,57 +269,54 @@ private struct NewFolderSheet: View {
     @State private var icon = "📁"
     @Environment(\.dismiss) private var dismiss
 
-    private let iconOptions = [
-        "📁", "📂", "⭐", "❤️", "🔖", "🏷️", "📌", "🎯",
-        "📧", "📝", "💬", "📋", "🔍", "✨", "💡", "🎨"
-    ]
-
     var body: some View {
         NavigationView {
-            Form {
-                Section(header: Text("catalog.folder.name")) {
-                    TextField(String(localized: "catalog.folder.name.placeholder"), text: $name)
-                }
+            VStack(spacing: 20) {
+                Text("catalog.folder.new")
+                    .font(.headline)
 
-                Section(header: Text("catalog.folder.icon")) {
-                    LazyVGrid(columns: [GridItem(.adaptive(minimum: 44))], spacing: 12) {
-                        ForEach(iconOptions, id: \.self) { emoji in
-                            Button {
-                                icon = emoji
-                            } label: {
-                                Text(emoji)
-                                    .font(.title)
-                                    .frame(width: 44, height: 44)
-                                    .background(icon == emoji ? Color.blue.opacity(0.2) : Color.clear)
-                                    .clipShape(RoundedRectangle(cornerRadius: 8))
+                HStack(spacing: 8) {
+                    TextField("📁", text: $icon)
+                        .frame(width: 50)
+                        .multilineTextAlignment(.center)
+                        .font(.title2)
+                        .padding(8)
+                        .background(Color(.systemGray6))
+                        .clipShape(RoundedRectangle(cornerRadius: 8))
+                        .onChange(of: icon) { _, newValue in
+                            if newValue.count > 3 {
+                                icon = String(newValue.prefix(3))
                             }
-                            .buttonStyle(.plain)
                         }
-                    }
+
+                    TextField(String(localized: "catalog.folder.name.placeholder"), text: $name)
+                        .textFieldStyle(.roundedBorder)
                 }
-            }
-            .navigationTitle(Text("catalog.folder.new"))
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarLeading) {
+                .padding(.horizontal)
+
+                HStack(spacing: 16) {
                     Button(String(localized: "catalog.action.cancel")) {
                         dismiss()
                     }
-                }
+                    .foregroundStyle(.secondary)
 
-                ToolbarItem(placement: .navigationBarTrailing) {
                     Button(String(localized: "catalog.action.save")) {
                         onSave(name, icon)
                         dismiss()
                     }
+                    .buttonStyle(.borderedProminent)
                     .disabled(name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                 }
+                .padding(.top, 8)
             }
+            .padding()
+            .presentationDetents([.height(180)])
+            .presentationDragIndicator(.visible)
         }
     }
 }
 
-// MARK: - Folder Editor Sheet
+// MARK: - Folder Editor Popup
 
 private struct FolderEditorSheet: View {
     let folder: PrePromptMenuItem
@@ -328,11 +325,6 @@ private struct FolderEditorSheet: View {
     @State private var name: String
     @State private var icon: String
     @Environment(\.dismiss) private var dismiss
-
-    private let iconOptions = [
-        "📁", "📂", "⭐", "❤️", "🔖", "🏷️", "📌", "🎯",
-        "📧", "📝", "💬", "📋", "🔍", "✨", "💡", "🎨"
-    ]
 
     init(folder: PrePromptMenuItem, onSave: @escaping (PrePromptMenuItem) -> Void) {
         self.folder = folder
@@ -343,38 +335,35 @@ private struct FolderEditorSheet: View {
 
     var body: some View {
         NavigationView {
-            Form {
-                Section(header: Text("catalog.folder.name")) {
-                    TextField(String(localized: "catalog.folder.name.placeholder"), text: $name)
-                }
+            VStack(spacing: 20) {
+                Text("catalog.folder.edit")
+                    .font(.headline)
 
-                Section(header: Text("catalog.folder.icon")) {
-                    LazyVGrid(columns: [GridItem(.adaptive(minimum: 44))], spacing: 12) {
-                        ForEach(iconOptions, id: \.self) { emoji in
-                            Button {
-                                icon = emoji
-                            } label: {
-                                Text(emoji)
-                                    .font(.title)
-                                    .frame(width: 44, height: 44)
-                                    .background(icon == emoji ? Color.blue.opacity(0.2) : Color.clear)
-                                    .clipShape(RoundedRectangle(cornerRadius: 8))
+                HStack(spacing: 8) {
+                    TextField("📁", text: $icon)
+                        .frame(width: 50)
+                        .multilineTextAlignment(.center)
+                        .font(.title2)
+                        .padding(8)
+                        .background(Color(.systemGray6))
+                        .clipShape(RoundedRectangle(cornerRadius: 8))
+                        .onChange(of: icon) { _, newValue in
+                            if newValue.count > 3 {
+                                icon = String(newValue.prefix(3))
                             }
-                            .buttonStyle(.plain)
                         }
-                    }
+
+                    TextField(String(localized: "catalog.folder.name.placeholder"), text: $name)
+                        .textFieldStyle(.roundedBorder)
                 }
-            }
-            .navigationTitle(Text("catalog.folder.edit"))
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarLeading) {
+                .padding(.horizontal)
+
+                HStack(spacing: 16) {
                     Button(String(localized: "catalog.action.cancel")) {
                         dismiss()
                     }
-                }
+                    .foregroundStyle(.secondary)
 
-                ToolbarItem(placement: .navigationBarTrailing) {
                     Button(String(localized: "catalog.action.save")) {
                         var updated = folder
                         updated.name = name
@@ -382,9 +371,14 @@ private struct FolderEditorSheet: View {
                         onSave(updated)
                         dismiss()
                     }
+                    .buttonStyle(.borderedProminent)
                     .disabled(name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                 }
+                .padding(.top, 8)
             }
+            .padding()
+            .presentationDetents([.height(180)])
+            .presentationDragIndicator(.visible)
         }
     }
 }
