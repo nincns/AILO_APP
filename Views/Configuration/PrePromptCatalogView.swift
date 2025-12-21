@@ -323,7 +323,7 @@ private struct NewFolderSheet: View {
                     .multilineTextAlignment(.center)
                     .font(.title2)
                     .padding(8)
-                    .background(Color.white)
+                    .background(Color(.secondarySystemBackground))
                     .clipShape(RoundedRectangle(cornerRadius: 8))
                     .onChange(of: icon) { _, newValue in
                         if newValue.count > 3 {
@@ -333,7 +333,7 @@ private struct NewFolderSheet: View {
 
                 TextField(String(localized: "catalog.category.name.placeholder"), text: $name)
                     .padding(8)
-                    .background(Color.white)
+                    .background(Color(.secondarySystemBackground))
                     .clipShape(RoundedRectangle(cornerRadius: 8))
             }
             .padding(.horizontal)
@@ -358,7 +358,7 @@ private struct NewFolderSheet: View {
             .padding(.bottom, 8)
         }
         .padding()
-        .background(Color.white)
+        .background(Color(.systemBackground))
         .clipShape(RoundedRectangle(cornerRadius: 16))
         .presentationDetents([.height(220)])
         .presentationDragIndicator(.visible)
@@ -397,7 +397,7 @@ private struct FolderEditorSheet: View {
                     .multilineTextAlignment(.center)
                     .font(.title2)
                     .padding(8)
-                    .background(Color.white)
+                    .background(Color(.secondarySystemBackground))
                     .clipShape(RoundedRectangle(cornerRadius: 8))
                     .onChange(of: icon) { _, newValue in
                         if newValue.count > 3 {
@@ -407,7 +407,7 @@ private struct FolderEditorSheet: View {
 
                 TextField(String(localized: "catalog.category.name.placeholder"), text: $name)
                     .padding(8)
-                    .background(Color.white)
+                    .background(Color(.secondarySystemBackground))
                     .clipShape(RoundedRectangle(cornerRadius: 8))
             }
             .padding(.horizontal)
@@ -436,7 +436,7 @@ private struct FolderEditorSheet: View {
             .padding(.bottom, 8)
         }
         .padding()
-        .background(Color.white)
+        .background(Color(.systemBackground))
         .clipShape(RoundedRectangle(cornerRadius: 16))
         .presentationDetents([.height(220)])
         .presentationDragIndicator(.visible)
@@ -477,7 +477,7 @@ private struct PresetEditorSheet: View {
                     .multilineTextAlignment(.center)
                     .font(.title2)
                     .padding(8)
-                    .background(Color.white)
+                    .background(Color(.secondarySystemBackground))
                     .clipShape(RoundedRectangle(cornerRadius: 8))
                     .onChange(of: icon) { _, newValue in
                         if newValue.count > 3 {
@@ -487,7 +487,7 @@ private struct PresetEditorSheet: View {
 
                 TextField(String(localized: "preprompts.field.name.placeholder"), text: $name)
                     .padding(8)
-                    .background(Color.white)
+                    .background(Color(.secondarySystemBackground))
                     .clipShape(RoundedRectangle(cornerRadius: 8))
             }
             .padding(.horizontal)
@@ -506,7 +506,8 @@ private struct PresetEditorSheet: View {
                 TextEditor(text: $text)
                     .frame(minHeight: 120)
                     .padding(8)
-                    .background(Color.white)
+                    .scrollContentBackground(.hidden)
+                    .background(Color(.secondarySystemBackground))
                     .clipShape(RoundedRectangle(cornerRadius: 8))
                     .padding(.horizontal)
             }
@@ -544,7 +545,7 @@ private struct PresetEditorSheet: View {
             .padding(.bottom, 8)
         }
         .padding()
-        .background(Color.white)
+        .background(Color(.systemBackground))
         .clipShape(RoundedRectangle(cornerRadius: 16))
         .presentationDetents([.medium])
         .presentationDragIndicator(.visible)
