@@ -70,20 +70,23 @@ struct ComposeMailView: View {
                 VStack(spacing: 0) {
                     // From row with Pre-Prompt picker and HTML toggle
                     HStack {
-                        Text("Von")
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
-                            .frame(width: 50, alignment: .leading)
-                        Picker("", selection: $selectedAccountId) {
-                            ForEach(activeAccounts(), id: \.id) { acc in
-                                Text(acc.accountName).tag(acc.id as UUID?)
+                        // Left side: Account picker
+                        HStack {
+                            Text("Von")
+                                .font(.subheadline)
+                                .foregroundStyle(.secondary)
+                                .frame(width: 50, alignment: .leading)
+                            Picker("", selection: $selectedAccountId) {
+                                ForEach(activeAccounts(), id: \.id) { acc in
+                                    Text(acc.accountName).tag(acc.id as UUID?)
+                                }
                             }
+                            .labelsHidden()
                         }
-                        .labelsHidden()
 
                         Spacer()
 
-                        // Pre-Prompt Catalog Picker - AI-Manager Button
+                        // Center: AI-Manager Button
                         Button {
                             showPrePromptPicker = true
                         } label: {
@@ -97,7 +100,9 @@ struct ComposeMailView: View {
                         }
                         .buttonStyle(.plain)
 
-                        // HTML Toggle
+                        Spacer()
+
+                        // Right side: HTML Toggle
                         HStack(spacing: 4) {
                             Text("HTML")
                                 .font(.caption)
