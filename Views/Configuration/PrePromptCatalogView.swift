@@ -101,10 +101,6 @@ struct PrePromptCatalogView: View {
                     }
                 }
 
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    EditButton()
-                }
-
                 // Export/Import menu (only at root level)
                 if currentFolderID == nil {
                     ToolbarItem(placement: .navigationBarTrailing) {
