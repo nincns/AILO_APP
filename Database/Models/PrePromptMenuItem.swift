@@ -7,6 +7,7 @@ public struct PrePromptMenuItem: Identifiable, Codable, Equatable, Sendable {
     public var parentID: UUID?              // nil = Root-Level
     public var name: String                 // Anzeigename im Menü
     public var icon: String                 // Emoji
+    public var keywords: String             // Semikolon-getrennte Schlagwörter
     public var sortOrder: Int
 
     // Wenn presetID gesetzt → Blatt-Element (verweist auf Pre-Prompt)
@@ -22,6 +23,7 @@ public struct PrePromptMenuItem: Identifiable, Codable, Equatable, Sendable {
         parentID: UUID? = nil,
         name: String,
         icon: String = "📁",
+        keywords: String = "",
         sortOrder: Int = 0,
         presetID: UUID? = nil
     ) {
@@ -29,14 +31,32 @@ public struct PrePromptMenuItem: Identifiable, Codable, Equatable, Sendable {
         self.parentID = parentID
         self.name = name
         self.icon = icon
+        self.keywords = keywords
         self.sortOrder = sortOrder
         self.presetID = presetID
+    }
+
+    // Custom decoding for migration from old format
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(UUID.self, forKey: .id)
+        parentID = try container.decodeIfPresent(UUID.self, forKey: .parentID)
+        name = try container.decode(String.self, forKey: .name)
+        icon = try container.decodeIfPresent(String.self, forKey: .icon) ?? "📁"
+        keywords = try container.decodeIfPresent(String.self, forKey: .keywords) ?? ""
+        sortOrder = try container.decodeIfPresent(Int.self, forKey: .sortOrder) ?? 0
+        presetID = try container.decodeIfPresent(UUID.self, forKey: .presetID)
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case id, parentID, name, icon, keywords, sortOrder, presetID
     }
 
     /// Convenience initializer for folder
     public static func folder(
         name: String,
         icon: String = "📁",
+        keywords: String = "",
         parentID: UUID? = nil,
         sortOrder: Int = 0
     ) -> PrePromptMenuItem {
@@ -44,6 +64,7 @@ public struct PrePromptMenuItem: Identifiable, Codable, Equatable, Sendable {
             parentID: parentID,
             name: name,
             icon: icon,
+            keywords: keywords,
             sortOrder: sortOrder,
             presetID: nil
         )
@@ -53,6 +74,7 @@ public struct PrePromptMenuItem: Identifiable, Codable, Equatable, Sendable {
     public static func preset(
         name: String,
         icon: String = "💬",
+        keywords: String = "",
         parentID: UUID? = nil,
         sortOrder: Int = 0,
         presetID: UUID
@@ -61,9 +83,32 @@ public struct PrePromptMenuItem: Identifiable, Codable, Equatable, Sendable {
             parentID: parentID,
             name: name,
             icon: icon,
+            keywords: keywords,
             sortOrder: sortOrder,
             presetID: presetID
         )
+    }
+
+    /// Parse keywords into key-value pairs
+    public var keywordPairs: [(key: String, value: String)] {
+        keywords.split(separator: ";")
+            .map { $0.trimmingCharacters(in: .whitespaces) }
+            .filter { !$0.isEmpty }
+            .compactMap { part in
+                let components = part.split(separator: ":", maxSplits: 1)
+                if components.count == 2 {
+                    return (
+                        key: String(components[0]).trimmingCharacters(in: .whitespaces),
+                        value: String(components[1]).trimmingCharacters(in: .whitespaces)
+                    )
+                }
+                return nil
+            }
+    }
+
+    /// Get value for a specific keyword key
+    public func keyword(_ key: String) -> String? {
+        keywordPairs.first { $0.key.lowercased() == key.lowercased() }?.value
     }
 }
 

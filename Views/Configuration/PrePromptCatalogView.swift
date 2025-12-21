@@ -66,8 +66,8 @@ struct PrePromptCatalogView: View {
             .sheet(isPresented: $showNewFolderSheet) {
                 NewFolderSheet(
                     parentID: currentFolderID,
-                    onSave: { name, icon in
-                        manager.createFolder(name: name, icon: icon, in: currentFolderID)
+                    onSave: { name, icon, keywords in
+                        manager.createFolder(name: name, icon: icon, keywords: keywords, in: currentFolderID)
                     }
                 )
             }
@@ -265,18 +265,20 @@ struct PrePromptCatalogView: View {
 
 private struct NewFolderSheet: View {
     let parentID: UUID?
-    let onSave: (String, String) -> Void
+    let onSave: (String, String, String) -> Void  // name, icon, keywords
 
     @State private var name = ""
     @State private var icon = "📁"
+    @State private var keywords = ""
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
-        VStack(spacing: 16) {
+        VStack(spacing: 12) {
             Text("catalog.folder.new")
                 .font(.headline)
                 .padding(.top, 8)
 
+            // Icon + Name
             HStack(spacing: 8) {
                 TextField("📁", text: $icon)
                     .frame(width: 50)
@@ -296,6 +298,10 @@ private struct NewFolderSheet: View {
             }
             .padding(.horizontal)
 
+            // Keywords
+            KeywordBubbleInput(keywords: $keywords)
+                .padding(.horizontal)
+
             HStack(spacing: 16) {
                 Button(String(localized: "catalog.action.cancel")) {
                     dismiss()
@@ -303,7 +309,7 @@ private struct NewFolderSheet: View {
                 .foregroundStyle(.secondary)
 
                 Button(String(localized: "catalog.action.save")) {
-                    onSave(name, icon)
+                    onSave(name, icon, keywords)
                     dismiss()
                 }
                 .buttonStyle(.borderedProminent)
@@ -312,7 +318,7 @@ private struct NewFolderSheet: View {
             .padding(.bottom, 8)
         }
         .padding()
-        .presentationDetents([.height(160)])
+        .presentationDetents([.height(220)])
         .presentationDragIndicator(.visible)
     }
 }
@@ -325,6 +331,7 @@ private struct FolderEditorSheet: View {
 
     @State private var name: String
     @State private var icon: String
+    @State private var keywords: String
     @Environment(\.dismiss) private var dismiss
 
     init(folder: PrePromptMenuItem, onSave: @escaping (PrePromptMenuItem) -> Void) {
@@ -332,14 +339,16 @@ private struct FolderEditorSheet: View {
         self.onSave = onSave
         _name = State(initialValue: folder.name)
         _icon = State(initialValue: folder.icon)
+        _keywords = State(initialValue: folder.keywords)
     }
 
     var body: some View {
-        VStack(spacing: 16) {
+        VStack(spacing: 12) {
             Text("catalog.folder.edit")
                 .font(.headline)
                 .padding(.top, 8)
 
+            // Icon + Name
             HStack(spacing: 8) {
                 TextField("📁", text: $icon)
                     .frame(width: 50)
@@ -359,6 +368,10 @@ private struct FolderEditorSheet: View {
             }
             .padding(.horizontal)
 
+            // Keywords
+            KeywordBubbleInput(keywords: $keywords)
+                .padding(.horizontal)
+
             HStack(spacing: 16) {
                 Button(String(localized: "catalog.action.cancel")) {
                     dismiss()
@@ -369,6 +382,7 @@ private struct FolderEditorSheet: View {
                     var updated = folder
                     updated.name = name
                     updated.icon = icon
+                    updated.keywords = keywords
                     onSave(updated)
                     dismiss()
                 }
@@ -378,7 +392,7 @@ private struct FolderEditorSheet: View {
             .padding(.bottom, 8)
         }
         .padding()
-        .presentationDetents([.height(160)])
+        .presentationDetents([.height(220)])
         .presentationDragIndicator(.visible)
     }
 }

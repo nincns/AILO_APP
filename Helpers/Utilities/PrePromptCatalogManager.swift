@@ -164,10 +164,11 @@ public final class PrePromptCatalogManager: ObservableObject {
     // MARK: - Folder Operations
 
     /// Create a new folder
-    public func createFolder(name: String, icon: String = "folder", in parentID: UUID?) {
+    public func createFolder(name: String, icon: String = "📁", keywords: String = "", in parentID: UUID?) {
         let folder = PrePromptMenuItem.folder(
             name: name,
             icon: icon,
+            keywords: keywords,
             parentID: parentID,
             sortOrder: menuItems.children(of: parentID).count
         )
