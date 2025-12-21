@@ -74,15 +74,16 @@ struct ComposeMailView: View {
                             Text("Von")
                                 .font(.subheadline)
                                 .foregroundStyle(.secondary)
-                                .frame(width: 50, alignment: .leading)
+                                .frame(width: 35, alignment: .leading)
                             Picker("", selection: $selectedAccountId) {
                                 ForEach(activeAccounts(), id: \.id) { acc in
                                     Text(acc.accountName).tag(acc.id as UUID?)
                                 }
                             }
                             .labelsHidden()
-                            .scaleEffect(0.85)
+                            .scaleEffect(0.9)
                         }
+                        .frame(minWidth: 80)
 
                         Spacer()
 
