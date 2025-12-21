@@ -227,13 +227,19 @@ public final class PrePromptCatalogManager: ObservableObject {
     }
 
     /// Generate complete prompt from a recipe
+    /// Categories become section headers, items provide content
     public func generatePrompt(from recipe: PrePromptRecipe) -> String {
-        recipe.generatePrompt(from: presets)
+        recipe.generatePrompt(from: menuItems, presets: presets)
     }
 
-    /// Get all keywords from a recipe (including referenced items)
+    /// Get all keywords from a recipe (including categories and items)
     public func collectKeywords(from recipe: PrePromptRecipe) -> [(key: String, value: String)] {
-        recipe.collectKeywords(from: presets)
+        recipe.collectKeywords(from: menuItems, presets: presets)
+    }
+
+    /// Get a menu item by ID
+    public func menuItem(withID id: UUID) -> PrePromptMenuItem? {
+        menuItems.first(where: { $0.id == id })
     }
 
     // MARK: - Query Helpers

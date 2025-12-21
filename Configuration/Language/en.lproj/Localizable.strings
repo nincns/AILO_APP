@@ -429,12 +429,18 @@
 "catalog.recipe.new" = "New Recipe";
 "catalog.recipe.edit" = "Edit Recipe";
 "catalog.recipe.name.placeholder" = "Recipe name";
-"catalog.recipe.items %lld" = "%lld ingredients";
+"catalog.recipe.elements %lld" = "%lld elements";
 "catalog.recipe.ingredients" = "Ingredients";
-"catalog.recipe.empty" = "Tap + to add items";
-"catalog.recipe.additem" = "Add Item";
+"catalog.recipe.empty" = "Tap + to add elements";
+"catalog.recipe.addelement" = "Add Element";
+"catalog.recipe.type.category" = "Category";
+"catalog.recipe.type.item" = "Item";
+"catalog.recipe.picker.back" = "Back";
+"catalog.recipe.picker.categories" = "Categories";
+"catalog.recipe.picker.items" = "Items";
+"catalog.recipe.picker.empty" = "No elements";
 "catalog.recipe.preview" = "Preview";
-"catalog.recipe.preview.empty" = "Add items to see a preview";
+"catalog.recipe.preview.empty" = "Add elements to see a preview";
 "catalog.recipe.preview.keywords" = "Combined Keywords";
 "catalog.recipe.preview.prompt" = "Generated Prompt";
 

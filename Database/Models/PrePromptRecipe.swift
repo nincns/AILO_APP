@@ -1,14 +1,15 @@
 import Foundation
 
-/// Ein "Kochrezept" das mehrere Katalog-Items zu einem kompletten Prompt kombiniert
-/// Referenziert Items über deren presetID und generiert daraus einen zusammengesetzten Prompt
+/// Ein "Kochrezept" das mehrere Katalog-Elemente zu einem kompletten Prompt kombiniert
+/// Referenziert sowohl Kategorien (für Struktur/Kontext) als auch Items (für Inhalt)
+/// über deren PrePromptMenuItem-ID
 public struct PrePromptRecipe: Identifiable, Codable, Equatable, Sendable {
     public var id: UUID
     public var name: String
     public var icon: String                     // Emoji (max 3 chars)
     public var keywords: String                 // Semikolon-getrennte Schlagwörter
-    public var itemIDs: [UUID]                  // Geordnete Liste der referenzierten Preset-IDs
-    public var separator: String                // Trennzeichen zwischen Items (default: "\n\n")
+    public var elementIDs: [UUID]               // Geordnete Liste der MenuItem-IDs (Kategorien + Items)
+    public var separator: String                // Trennzeichen zwischen Elementen (default: "\n\n")
     public var createdAt: Date
     public var updatedAt: Date
 
@@ -18,7 +19,7 @@ public struct PrePromptRecipe: Identifiable, Codable, Equatable, Sendable {
         name: String,
         icon: String = "📖",
         keywords: String = "",
-        itemIDs: [UUID] = [],
+        elementIDs: [UUID] = [],
         separator: String = "\n\n",
         createdAt: Date = Date(),
         updatedAt: Date = Date()
@@ -27,7 +28,7 @@ public struct PrePromptRecipe: Identifiable, Codable, Equatable, Sendable {
         self.name = name
         self.icon = String(icon.prefix(3))
         self.keywords = keywords
-        self.itemIDs = itemIDs
+        self.elementIDs = elementIDs
         self.separator = separator
         self.createdAt = createdAt
         self.updatedAt = updatedAt
@@ -40,14 +41,21 @@ public struct PrePromptRecipe: Identifiable, Codable, Equatable, Sendable {
         name = try container.decode(String.self, forKey: .name)
         icon = try container.decodeIfPresent(String.self, forKey: .icon) ?? "📖"
         keywords = try container.decodeIfPresent(String.self, forKey: .keywords) ?? ""
-        itemIDs = try container.decodeIfPresent([UUID].self, forKey: .itemIDs) ?? []
+        // Migration: Support old itemIDs field
+        if let elements = try container.decodeIfPresent([UUID].self, forKey: .elementIDs) {
+            elementIDs = elements
+        } else if let items = try container.decodeIfPresent([UUID].self, forKey: .itemIDs) {
+            elementIDs = items
+        } else {
+            elementIDs = []
+        }
         separator = try container.decodeIfPresent(String.self, forKey: .separator) ?? "\n\n"
         createdAt = try container.decodeIfPresent(Date.self, forKey: .createdAt) ?? Date()
         updatedAt = try container.decodeIfPresent(Date.self, forKey: .updatedAt) ?? Date()
     }
 
     private enum CodingKeys: String, CodingKey {
-        case id, name, icon, keywords, itemIDs, separator, createdAt, updatedAt
+        case id, name, icon, keywords, elementIDs, itemIDs, separator, createdAt, updatedAt
     }
 
     /// Create a modified copy with updated timestamp
@@ -55,7 +63,7 @@ public struct PrePromptRecipe: Identifiable, Codable, Equatable, Sendable {
         name: String? = nil,
         icon: String? = nil,
         keywords: String? = nil,
-        itemIDs: [UUID]? = nil,
+        elementIDs: [UUID]? = nil,
         separator: String? = nil
     ) -> PrePromptRecipe {
         PrePromptRecipe(
@@ -63,7 +71,7 @@ public struct PrePromptRecipe: Identifiable, Codable, Equatable, Sendable {
             name: name ?? self.name,
             icon: icon ?? self.icon,
             keywords: keywords ?? self.keywords,
-            itemIDs: itemIDs ?? self.itemIDs,
+            elementIDs: elementIDs ?? self.elementIDs,
             separator: separator ?? self.separator,
             createdAt: self.createdAt,
             updatedAt: Date()
@@ -92,29 +100,59 @@ public struct PrePromptRecipe: Identifiable, Codable, Equatable, Sendable {
         keywordPairs.first { $0.key.lowercased() == key.lowercased() }?.value
     }
 
-    /// Generate the combined prompt text from all referenced items
-    /// - Parameter presets: The available presets to look up by ID
-    /// - Returns: Combined prompt text
-    public func generatePrompt(from presets: [AIPrePromptPreset]) -> String {
-        let texts = itemIDs.compactMap { id in
-            presets.first(where: { $0.id == id })?.text
+    /// Generate the combined prompt text from all referenced elements
+    /// Categories become section headers with their metadata
+    /// Items provide the actual prompt content
+    public func generatePrompt(from menuItems: [PrePromptMenuItem], presets: [AIPrePromptPreset]) -> String {
+        var parts: [String] = []
+
+        for elementID in elementIDs {
+            if let menuItem = menuItems.first(where: { $0.id == elementID }) {
+                if menuItem.isFolder {
+                    // Category: Use as section header with metadata
+                    var sectionParts: [String] = []
+                    sectionParts.append("## \(menuItem.name)")
+
+                    // Add category keywords as context
+                    if !menuItem.keywords.isEmpty {
+                        let contextLines = menuItem.keywordPairs.map { "**\($0.key):** \($0.value)" }
+                        sectionParts.append(contentsOf: contextLines)
+                    }
+
+                    parts.append(sectionParts.joined(separator: "\n"))
+                } else if let presetID = menuItem.presetID,
+                          let preset = presets.first(where: { $0.id == presetID }) {
+                    // Item: Use preset text
+                    parts.append(preset.text)
+                }
+            }
         }
-        return texts.joined(separator: separator)
+
+        return parts.joined(separator: separator)
     }
 
-    /// Collect all keywords from the recipe and its referenced items
-    /// - Parameter presets: The available presets to look up by ID
-    /// - Returns: Combined keyword pairs (recipe keywords override item keywords)
-    public func collectKeywords(from presets: [AIPrePromptPreset]) -> [(key: String, value: String)] {
+    /// Collect all keywords from the recipe, categories, and items
+    /// Later entries override earlier ones (recipe keywords have highest priority)
+    public func collectKeywords(from menuItems: [PrePromptMenuItem], presets: [AIPrePromptPreset]) -> [(key: String, value: String)] {
         var result: [(key: String, value: String)] = []
 
-        // Collect from items first
-        for id in itemIDs {
-            if let preset = presets.first(where: { $0.id == id }) {
-                for pair in preset.keywordPairs {
-                    // Only add if not already present
+        // Collect from elements in order
+        for elementID in elementIDs {
+            if let menuItem = menuItems.first(where: { $0.id == elementID }) {
+                // Add category keywords
+                for pair in menuItem.keywordPairs {
                     if !result.contains(where: { $0.key.lowercased() == pair.key.lowercased() }) {
                         result.append(pair)
+                    }
+                }
+
+                // Add preset keywords if it's an item
+                if let presetID = menuItem.presetID,
+                   let preset = presets.first(where: { $0.id == presetID }) {
+                    for pair in preset.keywordPairs {
+                        if !result.contains(where: { $0.key.lowercased() == pair.key.lowercased() }) {
+                            result.append(pair)
+                        }
                     }
                 }
             }
@@ -132,12 +170,10 @@ public struct PrePromptRecipe: Identifiable, Codable, Equatable, Sendable {
         return result
     }
 
-    /// Get the resolved items in order
-    /// - Parameter presets: The available presets to look up by ID
-    /// - Returns: Ordered list of resolved presets
-    public func resolveItems(from presets: [AIPrePromptPreset]) -> [AIPrePromptPreset] {
-        itemIDs.compactMap { id in
-            presets.first(where: { $0.id == id })
+    /// Resolve elements to their menu items
+    public func resolveElements(from menuItems: [PrePromptMenuItem]) -> [PrePromptMenuItem] {
+        elementIDs.compactMap { id in
+            menuItems.first(where: { $0.id == id })
         }
     }
 }

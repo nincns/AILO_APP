@@ -329,12 +329,18 @@
 "catalog.recipe.new" = "Neues Rezept";
 "catalog.recipe.edit" = "Rezept bearbeiten";
 "catalog.recipe.name.placeholder" = "Rezeptname";
-"catalog.recipe.items %lld" = "%lld Zutaten";
+"catalog.recipe.elements %lld" = "%lld Elemente";
 "catalog.recipe.ingredients" = "Zutaten";
-"catalog.recipe.empty" = "Tippe + um Items hinzuzufügen";
-"catalog.recipe.additem" = "Item hinzufügen";
+"catalog.recipe.empty" = "Tippe + um Elemente hinzuzufügen";
+"catalog.recipe.addelement" = "Element hinzufügen";
+"catalog.recipe.type.category" = "Kategorie";
+"catalog.recipe.type.item" = "Item";
+"catalog.recipe.picker.back" = "Zurück";
+"catalog.recipe.picker.categories" = "Kategorien";
+"catalog.recipe.picker.items" = "Items";
+"catalog.recipe.picker.empty" = "Keine Elemente";
 "catalog.recipe.preview" = "Vorschau";
-"catalog.recipe.preview.empty" = "Füge Items hinzu um eine Vorschau zu sehen";
+"catalog.recipe.preview.empty" = "Füge Elemente hinzu um eine Vorschau zu sehen";
 "catalog.recipe.preview.keywords" = "Kombinierte Schlagwörter";
 "catalog.recipe.preview.prompt" = "Generierter Prompt";
 
