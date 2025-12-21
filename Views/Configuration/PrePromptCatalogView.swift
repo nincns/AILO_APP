@@ -407,7 +407,6 @@ private struct PresetEditorSheet: View {
     @State private var text: String
     @State private var icon: String
     @State private var keywords: String
-    @State private var isDefault: Bool
     @Environment(\.dismiss) private var dismiss
 
     init(preset: AIPrePromptPreset?, onSave: @escaping (AIPrePromptPreset) -> Void) {
@@ -417,83 +416,88 @@ private struct PresetEditorSheet: View {
         _text = State(initialValue: preset?.text ?? "")
         _icon = State(initialValue: preset?.icon ?? "💬")
         _keywords = State(initialValue: preset?.keywords ?? "")
-        _isDefault = State(initialValue: preset?.isDefault ?? false)
     }
 
     var body: some View {
-        NavigationView {
-            Form {
-                // Symbol + Name in einer Zeile
-                Section(header: Text("preprompts.field.name")) {
-                    HStack(spacing: 8) {
-                        TextField("💬", text: $icon)
-                            .frame(width: 50)
-                            .multilineTextAlignment(.center)
-                            .font(.title2)
-                            .onChange(of: icon) { _, newValue in
-                                // Max 3 Zeichen
-                                if newValue.count > 3 {
-                                    icon = String(newValue.prefix(3))
-                                }
-                            }
+        VStack(spacing: 12) {
+            Text(preset == nil ? "catalog.item.new" : "preprompts.editor.title")
+                .font(.headline)
+                .padding(.top, 8)
 
-                        TextField(String(localized: "preprompts.field.name.placeholder"), text: $name)
-                    }
-                }
-
-                // Schlagwörter/Metadaten
-                Section(header: Text("preprompts.field.keywords")) {
-                    KeywordBubbleInput(keywords: $keywords)
-                        .padding(.vertical, 4)
-                }
-
-                // Prompt-Inhalt
-                Section(header: Text("preprompts.field.content")) {
-                    TextEditor(text: $text)
-                        .frame(minHeight: 150)
-                }
-
-                Section {
-                    Toggle(String(localized: "preprompt.toggle.default"), isOn: $isDefault)
-                }
-            }
-            .navigationTitle(Text(preset == nil ? "catalog.prompt.new" : "preprompts.editor.title"))
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarLeading) {
-                    Button(String(localized: "catalog.action.cancel")) {
-                        dismiss()
-                    }
-                }
-
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button(String(localized: "catalog.action.save")) {
-                        let newPreset: AIPrePromptPreset
-                        if let existing = preset {
-                            newPreset = existing.updated(
-                                name: name,
-                                text: text,
-                                icon: icon,
-                                keywords: keywords,
-                                isDefault: isDefault
-                            )
-                        } else {
-                            newPreset = AIPrePromptPreset(
-                                name: name,
-                                text: text,
-                                icon: icon,
-                                keywords: keywords,
-                                isDefault: isDefault
-                            )
+            // Icon + Name
+            HStack(spacing: 8) {
+                TextField("💬", text: $icon)
+                    .frame(width: 50)
+                    .multilineTextAlignment(.center)
+                    .font(.title2)
+                    .padding(8)
+                    .background(Color(.systemGray6))
+                    .clipShape(RoundedRectangle(cornerRadius: 8))
+                    .onChange(of: icon) { _, newValue in
+                        if newValue.count > 3 {
+                            icon = String(newValue.prefix(3))
                         }
-                        onSave(newPreset)
-                        dismiss()
                     }
-                    .disabled(name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ||
-                             text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-                }
+
+                TextField(String(localized: "preprompts.field.name.placeholder"), text: $name)
+                    .textFieldStyle(.roundedBorder)
             }
+            .padding(.horizontal)
+
+            // Keywords
+            KeywordBubbleInput(keywords: $keywords)
+                .padding(.horizontal)
+
+            // Prompt content
+            VStack(alignment: .leading, spacing: 4) {
+                Text("preprompts.field.content")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .padding(.horizontal)
+
+                TextEditor(text: $text)
+                    .frame(minHeight: 120)
+                    .padding(8)
+                    .background(Color(.systemGray6))
+                    .clipShape(RoundedRectangle(cornerRadius: 8))
+                    .padding(.horizontal)
+            }
+
+            HStack(spacing: 16) {
+                Button(String(localized: "catalog.action.cancel")) {
+                    dismiss()
+                }
+                .foregroundStyle(.secondary)
+
+                Button(String(localized: "catalog.action.save")) {
+                    let newPreset: AIPrePromptPreset
+                    if let existing = preset {
+                        newPreset = existing.updated(
+                            name: name,
+                            text: text,
+                            icon: icon,
+                            keywords: keywords
+                        )
+                    } else {
+                        newPreset = AIPrePromptPreset(
+                            name: name,
+                            text: text,
+                            icon: icon,
+                            keywords: keywords
+                        )
+                    }
+                    onSave(newPreset)
+                    dismiss()
+                }
+                .buttonStyle(.borderedProminent)
+                .disabled(name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ||
+                         text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+            }
+            .padding(.bottom, 8)
         }
+        .padding()
+        .presentationDetents([.medium])
+        .presentationDragIndicator(.visible)
     }
 }
 
