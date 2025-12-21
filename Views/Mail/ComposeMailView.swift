@@ -83,23 +83,17 @@ struct ComposeMailView: View {
 
                         Spacer()
 
-                        // Pre-Prompt Catalog Picker
+                        // Pre-Prompt Catalog Picker - AI-Manager Button
                         Button {
                             showPrePromptPicker = true
                         } label: {
-                            HStack(spacing: 4) {
-                                Text("🔙")
-                                    .font(.caption)
-                                Image(systemName: "chevron.down")
-                                    .font(.system(size: 8))
-                                Text("⏎")
-                                    .font(.caption)
-                                    .foregroundStyle(selectedPrePromptItem != nil ? .blue : .secondary)
-                            }
-                            .padding(.horizontal, 8)
-                            .padding(.vertical, 4)
-                            .background(Color(UIColor.tertiarySystemBackground))
-                            .clipShape(RoundedRectangle(cornerRadius: 6))
+                            Text("AI-Manager")
+                                .font(.caption)
+                                .foregroundStyle(.blue)
+                                .padding(.horizontal, 10)
+                                .padding(.vertical, 5)
+                                .background(Color(UIColor.tertiarySystemBackground))
+                                .clipShape(RoundedRectangle(cornerRadius: 6))
                         }
                         .buttonStyle(.plain)
 
