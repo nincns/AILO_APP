@@ -303,6 +303,30 @@
 "preprompts.toast.saved" = "Pre-Prompt gespeichert";
 "preprompts.editor.footer" = "Hier kannst du einen systemweiten Pre-Prompt definieren, der dem Modell vorangestellt wird.";
 
+/* MARK: - Pre-Prompt Categories */
+"preprompt.category.mail" = "E-Mail";
+"preprompt.category.notes" = "Notizen";
+"preprompt.category.general" = "Allgemein";
+
+/* MARK: - Pre-Prompt Contexts */
+"preprompt.context.mail.forward" = "Weiterleiten";
+"preprompt.context.mail.reply" = "Antworten";
+"preprompt.context.mail.analyze" = "Analysieren";
+"preprompt.context.mail.summarize" = "Zusammenfassen";
+"preprompt.context.note.protocol" = "Protokoll";
+"preprompt.context.note.correct" = "Korrektur";
+"preprompt.context.note.structure" = "Strukturierung";
+"preprompt.context.general" = "Allgemein";
+
+/* MARK: - Pre-Prompt Picker */
+"preprompt.picker.title" = "Pre-Prompt wählen";
+"preprompt.picker.category" = "Kategorie";
+"preprompt.picker.context" = "Kontext";
+"preprompt.picker.cancel" = "Abbrechen";
+"preprompt.picker.empty" = "Keine Pre-Prompts";
+"preprompt.picker.empty.hint" = "Erstelle Pre-Prompts in den Einstellungen";
+"preprompt.toggle.default" = "Als Standard setzen";
+
 /* Configuration - Categories */
 /* Files: Configuration/Categories.swift */
 "categories.title" = "Kategorien";

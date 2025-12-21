@@ -403,6 +403,30 @@
 "preprompts.editor.title" = "Pre-prompt";
 "preprompts.toolbar.done" = "Done";
 
+/* MARK: - Pre-Prompt Categories */
+"preprompt.category.mail" = "Mail";
+"preprompt.category.notes" = "Notes";
+"preprompt.category.general" = "General";
+
+/* MARK: - Pre-Prompt Contexts */
+"preprompt.context.mail.forward" = "Forward";
+"preprompt.context.mail.reply" = "Reply";
+"preprompt.context.mail.analyze" = "Analyze";
+"preprompt.context.mail.summarize" = "Summarize";
+"preprompt.context.note.protocol" = "Protocol";
+"preprompt.context.note.correct" = "Correction";
+"preprompt.context.note.structure" = "Structuring";
+"preprompt.context.general" = "General";
+
+/* MARK: - Pre-Prompt Picker */
+"preprompt.picker.title" = "Choose Pre-Prompt";
+"preprompt.picker.category" = "Category";
+"preprompt.picker.context" = "Context";
+"preprompt.picker.cancel" = "Cancel";
+"preprompt.picker.empty" = "No pre-prompts";
+"preprompt.picker.empty.hint" = "Create pre-prompts in Settings";
+"preprompt.toggle.default" = "Set as default";
+
 /* ============================================================================
    Configuration – Categories
    Files: Configuration/Categories.swift
