@@ -270,49 +270,48 @@ private struct NewFolderSheet: View {
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
-        NavigationView {
-            VStack(spacing: 20) {
-                Text("catalog.folder.new")
-                    .font(.headline)
-
-                HStack(spacing: 8) {
-                    TextField("📁", text: $icon)
-                        .frame(width: 50)
-                        .multilineTextAlignment(.center)
-                        .font(.title2)
-                        .padding(8)
-                        .background(Color(.systemGray6))
-                        .clipShape(RoundedRectangle(cornerRadius: 8))
-                        .onChange(of: icon) { _, newValue in
-                            if newValue.count > 3 {
-                                icon = String(newValue.prefix(3))
-                            }
-                        }
-
-                    TextField(String(localized: "catalog.folder.name.placeholder"), text: $name)
-                        .textFieldStyle(.roundedBorder)
-                }
-                .padding(.horizontal)
-
-                HStack(spacing: 16) {
-                    Button(String(localized: "catalog.action.cancel")) {
-                        dismiss()
-                    }
-                    .foregroundStyle(.secondary)
-
-                    Button(String(localized: "catalog.action.save")) {
-                        onSave(name, icon)
-                        dismiss()
-                    }
-                    .buttonStyle(.borderedProminent)
-                    .disabled(name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-                }
+        VStack(spacing: 16) {
+            Text("catalog.folder.new")
+                .font(.headline)
                 .padding(.top, 8)
+
+            HStack(spacing: 8) {
+                TextField("📁", text: $icon)
+                    .frame(width: 50)
+                    .multilineTextAlignment(.center)
+                    .font(.title2)
+                    .padding(8)
+                    .background(Color(.systemGray6))
+                    .clipShape(RoundedRectangle(cornerRadius: 8))
+                    .onChange(of: icon) { _, newValue in
+                        if newValue.count > 3 {
+                            icon = String(newValue.prefix(3))
+                        }
+                    }
+
+                TextField(String(localized: "catalog.folder.name.placeholder"), text: $name)
+                    .textFieldStyle(.roundedBorder)
             }
-            .padding()
-            .presentationDetents([.height(180)])
-            .presentationDragIndicator(.visible)
+            .padding(.horizontal)
+
+            HStack(spacing: 16) {
+                Button(String(localized: "catalog.action.cancel")) {
+                    dismiss()
+                }
+                .foregroundStyle(.secondary)
+
+                Button(String(localized: "catalog.action.save")) {
+                    onSave(name, icon)
+                    dismiss()
+                }
+                .buttonStyle(.borderedProminent)
+                .disabled(name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+            }
+            .padding(.bottom, 8)
         }
+        .padding()
+        .presentationDetents([.height(160)])
+        .presentationDragIndicator(.visible)
     }
 }
 
@@ -334,52 +333,51 @@ private struct FolderEditorSheet: View {
     }
 
     var body: some View {
-        NavigationView {
-            VStack(spacing: 20) {
-                Text("catalog.folder.edit")
-                    .font(.headline)
-
-                HStack(spacing: 8) {
-                    TextField("📁", text: $icon)
-                        .frame(width: 50)
-                        .multilineTextAlignment(.center)
-                        .font(.title2)
-                        .padding(8)
-                        .background(Color(.systemGray6))
-                        .clipShape(RoundedRectangle(cornerRadius: 8))
-                        .onChange(of: icon) { _, newValue in
-                            if newValue.count > 3 {
-                                icon = String(newValue.prefix(3))
-                            }
-                        }
-
-                    TextField(String(localized: "catalog.folder.name.placeholder"), text: $name)
-                        .textFieldStyle(.roundedBorder)
-                }
-                .padding(.horizontal)
-
-                HStack(spacing: 16) {
-                    Button(String(localized: "catalog.action.cancel")) {
-                        dismiss()
-                    }
-                    .foregroundStyle(.secondary)
-
-                    Button(String(localized: "catalog.action.save")) {
-                        var updated = folder
-                        updated.name = name
-                        updated.icon = icon
-                        onSave(updated)
-                        dismiss()
-                    }
-                    .buttonStyle(.borderedProminent)
-                    .disabled(name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-                }
+        VStack(spacing: 16) {
+            Text("catalog.folder.edit")
+                .font(.headline)
                 .padding(.top, 8)
+
+            HStack(spacing: 8) {
+                TextField("📁", text: $icon)
+                    .frame(width: 50)
+                    .multilineTextAlignment(.center)
+                    .font(.title2)
+                    .padding(8)
+                    .background(Color(.systemGray6))
+                    .clipShape(RoundedRectangle(cornerRadius: 8))
+                    .onChange(of: icon) { _, newValue in
+                        if newValue.count > 3 {
+                            icon = String(newValue.prefix(3))
+                        }
+                    }
+
+                TextField(String(localized: "catalog.folder.name.placeholder"), text: $name)
+                    .textFieldStyle(.roundedBorder)
             }
-            .padding()
-            .presentationDetents([.height(180)])
-            .presentationDragIndicator(.visible)
+            .padding(.horizontal)
+
+            HStack(spacing: 16) {
+                Button(String(localized: "catalog.action.cancel")) {
+                    dismiss()
+                }
+                .foregroundStyle(.secondary)
+
+                Button(String(localized: "catalog.action.save")) {
+                    var updated = folder
+                    updated.name = name
+                    updated.icon = icon
+                    onSave(updated)
+                    dismiss()
+                }
+                .buttonStyle(.borderedProminent)
+                .disabled(name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+            }
+            .padding(.bottom, 8)
         }
+        .padding()
+        .presentationDetents([.height(160)])
+        .presentationDragIndicator(.visible)
     }
 }
 
