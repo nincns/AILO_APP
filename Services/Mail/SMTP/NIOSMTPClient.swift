@@ -469,15 +469,15 @@ public final class NIOSMTPClient: SMTPClientProtocol {
 
 // MARK: - SMTP Response Handler
 
-/// Handles SMTP line-based protocol with proper multiline response support
-final class SMTPResponseHandler: ChannelInboundHandler, ChannelOutboundHandler, @unchecked Sendable {
+/// Handles SMTP line-based protocol with proper multiline response support and response buffering
+final class SMTPResponseHandler: ChannelInboundHandler, @unchecked Sendable {
     typealias InboundIn = ByteBuffer
-    typealias OutboundIn = ByteBuffer
     typealias OutboundOut = ByteBuffer
 
     private var buffer = ByteBufferAllocator().buffer(capacity: 1024)
     private let lock = NIOLock()
-    private var responseWaiters: [EventLoopPromise<SMTPResponse>] = []
+    private var responseQueue: [SMTPResponse] = []  // Buffer for responses received before readResponse() called
+    private var pendingContinuation: CheckedContinuation<SMTPResponse, Error>?
     private var pendingLines: [String] = []
 
     struct SMTPResponse {
@@ -485,149 +485,165 @@ final class SMTPResponseHandler: ChannelInboundHandler, ChannelOutboundHandler, 
         let message: String
         let fullResponse: String
         let isMultiline: Bool
+
+        init(lines: [String]) {
+            self.fullResponse = lines.joined(separator: "\n")
+            self.isMultiline = lines.count > 1
+
+            if let lastLine = lines.last, lastLine.count >= 3,
+               let code = Int(String(lastLine.prefix(3))) {
+                self.code = code
+                self.message = lastLine.count > 4 ? String(lastLine.dropFirst(4)) : ""
+            } else {
+                self.code = 0
+                self.message = lines.joined(separator: "\n")
+            }
+        }
     }
 
     func channelRead(context: ChannelHandlerContext, data: NIOAny) {
         var buf = self.unwrapInboundIn(data)
         buffer.writeBuffer(&buf)
 
-        // Process all complete lines
-        while let line = readLineCRLF() {
-            processLine(line, context: context)
+        // Process all complete responses from buffer
+        while let response = parseCompleteResponse() {
+            lock.withLock {
+                if let continuation = pendingContinuation {
+                    // Someone is waiting for a response - deliver immediately
+                    pendingContinuation = nil
+                    continuation.resume(returning: response)
+                } else {
+                    // No one waiting yet - buffer the response
+                    responseQueue.append(response)
+                    print("🔧 [NIO-SMTP] Buffered response: \(response.code)")
+                }
+            }
         }
     }
 
-    private func processLine(_ line: String, context: ChannelHandlerContext) {
-        lock.withLock {
+    private func parseCompleteResponse() -> SMTPResponse? {
+        // Read lines until we find a final line (code followed by space, not hyphen)
+        while let line = readLineCRLF() {
             pendingLines.append(line)
 
             // Check if this is the final line of a response
-            // SMTP multiline: "250-First line", "250-Second line", "250 Last line"
-            // Final line has space after code, not hyphen
             if line.count >= 4 {
-                let separator = line[line.index(line.startIndex, offsetBy: 3)]
-                if separator == " " || separator == "\r" || separator == "\n" {
-                    // This is the final line
-                    let fullResponse = pendingLines.joined(separator: "\n")
-                    let code = Int(line.prefix(3)) ?? 0
-                    let message = String(line.dropFirst(4))
+                let index = line.index(line.startIndex, offsetBy: 3)
+                let separator = line[index]
 
-                    let response = SMTPResponse(
-                        code: code,
-                        message: message,
-                        fullResponse: fullResponse,
-                        isMultiline: pendingLines.count > 1
-                    )
-
+                if separator == " " {
+                    // Final line found - create response and clear pending lines
+                    let response = SMTPResponse(lines: pendingLines)
                     pendingLines.removeAll()
-
-                    if !responseWaiters.isEmpty {
-                        let promise = responseWaiters.removeFirst()
-                        promise.succeed(response)
-                    }
+                    return response
                 }
+                // If separator is "-", it's a multiline continuation, keep reading
+            } else if line.count >= 3 {
+                // Short response line (just code)
+                let response = SMTPResponse(lines: pendingLines)
+                pendingLines.removeAll()
+                return response
             }
         }
+
+        return nil // Incomplete response, wait for more data
     }
-
-    func errorCaught(context: ChannelHandlerContext, error: Error) {
-        lock.withLock {
-            for promise in responseWaiters {
-                promise.fail(error)
-            }
-            responseWaiters.removeAll()
-        }
-        context.close(promise: nil)
-    }
-
-    // MARK: - Public API
-
-    func readResponse() async throws -> SMTPResponse {
-        return try await withCheckedThrowingContinuation { continuation in
-            lock.withLock {
-                // Create promise - we'll set it up properly when we have a channel
-                // For now, store the continuation directly
-            }
-
-            // Use a simple callback-based approach
-            DispatchQueue.global().async { [weak self] in
-                guard let self = self else {
-                    continuation.resume(throwing: SMTPError.connectFailed("Handler deallocated"))
-                    return
-                }
-
-                // Poll for response with timeout
-                let timeout = Date().addingTimeInterval(60)
-                while Date() < timeout {
-                    var response: SMTPResponse?
-                    self.lock.withLock {
-                        // Check if we have a complete response waiting
-                        if !self.pendingLines.isEmpty {
-                            let lastLine = self.pendingLines.last ?? ""
-                            if lastLine.count >= 4 {
-                                let separator = lastLine[lastLine.index(lastLine.startIndex, offsetBy: 3)]
-                                if separator == " " {
-                                    let fullResponse = self.pendingLines.joined(separator: "\n")
-                                    let code = Int(lastLine.prefix(3)) ?? 0
-                                    let message = String(lastLine.dropFirst(4))
-                                    response = SMTPResponse(
-                                        code: code,
-                                        message: message,
-                                        fullResponse: fullResponse,
-                                        isMultiline: self.pendingLines.count > 1
-                                    )
-                                    self.pendingLines.removeAll()
-                                }
-                            }
-                        }
-                    }
-
-                    if let response = response {
-                        continuation.resume(returning: response)
-                        return
-                    }
-
-                    Thread.sleep(forTimeInterval: 0.01)
-                }
-
-                continuation.resume(throwing: SMTPError.receiveFailed("Response timeout"))
-            }
-        }
-    }
-
-    func sendCommand(_ command: String, on channel: Channel) async throws {
-        var buffer = channel.allocator.buffer(capacity: command.utf8.count + 2)
-        buffer.writeString(command)
-        if !command.hasSuffix("\r\n") {
-            buffer.writeString("\r\n")
-        }
-        try await channel.writeAndFlush(self.wrapOutboundOut(buffer)).get()
-    }
-
-    func sendRawData(_ data: String, on channel: Channel) async throws {
-        // Escape any lone dots at beginning of lines (RFC 5321)
-        let escaped = data.replacingOccurrences(of: "\r\n.", with: "\r\n..")
-        var buffer = channel.allocator.buffer(capacity: escaped.utf8.count)
-        buffer.writeString(escaped)
-        try await channel.writeAndFlush(self.wrapOutboundOut(buffer)).get()
-    }
-
-    // MARK: - Internal Helpers
 
     private func readLineCRLF() -> String? {
-        guard let view = buffer.readableBytesView.firstRange(of: Data("\r\n".utf8)) else {
+        guard let crlfRange = buffer.readableBytesView.firstRange(of: [0x0D, 0x0A]) else {
             return nil
         }
 
-        let lineLength = buffer.readableBytesView.distance(from: buffer.readableBytesView.startIndex, to: view.lowerBound)
+        let lineLength = buffer.readableBytesView.distance(
+            from: buffer.readableBytesView.startIndex,
+            to: crlfRange.lowerBound
+        )
+
         guard var lineSlice = buffer.readSlice(length: lineLength) else {
             return nil
         }
 
         // Consume CRLF
-        _ = buffer.readSlice(length: 2)
+        buffer.moveReaderIndex(forwardBy: 2)
 
         return lineSlice.readString(length: lineSlice.readableBytes)
+    }
+
+    func errorCaught(context: ChannelHandlerContext, error: Error) {
+        lock.withLock {
+            pendingContinuation?.resume(throwing: error)
+            pendingContinuation = nil
+        }
+        context.close(promise: nil)
+    }
+
+    func channelInactive(context: ChannelHandlerContext) {
+        lock.withLock {
+            pendingContinuation?.resume(throwing: SMTPError.closed)
+            pendingContinuation = nil
+        }
+    }
+
+    // MARK: - Public API
+
+    func readResponse() async throws -> SMTPResponse {
+        // First check if we already have a buffered response
+        let buffered: SMTPResponse? = lock.withLock {
+            if !responseQueue.isEmpty {
+                return responseQueue.removeFirst()
+            }
+            return nil
+        }
+
+        if let response = buffered {
+            print("🔧 [NIO-SMTP] Using buffered response: \(response.code)")
+            return response
+        }
+
+        // No buffered response - wait for one with timeout
+        return try await withThrowingTaskGroup(of: SMTPResponse.self) { group in
+            group.addTask {
+                try await withCheckedThrowingContinuation { continuation in
+                    self.lock.withLock {
+                        // Double-check buffer under lock
+                        if !self.responseQueue.isEmpty {
+                            let response = self.responseQueue.removeFirst()
+                            continuation.resume(returning: response)
+                            return
+                        }
+
+                        // No buffered response - store continuation for channelRead to fulfill
+                        self.pendingContinuation = continuation
+                    }
+                }
+            }
+
+            group.addTask {
+                try await Task.sleep(nanoseconds: 30_000_000_000) // 30s timeout
+                throw SMTPError.receiveFailed("Response timeout")
+            }
+
+            let result = try await group.next()!
+            group.cancelAll()
+            return result
+        }
+    }
+
+    func sendCommand(_ command: String, on channel: Channel) async throws {
+        var buf = channel.allocator.buffer(capacity: command.utf8.count + 2)
+        buf.writeString(command)
+        if !command.hasSuffix("\r\n") {
+            buf.writeString("\r\n")
+        }
+        try await channel.writeAndFlush(buf).get()
+    }
+
+    func sendRawData(_ data: String, on channel: Channel) async throws {
+        // Escape any lone dots at beginning of lines (RFC 5321)
+        let escaped = data.replacingOccurrences(of: "\r\n.", with: "\r\n..")
+        var buf = channel.allocator.buffer(capacity: escaped.utf8.count)
+        buf.writeString(escaped)
+        try await channel.writeAndFlush(buf).get()
     }
 }
 
