@@ -204,4 +204,51 @@ public struct MailAccountConfig: Codable, Identifiable, Equatable, Sendable {
         self.syncLimitRefresh = syncLimitRefresh
         self.syncLimitIncremental = syncLimitIncremental
     }
+
+    // MARK: - Codable Migration (für bestehende Accounts ohne neue Felder)
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+
+        id = try container.decode(UUID.self, forKey: .id)
+        accountName = try container.decode(String.self, forKey: .accountName)
+        displayName = try container.decodeIfPresent(String.self, forKey: .displayName)
+        emailAddress = try container.decode(String.self, forKey: .emailAddress)
+        replyTo = try container.decodeIfPresent(String.self, forKey: .replyTo)
+        signingEnabled = try container.decodeIfPresent(Bool.self, forKey: .signingEnabled) ?? false
+        signingCertificateId = try container.decodeIfPresent(String.self, forKey: .signingCertificateId)
+        recvProtocol = try container.decode(MailProtocol.self, forKey: .recvProtocol)
+        recvHost = try container.decode(String.self, forKey: .recvHost)
+        recvPort = try container.decode(Int.self, forKey: .recvPort)
+        recvEncryption = try container.decode(MailEncryption.self, forKey: .recvEncryption)
+        recvUsername = try container.decode(String.self, forKey: .recvUsername)
+        recvPassword = try container.decodeIfPresent(String.self, forKey: .recvPassword)
+        smtpHost = try container.decode(String.self, forKey: .smtpHost)
+        smtpPort = try container.decode(Int.self, forKey: .smtpPort)
+        smtpEncryption = try container.decode(MailEncryption.self, forKey: .smtpEncryption)
+        smtpUsername = try container.decode(String.self, forKey: .smtpUsername)
+        smtpPassword = try container.decodeIfPresent(String.self, forKey: .smtpPassword)
+        authMethod = try container.decode(MailAuthMethod.self, forKey: .authMethod)
+        oauthToken = try container.decodeIfPresent(String.self, forKey: .oauthToken)
+        connectionTimeoutSec = try container.decodeIfPresent(Int.self, forKey: .connectionTimeoutSec) ?? 15
+        enableLogging = try container.decodeIfPresent(Bool.self, forKey: .enableLogging) ?? false
+        checkIntervalMin = try container.decodeIfPresent(Int.self, forKey: .checkIntervalMin)
+        checkIntervalEnabled = try container.decodeIfPresent(Bool.self, forKey: .checkIntervalEnabled) ?? false
+        folders = try container.decodeIfPresent(Folders.self, forKey: .folders) ?? Folders()
+
+        // Neue Sync-Limit Felder mit Defaults für Migration
+        syncLimitInitial = try container.decodeIfPresent(Int.self, forKey: .syncLimitInitial) ?? 200
+        syncLimitRefresh = try container.decodeIfPresent(Int.self, forKey: .syncLimitRefresh) ?? 500
+        syncLimitIncremental = try container.decodeIfPresent(Int.self, forKey: .syncLimitIncremental) ?? 50
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case id, accountName, displayName, emailAddress, replyTo
+        case signingEnabled, signingCertificateId
+        case recvProtocol, recvHost, recvPort, recvEncryption, recvUsername, recvPassword
+        case smtpHost, smtpPort, smtpEncryption, smtpUsername, smtpPassword
+        case authMethod, oauthToken, connectionTimeoutSec, enableLogging
+        case checkIntervalMin, checkIntervalEnabled, folders
+        case syncLimitInitial, syncLimitRefresh, syncLimitIncremental
+    }
 }
