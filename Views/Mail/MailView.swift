@@ -415,86 +415,65 @@ struct MailView: View {
     @ViewBuilder
     private var mailboxRailAndPanel: some View {
         GeometryReader { geo in
-            let validWidth = max(1, geo.size.width)   // ← ensure never 0 or negative
-            let validHeight = max(1, geo.size.height) // ← ensure never 0 or negative
-            let panelWidth = max(280, validWidth * 0.6)
+            let validWidth = max(1, geo.size.width)
+            let validHeight = max(1, geo.size.height)
+            let panelWidth = max(280, validWidth * 0.7)
             let panelHeight = validHeight + geo.safeAreaInsets.top + geo.safeAreaInsets.bottom
-            let railWidth: CGFloat = 56
 
-            // Left icon rail (compact; draggable vertically)
+            // Dezenter Pull-Tab am linken Rand (nur kleiner Streifen)
             VStack {
-                Spacer(minLength: 0)
+                Spacer()
 
-                // Inner rail box
-                VStack(spacing: 0) {
-                    // Expand button (draggable)
-                    Button {
-                        withAnimation(.easeInOut) { self.isMailboxPanelOpen = true }
-                    } label: {
-                        Image(systemName: "line.3.horizontal")
-                            .imageScale(.large)
-                            .frame(width: railWidth, height: 44)
+                // Minimaler Tab-Indikator
+                Button {
+                    withAnimation(.easeInOut(duration: 0.25)) {
+                        self.isMailboxPanelOpen = true
                     }
-                    .buttonStyle(.plain)
-                    .gesture(
-                        DragGesture(coordinateSpace: .global)
-                            .onChanged { value in
-                                let newOffset = railVerticalOffset + value.translation.height
-                                let maxHeight = validHeight - 200 // Leave some margin
-                                let minOffset = -maxHeight * 0.4
-                                let maxOffset = maxHeight * 0.4
-                                railVerticalOffset = max(minOffset, min(maxOffset, newOffset))
-                            }
-                            .onEnded { value in
-                                // Save position to UserDefaults
-                                UserDefaults.standard.set(railVerticalOffset, forKey: "mailview.rail.offset")
-                                
-                                // Optional: Add some spring animation when drag ends
-                                withAnimation(.interpolatingSpring(stiffness: 300, damping: 30)) {
-                                    // Keep current position or add snapping logic here if desired
+                } label: {
+                    VStack(spacing: 3) {
+                        // Kleine Striche als Hinweis
+                        RoundedRectangle(cornerRadius: 1)
+                            .fill(Color.secondary.opacity(0.4))
+                            .frame(width: 3, height: 20)
+                        RoundedRectangle(cornerRadius: 1)
+                            .fill(Color.secondary.opacity(0.3))
+                            .frame(width: 3, height: 12)
+                    }
+                    .padding(.vertical, 16)
+                    .padding(.horizontal, 4)
+                    .background(
+                        RoundedRectangle(cornerRadius: 8, style: .continuous)
+                            .fill(.ultraThinMaterial)
+                            .shadow(color: .black.opacity(0.08), radius: 2, x: 1, y: 0)
+                    )
+                }
+                .buttonStyle(.plain)
+                .offset(y: railVerticalOffset)
+                .gesture(
+                    DragGesture(coordinateSpace: .global)
+                        .onChanged { value in
+                            // Vertikales Ziehen zum Verschieben
+                            let newOffset = railVerticalOffset + value.translation.height
+                            let maxOffset = validHeight * 0.3
+                            railVerticalOffset = max(-maxOffset, min(maxOffset, newOffset))
+                        }
+                        .onEnded { value in
+                            // Horizontales Wischen öffnet Panel
+                            if value.translation.width > 30 {
+                                withAnimation(.easeInOut(duration: 0.25)) {
+                                    self.isMailboxPanelOpen = true
                                 }
                             }
-                    )
-
-                    Divider().padding(.horizontal, 8)
-
-                    // Mailbox icons
-                    ForEach(availableBoxesSorted, id: \.self) { box in
-                        Button {
-                            // PHASE 3: ViewMode-basierte Auswahl auch für Rail
-                            self.selectedMailbox = box
-                            self.viewMode = .specialFolder(box)
-                            self.selectedCustomFolder = nil
-                            
-                            Task {
-                                // 🚀 Sofortiges Laden aus Cache bei Mailbox-Wechsel über Rail
-                                await self.mailManager.loadCachedMails(for: box, accountId: self.selectedAccountId)
-                            }
-                        } label: {
-                            Image(systemName: mailboxIcon(for: box))
-                                .imageScale(.large)
-                                .foregroundColor({
-                                    if case .specialFolder(let selectedBox) = viewMode, selectedBox == box {
-                                        return .accentColor
-                                    } else {
-                                        return .primary
-                                    }
-                                }())
-                                .frame(width: railWidth, height: 44)
+                            UserDefaults.standard.set(railVerticalOffset, forKey: "mailview.rail.offset")
                         }
-                        .buttonStyle(.plain)
-                    }
-                }
-                .frame(width: railWidth)
-                .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
-                .shadow(color: .black.opacity(0.12), radius: 6, x: 0, y: 1)
-                .offset(y: railVerticalOffset)
+                )
 
-                Spacer(minLength: 0)
+                Spacer()
             }
             .frame(maxHeight: .infinity, alignment: .center)
-            .padding(.leading, 8)
+            .padding(.leading, 2)
             .zIndex(2)
+            .opacity(isMailboxPanelOpen ? 0 : 1)
 
             // Sliding panel with mailbox + accounts list
             VStack(spacing: 0) {
@@ -516,9 +495,9 @@ struct MailView: View {
                 DragGesture(minimumDistance: 10)
                     .onEnded { value in
                         if value.translation.width < -60 {
-                            withAnimation(.easeInOut) { self.isMailboxPanelOpen = false }
-                        } else if value.translation.width > 60 {
-                            withAnimation(.easeInOut) { self.isMailboxPanelOpen = true }
+                            withAnimation(.easeInOut(duration: 0.25)) {
+                                self.isMailboxPanelOpen = false
+                            }
                         }
                     }
             )
