@@ -662,3 +662,19 @@
 "smime.error.private_key" = "Private Key nicht verfügbar";
 "smime.error.certificate" = "Zertifikatfehler";
 "smime.error.signing_failed" = "Signierung fehlgeschlagen";
+
+/* S/MIME Import */
+"smime.import.button" = "Zertifikat importieren (.p12)";
+"smime.import.password.title" = "Zertifikat-Passwort";
+"smime.import.password.message" = "Gib das Passwort für die P12-Datei ein:";
+"smime.import.password.placeholder" = "Passwort";
+"smime.import.action" = "Importieren";
+"smime.import.success.title" = "Import erfolgreich";
+"smime.import.success.message" = "Das Zertifikat wurde erfolgreich importiert und ausgewählt.";
+"smime.import.error.title" = "Import fehlgeschlagen";
+"smime.import.error.access" = "Zugriff auf die Datei nicht möglich.";
+"smime.import.error.password" = "Falsches Passwort";
+"smime.import.error.invalid_file" = "Ungültige P12-Datei";
+"smime.import.error.no_identity" = "Kein Zertifikat in der Datei gefunden";
+"smime.import.error.keychain" = "Schlüsselbund-Fehler";
+"smime.import.error.failed" = "Import fehlgeschlagen";

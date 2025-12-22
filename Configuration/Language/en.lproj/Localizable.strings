@@ -682,3 +682,19 @@
 "smime.error.private_key" = "Private key not available";
 "smime.error.certificate" = "Certificate error";
 "smime.error.signing_failed" = "Signing failed";
+
+/* S/MIME Import */
+"smime.import.button" = "Import certificate (.p12)";
+"smime.import.password.title" = "Certificate Password";
+"smime.import.password.message" = "Enter the password for the P12 file:";
+"smime.import.password.placeholder" = "Password";
+"smime.import.action" = "Import";
+"smime.import.success.title" = "Import successful";
+"smime.import.success.message" = "The certificate was successfully imported and selected.";
+"smime.import.error.title" = "Import failed";
+"smime.import.error.access" = "Cannot access the file.";
+"smime.import.error.password" = "Wrong password";
+"smime.import.error.invalid_file" = "Invalid P12 file";
+"smime.import.error.no_identity" = "No certificate found in file";
+"smime.import.error.keychain" = "Keychain error";
+"smime.import.error.failed" = "Import failed";

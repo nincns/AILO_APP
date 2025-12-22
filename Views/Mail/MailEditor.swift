@@ -22,7 +22,7 @@ import Security
 import Foundation
 import SwiftUI
 import Combine
-// Diagnostics
+import UniformTypeIdentifiers
 
 struct MailEditor: View {
     let existingConfig: MailAccountConfig?
@@ -134,6 +134,16 @@ struct MailEditor: View {
                         }
                     }
 
+                    // Import Button
+                    Button {
+                        showP12Importer = true
+                    } label: {
+                        HStack {
+                            Image(systemName: "plus.circle")
+                            Text(String(localized: "smime.import.button"))
+                        }
+                    }
+
                     if availableCertificates.isEmpty {
                         Text(String(localized: "smime.certificate.not_found"))
                             .foregroundColor(.secondary)
@@ -163,6 +173,86 @@ struct MailEditor: View {
             Button("OK", role: .cancel) { isFetchingFolders = false }
         } message: {
             Text(testMessage)
+        }
+        // P12 File Importer
+        .fileImporter(
+            isPresented: $showP12Importer,
+            allowedContentTypes: [.pkcs12],
+            allowsMultipleSelection: false
+        ) { result in
+            switch result {
+            case .success(let urls):
+                guard let url = urls.first else { return }
+                // Zugriff auf die Datei starten
+                guard url.startAccessingSecurityScopedResource() else {
+                    importErrorMessage = String(localized: "smime.import.error.access")
+                    showImportError = true
+                    return
+                }
+                defer { url.stopAccessingSecurityScopedResource() }
+
+                do {
+                    pendingP12Data = try Data(contentsOf: url)
+                    p12Password = ""
+                    showP12PasswordAlert = true
+                } catch {
+                    importErrorMessage = error.localizedDescription
+                    showImportError = true
+                }
+            case .failure(let error):
+                importErrorMessage = error.localizedDescription
+                showImportError = true
+            }
+        }
+        // P12 Password Alert
+        .alert(String(localized: "smime.import.password.title"), isPresented: $showP12PasswordAlert) {
+            SecureField(String(localized: "smime.import.password.placeholder"), text: $p12Password)
+            Button(String(localized: "common.cancel"), role: .cancel) {
+                pendingP12Data = nil
+                p12Password = ""
+            }
+            Button(String(localized: "smime.import.action")) {
+                importP12Certificate()
+            }
+        } message: {
+            Text(String(localized: "smime.import.password.message"))
+        }
+        // Import Error Alert
+        .alert(String(localized: "smime.import.error.title"), isPresented: $showImportError) {
+            Button("OK", role: .cancel) { }
+        } message: {
+            Text(importErrorMessage)
+        }
+        // Import Success Alert
+        .alert(String(localized: "smime.import.success.title"), isPresented: $showImportSuccess) {
+            Button("OK", role: .cancel) { }
+        } message: {
+            Text(String(localized: "smime.import.success.message"))
+        }
+    }
+
+    // MARK: - P12 Import
+
+    private func importP12Certificate() {
+        guard let data = pendingP12Data else { return }
+
+        let result = KeychainCertificateService.shared.importP12(data: data, password: p12Password)
+
+        // Cleanup
+        pendingP12Data = nil
+        p12Password = ""
+
+        switch result {
+        case .success(let certInfo):
+            // Refresh certificate list
+            availableCertificates = KeychainCertificateService.shared.listSigningCertificates()
+            // Auto-select the imported certificate
+            signingCertificateId = certInfo.id
+            showImportSuccess = true
+
+        case .failure(let error):
+            importErrorMessage = error.localizedDescription
+            showImportError = true
         }
     }
 
@@ -218,6 +308,15 @@ struct MailEditor: View {
     @State private var signingEnabled: Bool = false
     @State private var signingCertificateId: String = ""
     @State private var availableCertificates: [SigningCertificateInfo] = []
+
+    // P12 Import
+    @State private var showP12Importer: Bool = false
+    @State private var showP12PasswordAlert: Bool = false
+    @State private var p12Password: String = ""
+    @State private var pendingP12Data: Data? = nil
+    @State private var showImportError: Bool = false
+    @State private var importErrorMessage: String = ""
+    @State private var showImportSuccess: Bool = false
 
     // MARK: - Prefill & Save
     private func prefillIfNeeded() {
