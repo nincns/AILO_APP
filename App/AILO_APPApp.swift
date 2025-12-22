@@ -93,7 +93,9 @@ private enum StartupWarmups {
 
         print("💾 DEBUG: Using DB at: \(dbURL.path)")
 
-        // ✅ TEMPORÄR: Cleanup alter DBs für frischen Start
+        // ✅ TEMPORÄR DEAKTIVIERT: Cleanup alter DBs für frischen Start
+        // Bei Bedarf wieder aktivieren für Troubleshooting
+        /*
         let oldURLs = [
             docsDir.appendingPathComponent("mail.db"),
             docsDir.appendingPathComponent("mail_v2.db"),
@@ -107,6 +109,7 @@ private enum StartupWarmups {
             try? FileManager.default.removeItem(at: shmURL)
         }
         print("🧹 DEBUG: Cleaned up all old database files")
+        */
 
         do {
             let daoFactory = DAOFactory(dbPath: dbURL.path)
