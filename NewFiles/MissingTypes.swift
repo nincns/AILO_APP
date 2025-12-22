@@ -241,6 +241,74 @@ public enum TrustLevel: Int, Comparable {
     }
 }
 
+// MARK: - Signature Verification Status
+
+/// Status of S/MIME or PGP signature verification for received emails
+public enum SignatureStatus: String, Codable, Sendable {
+    case notSigned = "not_signed"           // No signature found
+    case valid = "valid"                     // Valid signature, trusted certificate
+    case validUntrusted = "valid_untrusted"  // Valid signature, but certificate not trusted
+    case validExpired = "valid_expired"      // Valid signature, but certificate expired
+    case invalid = "invalid"                 // Signature verification failed
+    case error = "error"                     // Error during verification
+
+    /// SF Symbol name for the signature status
+    public var iconName: String {
+        switch self {
+        case .notSigned: return "envelope"
+        case .valid: return "checkmark.seal.fill"
+        case .validUntrusted: return "seal.fill"
+        case .validExpired: return "clock.badge.exclamationmark"
+        case .invalid: return "xmark.seal.fill"
+        case .error: return "exclamationmark.triangle.fill"
+        }
+    }
+
+    /// Color for the signature status icon
+    public var iconColor: String {
+        switch self {
+        case .notSigned: return "secondary"
+        case .valid: return "green"
+        case .validUntrusted: return "orange"
+        case .validExpired: return "yellow"
+        case .invalid: return "red"
+        case .error: return "red"
+        }
+    }
+
+    /// Human-readable description
+    public var displayText: String {
+        switch self {
+        case .notSigned: return "Nicht signiert"
+        case .valid: return "Gültige Signatur"
+        case .validUntrusted: return "Signiert (nicht vertrauenswürdig)"
+        case .validExpired: return "Signiert (Zertifikat abgelaufen)"
+        case .invalid: return "Ungültige Signatur"
+        case .error: return "Verifizierungsfehler"
+        }
+    }
+}
+
+/// Information about the signer of a signed email
+public struct SignerInfo: Codable, Sendable, Equatable {
+    public let email: String
+    public let commonName: String?
+    public let organization: String?
+    public let validFrom: Date?
+    public let validUntil: Date?
+    public let issuer: String?
+
+    public init(email: String, commonName: String? = nil, organization: String? = nil,
+                validFrom: Date? = nil, validUntil: Date? = nil, issuer: String? = nil) {
+        self.email = email
+        self.commonName = commonName
+        self.organization = organization
+        self.validFrom = validFrom
+        self.validUntil = validUntil
+        self.issuer = issuer
+    }
+}
+
 // MARK: - MIME Content Types
 
 public enum MimeContentType {

@@ -117,10 +117,17 @@ struct EnhancedMailRowView: View {
                             .fill(Color.clear)
                             .frame(width: 8, height: 8)
                     }
-                    
+
                     if mail.flags.contains("\\Flagged") {
                         Image(systemName: "flag.fill")
                             .foregroundStyle(.orange)
+                            .font(.caption)
+                    }
+
+                    // S/MIME Signature Status Icon
+                    if let sigStatus = mail.signatureStatus {
+                        Image(systemName: sigStatus.iconName)
+                            .foregroundStyle(signatureColor(for: sigStatus))
                             .font(.caption)
                     }
                 }
@@ -203,19 +210,29 @@ struct EnhancedMailRowView: View {
     /// Extrahiert nur die E-Mail-Adresse aus "Montgomery Scott <scotty@example.com>"
     private func extractEmailAddress(from fromString: String) -> String? {
         let trimmed = fromString.trimmingCharacters(in: .whitespacesAndNewlines)
-        
+
         // Check for "Display Name <email@domain.com>" format
         if let startIndex = trimmed.firstIndex(of: "<"),
            let endIndex = trimmed.firstIndex(of: ">") {
             let email = String(trimmed[trimmed.index(after: startIndex)..<endIndex])
             return email.isEmpty ? nil : email
         }
-        
+
         // If it's just an email address, return it only if it contains @
         if trimmed.contains("@") && !trimmed.contains(" ") {
             return trimmed
         }
-        
+
         return nil
+    }
+
+    /// Returns the color for the S/MIME signature status icon
+    private func signatureColor(for status: SignatureStatus) -> Color {
+        switch status {
+        case .valid: return .green
+        case .validUntrusted, .validExpired: return .orange
+        case .invalid, .error: return .red
+        case .notSigned: return .secondary
+        }
     }
 }

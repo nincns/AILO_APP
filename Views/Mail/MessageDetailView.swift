@@ -3,6 +3,7 @@
 import SwiftUI
 import WebKit
 import QuickLook
+import Security
 
 // MARK: - Message Detail View
 //  PERFORMANCE FIX: This view now loads pre-processed content directly from storage
@@ -29,6 +30,11 @@ struct MessageDetailView: View {
     @State private var savingAttachments: Bool = false
     @State private var hasDetectedAttachments: Bool = false
     @State private var previewURL: URL? = nil
+
+    // S/MIME signature verification state
+    @State private var signatureStatus: SignatureStatus? = nil
+    @State private var signerInfo: SignerInfo? = nil
+    @State private var isVerifyingSignature: Bool = false
 
     // Reply/Forward state
     @State private var showReplySheet: Bool = false
@@ -310,7 +316,7 @@ struct MessageDetailView: View {
                             .foregroundStyle(.secondary)
                     }
                 }
-                
+
                 if mail.flags.contains("\\Flagged") {
                     HStack(spacing: 4) {
                         Image(systemName: "flag.fill")
@@ -321,6 +327,76 @@ struct MessageDetailView: View {
                     }
                 }
             }
+
+            // S/MIME Signature Status Indicator
+            if isVerifyingSignature {
+                HStack(spacing: 8) {
+                    ProgressView()
+                        .scaleEffect(0.7)
+                    Text("Signatur wird überprüft...")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                .padding(.vertical, 4)
+            } else if let status = signatureStatus {
+                signatureStatusView(status: status, signer: signerInfo)
+            }
+        }
+    }
+
+    /// View for displaying S/MIME signature verification status
+    @ViewBuilder
+    private func signatureStatusView(status: SignatureStatus, signer: SignerInfo?) -> some View {
+        HStack(spacing: 8) {
+            Image(systemName: status.iconName)
+                .foregroundStyle(signatureIconColor(status))
+                .font(.subheadline)
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(status.displayText)
+                    .font(.caption)
+                    .fontWeight(.medium)
+                    .foregroundStyle(signatureTextColor(status))
+
+                if let signer = signer {
+                    Text("von \(signer.commonName ?? signer.email)")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                }
+            }
+
+            Spacer()
+        }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 6)
+        .background(signatureBackgroundColor(status))
+        .clipShape(RoundedRectangle(cornerRadius: 6))
+    }
+
+    private func signatureIconColor(_ status: SignatureStatus) -> Color {
+        switch status {
+        case .valid: return .green
+        case .validUntrusted, .validExpired: return .orange
+        case .invalid, .error: return .red
+        case .notSigned: return .secondary
+        }
+    }
+
+    private func signatureTextColor(_ status: SignatureStatus) -> Color {
+        switch status {
+        case .valid: return .green
+        case .validUntrusted, .validExpired: return .orange
+        case .invalid, .error: return .red
+        case .notSigned: return .secondary
+        }
+    }
+
+    private func signatureBackgroundColor(_ status: SignatureStatus) -> Color {
+        switch status {
+        case .valid: return .green.opacity(0.1)
+        case .validUntrusted, .validExpired: return .orange.opacity(0.1)
+        case .invalid, .error: return .red.opacity(0.1)
+        case .notSigned: return .clear
         }
     }
     
@@ -451,6 +527,9 @@ struct MessageDetailView: View {
                                     }
                                     bodyLoaded = true
 
+                                    // ✅ S/MIME Signature Verification
+                                    await verifyEmailSignature(rawBody: rawBody)
+
                                 } catch {
                                     print("❌ [loadMailBody] Processing failed: \(error)")
                                     await MainActor.run {
@@ -514,6 +593,11 @@ struct MessageDetailView: View {
                                 isLoadingBody = false
                             }
                             bodyLoaded = true
+
+                            // ✅ S/MIME Signature Verification
+                            if let rawBody = bodyEntity.rawBody, !rawBody.isEmpty {
+                                await verifyEmailSignature(rawBody: rawBody)
+                            }
                         }
                     }
                 } catch {
@@ -625,6 +709,9 @@ struct MessageDetailView: View {
                                 print("✅ [loadMailBodyAfterSync] Processed content loaded")
                                 bodyLoaded = true
 
+                                // ✅ S/MIME Signature Verification
+                                await verifyEmailSignature(rawBody: rawBody)
+
                             } catch {
                                 print("❌ [loadMailBodyAfterSync] Processing failed: \(error)")
                                 await MainActor.run {
@@ -684,6 +771,11 @@ struct MessageDetailView: View {
                             isLoadingBody = false
                         }
                         bodyLoaded = true
+
+                        // ✅ S/MIME Signature Verification
+                        if let rawBody = bodyEntity.rawBody, !rawBody.isEmpty {
+                            await verifyEmailSignature(rawBody: rawBody)
+                        }
                     }
                 }
             } catch {
@@ -1219,6 +1311,335 @@ struct MessageDetailView: View {
         }
 
         return false
+    }
+
+    // MARK: - S/MIME Signature Verification
+
+    /// Detects if the email is signed and verifies the signature
+    private func verifyEmailSignature(rawBody: String) async {
+        print("🔐 [Signature] Checking for S/MIME signature...")
+
+        let lowerBody = rawBody.lowercased()
+
+        // Check if this is a multipart/signed message
+        guard lowerBody.contains("multipart/signed") ||
+              lowerBody.contains("application/pkcs7-signature") ||
+              lowerBody.contains("application/x-pkcs7-signature") ||
+              lowerBody.contains("smime.p7s") else {
+            print("🔐 [Signature] No signature detected in message")
+            return
+        }
+
+        print("🔐 [Signature] S/MIME signature detected, starting verification...")
+
+        await MainActor.run {
+            isVerifyingSignature = true
+        }
+
+        // Extract the signed content and signature
+        let verificationResult = await performSignatureVerification(rawBody: rawBody)
+
+        await MainActor.run {
+            self.signatureStatus = verificationResult.status
+            self.signerInfo = verificationResult.signer
+            self.isVerifyingSignature = false
+            print("🔐 [Signature] Verification complete: \(verificationResult.status.displayText)")
+        }
+    }
+
+    /// Performs the actual signature verification
+    private func performSignatureVerification(rawBody: String) async -> (status: SignatureStatus, signer: SignerInfo?) {
+        // Extract boundary from Content-Type header
+        guard let boundary = extractBoundary(from: rawBody) else {
+            print("❌ [Signature] Could not extract boundary")
+            return (.error, nil)
+        }
+
+        print("🔐 [Signature] Found boundary: \(boundary)")
+
+        // Split the message into parts
+        let parts = splitMultipartBody(rawBody: rawBody, boundary: boundary)
+
+        guard parts.count >= 2 else {
+            print("❌ [Signature] Expected 2 parts, found \(parts.count)")
+            return (.error, nil)
+        }
+
+        let signedContent = parts[0]
+        let signaturePart = parts[1]
+
+        // Extract the signature data (base64 encoded PKCS#7)
+        guard let signatureData = extractSignatureData(from: signaturePart) else {
+            print("❌ [Signature] Could not extract signature data")
+            return (.error, nil)
+        }
+
+        print("🔐 [Signature] Extracted signature data: \(signatureData.count) bytes")
+
+        // For now, we'll use a simplified verification that checks if the signature is valid
+        // In a full implementation, this would call the SMIMEVerificationService
+        let signerInfo = extractSignerInfoFromSignature(signatureData)
+
+        // Try to verify the signature using Security framework
+        let isValid = verifyPKCS7Signature(signedContent: signedContent, signature: signatureData)
+
+        if isValid {
+            // Check if certificate is trusted
+            let trustLevel = checkCertificateTrust(signatureData)
+            switch trustLevel {
+            case .trusted:
+                return (.valid, signerInfo)
+            case .untrusted, .marginal, .unknown:
+                return (.validUntrusted, signerInfo)
+            case .invalid:
+                return (.invalid, signerInfo)
+            case .revoked:
+                return (.invalid, signerInfo)
+            }
+        } else {
+            return (.invalid, signerInfo)
+        }
+    }
+
+    /// Extract boundary from Content-Type header
+    private func extractBoundary(from rawBody: String) -> String? {
+        let pattern = "boundary\\s*=\\s*\"?([^\";\\r\\n]+)\"?"
+        guard let regex = try? NSRegularExpression(pattern: pattern, options: .caseInsensitive) else {
+            return nil
+        }
+
+        let range = NSRange(rawBody.startIndex..., in: rawBody)
+        guard let match = regex.firstMatch(in: rawBody, options: [], range: range),
+              let boundaryRange = Range(match.range(at: 1), in: rawBody) else {
+            return nil
+        }
+
+        return String(rawBody[boundaryRange])
+    }
+
+    /// Split multipart body into parts
+    private func splitMultipartBody(rawBody: String, boundary: String) -> [String] {
+        let separator = "--" + boundary
+        let endMarker = separator + "--"
+
+        // Find the body start (after headers)
+        var bodyStart = rawBody.startIndex
+        if let headerEnd = rawBody.range(of: "\r\n\r\n") {
+            bodyStart = headerEnd.upperBound
+        } else if let headerEnd = rawBody.range(of: "\n\n") {
+            bodyStart = headerEnd.upperBound
+        }
+
+        let body = String(rawBody[bodyStart...])
+
+        // Split by boundary
+        var parts: [String] = []
+        let components = body.components(separatedBy: separator)
+
+        for (index, component) in components.enumerated() {
+            // Skip the first empty part and the ending part
+            if index == 0 || component.hasPrefix("--") {
+                continue
+            }
+
+            // Clean up the part
+            var part = component
+            if part.hasPrefix("\r\n") {
+                part = String(part.dropFirst(2))
+            } else if part.hasPrefix("\n") {
+                part = String(part.dropFirst(1))
+            }
+
+            // Remove trailing boundary markers
+            if let endRange = part.range(of: endMarker) {
+                part = String(part[..<endRange.lowerBound])
+            }
+
+            if !part.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                parts.append(part)
+            }
+        }
+
+        return parts
+    }
+
+    /// Extract signature data from the signature MIME part
+    private func extractSignatureData(from signaturePart: String) -> Data? {
+        // Find the content after headers
+        var content = signaturePart
+        if let headerEnd = signaturePart.range(of: "\r\n\r\n") {
+            content = String(signaturePart[headerEnd.upperBound...])
+        } else if let headerEnd = signaturePart.range(of: "\n\n") {
+            content = String(signaturePart[headerEnd.upperBound...])
+        }
+
+        // Remove whitespace and decode base64
+        let cleanedContent = content
+            .replacingOccurrences(of: "\r\n", with: "")
+            .replacingOccurrences(of: "\n", with: "")
+            .replacingOccurrences(of: " ", with: "")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+
+        return Data(base64Encoded: cleanedContent)
+    }
+
+    /// Extract signer information from the PKCS#7 signature
+    private func extractSignerInfoFromSignature(_ signatureData: Data) -> SignerInfo? {
+        // Try to parse the PKCS#7 and extract certificate info
+        // This uses Security framework to decode the signature
+
+        var decoder: CMSDecoder?
+        var status = CMSDecoderCreate(&decoder)
+        guard status == errSecSuccess, let cmsDecoder = decoder else {
+            print("❌ [Signature] Failed to create CMS decoder")
+            return nil
+        }
+
+        status = CMSDecoderUpdateMessage(cmsDecoder, [UInt8](signatureData), signatureData.count)
+        guard status == errSecSuccess else {
+            print("❌ [Signature] Failed to update CMS message")
+            return nil
+        }
+
+        status = CMSDecoderFinalizeMessage(cmsDecoder)
+        guard status == errSecSuccess else {
+            print("❌ [Signature] Failed to finalize CMS message")
+            return nil
+        }
+
+        // Get signer count
+        var signerCount: Int = 0
+        status = CMSDecoderGetNumSigners(cmsDecoder, &signerCount)
+        guard status == errSecSuccess, signerCount > 0 else {
+            print("❌ [Signature] No signers found")
+            return nil
+        }
+
+        print("🔐 [Signature] Found \(signerCount) signer(s)")
+
+        // Get signer email from certificate
+        var signerEmail: CFString?
+        status = CMSDecoderCopySignerEmailAddress(cmsDecoder, 0, &signerEmail)
+        let email = signerEmail as String? ?? "Unbekannt"
+
+        // Get signer certificate
+        var policy: SecPolicy?
+        policy = SecPolicyCreateBasicX509()
+
+        var trust: SecTrust?
+        status = CMSDecoderCopySignerCert(cmsDecoder, 0, &trust as! UnsafeMutablePointer<SecCertificate?>)
+
+        var commonName: String?
+        var organization: String?
+        var validFrom: Date?
+        var validUntil: Date?
+        var issuer: String?
+
+        // Try to extract certificate details via alternative method
+        var allCerts: CFArray?
+        status = CMSDecoderCopyAllCerts(cmsDecoder, &allCerts)
+        if status == errSecSuccess, let certs = allCerts as? [SecCertificate], let cert = certs.first {
+            // Extract common name
+            var cfCommonName: CFString?
+            SecCertificateCopyCommonName(cert, &cfCommonName)
+            commonName = cfCommonName as String?
+
+            // Extract email addresses
+            if let emailAddresses = SecCertificateCopyEmailAddresses(cert) as? [String],
+               let firstEmail = emailAddresses.first {
+                // Use email from certificate if available
+                if email == "Unbekannt" {
+                    _ = firstEmail // We already have signerEmail
+                }
+            }
+
+            print("🔐 [Signature] Signer: \(commonName ?? "Unknown") <\(email)>")
+        }
+
+        return SignerInfo(
+            email: email,
+            commonName: commonName,
+            organization: organization,
+            validFrom: validFrom,
+            validUntil: validUntil,
+            issuer: issuer
+        )
+    }
+
+    /// Verify PKCS#7 signature using Security framework
+    private func verifyPKCS7Signature(signedContent: String, signature: Data) -> Bool {
+        var decoder: CMSDecoder?
+        var status = CMSDecoderCreate(&decoder)
+        guard status == errSecSuccess, let cmsDecoder = decoder else {
+            return false
+        }
+
+        // Add the signature
+        status = CMSDecoderUpdateMessage(cmsDecoder, [UInt8](signature), signature.count)
+        guard status == errSecSuccess else { return false }
+
+        status = CMSDecoderFinalizeMessage(cmsDecoder)
+        guard status == errSecSuccess else { return false }
+
+        // Set the detached content (the signed part)
+        let contentData = Data(signedContent.utf8)
+        status = CMSDecoderSetDetachedContent(cmsDecoder, contentData as CFData)
+        guard status == errSecSuccess else { return false }
+
+        // Get signer status
+        var signerStatus: CMSSignerStatus = .unsigned
+        var certVerifyResult: OSStatus = 0
+        let policy = SecPolicyCreateBasicX509()
+        var trust: SecTrust?
+
+        status = CMSDecoderCopySignerStatus(cmsDecoder, 0, policy, true, &signerStatus, &trust, &certVerifyResult)
+
+        if status == errSecSuccess {
+            print("🔐 [Signature] Signer status: \(signerStatus.rawValue)")
+            return signerStatus == .valid
+        }
+
+        return false
+    }
+
+    /// Check certificate trust level
+    private func checkCertificateTrust(_ signatureData: Data) -> TrustLevel {
+        var decoder: CMSDecoder?
+        var status = CMSDecoderCreate(&decoder)
+        guard status == errSecSuccess, let cmsDecoder = decoder else {
+            return .unknown
+        }
+
+        status = CMSDecoderUpdateMessage(cmsDecoder, [UInt8](signatureData), signatureData.count)
+        guard status == errSecSuccess else { return .unknown }
+
+        status = CMSDecoderFinalizeMessage(cmsDecoder)
+        guard status == errSecSuccess else { return .unknown }
+
+        var allCerts: CFArray?
+        status = CMSDecoderCopyAllCerts(cmsDecoder, &allCerts)
+        guard status == errSecSuccess, let certs = allCerts as? [SecCertificate], let cert = certs.first else {
+            return .unknown
+        }
+
+        // Create trust object
+        let policy = SecPolicyCreateBasicX509()
+        var trust: SecTrust?
+        status = SecTrustCreateWithCertificates(cert, policy, &trust)
+        guard status == errSecSuccess, let secTrust = trust else {
+            return .unknown
+        }
+
+        // Evaluate trust
+        var error: CFError?
+        let trusted = SecTrustEvaluateWithError(secTrust, &error)
+
+        if trusted {
+            return .trusted
+        } else {
+            print("🔐 [Signature] Trust evaluation failed: \(error?.localizedDescription ?? "unknown")")
+            return .untrusted
+        }
     }
 
     /// Extrahiert Anhang-Metadaten aus dem rawBody - Regex-basiert für bessere Erkennung

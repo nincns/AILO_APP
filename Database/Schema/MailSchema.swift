@@ -46,8 +46,12 @@ public struct MessageHeaderEntity: Sendable, Identifiable, Equatable {
     public var date: Date?
     public var flags: [String]
     public var hasAttachments: Bool  // ✅ NEU
-    
-    public init(accountId: UUID, folder: String, uid: String, from: String, subject: String, date: Date?, flags: [String], hasAttachments: Bool = false) {
+
+    // ✅ V4: S/MIME signature status for received emails
+    public var signatureStatus: SignatureStatus?
+    public var signerEmail: String?  // Email address of signer (for quick display)
+
+    public init(accountId: UUID, folder: String, uid: String, from: String, subject: String, date: Date?, flags: [String], hasAttachments: Bool = false, signatureStatus: SignatureStatus? = nil, signerEmail: String? = nil) {
         self.accountId = accountId
         self.folder = folder
         self.uid = uid
@@ -56,6 +60,8 @@ public struct MessageHeaderEntity: Sendable, Identifiable, Equatable {
         self.date = date
         self.flags = flags
         self.hasAttachments = hasAttachments
+        self.signatureStatus = signatureStatus
+        self.signerEmail = signerEmail
     }
 }
 
