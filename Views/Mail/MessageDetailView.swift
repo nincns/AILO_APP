@@ -248,25 +248,35 @@ struct MessageDetailView: View {
                             .frame(width: 60, alignment: .leading)
                     }
                     
-                    // Wert (Name)
+                    // Wert (Name) + Signatur-Icon
                     VStack(alignment: .leading, spacing: 2) {
-                        if let displayName = parsedFrom.name, !displayName.isEmpty {
-                            Text(displayName)
-                                .font(.subheadline)
-                                .fontWeight(.semibold)
-                                .foregroundStyle(.primary)
-                        } else if let email = parsedFrom.email {
-                            Text(email)
-                                .font(.subheadline)
-                                .fontWeight(.semibold)
-                                .foregroundStyle(.primary)
-                        } else {
-                            Text(mail.from)
-                                .font(.subheadline)
-                                .fontWeight(.semibold)
-                                .foregroundStyle(.primary)
+                        HStack(spacing: 6) {
+                            if let displayName = parsedFrom.name, !displayName.isEmpty {
+                                Text(displayName)
+                                    .font(.subheadline)
+                                    .fontWeight(.semibold)
+                                    .foregroundStyle(.primary)
+                            } else if let email = parsedFrom.email {
+                                Text(email)
+                                    .font(.subheadline)
+                                    .fontWeight(.semibold)
+                                    .foregroundStyle(.primary)
+                            } else {
+                                Text(mail.from)
+                                    .font(.subheadline)
+                                    .fontWeight(.semibold)
+                                    .foregroundStyle(.primary)
+                            }
+
+                            // S/MIME Signature Icon (nur bei gültiger Signatur)
+                            if let status = signatureStatus,
+                               status == .valid || status == .validUntrusted || status == .validExpired {
+                                Image(systemName: "checkmark.seal.fill")
+                                    .foregroundStyle(signatureIconColor(status))
+                                    .font(.subheadline)
+                            }
                         }
-                        
+
                         // E-Mail-Adresse (nur wenn Name vorhanden)
                         if let displayName = parsedFrom.name, !displayName.isEmpty,
                            let email = parsedFrom.email {
@@ -275,7 +285,7 @@ struct MessageDetailView: View {
                                 .foregroundStyle(.secondary)
                         }
                     }
-                    
+
                     Spacer()
                 }
                 
@@ -328,7 +338,7 @@ struct MessageDetailView: View {
                 }
             }
 
-            // S/MIME Signature Status Indicator
+            // S/MIME Signature Status Indicator (nur bei Fehler/ungültig anzeigen)
             if isVerifyingSignature {
                 HStack(spacing: 8) {
                     ProgressView()
@@ -338,7 +348,9 @@ struct MessageDetailView: View {
                         .foregroundStyle(.secondary)
                 }
                 .padding(.vertical, 4)
-            } else if let status = signatureStatus {
+            } else if let status = signatureStatus,
+                      status == .invalid || status == .error {
+                // Nur bei Fehler die vollständige Status-Zeile anzeigen
                 signatureStatusView(status: status, signer: signerInfo)
             }
         }
