@@ -327,16 +327,20 @@ struct MailView: View {
             HStack(spacing: 6) {
                 Image(systemName: "person.crop.circle.fill")
                     .foregroundColor(.accentColor)
+                    .font(.title2)
                 VStack(alignment: .leading, spacing: 1) {
                     Text(account.displayName)
                         .font(.subheadline)
                         .fontWeight(.medium)
                         .lineLimit(1)
+                        .fixedSize(horizontal: false, vertical: true)
                     Text(account.emailAddress)
                         .font(.caption2)
                         .foregroundStyle(.secondary)
                         .lineLimit(1)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
+                .frame(minWidth: 120, alignment: .leading)
                 if isBackgroundSyncing {
                     ProgressView()
                         .scaleEffect(0.6)

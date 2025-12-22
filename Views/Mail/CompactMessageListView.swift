@@ -26,13 +26,6 @@ struct CompactMessageListView: View {
 
     var body: some View {
         List {
-            if #available(iOS 17.0, *) {
-                Section {
-                    searchField
-                }
-            } else {
-                searchField
-            }
             ForEach(filtered, id: \.uid) { mail in
                 NavigationLink(value: mail.uid) {
                     EnhancedMailRowView(
@@ -69,15 +62,6 @@ struct CompactMessageListView: View {
         guard !q.isEmpty else { return mails }
         return mails.filter { h in
             h.subject.localizedCaseInsensitiveContains(q) || h.from.localizedCaseInsensitiveContains(q)
-        }
-    }
-
-    private var searchField: some View {
-        HStack {
-            Image(systemName: "magnifyingglass").foregroundStyle(.secondary)
-            TextField(String(localized: "app.mail.search"), text: $searchText)
-                .textInputAutocapitalization(.never)
-                .autocorrectionDisabled(true)
         }
     }
 }
