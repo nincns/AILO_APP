@@ -126,8 +126,24 @@ class SMIMESigningService {
             signatureOID = OID.sha256WithRSA
         }
 
+        // DEBUG: Log exact content being hashed
+        print("🔐 [S/MIME DEBUG] === CONTENT TO BE HASHED ===")
+        print("🔐 [S/MIME DEBUG] Content length: \(content.count) bytes")
+        if content.count <= 500 {
+            print("🔐 [S/MIME DEBUG] Full content (hex):")
+            print(content.map { String(format: "%02X", $0) }.joined(separator: " "))
+            if let contentStr = String(data: content, encoding: .utf8) {
+                print("🔐 [S/MIME DEBUG] Full content (string):")
+                print(contentStr.replacingOccurrences(of: "\r", with: "\\r").replacingOccurrences(of: "\n", with: "\\n\n"))
+            }
+        } else {
+            print("🔐 [S/MIME DEBUG] First 200 bytes (hex): \(content.prefix(200).map { String(format: "%02X", $0) }.joined(separator: " "))")
+            print("🔐 [S/MIME DEBUG] Last 100 bytes (hex): \(content.suffix(100).map { String(format: "%02X", $0) }.joined(separator: " "))")
+        }
+
         // Hash the content
         let messageDigest = sha256(content)
+        print("🔐 [S/MIME DEBUG] SHA-256 messageDigest: \(messageDigest.map { String(format: "%02x", $0) }.joined())")
 
         // Build signed attributes
         let signingTime = Date()
@@ -447,6 +463,17 @@ class SMIMESigningService {
 
         let header = "Content-Type: multipart/signed; protocol=\"application/pkcs7-signature\"; micalg=sha-256; boundary=\"\(boundary)\"\r\n\r\n"
         result.append(header.data(using: .utf8)!)
+
+        // DEBUG: Log Part 1 content that will be in the message
+        print("🔐 [S/MIME DEBUG] === PART 1 CONTENT IN OUTPUT ===")
+        print("🔐 [S/MIME DEBUG] Part 1 length: \(content.count) bytes")
+        print("🔐 [S/MIME DEBUG] Boundary: \(boundary)")
+        // Compute hash of content for comparison
+        var hash = [UInt8](repeating: 0, count: Int(CC_SHA256_DIGEST_LENGTH))
+        content.withUnsafeBytes { buffer in
+            _ = CC_SHA256(buffer.baseAddress, CC_LONG(content.count), &hash)
+        }
+        print("🔐 [S/MIME DEBUG] Part 1 content SHA-256: \(Data(hash).map { String(format: "%02x", $0) }.joined())")
 
         // Part 1: Original content
         result.append("--\(boundary)\r\n".data(using: .utf8)!)

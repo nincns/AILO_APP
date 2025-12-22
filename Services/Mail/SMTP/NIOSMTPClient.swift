@@ -366,6 +366,14 @@ public final class NIOSMTPClient: SMTPClientProtocol {
         let innerContent = buildInnerMIMEContent(message)
         let innerData = Data(innerContent.utf8)
 
+        // DEBUG: Log the inner content before signing
+        print("🔐 [NIO-SMTP S/MIME] === INNER CONTENT BEFORE SIGNING ===")
+        print("🔐 [NIO-SMTP S/MIME] Inner content length: \(innerData.count) bytes")
+        if innerData.count <= 500 {
+            print("🔐 [NIO-SMTP S/MIME] Inner content (escaped):")
+            print(innerContent.replacingOccurrences(of: "\r", with: "\\r").replacingOccurrences(of: "\n", with: "\\n\n"))
+        }
+
         // Sign the content using SMIMESigningService
         let result = SMIMESigningService.shared.signMessage(
             mimeContent: innerData,
@@ -836,6 +844,7 @@ public final class NIOSMTPClient: SMTPClientProtocol {
     private func quotedPrintableEncode(_ text: String) -> String {
         var result = ""
         var lineLength = 0
+        var pendingWhitespace = ""  // Buffer for trailing whitespace
 
         for scalar in text.unicodeScalars {
             let char = Character(scalar)
@@ -845,20 +854,43 @@ public final class NIOSMTPClient: SMTPClientProtocol {
                 // Skip CR, we'll handle CRLF properly
                 continue
             } else if scalar == "\n" {
-                // Line break
+                // Line break - encode any pending whitespace before the line break (RFC 2045)
+                for ws in pendingWhitespace.unicodeScalars {
+                    if ws == " " {
+                        result += "=20"
+                    } else if ws == "\t" {
+                        result += "=09"
+                    }
+                }
+                pendingWhitespace = ""
                 result += "\r\n"
                 lineLength = 0
                 continue
-            } else if scalar.isASCII && scalar.value >= 33 && scalar.value <= 126 && scalar != "=" {
-                // Printable ASCII except =
-                encoded = String(char)
             } else if scalar == " " || scalar == "\t" {
-                // Space/tab - encode at end of line
-                encoded = String(char)
+                // Buffer whitespace - we'll encode it if it's at end of line
+                pendingWhitespace += String(char)
+                continue
             } else {
-                // Encode as =XX
-                let bytes = String(char).utf8
-                encoded = bytes.map { String(format: "=%02X", $0) }.joined()
+                // Flush any pending whitespace (not at end of line, so keep as-is)
+                if !pendingWhitespace.isEmpty {
+                    // Check if we need soft line break
+                    if lineLength + pendingWhitespace.count > 75 {
+                        result += "=\r\n"
+                        lineLength = 0
+                    }
+                    result += pendingWhitespace
+                    lineLength += pendingWhitespace.count
+                    pendingWhitespace = ""
+                }
+
+                if scalar.isASCII && scalar.value >= 33 && scalar.value <= 126 && scalar != "=" {
+                    // Printable ASCII except =
+                    encoded = String(char)
+                } else {
+                    // Encode as =XX
+                    let bytes = String(char).utf8
+                    encoded = bytes.map { String(format: "=%02X", $0) }.joined()
+                }
             }
 
             // Soft line break if line would exceed 76 chars
@@ -867,6 +899,24 @@ public final class NIOSMTPClient: SMTPClientProtocol {
                 lineLength = 0
             }
 
+            result += encoded
+            lineLength += encoded.count
+        }
+
+        // Handle any trailing whitespace at end of content (encode it)
+        for ws in pendingWhitespace.unicodeScalars {
+            let encoded: String
+            if ws == " " {
+                encoded = "=20"
+            } else if ws == "\t" {
+                encoded = "=09"
+            } else {
+                encoded = String(Character(ws))
+            }
+            if lineLength + encoded.count > 75 {
+                result += "=\r\n"
+                lineLength = 0
+            }
             result += encoded
             lineLength += encoded.count
         }
