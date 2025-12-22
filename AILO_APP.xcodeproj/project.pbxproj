@@ -49,6 +49,8 @@
 		C9B7A08F2EF82DAC00D0D81D /* CookbookView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9B7A08E2EF82DAC00D0D81D /* CookbookView.swift */; };
 		C9B7A0912EF82E3D00D0D81D /* RecipeMenuItem.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9B7A0902EF82E3D00D0D81D /* RecipeMenuItem.swift */; };
 		C9B7A0932EF8323900D0D81D /* Cookbook.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9B7A0922EF8323900D0D81D /* Cookbook.swift */; };
+		C9B7A09A2EF939A100D0D81D /* KeychainCertificateService.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9B7A0972EF939A100D0D81D /* KeychainCertificateService.swift */; };
+		C9B7A09B2EF939A100D0D81D /* SMIMESigningService.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9B7A0982EF939A100D0D81D /* SMIMESigningService.swift */; };
 		C9C33C352EB2C0E4006390C7 /* ContentAnalyzer.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9C33C342EB2C0E4006390C7 /* ContentAnalyzer.swift */; };
 		C9C33C372EB2C341006390C7 /* TransferEncodingDecoder.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9C33C362EB2C341006390C7 /* TransferEncodingDecoder.swift */; };
 		C9C33C392EB2C35A006390C7 /* HeaderCharsetDetector.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9C33C382EB2C35A006390C7 /* HeaderCharsetDetector.swift */; };
@@ -178,6 +180,8 @@
 		C9B7A08E2EF82DAC00D0D81D /* CookbookView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CookbookView.swift; sourceTree = "<group>"; };
 		C9B7A0902EF82E3D00D0D81D /* RecipeMenuItem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecipeMenuItem.swift; sourceTree = "<group>"; };
 		C9B7A0922EF8323900D0D81D /* Cookbook.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Cookbook.swift; sourceTree = "<group>"; };
+		C9B7A0972EF939A100D0D81D /* KeychainCertificateService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeychainCertificateService.swift; sourceTree = "<group>"; };
+		C9B7A0982EF939A100D0D81D /* SMIMESigningService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SMIMESigningService.swift; sourceTree = "<group>"; };
 		C9C33C342EB2C0E4006390C7 /* ContentAnalyzer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentAnalyzer.swift; sourceTree = "<group>"; };
 		C9C33C362EB2C341006390C7 /* TransferEncodingDecoder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TransferEncodingDecoder.swift; sourceTree = "<group>"; };
 		C9C33C382EB2C35A006390C7 /* HeaderCharsetDetector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HeaderCharsetDetector.swift; sourceTree = "<group>"; };
@@ -277,6 +281,15 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		C9B7A0992EF939A100D0D81D /* Security */ = {
+			isa = PBXGroup;
+			children = (
+				C9B7A0972EF939A100D0D81D /* KeychainCertificateService.swift */,
+				C9B7A0982EF939A100D0D81D /* SMIMESigningService.swift */,
+			);
+			path = Security;
+			sourceTree = "<group>";
+		};
 		C9DEDF772EAECC4D00C40B92 /* AILO_APP */ = {
 			isa = PBXGroup;
 			children = (
@@ -537,6 +550,7 @@
 		C9DEDFD62EAECC4D00C40B92 /* Services */ = {
 			isa = PBXGroup;
 			children = (
+				C9B7A0992EF939A100D0D81D /* Security */,
 				C9DEDFBC2EAECC4D00C40B92 /* AI */,
 				C9DEDFBE2EAECC4D00C40B92 /* Audio */,
 				C9DEDFD52EAECC4D00C40B92 /* Mail */,
@@ -764,6 +778,8 @@
 				C9DEDFFE2EAECC4D00C40B92 /* MailMetrics.swift in Sources */,
 				C9DEDFFF2EAECC4D00C40B92 /* ConfigView.swift in Sources */,
 				C9FB88402EB2AC76002359BA /* EnhancedMessageDetailView.swift in Sources */,
+				C9B7A09A2EF939A100D0D81D /* KeychainCertificateService.swift in Sources */,
+				C9B7A09B2EF939A100D0D81D /* SMIMESigningService.swift in Sources */,
 				C9B79FEB2EF6E46000D0D81D /* AttachmentExtractor.swift in Sources */,
 				C9CF88562EB2BAF1006CC028 /* PlatformImage.swift in Sources */,
 				C947E9002EB411FE007634FC /* DAOHelpers.swift in Sources */,
