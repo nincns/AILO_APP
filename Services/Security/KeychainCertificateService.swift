@@ -101,23 +101,10 @@ class KeychainCertificateService {
     }
 
     private func extractExpiry(from certificate: SecCertificate) -> Date? {
-        // Ablaufdatum aus Zertifikat-Keys extrahieren
-        guard let certData = SecCertificateCopyData(certificate) as Data? else { return nil }
-
-        // Versuche OID für Validity zu parsen (vereinfacht)
-        // Für vollständige Implementierung: ASN.1 Parser verwenden
-        if let values = SecCertificateCopyValues(certificate, nil, nil) as? [String: Any] {
-            // Nach NotValidAfter suchen
-            for (_, value) in values {
-                if let dict = value as? [String: Any],
-                   let label = dict[kSecPropertyKeyLabel as String] as? String,
-                   label == "Not Valid After",
-                   let dateValue = dict[kSecPropertyKeyValue as String] as? Date {
-                    return dateValue
-                }
-            }
-        }
-
+        // SecCertificateCopyValues ist nur auf macOS verfügbar
+        // Auf iOS ist das Ablaufdatum nicht direkt über Security.framework zugänglich
+        // Für vollständige Implementierung wäre ASN.1 DER Parsing erforderlich
+        // Das Ablaufdatum ist optional und wird hier nicht extrahiert
         return nil
     }
 }
