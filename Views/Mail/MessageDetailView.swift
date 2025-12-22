@@ -1962,7 +1962,7 @@ private struct MailHTMLWebView: UIViewRepresentable {
     
     func updateUIView(_ webView: WKWebView, context: Context) {
         // Der HTML-Content ist bereits durch BodyContentProcessor bereinigt
-        // Minimales Styling fr optimale Darstellung
+        // CSS mit media queries und !important für automatische Dark/Light Mode Anpassung
         let styledHTML = """
         <!DOCTYPE html>
         <html>
@@ -1974,11 +1974,25 @@ private struct MailHTMLWebView: UIViewRepresentable {
                     font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', system-ui, sans-serif;
                     font-size: 16px;
                     line-height: 1.5;
-                    color: \(UITraitCollection.current.userInterfaceStyle == .dark ? "#ffffff" : "#000000");
                     background-color: transparent;
                     margin: 0;
                     padding: 0;
                     word-wrap: break-word;
+                }
+                /* Force text colors to adapt - override inline styles */
+                body, body * {
+                    color: #000000 !important;
+                }
+                a, a * {
+                    color: #007AFF !important;
+                }
+                @media (prefers-color-scheme: dark) {
+                    body, body * {
+                        color: #ffffff !important;
+                    }
+                    a, a * {
+                        color: #64B5F6 !important;
+                    }
                 }
                 img {
                     max-width: 100% !important;
@@ -1992,8 +2006,13 @@ private struct MailHTMLWebView: UIViewRepresentable {
                     white-space: pre-wrap;
                     word-wrap: break-word;
                 }
-                a {
-                    color: \(UITraitCollection.current.userInterfaceStyle == .dark ? "#0A84FF" : "#007AFF");
+                blockquote, blockquote * {
+                    color: #666 !important;
+                }
+                @media (prefers-color-scheme: dark) {
+                    blockquote, blockquote * {
+                        color: #999 !important;
+                    }
                 }
             </style>
         </head>
@@ -2002,7 +2021,7 @@ private struct MailHTMLWebView: UIViewRepresentable {
         </body>
         </html>
         """
-        
+
         webView.loadHTMLString(styledHTML, baseURL: nil)
     }
 }
