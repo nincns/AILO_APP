@@ -177,76 +177,71 @@ struct MailView: View {
                             .pickerStyle(.segmented)
                             .padding(.horizontal)
 
-                            // Account-Anzeige unter dem Filter
-                            if let account = mailManager.accounts.first(where: { $0.id == selectedAccountId }) {
-                                HStack(spacing: 8) {
-                                    Image(systemName: "person.crop.circle.fill")
-                                        .foregroundStyle(.secondary)
-                                        .font(.subheadline)
-                                    Text(account.displayName)
-                                        .font(.subheadline)
-                                        .foregroundStyle(.primary)
-                                    Text("·")
-                                        .foregroundStyle(.secondary)
-                                    Text(account.emailAddress)
-                                        .font(.caption)
-                                        .foregroundStyle(.secondary)
-                                        .lineLimit(1)
-                                    Spacer()
-                                    if isBackgroundSyncing {
-                                        ProgressView()
-                                            .scaleEffect(0.6)
-                                    }
-                                }
-                                .padding(.horizontal)
-                                .padding(.vertical, 4)
-                            }
-
                             Divider()
                         }
                         .background(.ultraThinMaterial)
                     }
                     .toolbar {
                         ToolbarItem(placement: .topBarLeading) {
-                            Menu {
-                                // Synchronisieren
-                                if let accountId = selectedAccountId {
-                                    Button(action: {
-                                        Task {
-                                            await self.syncAccount(accountId)
-                                            await self.refreshMails()
+                            HStack(spacing: 12) {
+                                // Account-Name oben links
+                                if let account = mailManager.accounts.first(where: { $0.id == selectedAccountId }) {
+                                    HStack(spacing: 6) {
+                                        Image(systemName: "person.crop.circle.fill")
+                                            .foregroundStyle(.accentColor)
+                                        Text(account.displayName)
+                                            .font(.subheadline)
+                                            .fontWeight(.medium)
+                                            .lineLimit(1)
+                                        if isBackgroundSyncing {
+                                            ProgressView()
+                                                .scaleEffect(0.6)
                                         }
-                                    }) {
-                                        Label("app.mail.sync", systemImage: "arrow.triangle.2.circlepath")
                                     }
+                                }
+
+                                // Optionen-Menu
+                                Menu {
+                                    // Synchronisieren
+                                    if let accountId = selectedAccountId {
+                                        Button(action: {
+                                            Task {
+                                                await self.syncAccount(accountId)
+                                                await self.refreshMails()
+                                            }
+                                        }) {
+                                            Label("app.mail.sync", systemImage: "arrow.triangle.2.circlepath")
+                                        }
+                                        Divider()
+                                    }
+
+                                    // Bulk-Aktionen
+                                    Button(action: { Task { await self.markAllRead() } }) {
+                                        Label("app.mail.mark_all_read", systemImage: "envelope.open")
+                                    }
+                                    Button(action: { Task { await self.markAllUnread() } }) {
+                                        Label("app.mail.mark_all_unread", systemImage: "envelope")
+                                    }
+
                                     Divider()
-                                }
 
-                                // Bulk-Aktionen
-                                Button(action: { Task { await self.markAllRead() } }) {
-                                    Label("app.mail.mark_all_read", systemImage: "envelope.open")
-                                }
-                                Button(action: { Task { await self.markAllUnread() } }) {
-                                    Label("app.mail.mark_all_unread", systemImage: "envelope")
-                                }
-
-                                Divider()
-
-                                // Sortierung
-                                Button(action: { self.sortMode = .dateDesc }) {
-                                    HStack {
-                                        Text("app.mail.sort_newest_first")
-                                        if sortMode == .dateDesc { Image(systemName: "checkmark") }
+                                    // Sortierung
+                                    Button(action: { self.sortMode = .dateDesc }) {
+                                        HStack {
+                                            Text("app.mail.sort_newest_first")
+                                            if sortMode == .dateDesc { Image(systemName: "checkmark") }
+                                        }
                                     }
-                                }
-                                Button(action: { self.sortMode = .sender }) {
-                                    HStack {
-                                        Text("app.mail.sort_by_sender")
-                                        if sortMode == .sender { Image(systemName: "checkmark") }
+                                    Button(action: { self.sortMode = .sender }) {
+                                        HStack {
+                                            Text("app.mail.sort_by_sender")
+                                            if sortMode == .sender { Image(systemName: "checkmark") }
+                                        }
                                     }
+                                } label: {
+                                    Image(systemName: "ellipsis.circle")
+                                        .font(.body)
                                 }
-                            } label: {
-                                Image(systemName: "ellipsis.circle")
                             }
                         }
                         ToolbarItem(placement: .primaryAction) {
