@@ -1500,12 +1500,46 @@ struct MessageDetailView: View {
 
     /// Extract signature data from the signature MIME part
     private func extractSignatureData(from signaturePart: String) -> Data? {
-        // Find the content after headers
+        // Try to find the content after headers (double newline)
         var content = signaturePart
+
         if let headerEnd = signaturePart.range(of: "\r\n\r\n") {
             content = String(signaturePart[headerEnd.upperBound...])
         } else if let headerEnd = signaturePart.range(of: "\n\n") {
             content = String(signaturePart[headerEnd.upperBound...])
+        } else {
+            // No double newline found - look for base64 content directly
+            // Base64 PKCS#7 typically starts with "MIA" (ASN.1 sequence)
+            // Split by lines and find the first line that looks like base64
+            let lines = signaturePart.components(separatedBy: CharacterSet.newlines)
+            var foundContent = false
+            var base64Lines: [String] = []
+
+            for line in lines {
+                let trimmed = line.trimmingCharacters(in: .whitespaces)
+                // Skip header lines (contain ':')
+                if trimmed.contains(":") && !foundContent {
+                    continue
+                }
+                // Skip empty lines
+                if trimmed.isEmpty {
+                    foundContent = true
+                    continue
+                }
+                // Check if this looks like base64 (starts with valid base64 chars, no colon)
+                if !trimmed.contains(":") && trimmed.count > 10 {
+                    let base64Chars = CharacterSet(charactersIn: "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=")
+                    if trimmed.unicodeScalars.allSatisfy({ base64Chars.contains($0) }) {
+                        foundContent = true
+                        base64Lines.append(trimmed)
+                    }
+                }
+            }
+
+            if !base64Lines.isEmpty {
+                content = base64Lines.joined()
+                print("🔐 [Signature] Extracted base64 using line-by-line method: \(content.count) chars")
+            }
         }
 
         // Remove whitespace and decode base64
@@ -1515,7 +1549,19 @@ struct MessageDetailView: View {
             .replacingOccurrences(of: " ", with: "")
             .trimmingCharacters(in: .whitespacesAndNewlines)
 
-        return Data(base64Encoded: cleanedContent)
+        print("🔐 [Signature] Cleaned base64 content: \(cleanedContent.count) chars, starts with: \(String(cleanedContent.prefix(20)))")
+
+        guard !cleanedContent.isEmpty else {
+            print("❌ [Signature] No base64 content found")
+            return nil
+        }
+
+        guard let data = Data(base64Encoded: cleanedContent) else {
+            print("❌ [Signature] Base64 decode failed")
+            return nil
+        }
+
+        return data
     }
 
     /// Extract signer information from the PKCS#7 signature
