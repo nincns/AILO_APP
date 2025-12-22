@@ -388,7 +388,7 @@ struct MessageDetailView: View {
     private func signatureIconColor(_ status: SignatureStatus) -> Color {
         switch status {
         case .valid: return .green
-        case .validUntrusted, .validExpired: return .orange
+        case .validUntrusted, .validExpired: return .teal
         case .invalid, .error: return .red
         case .notSigned: return .secondary
         }
@@ -397,7 +397,7 @@ struct MessageDetailView: View {
     private func signatureTextColor(_ status: SignatureStatus) -> Color {
         switch status {
         case .valid: return .green
-        case .validUntrusted, .validExpired: return .orange
+        case .validUntrusted, .validExpired: return .teal
         case .invalid, .error: return .red
         case .notSigned: return .secondary
         }
@@ -406,7 +406,7 @@ struct MessageDetailView: View {
     private func signatureBackgroundColor(_ status: SignatureStatus) -> Color {
         switch status {
         case .valid: return .green.opacity(0.1)
-        case .validUntrusted, .validExpired: return .orange.opacity(0.1)
+        case .validUntrusted, .validExpired: return .teal.opacity(0.1)
         case .invalid, .error: return .red.opacity(0.1)
         case .notSigned: return .clear
         }
