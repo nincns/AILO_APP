@@ -42,6 +42,7 @@ struct MessageDetailView: View {
     @State private var isForward: Bool = false
     @State private var parsedToField: String = ""
     @State private var parsedCCField: String = ""
+    @State private var composeSheetId: UUID = UUID()  // Force sheet recreation
 
     @Environment(\.dismiss) private var dismiss
     
@@ -200,6 +201,7 @@ struct MessageDetailView: View {
                 preselectedAccountId: mail.accountId,
                 originalAttachments: extractAttachmentsForCompose()
             )
+            .id(composeSheetId)  // Force recreation on each open
         }
         .overlay {
             if savingAttachments {
@@ -953,6 +955,7 @@ struct MessageDetailView: View {
         parseHeadersForReply()
         isReplyAll = false
         isForward = false
+        composeSheetId = UUID()  // Force new view instance
         showReplySheet = true
     }
 
@@ -961,6 +964,7 @@ struct MessageDetailView: View {
         parseHeadersForReply()
         isReplyAll = true
         isForward = false
+        composeSheetId = UUID()  // Force new view instance
         showReplySheet = true
     }
 
@@ -1027,6 +1031,7 @@ struct MessageDetailView: View {
         parseHeadersForReply()
         isReplyAll = false
         isForward = true
+        composeSheetId = UUID()  // Force new view instance
         showReplySheet = true
     }
     
