@@ -113,6 +113,36 @@ struct MailEditor: View {
                 }
             }
 
+            // Sync Limits Section
+            Section(header: Text(String(localized: "mail.editor.section.sync"))) {
+                Stepper(value: $syncLimitInitial, in: 50...2000, step: 50) {
+                    HStack {
+                        Text(String(localized: "mail.editor.field.syncInitial"))
+                        Spacer()
+                        Text("\(syncLimitInitial)")
+                            .foregroundColor(.secondary)
+                    }
+                }
+
+                Stepper(value: $syncLimitRefresh, in: 100...5000, step: 100) {
+                    HStack {
+                        Text(String(localized: "mail.editor.field.syncRefresh"))
+                        Spacer()
+                        Text("\(syncLimitRefresh)")
+                            .foregroundColor(.secondary)
+                    }
+                }
+
+                Stepper(value: $syncLimitIncremental, in: 10...500, step: 10) {
+                    HStack {
+                        Text(String(localized: "mail.editor.field.syncIncremental"))
+                        Spacer()
+                        Text("\(syncLimitIncremental)")
+                            .foregroundColor(.secondary)
+                    }
+                }
+            }
+
             // S/MIME Signing Section
             Section(header: Text(String(localized: "smime.section.title"))) {
                 Toggle(String(localized: "smime.signing.enabled"), isOn: $signingEnabled)
@@ -312,6 +342,11 @@ struct MailEditor: View {
     // Check interval in minutes while app is active
     @State private var checkIntervalMin: Int = 15
 
+    // Sync Limits
+    @State private var syncLimitInitial: Int = 200
+    @State private var syncLimitRefresh: Int = 500
+    @State private var syncLimitIncremental: Int = 50
+
     // S/MIME Signing
     @State private var signingEnabled: Bool = false
     @State private var signingCertificateId: String = ""
@@ -384,6 +419,11 @@ struct MailEditor: View {
         // S/MIME Signing
         signingEnabled = cfg.signingEnabled
         signingCertificateId = cfg.signingCertificateId ?? ""
+
+        // Sync Limits
+        syncLimitInitial = cfg.syncLimitInitial
+        syncLimitRefresh = cfg.syncLimitRefresh
+        syncLimitIncremental = cfg.syncLimitIncremental
 
         // Prefer DAO values only when they are meaningful (avoid overwriting with mere defaults)
         if let factory = MailRepository.shared.factory, let map = try? factory.mailReadDAO.specialFolders(accountId: cfg.id) {
@@ -485,7 +525,10 @@ struct MailEditor: View {
                     drafts: folderDrafts.trimmingCharacters(in: .whitespacesAndNewlines),
                     trash: folderTrash.trimmingCharacters(in: .whitespacesAndNewlines),
                     spam: folderSpam.trimmingCharacters(in: .whitespacesAndNewlines)
-                )
+                ),
+                syncLimitInitial: syncLimitInitial,
+                syncLimitRefresh: syncLimitRefresh,
+                syncLimitIncremental: syncLimitIncremental
             )
 
             print("🔧 DEBUG: MailAccountConfig created successfully")

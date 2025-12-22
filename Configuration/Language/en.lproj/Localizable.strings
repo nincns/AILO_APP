@@ -556,6 +556,12 @@
 "mail.editor.smtp.password" = "Password";
 "mail.editor.authMethod" = "Authentication";
 
+/* Sync Limits */
+"mail.editor.section.sync" = "Synchronization";
+"mail.editor.field.syncInitial" = "Initial sync (mails)";
+"mail.editor.field.syncRefresh" = "Full sync (mails)";
+"mail.editor.field.syncIncremental" = "Incremental sync (mails)";
+
 /* Common actions reused in the editor */
 "common.save"   = "Save";
 "common.cancel" = "Cancel";

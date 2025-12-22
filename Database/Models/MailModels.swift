@@ -140,6 +140,11 @@ public struct MailAccountConfig: Codable, Identifiable, Equatable, Sendable {
 
     public var folders: Folders
 
+    // Sync Limits
+    public var syncLimitInitial: Int
+    public var syncLimitRefresh: Int
+    public var syncLimitIncremental: Int
+
     public init(
         id: UUID = UUID(),
         accountName: String,
@@ -165,7 +170,10 @@ public struct MailAccountConfig: Codable, Identifiable, Equatable, Sendable {
         enableLogging: Bool = false,
         checkIntervalMin: Int? = nil,
         checkIntervalEnabled: Bool = false,
-        folders: Folders = Folders()
+        folders: Folders = Folders(),
+        syncLimitInitial: Int = 200,
+        syncLimitRefresh: Int = 500,
+        syncLimitIncremental: Int = 50
     ) {
         self.id = id
         self.accountName = accountName
@@ -192,5 +200,8 @@ public struct MailAccountConfig: Codable, Identifiable, Equatable, Sendable {
         self.checkIntervalMin = checkIntervalMin
         self.checkIntervalEnabled = checkIntervalEnabled
         self.folders = folders
+        self.syncLimitInitial = syncLimitInitial
+        self.syncLimitRefresh = syncLimitRefresh
+        self.syncLimitIncremental = syncLimitIncremental
     }
 }

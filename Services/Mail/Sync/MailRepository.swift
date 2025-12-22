@@ -259,10 +259,10 @@ public final class MailRepository: ObservableObject {
                 var totalNewHeaders = 0
                 
                 for folder in folders {
-                    print("🔄 Full refresh syncing folder: \(folder)")
-                    
+                    print("🔄 Full refresh syncing folder: \(folder) (limit: \(account.syncLimitRefresh))")
+
                     let result = await transport.fetchHeaders(
-                        limit: 100, // Larger limit for full refresh
+                        limit: account.syncLimitRefresh,
                         folder: folder,
                         using: account,
                         preferCache: false, // Force network fetch for full refresh
@@ -388,10 +388,10 @@ public final class MailRepository: ObservableObject {
                     print("🔄 Syncing folder: \(folder)")
                     print("🔧 [MailRepository] About to call fetchHeaders...")
                     print("🔧 [MailRepository] Account - host: \(account.recvHost), port: \(account.recvPort)")
-                    print("🔧 [MailRepository] preferCache: false, force: true, limit: 50")
-                    
+                    print("🔧 [MailRepository] preferCache: false, force: true, limit: \(account.syncLimitInitial)")
+
                     let result = await transport.fetchHeaders(
-                        limit: 50, // Start with latest 50
+                        limit: account.syncLimitInitial,
                         folder: folder,
                         using: account,
                         preferCache: false, // Force network fetch for initial sync
@@ -474,11 +474,11 @@ public final class MailRepository: ObservableObject {
                 var totalNewHeaders = 0
                 
                 for folder in folders {
-                    print("📈 Checking folder for new messages: \(folder)")
-                    
+                    print("📈 Checking folder for new messages: \(folder) (limit: \(account.syncLimitIncremental))")
+
                     // For incremental sync, we prefer cache but force a refresh
                     let result = await transport.fetchHeaders(
-                        limit: 20, // Smaller limit for incremental
+                        limit: account.syncLimitIncremental,
                         folder: folder,
                         using: account,
                         preferCache: true, // Check cache first

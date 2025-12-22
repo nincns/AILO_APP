@@ -516,6 +516,12 @@
 "mail.editor.interval.min" = "Prüfintervall";
 "mail.editor.folders" = "Ordner";
 
+/* Sync Limits */
+"mail.editor.section.sync" = "Synchronisierung";
+"mail.editor.field.syncInitial" = "Erster Sync (Mails)";
+"mail.editor.field.syncRefresh" = "Vollständiger Sync (Mails)";
+"mail.editor.field.syncIncremental" = "Inkrementeller Sync (Mails)";
+
 /* Fetch folders feedback */
 "mail.editor.fetch.missingCredentials" = "Fehlende Zugangsdaten: Bitte Server, Port und Benutzername eingeben.";
 
