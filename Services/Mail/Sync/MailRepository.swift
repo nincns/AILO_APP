@@ -290,7 +290,7 @@ public final class MailRepository: ObservableObject {
                     }
 
                     if !domainHeaders.isEmpty {
-                        try? writeDAO?.upsertHeaders(domainHeaders, accountId: accountId, folder: folder)
+                        try? writeDAO?.upsertHeaders(accountId: accountId, folder: folder, headers: domainHeaders)
                         print("✅ [SyncAll] Saved \(domainHeaders.count) headers to database")
                     }
 
