@@ -677,8 +677,14 @@ struct ComposeMailView: View {
 
     // MARK: - AI Generation
     private func generateWithAI() {
-        guard let recipe = selectedRecipe else { return }
-        guard !isGenerating else { return }
+        guard let recipe = selectedRecipe else {
+            print("❌ generateWithAI: No recipe selected")
+            return
+        }
+        guard !isGenerating else {
+            print("❌ generateWithAI: Already generating")
+            return
+        }
 
         // Generate the pre-prompt from the recipe
         let prePrompt = recipe.generatePrompt(
@@ -689,10 +695,16 @@ struct ComposeMailView: View {
         // Get the current mail body as user text
         let userText = isHTML ? htmlBody : textBody
 
+        print("🤖 generateWithAI:")
+        print("   - prePrompt: \(prePrompt.prefix(200))...")
+        print("   - userText: \(userText.prefix(100))...")
+        print("   - isHTML: \(isHTML)")
+
         // Check if there's content to process
         guard !prePrompt.isEmpty || !userText.isEmpty else {
             generationErrorMessage = String(localized: "compose.ai.error.empty")
             showGenerationError = true
+            print("❌ generateWithAI: Empty prompt and text")
             return
         }
 
@@ -711,15 +723,19 @@ struct ComposeMailView: View {
 
             switch result {
             case .success(let generatedText):
+                print("✅ AI Response received: \(generatedText.prefix(200))...")
                 // Replace body with AI-generated content
                 if isHTML {
                     let htmlContent = "<p>\(generatedText.replacingOccurrences(of: "\n", with: "<br>"))</p>"
                     htmlBody = htmlContent
+                    print("   - Updated htmlBody")
                 } else {
                     textBody = generatedText
+                    print("   - Updated textBody")
                 }
 
             case .failure(let error):
+                print("❌ AI Error: \(error.localizedDescription)")
                 generationErrorMessage = error.localizedDescription
                 showGenerationError = true
             }
