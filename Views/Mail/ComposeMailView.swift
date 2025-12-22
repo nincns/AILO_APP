@@ -100,8 +100,12 @@ struct ComposeMailView: View {
                         HStack(spacing: 12) {
                             // AI-Manager Button (wand icon)
                             Button {
-                                insertAISeparatorIfNeeded()
-                                showPrePromptPicker = true
+                                Task {
+                                    await insertAISeparatorAsync()
+                                    await MainActor.run {
+                                        showPrePromptPicker = true
+                                    }
+                                }
                             } label: {
                                 Image(systemName: selectedRecipe != nil ? "wand.and.stars.inverse" : "wand.and.stars")
                                     .font(.system(size: 18))
@@ -684,6 +688,8 @@ struct ComposeMailView: View {
 
     /// Async version that fetches current WebView content first
     private func insertAISeparatorAsync() async {
+        print("✨ insertAISeparatorAsync started, isHTML: \(isHTML)")
+
         // For HTML mode: fetch current content from WebView (may differ from htmlBody state)
         var currentBody: String
         if isHTML {
@@ -693,17 +699,19 @@ struct ComposeMailView: View {
                 await MainActor.run {
                     htmlBody = webViewContent
                 }
-                print("✨ Fetched current WebView content: \(webViewContent.prefix(100))...")
+                print("✨ Fetched WebView content (\(webViewContent.count) chars): \(webViewContent.prefix(200))...")
             } else {
                 currentBody = htmlBody
+                print("✨ Using htmlBody state (\(htmlBody.count) chars): \(htmlBody.prefix(200))...")
             }
         } else {
             currentBody = textBody
+            print("✨ Using textBody: \(textBody.prefix(200))...")
         }
 
         // Check if separator already exists
         guard !currentBody.contains(aiSeparatorPattern) else {
-            print("✨ AI Separator already present")
+            print("✨ AI Separator already present - skipping")
             return
         }
 
@@ -713,10 +721,9 @@ struct ComposeMailView: View {
             return
         }
 
-        print("✨ Inserting AI separator line below user text")
-
         // Find where the quote/history starts (if any)
         let quoteStartIndex = findQuoteStartIndex(in: currentBody, isHTML: isHTML)
+        print("✨ Quote start index found: \(quoteStartIndex != nil ? "YES" : "NO")")
 
         await MainActor.run {
             if isHTML {
@@ -727,49 +734,74 @@ struct ComposeMailView: View {
                     let newContent = userText + "\n" + aiSeparatorHTML + "\n" + quoteText
                     htmlBody = newContent
                     editorController.setHTMLContent(newContent)
+                    print("✨ Inserted separator - userText: \(userText.prefix(50))...")
                 } else {
                     // No quote found - append separator at the end
                     let newContent = currentBody + "\n" + aiSeparatorHTML
                     htmlBody = newContent
                     editorController.setHTMLContent(newContent)
+                    print("✨ Appended separator at end (no quote found)")
                 }
             } else {
                 if let quoteStart = quoteStartIndex {
-                    // Insert separator before the quote
                     let userText = String(currentBody[..<quoteStart])
                     let quoteText = String(currentBody[quoteStart...])
                     textBody = userText + aiSeparatorText + quoteText
+                    print("✨ Inserted text separator")
                 } else {
-                    // No quote found - append separator at the end
                     textBody = currentBody + aiSeparatorText
+                    print("✨ Appended text separator at end")
                 }
             }
         }
+        print("✨ insertAISeparatorAsync completed")
     }
 
     /// Finds the start index of the quote/history section in the body
     private func findQuoteStartIndex(in body: String, isHTML: Bool) -> String.Index? {
+        print("🔍 findQuoteStartIndex - isHTML: \(isHTML), body length: \(body.count)")
+
         if isHTML {
             // Forward separator
             if let range = body.range(of: "---------- Weitergeleitete Nachricht ----------") {
-                // Find the <p> tag containing this
+                print("🔍 Found forward separator")
                 let before = body[..<range.lowerBound]
                 if let pRange = before.range(of: "<p>", options: .backwards) {
                     return pRange.lowerBound
                 }
                 return range.lowerBound
             }
-            // Reply: "Am [date] schrieb"
-            if let range = body.range(of: "<p>Am ", options: .caseInsensitive) {
-                return range.lowerBound
-            }
-            // Reply with "schrieb" and blockquote
-            if body.contains("<blockquote"), let range = body.range(of: "schrieb", options: .caseInsensitive) {
-                let before = body[..<range.lowerBound]
-                if let pRange = before.range(of: "<p>", options: .backwards) {
-                    return pRange.lowerBound
+
+            // Reply: Look for "Am " followed by "schrieb" pattern (more flexible)
+            // Pattern: "Am DD.MM.YYYY um HH:MM schrieb"
+            if let amRange = body.range(of: "Am ", options: .caseInsensitive) {
+                let afterAm = body[amRange.upperBound...]
+                if afterAm.lowercased().contains("schrieb") {
+                    print("🔍 Found 'Am ... schrieb' pattern")
+                    // Find the <p> or start of line before "Am "
+                    let before = body[..<amRange.lowerBound]
+                    // Look for the containing element
+                    if let pRange = before.range(of: "<p", options: [.backwards, .caseInsensitive]) {
+                        print("🔍 Found <p> tag before 'Am'")
+                        return pRange.lowerBound
+                    }
+                    // No <p> tag - use Am directly
+                    return amRange.lowerBound
                 }
             }
+
+            // Fallback: Look for blockquote
+            if let bqRange = body.range(of: "<blockquote", options: .caseInsensitive) {
+                print("🔍 Found blockquote")
+                // Find preceding <p> with schrieb
+                let before = body[..<bqRange.lowerBound]
+                if let pRange = before.range(of: "<p", options: [.backwards, .caseInsensitive]) {
+                    return pRange.lowerBound
+                }
+                return bqRange.lowerBound
+            }
+
+            print("🔍 No HTML quote pattern found")
         } else {
             // Plain text forward
             if let range = body.range(of: "---------- Weitergeleitete Nachricht ----------") {
@@ -1020,7 +1052,8 @@ class RichTextEditorController: ObservableObject {
         }
     }
 
-    /// Get current HTML content from the editor (async)
+    /// Get current HTML content from the editor (async, runs on MainActor for WKWebView)
+    @MainActor
     func getHTMLContent() async -> String? {
         guard let webView = webView else {
             print("❌ getHTMLContent: No webView")
@@ -1033,8 +1066,10 @@ class RichTextEditorController: ObservableObject {
                     print("❌ getHTMLContent error: \(error)")
                     continuation.resume(returning: nil)
                 } else if let html = result as? String {
+                    print("✅ getHTMLContent: Got \(html.count) chars")
                     continuation.resume(returning: html)
                 } else {
+                    print("❌ getHTMLContent: No result")
                     continuation.resume(returning: nil)
                 }
             }
