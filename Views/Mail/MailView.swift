@@ -162,12 +162,14 @@ struct MailView: View {
             if isMailboxPanelOpen {
                 Color.black.opacity(0.25)
                     .ignoresSafeArea()
-                    .onTapGesture { withAnimation(.easeInOut) { self.isMailboxPanelOpen = false } }
+                    .onTapGesture { withAnimation(.easeInOut(duration: 0.25)) { self.isMailboxPanelOpen = false } }
             }
 
             // Left rail and sliding mailbox panel
             mailboxRailAndPanel
         }
+        .toolbar(isMailboxPanelOpen ? .hidden : .visible, for: .tabBar)
+        .animation(.easeInOut(duration: 0.25), value: isMailboxPanelOpen)
         .sheet(item: $activeSheet) { sheet in
             createMailViewSheetContent(
                 for: sheet,
