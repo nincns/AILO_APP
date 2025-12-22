@@ -223,7 +223,7 @@ import Foundation
             let cachedHeaders = try MailRepository.shared.loadCachedHeaders(
                 accountId: accountId,
                 folder: folder,
-                limit: 100,
+                limit: 5000,
                 offset: 0
             )
             
@@ -260,7 +260,7 @@ import Foundation
             let freshHeaders = try MailRepository.shared.listHeaders(
                 accountId: accountId,
                 folder: folder,
-                limit: 100,
+                limit: 5000,
                 offset: 0
             )
             
@@ -447,7 +447,7 @@ import Foundation
             let headers = try MailRepository.shared.loadCachedHeaders(
                 accountId: accountId,
                 folder: folder,
-                limit: 100,
+                limit: 5000,
                 offset: 0
             )
             
@@ -499,7 +499,7 @@ import Foundation
             let headers = try MailRepository.shared.listHeaders(
                 accountId: accountId,
                 folder: folder,
-                limit: 100,
+                limit: 5000,
                 offset: 0
             )
             print("✅ Loaded \(headers.count) headers from DB")
@@ -558,10 +558,10 @@ import Foundation
             let headers = try MailRepository.shared.listHeaders(
                 accountId: accountId,
                 folder: folderName,
-                limit: 100,
+                limit: 5000,
                 offset: 0
             )
-            
+
             print("✅ Loaded \(headers.count) headers from DB for custom folder: \(folderName)")
             
             // Convert MailDAO.Header to MessageHeaderEntity
