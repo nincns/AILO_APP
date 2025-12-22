@@ -227,9 +227,11 @@ struct MessageDetailView: View {
         VStack(alignment: .leading, spacing: 12) {
             // Subject
             Text(mail.subject.isEmpty ? String(localized: "app.mail.detail.no_subject") : mail.subject)
-                .font(.title2)
+                .font(.headline)
                 .fontWeight(.semibold)
                 .foregroundStyle(.primary)
+                .lineLimit(1)
+                .truncationMode(.tail)
             
             // From, Date, and Flags - Optimiertes Grid-Layout
             VStack(alignment: .leading, spacing: 8) {
