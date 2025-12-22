@@ -108,6 +108,7 @@ public struct MailAccountConfig: Codable, Identifiable, Equatable, Sendable {
     public var id: UUID
     public var accountName: String
     public var displayName: String?
+    public var emailAddress: String
     public var replyTo: String?
 
     // S/MIME Signing
@@ -143,6 +144,7 @@ public struct MailAccountConfig: Codable, Identifiable, Equatable, Sendable {
         id: UUID = UUID(),
         accountName: String,
         displayName: String? = nil,
+        emailAddress: String,
         replyTo: String? = nil,
         signingEnabled: Bool = false,
         signingCertificateId: String? = nil,
@@ -168,6 +170,7 @@ public struct MailAccountConfig: Codable, Identifiable, Equatable, Sendable {
         self.id = id
         self.accountName = accountName
         self.displayName = displayName
+        self.emailAddress = emailAddress
         self.replyTo = replyTo
         self.signingEnabled = signingEnabled
         self.signingCertificateId = signingCertificateId

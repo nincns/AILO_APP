@@ -385,7 +385,7 @@ struct ComposeMailView: View {
     private func sendAndDismiss() {
         guard let accId = selectedAccountId, let account = accounts.first(where: { $0.id == accId }) else { return }
         // Build draft model with display name for proper From header
-        let fromEmail = account.replyTo ?? account.recvUsername
+        let fromEmail = account.emailAddress
         let fromName = account.displayName ?? account.accountName
         let from = MailSendAddress(fromEmail, name: fromName)
         let toList = splitEmails(to)
@@ -595,7 +595,7 @@ struct ComposeMailView: View {
 
     private func getMyEmail(for accountId: UUID) -> String {
         if let account = accounts.first(where: { $0.id == accountId }) {
-            return account.replyTo ?? account.recvUsername
+            return account.emailAddress
         }
         return ""
     }

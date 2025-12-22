@@ -538,6 +538,24 @@
 "mail.editor.fetch.success"       = "Special folders detected and filled.";
 "mail.editor.fetch.onlyImap"      = "Folder discovery is only available for IMAP.";
 
+/* Mail Editor field labels (used in UI) */
+"mail.editor.accountName" = "Account name";
+"mail.editor.displayName" = "Display name";
+"mail.editor.emailAddress" = "Email address";
+"mail.editor.replyTo" = "Reply-To (optional)";
+"mail.editor.recv.protocol" = "Protocol";
+"mail.editor.recv.encryption" = "Encryption";
+"mail.editor.recv.host" = "Server";
+"mail.editor.recv.port" = "Port";
+"mail.editor.recv.user" = "Username";
+"mail.editor.recv.password" = "Password";
+"mail.editor.smtp.encryption" = "Encryption";
+"mail.editor.smtp.host" = "Server";
+"mail.editor.smtp.port" = "Port";
+"mail.editor.smtp.user" = "Username";
+"mail.editor.smtp.password" = "Password";
+"mail.editor.authMethod" = "Authentication";
+
 /* Common actions reused in the editor */
 "common.save"   = "Save";
 "common.cancel" = "Cancel";

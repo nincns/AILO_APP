@@ -70,7 +70,7 @@ import Foundation
             AccountEntity(
                 id: cfg.id,
                 displayName: cfg.displayName ?? cfg.accountName,
-                emailAddress: cfg.replyTo ?? cfg.recvUsername,
+                emailAddress: cfg.emailAddress,
                 hostIMAP: cfg.recvHost,
                 hostSMTP: cfg.smtpHost,
                 createdAt: Date(),

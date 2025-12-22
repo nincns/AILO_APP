@@ -33,7 +33,14 @@ struct MailEditor: View {
             Section(header: Text(String(localized: "mail.editor.section.account"))) {
                 TextField(String(localized: "mail.editor.accountName"), text: $accountName)
                 TextField(String(localized: "mail.editor.displayName"), text: $displayName)
+                TextField(String(localized: "mail.editor.emailAddress"), text: $emailAddress)
+                    .textInputAutocapitalization(.never)
+                    .autocorrectionDisabled()
+                    .keyboardType(.emailAddress)
                 TextField(String(localized: "mail.editor.replyTo"), text: $replyTo)
+                    .textInputAutocapitalization(.never)
+                    .autocorrectionDisabled()
+                    .keyboardType(.emailAddress)
             }
 
             Section(header: Text(String(localized: "mail.editor.section.incoming"))) {
@@ -272,6 +279,7 @@ struct MailEditor: View {
 
     @State private var showAdvanced: Bool = false
     @State private var displayName: String = ""
+    @State private var emailAddress: String = ""
     @State private var replyTo: String = ""
     @State private var authMethod: String = "Password"
     @State private var timeoutSeconds: Int = 30
@@ -327,6 +335,7 @@ struct MailEditor: View {
         existingId = cfg.id
         accountName = cfg.accountName
         displayName = cfg.displayName ?? ""
+        emailAddress = cfg.emailAddress
         replyTo = cfg.replyTo ?? ""
         // Incoming
         recvProtocol = (cfg.recvProtocol == .imap) ? .imap : .pop3
@@ -449,6 +458,7 @@ struct MailEditor: View {
                 id: id,
                 accountName: accountName,
                 displayName: displayName.isEmpty ? nil : displayName,
+                emailAddress: emailAddress,
                 replyTo: replyTo.isEmpty ? nil : replyTo,
                 signingEnabled: signingEnabled,
                 signingCertificateId: signingCertificateId.isEmpty ? nil : signingCertificateId,

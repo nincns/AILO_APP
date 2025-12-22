@@ -490,7 +490,8 @@
 /* MARK: - Mail Editor (updated field labels used in UI) */
 "mail.editor.accountName" = "Kontoname";
 "mail.editor.displayName" = "Anzeigename";
-"mail.editor.replyTo" = "Antwort an";
+"mail.editor.emailAddress" = "E-Mail-Adresse";
+"mail.editor.replyTo" = "Antwort an (optional)";
 
 /* Incoming (IMAP/POP3) */
 "mail.editor.recv.protocol" = "Protokoll";
