@@ -595,8 +595,11 @@ struct MessageDetailView: View {
                             bodyLoaded = true
 
                             // ✅ S/MIME Signature Verification
+                            print("🔐 [Signature] Checking rawBody availability: \(bodyEntity.rawBody?.count ?? 0) chars")
                             if let rawBody = bodyEntity.rawBody, !rawBody.isEmpty {
                                 await verifyEmailSignature(rawBody: rawBody)
+                            } else {
+                                print("🔐 [Signature] rawBody is empty or nil - cannot verify signature")
                             }
                         }
                     }
@@ -1317,15 +1320,26 @@ struct MessageDetailView: View {
 
     /// Detects if the email is signed and verifies the signature
     private func verifyEmailSignature(rawBody: String) async {
-        print("🔐 [Signature] Checking for S/MIME signature...")
+        print("🔐 [Signature] Checking for S/MIME signature... (rawBody: \(rawBody.count) chars)")
 
         let lowerBody = rawBody.lowercased()
 
+        // Debug: Show first 500 chars of content-type headers
+        if let ctRange = lowerBody.range(of: "content-type:") {
+            let start = ctRange.lowerBound
+            let end = lowerBody.index(start, offsetBy: min(200, lowerBody.distance(from: start, to: lowerBody.endIndex)))
+            print("🔐 [Signature] Content-Type found: \(lowerBody[start..<end])")
+        }
+
         // Check if this is a multipart/signed message
-        guard lowerBody.contains("multipart/signed") ||
-              lowerBody.contains("application/pkcs7-signature") ||
-              lowerBody.contains("application/x-pkcs7-signature") ||
-              lowerBody.contains("smime.p7s") else {
+        let hasMultipartSigned = lowerBody.contains("multipart/signed")
+        let hasPkcs7Sig = lowerBody.contains("application/pkcs7-signature")
+        let hasXPkcs7Sig = lowerBody.contains("application/x-pkcs7-signature")
+        let hasSmimeP7s = lowerBody.contains("smime.p7s")
+
+        print("🔐 [Signature] Detection: multipart/signed=\(hasMultipartSigned), pkcs7=\(hasPkcs7Sig), x-pkcs7=\(hasXPkcs7Sig), smime.p7s=\(hasSmimeP7s)")
+
+        guard hasMultipartSigned || hasPkcs7Sig || hasXPkcs7Sig || hasSmimeP7s else {
             print("🔐 [Signature] No signature detected in message")
             return
         }
