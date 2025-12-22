@@ -316,7 +316,7 @@ struct MessageDetailView: View {
                 }
             }
             
-            // Mail status indicators
+            // Mail status indicators (Ungelesen, Markiert, Anhänge auf einer Zeile)
             HStack(spacing: 16) {
                 if !mail.flags.contains("\\Seen") {
                     HStack(spacing: 4) {
@@ -334,6 +334,18 @@ struct MessageDetailView: View {
                         Image(systemName: "flag.fill")
                             .foregroundStyle(.orange)
                         Text(String(localized: "app.mail.detail.flagged"))
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+
+                // Anhänge-Indikator
+                if !attachments.isEmpty {
+                    HStack(spacing: 4) {
+                        Image(systemName: "paperclip")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                        Text("Anhänge (\(attachments.count))")
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }
@@ -447,19 +459,8 @@ struct MessageDetailView: View {
     
     @ViewBuilder
     private var attachmentsSection: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            // Kompakte Header-Zeile
-            HStack(spacing: 4) {
-                Image(systemName: "paperclip")
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
-                Text("Anhänge (\(attachments.count))")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                Spacer()
-            }
-
-            // Kompakte Attachment-Liste (volle Breite)
+        VStack(alignment: .leading, spacing: 2) {
+            // Nur Attachment-Liste (Header ist jetzt in Status-Zeile)
             ForEach(Array(attachments.enumerated()), id: \.offset) { index, attachment in
                 AttachmentRowView(
                     attachment: attachment,
