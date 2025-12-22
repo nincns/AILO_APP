@@ -1059,19 +1059,63 @@ struct MessageDetailView: View {
             // Extrahiere Anhänge mit vollem Daten-Inhalt
             let extractedAttachments = AttachmentExtractor.extract(from: rawBodyText)
 
-            // Finde passenden Anhang nach Dateiname
-            guard let matchingAttachment = extractedAttachments.first(where: { $0.filename == attachment.filename }) else {
+            print("📎 [openAttachmentPreview] Looking for: '\(attachment.filename)'")
+            for (i, ext) in extractedAttachments.enumerated() {
+                print("📎 [openAttachmentPreview] Extracted[\(i)]: '\(ext.filename)'")
+            }
+
+            // Robustes Matching: Exakt → Case-insensitive → Enthält → Erweiterung
+            let searchName = attachment.filename.trimmingCharacters(in: .whitespacesAndNewlines)
+            let searchNameLower = searchName.lowercased()
+            let searchExt = (searchName as NSString).pathExtension.lowercased()
+
+            var matchingAttachment = extractedAttachments.first(where: {
+                $0.filename.trimmingCharacters(in: .whitespacesAndNewlines) == searchName
+            })
+
+            // Fallback 1: Case-insensitive
+            if matchingAttachment == nil {
+                matchingAttachment = extractedAttachments.first(where: {
+                    $0.filename.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() == searchNameLower
+                })
+            }
+
+            // Fallback 2: Enthält den Suchbegriff
+            if matchingAttachment == nil {
+                matchingAttachment = extractedAttachments.first(where: {
+                    $0.filename.lowercased().contains(searchNameLower) ||
+                    searchNameLower.contains($0.filename.lowercased())
+                })
+            }
+
+            // Fallback 3: Gleiche Dateierweiterung (wenn nur 1 mit dieser Erweiterung)
+            if matchingAttachment == nil && !searchExt.isEmpty {
+                let sameExtAttachments = extractedAttachments.filter {
+                    ($0.filename as NSString).pathExtension.lowercased() == searchExt
+                }
+                if sameExtAttachments.count == 1 {
+                    matchingAttachment = sameExtAttachments.first
+                    print("📎 [openAttachmentPreview] Matched by extension: \(searchExt)")
+                }
+            }
+
+            guard let found = matchingAttachment else {
                 print("❌ [openAttachmentPreview] Attachment not found: \(attachment.filename)")
                 return
             }
 
-            // Erstelle temporäre Datei
+            // Erstelle temporäre Datei - nutze sauberen Dateinamen
             let tempDir = FileManager.default.temporaryDirectory
-            let fileURL = tempDir.appendingPathComponent(matchingAttachment.filename)
+            let safeFilename = found.filename
+                .replacingOccurrences(of: "/", with: "_")
+                .replacingOccurrences(of: ":", with: "_")
+            let fileURL = tempDir.appendingPathComponent(safeFilename)
 
             do {
-                try matchingAttachment.data.write(to: fileURL)
-                print("📎 [openAttachmentPreview] Created temp file: \(fileURL.lastPathComponent) (\(matchingAttachment.data.count) bytes)")
+                // Lösche evtl. existierende Datei
+                try? FileManager.default.removeItem(at: fileURL)
+                try found.data.write(to: fileURL)
+                print("📎 [openAttachmentPreview] Created temp file: \(fileURL.lastPathComponent) (\(found.data.count) bytes)")
 
                 await MainActor.run {
                     previewURL = fileURL
