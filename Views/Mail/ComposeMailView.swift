@@ -1326,17 +1326,30 @@ private struct RichTextEditorView: UIViewRepresentable {
                     min-height: 100vh;
                     outline: none;
                 }
-                @media (prefers-color-scheme: dark) {
-                    body { color: #e0e0e0; background: transparent; }
+                /* Force text colors to adapt - override inline styles */
+                body, body * {
+                    color: #333 !important;
                 }
+                /* Preserve link colors */
+                a, a * { color: #007AFF !important; }
+
+                @media (prefers-color-scheme: dark) {
+                    body { background: transparent; }
+                    body, body * { color: #e0e0e0 !important; }
+                    a, a * { color: #64B5F6 !important; }
+                }
+
                 blockquote {
                     border-left: 2px solid #ccc;
                     padding-left: 10px;
                     margin: 10px 0;
-                    color: #666;
+                }
+                blockquote, blockquote * {
+                    color: #666 !important;
                 }
                 @media (prefers-color-scheme: dark) {
-                    blockquote { color: #999; border-left-color: #555; }
+                    blockquote, blockquote * { color: #999 !important; }
+                    blockquote { border-left-color: #555; }
                 }
                 [contenteditable]:focus { outline: none; }
             </style>
@@ -1415,17 +1428,28 @@ private struct HTMLPreviewView: UIViewRepresentable {
                     margin: 0;
                     padding: 0;
                 }
-                @media (prefers-color-scheme: dark) {
-                    body { color: #e0e0e0; }
+                /* Force text colors to adapt - override inline styles */
+                body, body * {
+                    color: #333 !important;
                 }
+                a, a * { color: #007AFF !important; }
+
+                @media (prefers-color-scheme: dark) {
+                    body, body * { color: #e0e0e0 !important; }
+                    a, a * { color: #64B5F6 !important; }
+                }
+
                 blockquote {
                     border-left: 2px solid #ccc;
                     padding-left: 10px;
                     margin-left: 0;
-                    color: #666;
+                }
+                blockquote, blockquote * {
+                    color: #666 !important;
                 }
                 @media (prefers-color-scheme: dark) {
-                    blockquote { color: #999; border-left-color: #555; }
+                    blockquote, blockquote * { color: #999 !important; }
+                    blockquote { border-left-color: #555; }
                 }
             </style>
         </head>
