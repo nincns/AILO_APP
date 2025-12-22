@@ -117,56 +117,56 @@ public class RFC2047EncodedWordsParser {
     }
     
     /// Decode Q-Encoding data (modified quoted-printable for headers)
+    /// FIX: Build raw byte array instead of treating hex values as Unicode code points
     private static func decodeQEncodedData(_ data: String, charset: String) -> String? {
         // Q-encoding is like quoted-printable but with these differences:
         // 1. Spaces are encoded as underscores
         // 2. Only specific characters need to be encoded
-        
-        var decoded = data
-        
-        // Step 1: Replace underscores with spaces
-        decoded = decoded.replacingOccurrences(of: "_", with: " ")
-        
-        // Step 2: Decode =XX hex sequences
-        decoded = decodeQEncodingHexSequences(decoded)
-        
-        // Step 3: Convert charset
-        guard let decodedData = decoded.data(using: .utf8) else {
-            return decoded
-        }
-        
-        return CharsetConverter.convert(data: decodedData, from: charset) ?? decoded
-    }
-    
-    /// Decode hex sequences in Q-encoding
-    private static func decodeQEncodingHexSequences(_ input: String) -> String {
-        let pattern = "=([0-9A-Fa-f]{2})"
-        
-        guard let regex = try? NSRegularExpression(pattern: pattern, options: []) else {
-            return input
-        }
-        
-        let range = NSRange(input.startIndex..<input.endIndex, in: input)
-        let matches = regex.matches(in: input, options: [], range: range)
-        
-        var result = input
-        
-        // Process matches from end to beginning
-        for match in matches.reversed() {
-            guard let fullRange = Range(match.range, in: result),
-                  let hexRange = Range(match.range(at: 1), in: result) else {
-                continue
+
+        // Step 1: Replace underscores with spaces first
+        let preprocessed = data.replacingOccurrences(of: "_", with: " ")
+
+        // Step 2: Build raw byte array - this is the key fix!
+        // Each =XX must be converted to actual byte value, not Unicode code point
+        var bytes: [UInt8] = []
+        var index = preprocessed.startIndex
+
+        while index < preprocessed.endIndex {
+            let char = preprocessed[index]
+
+            if char == "=" {
+                // Check if we have =XX hex sequence
+                let nextIndex = preprocessed.index(index, offsetBy: 1, limitedBy: preprocessed.endIndex)
+                let afterNextIndex = preprocessed.index(index, offsetBy: 2, limitedBy: preprocessed.endIndex)
+                let afterHexIndex = preprocessed.index(index, offsetBy: 3, limitedBy: preprocessed.endIndex)
+
+                if let next = nextIndex, let afterNext = afterNextIndex, let afterHex = afterHexIndex {
+                    let hexString = String(preprocessed[next..<afterHex])
+                    if let byte = UInt8(hexString, radix: 16) {
+                        bytes.append(byte)
+                        index = afterHex
+                        continue
+                    }
+                }
             }
-            
-            let hexString = String(result[hexRange])
-            
-            if let byte = UInt8(hexString, radix: 16) {
-                let character = String(Character(UnicodeScalar(byte)))
-                result.replaceSubrange(fullRange, with: character)
+
+            // Regular ASCII character - add its byte value directly
+            if let asciiValue = char.asciiValue {
+                bytes.append(asciiValue)
+            } else {
+                // Non-ASCII character (shouldn't happen in Q-encoded data, but handle it)
+                // Encode as UTF-8 bytes
+                for byte in String(char).utf8 {
+                    bytes.append(byte)
+                }
             }
+
+            index = preprocessed.index(after: index)
         }
-        
-        return result
+
+        // Step 3: Convert raw bytes using the declared charset
+        let rawData = Data(bytes)
+        return CharsetConverter.convert(data: rawData, from: charset)
     }
     
     /// Check if string contains encoded-words
@@ -221,33 +221,48 @@ public class RFC2047EncodedWordsParser {
     /// Test method for validation
     public static func test() {
         print("🧪 Testing RFC2047EncodedWordsParser...")
-        
+
         // Test Base64 encoding
         let base64Test = "=?UTF-8?B?Q2Fmw6kgaW4gTcO8bmNoZW4=?="
         let base64Result = decode(base64Test)
         print("Base64: '\(base64Test)' → '\(base64Result)'")
-        
-        // Test Q-encoding
+
+        // Test Q-encoding with ISO-8859-1
         let qEncodingTest = "=?ISO-8859-1?Q?Caf=E9_in_M=FCnchen?="
         let qResult = decode(qEncodingTest)
-        print("Q-Encoding: '\(qEncodingTest)' → '\(qResult)'")
-        
+        print("Q-Encoding ISO: '\(qEncodingTest)' → '\(qResult)'")
+
+        // CRITICAL TEST: UTF-8 Q-encoding with German umlauts
+        // This was the bug: =C3=BC should decode to ü, not Ã¼
+        let utf8QTest = "=?UTF-8?Q?Caf=C3=A9_in_M=C3=BCnchen?="
+        let utf8QResult = decode(utf8QTest)
+        let expectedUtf8Q = "Café in München"
+        print("Q-Encoding UTF-8: '\(utf8QTest)' → '\(utf8QResult)'")
+        print("  Expected: '\(expectedUtf8Q)' - \(utf8QResult == expectedUtf8Q ? "✅ PASS" : "❌ FAIL")")
+
+        // Test German umlauts specifically
+        let umlautTest = "=?UTF-8?Q?=C3=BC=C3=A4=C3=B6=C3=9F?="  // üäöß
+        let umlautResult = decode(umlautTest)
+        let expectedUmlaut = "üäöß"
+        print("German umlauts: '\(umlautTest)' → '\(umlautResult)'")
+        print("  Expected: '\(expectedUmlaut)' - \(umlautResult == expectedUmlaut ? "✅ PASS" : "❌ FAIL")")
+
         // Test multiple encoded-words
         let multipleTest = "=?UTF-8?B?SGVsbG8=?= =?UTF-8?B?V29ybGQ=?="
         let multipleResult = decodeMultiple(multipleTest)
         print("Multiple: '\(multipleTest)' → '\(multipleResult)'")
-        
+
         // Test mixed content
         let mixedTest = "Subject: =?UTF-8?Q?Re:_Caf=C3=A9_Meeting?= - Important"
         let mixedResult = decode(mixedTest)
         print("Mixed: '\(mixedTest)' → '\(mixedResult)'")
-        
+
         // Test encoding (roundtrip)
         let originalText = "Café in München"
         let encoded = encode(originalText)
         let decoded = decode(encoded)
         print("Roundtrip: '\(originalText)' → '\(encoded)' → '\(decoded)'")
-        
+
         print("✅ RFC2047EncodedWordsParser tests completed")
     }
 }
