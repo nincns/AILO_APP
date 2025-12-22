@@ -210,16 +210,12 @@ public class BaseDAO {
     }
     
     internal func bindText(_ statement: OpaquePointer, _ index: Int32, _ value: String?) {
-        print("🔍 [BIND-TEXT] Index: \(index), Value: '\(value ?? "NULL")' (count: \(value?.count ?? 0))")
-        
         if let value = value {
             // CRITICAL FIX: Use SQLITE_TRANSIENT to force SQLite to copy the string
             let SQLITE_TRANSIENT = unsafeBitCast(-1, to: sqlite3_destructor_type.self)
-            let result = sqlite3_bind_text(statement, index, value, -1, SQLITE_TRANSIENT)
-            print("🔍 [BIND-TEXT] SQLite bind result: \(result) (SQLITE_OK = \(SQLITE_OK))")
+            _ = sqlite3_bind_text(statement, index, value, -1, SQLITE_TRANSIENT)
         } else {
             sqlite3_bind_null(statement, index)
-            print("🔍 [BIND-TEXT] Bound NULL value")
         }
     }
     
@@ -260,22 +256,16 @@ public class BaseDAO {
     }
     
     internal func bindUUID(_ statement: OpaquePointer, _ index: Int32, _ uuid: UUID?) {
-        let uuidString = uuid?.uuidString
-        print("🔍 [BIND-UUID] Index: \(index), UUID: '\(uuidString ?? "NULL")' (count: \(uuidString?.count ?? 0))")
-        bindText(statement, index, uuidString)
+        bindText(statement, index, uuid?.uuidString)
     }
     
     internal func bindDate(_ statement: OpaquePointer, _ index: Int32, _ date: Date?) {
-        let timestamp = date?.timeIntervalSince1970
-        print("🔍 [BIND-DATE] Index: \(index), Date: \(date?.description ?? "NULL"), Timestamp: \(timestamp ?? 0)")
-        bindDouble(statement, index, timestamp)
+        bindDouble(statement, index, date?.timeIntervalSince1970)
     }
-    
+
     internal func bindStringArray(_ statement: OpaquePointer, _ index: Int32, _ array: [String]) {
         let joined = array.joined(separator: ",")
-        let finalValue = joined.isEmpty ? nil : joined
-        print("🔍 [BIND-STRINGARRAY] Index: \(index), Array: \(array), Joined: '\(finalValue ?? "NULL")'")
-        bindText(statement, index, finalValue)
+        bindText(statement, index, joined.isEmpty ? nil : joined)
     }
 
     internal func bindBool(_ statement: OpaquePointer, _ index: Int32, _ value: Bool) {
