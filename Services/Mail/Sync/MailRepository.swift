@@ -211,12 +211,12 @@ public final class MailRepository: ObservableObject {
         print("🔥 MailRepository.sync() called for account: \(accountId)")
         let folderList = folders ?? getAllConfiguredFolders(accountId: accountId)
         print("🔥 Folders to sync: \(folderList)")
-        
+
         // Check if this should be initial or incremental sync
         for folderName in folderList {
             do {
                 let existingHeaders = try listHeaders(accountId: accountId, folder: folderName, limit: 1)
-                
+
                 if existingHeaders.isEmpty {
                     print("📊 Database is empty for folder \(folderName) - performing initial sync")
                     performInitialSync(accountId: accountId, folders: [folderName])
@@ -233,7 +233,80 @@ public final class MailRepository: ObservableObject {
         
         print("🔥 Sync strategy determined and initiated")
     }
-    
+
+    /// Sync ALL messages from server (no limit) - use with caution for large mailboxes
+    public func syncAll(accountId: UUID, folders: [String]? = nil) {
+        print("🚀 MailRepository.syncAll() called for account: \(accountId)")
+        let folderList = folders ?? getAllConfiguredFolders(accountId: accountId)
+        print("🚀 Syncing ALL messages in folders: \(folderList)")
+
+        for folderName in folderList {
+            performUnlimitedSync(accountId: accountId, folder: folderName)
+        }
+    }
+
+    /// Perform unlimited sync - fetches ALL messages from server
+    private func performUnlimitedSync(accountId: UUID, folder: String) {
+        print("🚀 Performing UNLIMITED sync for folder: \(folder)")
+
+        Task {
+            do {
+                let account: MailAccountConfig
+                do {
+                    account = try loadAccountConfig(accountId: accountId)
+                    print("🚀 [SyncAll] Account: \(account.accountName)")
+                } catch {
+                    print("❌ Failed to load account config: \(error)")
+                    await MainActor.run { self.publishChange(accountId) }
+                    return
+                }
+
+                let transport = MailSendReceive()
+                // Sehr hoher Limit-Wert für "alle" Mails (10000 sollte für die meisten Postfächer reichen)
+                let unlimitedLimit = 10000
+
+                print("🚀 Fetching up to \(unlimitedLimit) messages from \(folder)...")
+
+                let result = await transport.fetchHeaders(
+                    limit: unlimitedLimit,
+                    folder: folder,
+                    using: account,
+                    preferCache: false,
+                    force: true
+                )
+
+                switch result {
+                case .success(let headers):
+                    print("✅ [SyncAll] Fetched \(headers.count) headers from: \(folder)")
+
+                    let domainHeaders = headers.map { transportHeader in
+                        MailHeader(
+                            id: transportHeader.id,
+                            from: transportHeader.from,
+                            subject: transportHeader.subject,
+                            date: transportHeader.date,
+                            flags: transportHeader.unread ? [] : ["\\Seen"]
+                        )
+                    }
+
+                    if !domainHeaders.isEmpty {
+                        try? writeDAO?.upsertHeaders(domainHeaders, accountId: accountId, folder: folder)
+                        print("✅ [SyncAll] Saved \(domainHeaders.count) headers to database")
+                    }
+
+                    await MainActor.run { self.publishChange(accountId) }
+
+                case .failure(let error):
+                    print("❌ [SyncAll] Failed to fetch headers: \(error)")
+                    await MainActor.run { self.publishChange(accountId) }
+                }
+            } catch {
+                print("❌ [SyncAll] Error: \(error)")
+                await MainActor.run { self.publishChange(accountId) }
+            }
+        }
+    }
+
     /// Perform full refresh sync - re-fetches and reconciles all messages
     private func performFullRefreshSync(accountId: UUID, folders: [String]) {
         print("🔄 Performing full refresh sync for account: \(accountId), folders: \(folders)")

@@ -141,6 +141,38 @@ struct MailEditor: View {
                             .foregroundColor(.secondary)
                     }
                 }
+
+                Divider()
+
+                // Sync All Button
+                Button {
+                    if let accountId = existingId {
+                        isSyncingAll = true
+                        Task {
+                            MailRepository.shared.syncAll(accountId: accountId)
+                            // Kurze Wartezeit für Feedback
+                            try? await Task.sleep(nanoseconds: 2_000_000_000)
+                            await MainActor.run {
+                                isSyncingAll = false
+                            }
+                        }
+                    }
+                } label: {
+                    HStack {
+                        if isSyncingAll {
+                            ProgressView()
+                                .scaleEffect(0.8)
+                        } else {
+                            Image(systemName: "arrow.triangle.2.circlepath.circle.fill")
+                        }
+                        Text(String(localized: "mail.editor.action.syncAll"))
+                        Spacer()
+                        Text("~10.000")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                }
+                .disabled(existingId == nil || isSyncingAll)
             }
 
             // S/MIME Signing Section
@@ -346,6 +378,7 @@ struct MailEditor: View {
     @State private var syncLimitInitial: Int = 200
     @State private var syncLimitRefresh: Int = 500
     @State private var syncLimitIncremental: Int = 50
+    @State private var isSyncingAll: Bool = false
 
     // S/MIME Signing
     @State private var signingEnabled: Bool = false

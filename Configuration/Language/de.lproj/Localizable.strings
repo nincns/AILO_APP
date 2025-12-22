@@ -521,6 +521,7 @@
 "mail.editor.field.syncInitial" = "Erster Sync (Mails)";
 "mail.editor.field.syncRefresh" = "Vollständiger Sync (Mails)";
 "mail.editor.field.syncIncremental" = "Inkrementeller Sync (Mails)";
+"mail.editor.action.syncAll" = "Alle Mails synchronisieren";
 
 /* Fetch folders feedback */
 "mail.editor.fetch.missingCredentials" = "Fehlende Zugangsdaten: Bitte Server, Port und Benutzername eingeben.";

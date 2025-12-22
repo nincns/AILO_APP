@@ -561,6 +561,7 @@
 "mail.editor.field.syncInitial" = "Initial sync (mails)";
 "mail.editor.field.syncRefresh" = "Full sync (mails)";
 "mail.editor.field.syncIncremental" = "Incremental sync (mails)";
+"mail.editor.action.syncAll" = "Sync all mails";
 
 /* Common actions reused in the editor */
 "common.save"   = "Save";
