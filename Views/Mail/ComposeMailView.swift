@@ -497,11 +497,11 @@ struct ComposeMailView: View {
             self.attachments = originalAttachments
         }
 
-        // Build recipients - bei Forward leer lassen
+        // Build recipients - bei Forward Originalsender in CC
         if isForward {
-            // Forward: Empfänger leer, Benutzer füllt aus
+            // Forward: Empfänger leer, Originalsender in CC
             self.to = ""
-            self.cc = ""
+            self.cc = mail.from
         } else {
             let myEmail = getMyEmail(for: mail.accountId)
 
