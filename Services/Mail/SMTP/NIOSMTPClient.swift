@@ -493,10 +493,10 @@ public final class NIOSMTPClient: SMTPClientProtocol {
             lines.append(quotedPrintableEncodeLF(message.textBody ?? ""))
         }
 
-        // Use LF line endings - mail servers convert CRLF to LF during transport
-        // IMPORTANT: Add trailing LF because the CRLF before next boundary becomes LF
-        // and mail clients include it when computing the digest
-        return lines.joined(separator: "\n") + "\n"
+        // MIME canonical form requires CRLF line endings per RFC 5751
+        // OpenSSL/verifiers canonicalize to CRLF before computing digest
+        // Include trailing CRLF - this is part of the body per RFC 1847
+        return lines.joined(separator: "\r\n") + "\r\n"
     }
 
     /// Quoted-printable encoding with LF line endings (for S/MIME signed content)
