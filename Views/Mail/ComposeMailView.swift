@@ -882,10 +882,35 @@ struct ComposeMailView: View {
         // Extract original quote to preserve (Reply/Forward history)
         let (textBeforeQuote, originalQuote) = extractQuoteFromBody(userText, isHTML: isHTML)
 
+        // Strip HTML tags from quote for AI context (cleaner input)
+        let quoteForContext = originalQuote
+            .replacingOccurrences(of: "<[^>]+>", with: "", options: .regularExpression)
+            .replacingOccurrences(of: "&nbsp;", with: " ")
+            .replacingOccurrences(of: "&lt;", with: "<")
+            .replacingOccurrences(of: "&gt;", with: ">")
+            .replacingOccurrences(of: "&amp;", with: "&")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+
+        // Build full context for AI: user's notes + email history
+        // AI needs the history to understand context and write appropriate response
+        let fullContextForAI: String
+        if quoteForContext.isEmpty {
+            fullContextForAI = textBeforeQuote
+        } else {
+            fullContextForAI = """
+            Meine Notizen/Entwurf:
+            \(textBeforeQuote)
+
+            --- Bisheriger E-Mail-Verlauf (für Kontext) ---
+            \(quoteForContext)
+            """
+        }
+
         print("🤖 generateWithAI:")
         print("   - prePrompt: \(prePrompt.prefix(200))...")
-        print("   - userText: \(textBeforeQuote.prefix(100))...")
-        print("   - hasQuote: \(!originalQuote.isEmpty)")
+        print("   - userNotes: \(textBeforeQuote.prefix(100))...")
+        print("   - hasHistory: \(!quoteForContext.isEmpty)")
+        print("   - fullContext length: \(fullContextForAI.count) chars")
         print("   - isHTML: \(isHTML)")
 
         // Check if there's content to process
@@ -898,14 +923,15 @@ struct ComposeMailView: View {
 
         isGenerating = true
 
-        // Call AIClient with pre-prompt and user text (only the part before quote)
+        // Send FULL context to AI (notes + history) so it can write contextual response
+        // But we'll only REPLACE the user's draft, keeping the history intact
         AIClient.rewrite(
             baseURL: "",  // Uses selected provider from settings
             port: nil,
             apiKey: nil,
             model: "",
             prePrompt: prePrompt,
-            userText: textBeforeQuote.isEmpty ? String(localized: "compose.ai.placeholder.text") : textBeforeQuote
+            userText: fullContextForAI.isEmpty ? String(localized: "compose.ai.placeholder.text") : fullContextForAI
         ) { result in
             isGenerating = false
 
