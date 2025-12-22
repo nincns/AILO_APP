@@ -465,12 +465,15 @@ struct MessageDetailView: View {
     private func loadMailBody() {
         isLoadingBody = true
         errorMessage = nil
-        
+
         Task {
             do {
-                print("🔍 [MessageDetailView] Loading mail body...")
+                print("📧 [MessageDetailView] ========== LOADING MAIL BODY ==========")
+                print("📧 [MessageDetailView] Subject: \(mail.subject)")
+                print("📧 [MessageDetailView] UID: \(mail.uid)")
+                print("📧 [MessageDetailView] From: \(mail.from)")
                 print("🔍 DEBUG: mail.accountId = \(mail.accountId)")
-                print("🔍 DEBUG: mail.folder = \(mail.folder)")  
+                print("🔍 DEBUG: mail.folder = \(mail.folder)")
                 print("🔍 DEBUG: mail.uid = \(mail.uid)")
                 print("🔍 DEBUG: MailRepository.shared.dao = \(MailRepository.shared.dao != nil)")
                 
@@ -494,7 +497,9 @@ struct MessageDetailView: View {
                         print("   - rawBody: \(bodyEntity.rawBody?.count ?? 0)")
                         
                         // ✅ Check: Brauchen wir Processing?
-                        if MailBodyProcessor.needsProcessing(bodyEntity.html) {
+                        let needsProc = MailBodyProcessor.needsProcessing(bodyEntity.html)
+                        print("📧 [MessageDetailView] needsProcessing = \(needsProc)")
+                        if needsProc {
                             print("⚠️ [MessageDetailView] HTML needs processing - triggering decode...")
                             
                             // ✅ NEU - zentrale Methode nutzen:
@@ -528,6 +533,7 @@ struct MessageDetailView: View {
                                     bodyLoaded = true
 
                                     // ✅ S/MIME Signature Verification
+                                    print("📧 [MessageDetailView] PATH-A: Calling verifyEmailSignature with \(rawBody.count) chars")
                                     await verifyEmailSignature(rawBody: rawBody)
 
                                 } catch {
@@ -595,13 +601,16 @@ struct MessageDetailView: View {
                             bodyLoaded = true
 
                             // ✅ S/MIME Signature Verification
-                            print("🔐 [Signature] Checking rawBody availability: \(bodyEntity.rawBody?.count ?? 0) chars")
+                            print("📧 [MessageDetailView] PATH-B: Checking rawBody availability: \(bodyEntity.rawBody?.count ?? 0) chars")
                             if let rawBody = bodyEntity.rawBody, !rawBody.isEmpty {
+                                print("📧 [MessageDetailView] PATH-B: Calling verifyEmailSignature with \(rawBody.count) chars")
                                 await verifyEmailSignature(rawBody: rawBody)
                             } else {
-                                print("🔐 [Signature] rawBody is empty or nil - cannot verify signature")
+                                print("📧 [MessageDetailView] PATH-B: rawBody is empty or nil - cannot verify signature")
                             }
                         }
+                    } else {
+                        print("📧 [MessageDetailView] bodyEntity is nil - no body in DB")
                     }
                 } catch {
                     print("⚠️ [MessageDetailView] Error loading bodyEntity: \(error)")
