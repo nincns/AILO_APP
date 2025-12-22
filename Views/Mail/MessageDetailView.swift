@@ -33,7 +33,7 @@ struct MessageDetailView: View {
 
     // S/MIME signature verification state
     @State private var signatureStatus: SignatureStatus? = nil
-    @State private var signerInfo: SignerInfo? = nil
+    @State private var signerInfo: MessageSignerInfo? = nil
     @State private var isVerifyingSignature: Bool = false
 
     // Reply/Forward state
@@ -346,7 +346,7 @@ struct MessageDetailView: View {
 
     /// View for displaying S/MIME signature verification status
     @ViewBuilder
-    private func signatureStatusView(status: SignatureStatus, signer: SignerInfo?) -> some View {
+    private func signatureStatusView(status: SignatureStatus, signer: MessageSignerInfo?) -> some View {
         HStack(spacing: 8) {
             Image(systemName: status.iconName)
                 .foregroundStyle(signatureIconColor(status))
@@ -1348,7 +1348,7 @@ struct MessageDetailView: View {
     }
 
     /// Performs the actual signature verification
-    private func performSignatureVerification(rawBody: String) async -> (status: SignatureStatus, signer: SignerInfo?) {
+    private func performSignatureVerification(rawBody: String) async -> (status: SignatureStatus, signer: MessageSignerInfo?) {
         // Extract boundary from Content-Type header
         guard let boundary = extractBoundary(from: rawBody) else {
             print("❌ [Signature] Could not extract boundary")
@@ -1484,7 +1484,7 @@ struct MessageDetailView: View {
     }
 
     /// Extract signer information from the PKCS#7 signature
-    private func extractSignerInfoFromSignature(_ signatureData: Data) -> SignerInfo? {
+    private func extractSignerInfoFromSignature(_ signatureData: Data) -> MessageSignerInfo? {
         // Try to parse the PKCS#7 and extract certificate info
         // This uses Security framework to decode the signature
 
@@ -1556,7 +1556,7 @@ struct MessageDetailView: View {
             print("🔐 [Signature] Signer: \(commonName ?? "Unknown") <\(email)>")
         }
 
-        return SignerInfo(
+        return MessageSignerInfo(
             email: email,
             commonName: commonName,
             organization: organization,

@@ -289,8 +289,8 @@ public enum SignatureStatus: String, Codable, Sendable {
     }
 }
 
-/// Information about the signer of a signed email
-public struct SignerInfo: Codable, Sendable, Equatable {
+/// Information about the signer of a signed email (for UI display)
+public struct MessageSignerInfo: Codable, Sendable, Equatable {
     public let email: String
     public let commonName: String?
     public let organization: String?
