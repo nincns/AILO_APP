@@ -1383,6 +1383,12 @@ struct MessageDetailView: View {
         // Split the message into parts
         let parts = splitMultipartBody(rawBody: rawBody, boundary: boundary)
 
+        print("🔐 [Signature] Split into \(parts.count) parts")
+        for (i, part) in parts.enumerated() {
+            let preview = String(part.prefix(200)).replacingOccurrences(of: "\r\n", with: "\\r\\n").replacingOccurrences(of: "\n", with: "\\n")
+            print("🔐 [Signature] Part \(i): \(part.count) chars, preview: \(preview)")
+        }
+
         guard parts.count >= 2 else {
             print("❌ [Signature] Expected 2 parts, found \(parts.count)")
             return (.error, nil)
@@ -1391,9 +1397,15 @@ struct MessageDetailView: View {
         let signedContent = parts[0]
         let signaturePart = parts[1]
 
+        print("🔐 [Signature] Signature part content-type check...")
+        let sigPartLower = signaturePart.lowercased()
+        print("🔐 [Signature] Has pkcs7: \(sigPartLower.contains("pkcs7")), has smime: \(sigPartLower.contains("smime"))")
+
         // Extract the signature data (base64 encoded PKCS#7)
         guard let signatureData = extractSignatureData(from: signaturePart) else {
             print("❌ [Signature] Could not extract signature data")
+            print("❌ [Signature] Signature part full content (\(signaturePart.count) chars):")
+            print(signaturePart.prefix(500))
             return (.error, nil)
         }
 
