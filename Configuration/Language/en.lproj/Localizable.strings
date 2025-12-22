@@ -618,6 +618,11 @@
 "mail.result.sent" = "Email sent";
 "mail.result.failed" = "Email failed";
 
+/* Compose AI Generation */
+"compose.ai.error.title" = "AI Generation Failed";
+"compose.ai.error.empty" = "Please select a prompt or enter text.";
+"compose.ai.placeholder.text" = "Please create an email based on the instructions.";
+
 /* MARK: - Markdown Helper */
 "markdown.preview.title" = "Preview";
 "markdown.action.copy" = "Copy Markdown";

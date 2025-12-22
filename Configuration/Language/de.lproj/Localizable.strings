@@ -463,6 +463,11 @@
 "mail.result.sent" = "E-Mail gesendet";
 "mail.result.failed" = "E-Mail fehlgeschlagen";
 
+/* Compose AI Generation */
+"compose.ai.error.title" = "KI-Generierung fehlgeschlagen";
+"compose.ai.error.empty" = "Bitte wähle einen Prompt oder gib Text ein.";
+"compose.ai.placeholder.text" = "Bitte erstelle eine E-Mail basierend auf den Anweisungen.";
+
 /* MARK: - Markdown Helper */
 "markdown.preview.title" = "Vorschau";
 "markdown.action.copy" = "Markdown kopieren";

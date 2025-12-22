@@ -37,6 +37,10 @@ struct ComposeMailView: View {
     @ObservedObject private var catalogManager = PrePromptCatalogManager.shared
     @State private var showPrePromptPicker = false
     @State private var prePromptNavigationPath: [UUID] = []  // Stack: [cookbookID, chapterID, ...]
+    @State private var selectedRecipe: PrePromptRecipe? = nil  // Currently selected recipe for AI generation
+    @State private var isGenerating: Bool = false
+    @State private var showGenerationError: Bool = false
+    @State private var generationErrorMessage: String = ""
 
     // MARK: - Attachments
     struct Attachment: Identifiable, Equatable {
@@ -87,19 +91,53 @@ struct ComposeMailView: View {
 
                         Spacer()
 
-                        // Center: AI-Manager Button
-                        Button {
-                            showPrePromptPicker = true
-                        } label: {
-                            Text("AI-Manager")
-                                .font(.caption)
-                                .foregroundStyle(.blue)
+                        // Center: AI-Manager Button + Generate Button
+                        HStack(spacing: 8) {
+                            Button {
+                                showPrePromptPicker = true
+                            } label: {
+                                HStack(spacing: 4) {
+                                    if selectedRecipe != nil {
+                                        Image(systemName: "checkmark.circle.fill")
+                                            .font(.caption2)
+                                    }
+                                    Text("AI-Manager")
+                                        .font(.caption)
+                                }
+                                .foregroundStyle(selectedRecipe != nil ? .green : .blue)
                                 .padding(.horizontal, 10)
                                 .padding(.vertical, 5)
                                 .background(Color(UIColor.tertiarySystemBackground))
                                 .clipShape(RoundedRectangle(cornerRadius: 6))
+                            }
+                            .buttonStyle(.plain)
+
+                            // Generate Button (only visible when recipe is selected)
+                            if selectedRecipe != nil {
+                                Button {
+                                    generateWithAI()
+                                } label: {
+                                    HStack(spacing: 4) {
+                                        if isGenerating {
+                                            ProgressView()
+                                                .scaleEffect(0.7)
+                                        } else {
+                                            Image(systemName: "sparkles")
+                                                .font(.caption)
+                                        }
+                                        Text("Generate")
+                                            .font(.caption)
+                                    }
+                                    .foregroundStyle(.white)
+                                    .padding(.horizontal, 10)
+                                    .padding(.vertical, 5)
+                                    .background(isGenerating ? Color.gray : Color.blue)
+                                    .clipShape(RoundedRectangle(cornerRadius: 6))
+                                }
+                                .buttonStyle(.plain)
+                                .disabled(isGenerating)
+                            }
                         }
-                        .buttonStyle(.plain)
 
                         Spacer()
 
@@ -289,6 +327,11 @@ struct ComposeMailView: View {
                         showPrePromptPicker = false
                     }
                 )
+            }
+            .alert(String(localized: "compose.ai.error.title"), isPresented: $showGenerationError) {
+                Button("OK", role: .cancel) {}
+            } message: {
+                Text(generationErrorMessage)
             }
             .onChange(of: photoItems) { _, items in
                 Task {
@@ -626,34 +669,61 @@ struct ComposeMailView: View {
 
     // MARK: - Pre-Prompt Application (Recipe from Prompt Manager)
     private func applyRecipe(_ recipe: PrePromptRecipe) {
-        // Generate combined prompt from all recipe elements
-        let promptText = recipe.generatePrompt(
+        // Store the selected recipe for AI generation
+        selectedRecipe = recipe
+        // Reset navigation for next use
+        prePromptNavigationPath.removeAll()
+    }
+
+    // MARK: - AI Generation
+    private func generateWithAI() {
+        guard let recipe = selectedRecipe else { return }
+        guard !isGenerating else { return }
+
+        // Generate the pre-prompt from the recipe
+        let prePrompt = recipe.generatePrompt(
             from: catalogManager.menuItems,
             presets: catalogManager.presets
         )
 
-        guard !promptText.isEmpty else { return }
+        // Get the current mail body as user text
+        let userText = isHTML ? htmlBody : textBody
 
-        // Insert at the beginning of the body (before quoted content)
-        if isHTML {
-            // For HTML: Insert as paragraph before existing content
-            let htmlPrompt = "<p>\(promptText.replacingOccurrences(of: "\n", with: "<br>"))</p><p><br></p>"
-            if htmlBody.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                htmlBody = htmlPrompt
-            } else {
-                htmlBody = htmlPrompt + htmlBody
-            }
-        } else {
-            // For plain text: Insert at beginning with newlines
-            if textBody.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                textBody = promptText
-            } else {
-                textBody = promptText + "\n\n" + textBody
-            }
+        // Check if there's content to process
+        guard !prePrompt.isEmpty || !userText.isEmpty else {
+            generationErrorMessage = String(localized: "compose.ai.error.empty")
+            showGenerationError = true
+            return
         }
 
-        // Reset navigation for next use
-        prePromptNavigationPath.removeAll()
+        isGenerating = true
+
+        // Call AIClient with pre-prompt and user text
+        AIClient.rewrite(
+            baseURL: "",  // Uses selected provider from settings
+            port: nil,
+            apiKey: nil,
+            model: "",
+            prePrompt: prePrompt,
+            userText: userText.isEmpty ? String(localized: "compose.ai.placeholder.text") : userText
+        ) { result in
+            isGenerating = false
+
+            switch result {
+            case .success(let generatedText):
+                // Replace body with AI-generated content
+                if isHTML {
+                    let htmlContent = "<p>\(generatedText.replacingOccurrences(of: "\n", with: "<br>"))</p>"
+                    htmlBody = htmlContent
+                } else {
+                    textBody = generatedText
+                }
+
+            case .failure(let error):
+                generationErrorMessage = error.localizedDescription
+                showGenerationError = true
+            }
+        }
     }
 }
 
