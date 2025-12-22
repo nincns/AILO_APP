@@ -728,7 +728,9 @@ struct ComposeMailView: View {
                 if isHTML {
                     let htmlContent = "<p>\(generatedText.replacingOccurrences(of: "\n", with: "<br>"))</p>"
                     htmlBody = htmlContent
-                    print("   - Updated htmlBody")
+                    // Directly inject into WebView to bypass isUserEditing check
+                    editorController.setHTMLContent(htmlContent)
+                    print("   - Updated htmlBody and injected via JS")
                 } else {
                     textBody = generatedText
                     print("   - Updated textBody")
@@ -756,6 +758,28 @@ class RichTextEditorController: ObservableObject {
             js = "document.execCommand('\(command)', false, null)"
         }
         webView.evaluateJavaScript(js, completionHandler: nil)
+    }
+
+    /// Directly set HTML content in the editor (bypasses isUserEditing check)
+    func setHTMLContent(_ html: String) {
+        guard let webView = webView else {
+            print("❌ setHTMLContent: No webView")
+            return
+        }
+        // Escape the HTML for JavaScript string
+        let escapedHTML = html
+            .replacingOccurrences(of: "\\", with: "\\\\")
+            .replacingOccurrences(of: "'", with: "\\'")
+            .replacingOccurrences(of: "\n", with: "\\n")
+            .replacingOccurrences(of: "\r", with: "\\r")
+        let js = "document.getElementById('editor').innerHTML = '\(escapedHTML)';"
+        webView.evaluateJavaScript(js) { _, error in
+            if let error = error {
+                print("❌ setHTMLContent error: \(error)")
+            } else {
+                print("✅ setHTMLContent: Content injected via JS")
+            }
+        }
     }
 
     func bold() { executeCommand("bold") }
