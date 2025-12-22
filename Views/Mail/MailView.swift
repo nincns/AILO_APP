@@ -343,7 +343,7 @@ struct MailView: View {
                 .frame(width: geo.size.width, alignment: .leading)
             }
         }
-        .frame(width: UIScreen.main.bounds.width * 0.65, height: 40)
+        .frame(width: UIScreen.main.bounds.width * 0.55, height: 40)
     }
 
     @ViewBuilder
