@@ -37,22 +37,19 @@ class SMIMESigningService {
             return .failure(.certificateError)
         }
 
-        // 4. CMS/PKCS#7 Signatur erstellen
         let certData = SecCertificateCopyData(certificate) as Data
 
-        // Bestimme den Algorithmus basierend auf dem Key-Typ
+        // 4. Bestimme den Algorithmus basierend auf dem Key-Typ
         let algorithm: SecKeyAlgorithm
+        let isECDSA: Bool
         if let keyType = SecKeyCopyAttributes(key) as? [String: Any],
-           let type = keyType[kSecAttrKeyType as String] as? String {
-            if type == (kSecAttrKeyTypeRSA as String) {
-                algorithm = .rsaSignatureMessagePKCS1v15SHA256
-            } else if type == (kSecAttrKeyTypeECSECPrimeRandom as String) {
-                algorithm = .ecdsaSignatureMessageX962SHA256
-            } else {
-                algorithm = .rsaSignatureMessagePKCS1v15SHA256
-            }
+           let type = keyType[kSecAttrKeyType as String] as? String,
+           type == (kSecAttrKeyTypeECSECPrimeRandom as String) {
+            algorithm = .ecdsaSignatureMessageX962SHA256
+            isECDSA = true
         } else {
             algorithm = .rsaSignatureMessagePKCS1v15SHA256
+            isECDSA = false
         }
 
         // 5. SHA256 Hash des Original-Contents berechnen
@@ -62,10 +59,17 @@ class SMIMESigningService {
         }
         let messageDigest = Data(contentHash)
 
-        // 6. SignedAttributes aufbauen (für Signatur)
-        let signedAttrsForSigning = buildSignedAttributesForSigning(messageDigest: messageDigest)
+        // 6. SignedAttributes EINMAL aufbauen (mit fixem Timestamp!)
+        let signingTime = Date()
+        let signedAttrsContent = buildSignedAttributesContent(
+            messageDigest: messageDigest,
+            signingTime: signingTime
+        )
 
-        // 7. Signatur über signedAttributes erstellen (NICHT über Content!)
+        // 7. Für Signatur: SET OF Tag (0x31) verwenden
+        let signedAttrsForSigning = Data([0x31]) + asn1Length(signedAttrsContent.count) + signedAttrsContent
+
+        // 8. Signatur über signedAttributes erstellen
         var error: Unmanaged<CFError>?
         guard let signature = SecKeyCreateSignature(
             key,
@@ -77,15 +81,18 @@ class SMIMESigningService {
             return .failure(.signingFailed(errorMsg))
         }
 
-        // 8. PKCS#7 SignedData Struktur aufbauen (ASN.1 DER)
+        // 9. Für SignerInfo: [0] IMPLICIT Tag (0xA0) verwenden - GLEICHER Content!
+        let signedAttrsForSignerInfo = Data([0xA0]) + asn1Length(signedAttrsContent.count) + signedAttrsContent
+
+        // 10. PKCS#7 SignedData Struktur aufbauen
         let pkcs7Data = buildPKCS7SignedData(
-            messageDigest: messageDigest,
             signature: signature,
+            signedAttrs: signedAttrsForSignerInfo,
             certificate: certData,
-            algorithm: algorithm
+            isECDSA: isECDSA
         )
 
-        // 9. S/MIME multipart/signed Nachricht aufbauen
+        // 11. S/MIME multipart/signed Nachricht aufbauen
         let signedData = buildMultipartSigned(
             content: mimeContent,
             pkcs7Signature: pkcs7Data
@@ -94,52 +101,51 @@ class SMIMESigningService {
         return .success(signedData)
     }
 
-    // MARK: - SignedAttributes für Signatur
+    // MARK: - SignedAttributes Builder
 
-    /// Baut die signedAttributes für die Signatur-Berechnung
-    /// Bei CMS wird über SET OF Attributes signiert (Tag 0x31), nicht über [0] IMPLICIT
-    private func buildSignedAttributesForSigning(messageDigest: Data) -> Data {
+    /// Baut den INHALT der signedAttributes (ohne äußeren Tag)
+    /// Dieser Content wird für Signatur (mit 0x31) und SignerInfo (mit 0xA0) verwendet
+    private func buildSignedAttributesContent(messageDigest: Data, signingTime: Date) -> Data {
+        // contentType attribute
         let contentTypeAttr = asn1Sequence([
-            asn1OID([0x2A, 0x86, 0x48, 0x86, 0xF7, 0x0D, 0x01, 0x09, 0x03]), // contentType OID
-            asn1Set([asn1OID([0x2A, 0x86, 0x48, 0x86, 0xF7, 0x0D, 0x01, 0x07, 0x01])]) // data OID
+            asn1OID([0x2A, 0x86, 0x48, 0x86, 0xF7, 0x0D, 0x01, 0x09, 0x03]), // 1.2.840.113549.1.9.3
+            asn1Set([asn1OID([0x2A, 0x86, 0x48, 0x86, 0xF7, 0x0D, 0x01, 0x07, 0x01])]) // 1.2.840.113549.1.7.1 (data)
         ])
 
+        // signingTime attribute
         let signingTimeAttr = asn1Sequence([
-            asn1OID([0x2A, 0x86, 0x48, 0x86, 0xF7, 0x0D, 0x01, 0x09, 0x05]), // signingTime OID
-            asn1Set([asn1UTCTime(Date())])
+            asn1OID([0x2A, 0x86, 0x48, 0x86, 0xF7, 0x0D, 0x01, 0x09, 0x05]), // 1.2.840.113549.1.9.5
+            asn1Set([asn1UTCTime(signingTime)])
         ])
 
+        // messageDigest attribute
         let messageDigestAttr = asn1Sequence([
-            asn1OID([0x2A, 0x86, 0x48, 0x86, 0xF7, 0x0D, 0x01, 0x09, 0x04]), // messageDigest OID
+            asn1OID([0x2A, 0x86, 0x48, 0x86, 0xF7, 0x0D, 0x01, 0x09, 0x04]), // 1.2.840.113549.1.9.4
             asn1Set([asn1OctetString(messageDigest)])
         ])
 
-        // Für Signatur: SET OF (Tag 0x31), nicht IMPLICIT [0]
-        return asn1Set([contentTypeAttr, signingTimeAttr, messageDigestAttr])
+        // Concatenate all attributes (DER order: contentType, signingTime, messageDigest)
+        return contentTypeAttr + signingTimeAttr + messageDigestAttr
     }
 
-    // MARK: - PKCS#7 SignedData Builder (ASN.1 DER)
+    // MARK: - PKCS#7 SignedData Builder
 
-    /// Erstellt eine gültige PKCS#7 SignedData Struktur
     private func buildPKCS7SignedData(
-        messageDigest: Data,
         signature: Data,
+        signedAttrs: Data,
         certificate: Data,
-        algorithm: SecKeyAlgorithm
+        isECDSA: Bool
     ) -> Data {
         // OIDs
         let oidSignedData: [UInt8] = [0x2A, 0x86, 0x48, 0x86, 0xF7, 0x0D, 0x01, 0x07, 0x02] // 1.2.840.113549.1.7.2
         let oidData: [UInt8] = [0x2A, 0x86, 0x48, 0x86, 0xF7, 0x0D, 0x01, 0x07, 0x01] // 1.2.840.113549.1.7.1
         let oidSHA256: [UInt8] = [0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x02, 0x01] // 2.16.840.1.101.3.4.2.1
 
-        // RSA oder ECDSA OID
         let oidSignatureAlgorithm: [UInt8]
-        if algorithm == .ecdsaSignatureMessageX962SHA256 {
-            // ecdsa-with-SHA256: 1.2.840.10045.4.3.2
-            oidSignatureAlgorithm = [0x2A, 0x86, 0x48, 0xCE, 0x3D, 0x04, 0x03, 0x02]
+        if isECDSA {
+            oidSignatureAlgorithm = [0x2A, 0x86, 0x48, 0xCE, 0x3D, 0x04, 0x03, 0x02] // ecdsa-with-SHA256
         } else {
-            // sha256WithRSAEncryption: 1.2.840.113549.1.1.11
-            oidSignatureAlgorithm = [0x2A, 0x86, 0x48, 0x86, 0xF7, 0x0D, 0x01, 0x01, 0x0B]
+            oidSignatureAlgorithm = [0x2A, 0x86, 0x48, 0x86, 0xF7, 0x0D, 0x01, 0x01, 0x0B] // sha256WithRSAEncryption
         }
 
         // Issuer und Serial aus Zertifikat extrahieren
@@ -151,8 +157,8 @@ class SMIMESigningService {
             serial: serial,
             digestAlgorithmOID: oidSHA256,
             signatureAlgorithmOID: oidSignatureAlgorithm,
-            signature: signature,
-            messageDigest: messageDigest
+            signedAttrs: signedAttrs,
+            signature: signature
         )
 
         // DigestAlgorithms SET
@@ -163,7 +169,6 @@ class SMIMESigningService {
         // EncapContentInfo (detached - kein Content)
         let encapContentInfo = asn1Sequence([
             asn1OID(oidData)
-            // Kein Content für detached signature
         ])
 
         // Certificates [0] IMPLICIT
@@ -197,8 +202,8 @@ class SMIMESigningService {
         serial: Data,
         digestAlgorithmOID: [UInt8],
         signatureAlgorithmOID: [UInt8],
-        signature: Data,
-        messageDigest: Data
+        signedAttrs: Data,
+        signature: Data
     ) -> Data {
         // IssuerAndSerialNumber
         let issuerAndSerial = asn1Sequence([issuer, serial])
@@ -206,32 +211,10 @@ class SMIMESigningService {
         // DigestAlgorithm
         let digestAlgorithm = asn1Sequence([asn1OID(digestAlgorithmOID), asn1Null()])
 
-        // SignedAttributes (authenticated attributes)
-        let contentTypeAttr = asn1Sequence([
-            asn1OID([0x2A, 0x86, 0x48, 0x86, 0xF7, 0x0D, 0x01, 0x09, 0x03]), // contentType OID
-            asn1Set([asn1OID([0x2A, 0x86, 0x48, 0x86, 0xF7, 0x0D, 0x01, 0x07, 0x01])]) // data OID
-        ])
-
-        let signingTimeAttr = asn1Sequence([
-            asn1OID([0x2A, 0x86, 0x48, 0x86, 0xF7, 0x0D, 0x01, 0x09, 0x05]), // signingTime OID
-            asn1Set([asn1UTCTime(Date())])
-        ])
-
-        let messageDigestAttr = asn1Sequence([
-            asn1OID([0x2A, 0x86, 0x48, 0x86, 0xF7, 0x0D, 0x01, 0x09, 0x04]), // messageDigest OID
-            asn1Set([asn1OctetString(messageDigest)])
-        ])
-
-        let signedAttrs = asn1ContextTag(0, data: asn1SequenceContent([
-            contentTypeAttr,
-            signingTimeAttr,
-            messageDigestAttr
-        ]), constructed: true)
-
         // SignatureAlgorithm
         let signatureAlgorithm = asn1Sequence([asn1OID(signatureAlgorithmOID), asn1Null()])
 
-        // Signature
+        // Signature (OCTET STRING)
         let signatureValue = asn1OctetString(signature)
 
         // SignerInfo SEQUENCE
@@ -239,7 +222,7 @@ class SMIMESigningService {
             asn1Integer(1), // version
             issuerAndSerial,
             digestAlgorithm,
-            signedAttrs,
+            signedAttrs,    // Already has [0] tag
             signatureAlgorithm,
             signatureValue
         ])
@@ -262,10 +245,6 @@ class SMIMESigningService {
     private func asn1Sequence(_ elements: [Data]) -> Data {
         let content = elements.reduce(Data()) { $0 + $1 }
         return Data([0x30]) + asn1Length(content.count) + content
-    }
-
-    private func asn1SequenceContent(_ elements: [Data]) -> Data {
-        return elements.reduce(Data()) { $0 + $1 }
     }
 
     private func asn1Set(_ elements: [Data]) -> Data {
@@ -319,10 +298,6 @@ class SMIMESigningService {
     // MARK: - Certificate Parsing
 
     private func extractIssuerAndSerial(from certData: Data) -> (issuer: Data, serial: Data) {
-        // Parse X.509 certificate to extract issuer and serial number
-        // Certificate ::= SEQUENCE { tbsCertificate, signatureAlgorithm, signature }
-        // TBSCertificate ::= SEQUENCE { version, serialNumber, signature, issuer, ... }
-
         var index = 0
         let bytes = [UInt8](certData)
 
@@ -360,7 +335,7 @@ class SMIMESigningService {
     }
 
     private func skipASN1Header(_ bytes: [UInt8], at index: Int) -> Int {
-        var i = index + 1 // Skip tag
+        var i = index + 1
         guard i < bytes.count else { return bytes.count }
 
         if bytes[i] < 128 {
@@ -372,7 +347,7 @@ class SMIMESigningService {
     }
 
     private func skipASN1Element(_ bytes: [UInt8], at index: Int) -> Int {
-        var i = index + 1 // Skip tag
+        var i = index + 1
         guard i < bytes.count else { return bytes.count }
 
         let length: Int
@@ -408,18 +383,18 @@ class SMIMESigningService {
         let header = "Content-Type: multipart/signed; protocol=\"application/pkcs7-signature\"; micalg=sha-256; boundary=\"\(boundary)\"\r\n\r\n"
         signed.append(header.data(using: .utf8)!)
 
-        // Erster Teil: Original-Inhalt
+        // First part: Original content
         signed.append("--\(boundary)\r\n".data(using: .utf8)!)
         signed.append(content)
         signed.append("\r\n".data(using: .utf8)!)
 
-        // Zweiter Teil: PKCS#7 Signatur
+        // Second part: PKCS#7 Signature
         signed.append("--\(boundary)\r\n".data(using: .utf8)!)
         signed.append("Content-Type: application/pkcs7-signature; name=\"smime.p7s\"\r\n".data(using: .utf8)!)
         signed.append("Content-Transfer-Encoding: base64\r\n".data(using: .utf8)!)
         signed.append("Content-Disposition: attachment; filename=\"smime.p7s\"\r\n\r\n".data(using: .utf8)!)
 
-        // Base64-kodierte Signatur mit Zeilenumbrüchen (76 Zeichen pro Zeile)
+        // Base64-encoded signature with line breaks (76 chars per line)
         let base64Signature = pkcs7Signature.base64EncodedString()
         var lineIndex = base64Signature.startIndex
         while lineIndex < base64Signature.endIndex {
@@ -434,9 +409,8 @@ class SMIMESigningService {
         return signed
     }
 
-    // MARK: - Prüfung
+    // MARK: - Check
 
-    /// Prüft ob Signierung für ein Konto möglich ist
     func canSign(certificateId: String?) -> Bool {
         guard let certId = certificateId, !certId.isEmpty else {
             return false
@@ -445,7 +419,7 @@ class SMIMESigningService {
     }
 }
 
-// MARK: - Fehlertypen
+// MARK: - Error Types
 
 enum SigningError: Error, LocalizedError {
     case certificateNotFound
