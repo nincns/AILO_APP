@@ -288,8 +288,11 @@ struct MailView: View {
             .pickerStyle(.segmented)
             .padding(.horizontal)
 
-            // Suche + Optionen-Zeile unter dem Filter
-            HStack(spacing: 12) {
+            // Optionen-Menu + Suche
+            HStack(spacing: 10) {
+                // Hamburger-Menu links
+                optionsMenuView
+
                 // Suchfeld
                 HStack(spacing: 8) {
                     Image(systemName: "magnifyingglass")
@@ -301,9 +304,6 @@ struct MailView: View {
                 .padding(.vertical, 6)
                 .background(Color(.systemGray6))
                 .clipShape(RoundedRectangle(cornerRadius: 8))
-
-                // Optionen-Menu
-                optionsMenuView
             }
             .padding(.horizontal)
             .padding(.vertical, 4)
@@ -383,8 +383,9 @@ struct MailView: View {
                 }
             }
         } label: {
-            Image(systemName: "ellipsis.circle")
-                .font(.body)
+            Image(systemName: "line.3.horizontal")
+                .font(.title3)
+                .foregroundStyle(.primary)
         }
     }
 
