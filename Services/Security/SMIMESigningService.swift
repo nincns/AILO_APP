@@ -163,6 +163,11 @@ class SMIMESigningService {
             signature: signature
         )
 
+        // DEBUG: Dump CMS structure for analysis
+        print("🔐 [S/MIME DEBUG] Generated PKCS#7 structure (\(cms.count) bytes):")
+        print("🔐 [S/MIME DEBUG] Base64: \(cms.base64EncodedString())")
+        print("🔐 [S/MIME DEBUG] First 100 bytes hex: \(cms.prefix(100).map { String(format: "%02X", $0) }.joined(separator: " "))")
+
         return .success(buildMultipartSigned(content: content, signature: cms))
     }
 
@@ -340,11 +345,19 @@ class SMIMESigningService {
         // IssuerAndSerialNumber
         let issuerAndSerial = DER.sequence(content: issuer + serial)
 
-        // DigestAlgorithm
+        // DigestAlgorithm (SHA-256 always has NULL parameter)
         let digestAlg = DER.sequence(content: DER.oid(digestOID) + DER.null())
 
         // SignatureAlgorithm
-        let sigAlg = DER.sequence(content: DER.oid(signatureOID) + DER.null())
+        // Note: ECDSA algorithms MUST NOT have NULL parameter (RFC 5754)
+        // RSA algorithms SHOULD have NULL parameter
+        let isECDSA = signatureOID == OID.ecdsaWithSHA256
+        let sigAlg: Data
+        if isECDSA {
+            sigAlg = DER.sequence(content: DER.oid(signatureOID))  // No NULL for ECDSA!
+        } else {
+            sigAlg = DER.sequence(content: DER.oid(signatureOID) + DER.null())
+        }
 
         // Signature (OCTET STRING)
         let sigValue = DER.octetString(signature)
