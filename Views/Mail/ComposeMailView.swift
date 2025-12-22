@@ -758,63 +758,83 @@ struct ComposeMailView: View {
     }
 
     /// Finds the start index of the quote/history section in the body
+    /// Uses EARLIEST match approach to handle nested forwards in replies
     private func findQuoteStartIndex(in body: String, isHTML: Bool) -> String.Index? {
         print("🔍 findQuoteStartIndex - isHTML: \(isHTML), body length: \(body.count)")
 
         if isHTML {
-            // Forward separator
-            if let range = body.range(of: "---------- Weitergeleitete Nachricht ----------") {
-                print("🔍 Found forward separator")
-                let before = body[..<range.lowerBound]
-                if let pRange = before.range(of: "<p>", options: .backwards) {
-                    return pRange.lowerBound
-                }
-                return range.lowerBound
-            }
+            var candidates: [(index: String.Index, type: String)] = []
 
-            // Reply: Look for "Am " followed by "schrieb" pattern (more flexible)
-            // Pattern: "Am DD.MM.YYYY um HH:MM schrieb"
+            // Candidate 1: Reply pattern "Am ... schrieb" (most common for replies)
             if let amRange = body.range(of: "Am ", options: .caseInsensitive) {
                 let afterAm = body[amRange.upperBound...]
-                if afterAm.lowercased().contains("schrieb") {
-                    print("🔍 Found 'Am ... schrieb' pattern")
-                    // Find the <p> or start of line before "Am "
+                // Check if "schrieb" appears within ~100 chars
+                let checkRange = String(afterAm.prefix(100))
+                if checkRange.lowercased().contains("schrieb") {
                     let before = body[..<amRange.lowerBound]
-                    // Look for the containing element
                     if let pRange = before.range(of: "<p", options: [.backwards, .caseInsensitive]) {
-                        print("🔍 Found <p> tag before 'Am'")
-                        return pRange.lowerBound
+                        candidates.append((pRange.lowerBound, "Am...schrieb"))
+                    } else {
+                        candidates.append((amRange.lowerBound, "Am...schrieb (no <p>)"))
                     }
-                    // No <p> tag - use Am directly
-                    return amRange.lowerBound
                 }
             }
 
-            // Fallback: Look for blockquote
+            // Candidate 2: Forward separator (top-level only)
+            if let fwdRange = body.range(of: "---------- Weitergeleitete Nachricht ----------") {
+                // Check if NOT inside a blockquote (nested forward)
+                let beforeFwd = body[..<fwdRange.lowerBound]
+                let openTags = beforeFwd.components(separatedBy: "<blockquote").count - 1
+                let closeTags = beforeFwd.components(separatedBy: "</blockquote").count - 1
+
+                if openTags <= closeTags {
+                    // Not nested - this is top-level forward
+                    let before = body[..<fwdRange.lowerBound]
+                    if let pRange = before.range(of: "<p", options: [.backwards, .caseInsensitive]) {
+                        candidates.append((pRange.lowerBound, "Forward separator"))
+                    } else {
+                        candidates.append((fwdRange.lowerBound, "Forward separator (no <p>)"))
+                    }
+                } else {
+                    print("🔍 Forward separator inside blockquote - skipping")
+                }
+            }
+
+            // Candidate 3: Blockquote (fallback)
             if let bqRange = body.range(of: "<blockquote", options: .caseInsensitive) {
-                print("🔍 Found blockquote")
-                // Find preceding <p> with schrieb
                 let before = body[..<bqRange.lowerBound]
                 if let pRange = before.range(of: "<p", options: [.backwards, .caseInsensitive]) {
-                    return pRange.lowerBound
+                    candidates.append((pRange.lowerBound, "Blockquote"))
+                } else {
+                    candidates.append((bqRange.lowerBound, "Blockquote (no <p>)"))
                 }
-                return bqRange.lowerBound
+            }
+
+            // Find EARLIEST candidate
+            if let earliest = candidates.min(by: { $0.index < $1.index }) {
+                print("🔍 Earliest quote marker: '\(earliest.type)' at position \(body.distance(from: body.startIndex, to: earliest.index))")
+                return earliest.index
             }
 
             print("🔍 No HTML quote pattern found")
         } else {
-            // Plain text forward
-            if let range = body.range(of: "---------- Weitergeleitete Nachricht ----------") {
-                return range.lowerBound
+            // Plain text: same logic - find earliest
+            var candidates: [(index: String.Index, type: String)] = []
+
+            if let fwdRange = body.range(of: "---------- Weitergeleitete Nachricht ----------") {
+                candidates.append((fwdRange.lowerBound, "Forward"))
             }
-            // Plain text reply
-            if let range = body.range(of: "Am ", options: .caseInsensitive),
-               body[range.upperBound...].contains("schrieb") {
-                return range.lowerBound
+            if let amRange = body.range(of: "Am ", options: .caseInsensitive),
+               String(body[amRange.upperBound...].prefix(100)).contains("schrieb") {
+                candidates.append((amRange.lowerBound, "Am...schrieb"))
             }
-            // Lines with ">"
-            if let range = body.range(of: "\n>") {
-                return range.lowerBound
+            if let gtRange = body.range(of: "\n>") {
+                candidates.append((gtRange.lowerBound, "> quote"))
+            }
+
+            if let earliest = candidates.min(by: { $0.index < $1.index }) {
+                print("🔍 Earliest text quote: '\(earliest.type)'")
+                return earliest.index
             }
         }
         return nil
