@@ -288,6 +288,14 @@ struct MailView: View {
             .pickerStyle(.segmented)
             .padding(.horizontal)
 
+            // Optionen-Zeile unter dem Filter
+            HStack {
+                Spacer()
+                optionsMenuView
+            }
+            .padding(.horizontal)
+            .padding(.vertical, 4)
+
             Divider()
         }
         .background(.ultraThinMaterial)
@@ -296,10 +304,8 @@ struct MailView: View {
     @ToolbarContentBuilder
     private var toolbarLeadingItems: some ToolbarContent {
         ToolbarItem(placement: .topBarLeading) {
-            HStack(spacing: 12) {
-                accountNameView
-                optionsMenuView
-            }
+            // Nur Account-Name oben links
+            accountNameView
         }
     }
 
@@ -308,7 +314,7 @@ struct MailView: View {
         if let account = mailManager.accounts.first(where: { $0.id == selectedAccountId }) {
             HStack(spacing: 6) {
                 Image(systemName: "person.crop.circle.fill")
-                    .foregroundStyle(.accentColor)
+                    .foregroundColor(.accentColor)
                 Text(account.displayName)
                     .font(.subheadline)
                     .fontWeight(.medium)
