@@ -352,8 +352,143 @@ public final class NIOSMTPClient: SMTPClientProtocol {
     // MARK: - MIME Message Building
 
     private func buildMIMEMessage(_ message: MailMessage) -> String {
+        // Check if S/MIME signing is requested
+        if let certId = message.signingCertificateId, !certId.isEmpty {
+            print("🔐 [NIO-SMTP] S/MIME signing requested with certificate: \(certId.prefix(16))...")
+            return buildSignedMIMEMessage(message, certificateId: certId)
+        }
+        return buildUnsignedMIMEMessage(message)
+    }
+
+    /// Builds a signed MIME message using S/MIME
+    private func buildSignedMIMEMessage(_ message: MailMessage, certificateId: String) -> String {
+        // Build the inner MIME content to be signed (body only, no outer headers)
+        let innerContent = buildInnerMIMEContent(message)
+        let innerData = Data(innerContent.utf8)
+
+        // Sign the content using SMIMESigningService
+        let result = SMIMESigningService.shared.signMessage(
+            mimeContent: innerData,
+            certificateId: certificateId
+        )
+
+        switch result {
+        case .success(let signedData):
+            print("✅ [NIO-SMTP] S/MIME signing successful")
+            // Build outer headers
+            var lines: [String] = []
+            let senderDomain = extractDomain(from: message.from.email) ?? "mail.ailo.network"
+            let messageId = "<\(UUID().uuidString.lowercased())@\(senderDomain)>"
+
+            lines.append("From: \(formatRFC2822Address(message.from))")
+            if !message.to.isEmpty {
+                lines.append("To: \(message.to.map { formatRFC2822Address($0) }.joined(separator: ",\r\n\t"))")
+            }
+            if !message.cc.isEmpty {
+                lines.append("Cc: \(message.cc.map { formatRFC2822Address($0) }.joined(separator: ",\r\n\t"))")
+            }
+            lines.append("Subject: \(encodeHeaderRFC2047(message.subject))")
+            lines.append("Date: \(formatRFC2822Date(Date()))")
+            lines.append("Message-ID: \(messageId)")
+            lines.append("MIME-Version: 1.0")
+            lines.append("X-Mailer: AILO Mail/1.0")
+
+            // The signed data contains the Content-Type header for multipart/signed
+            let signedContent = String(data: signedData, encoding: .utf8) ?? ""
+            return lines.joined(separator: "\r\n") + "\r\n" + signedContent
+
+        case .failure(let error):
+            // Fallback: send unsigned if signing fails
+            print("⚠️ [NIO-SMTP] S/MIME signing failed: \(error.localizedDescription) - sending unsigned")
+            return buildUnsignedMIMEMessage(message)
+        }
+    }
+
+    /// Builds the inner MIME content without outer headers (for S/MIME signing)
+    private func buildInnerMIMEContent(_ message: MailMessage) -> String {
+        var lines: [String] = []
+        let altBoundary = "----=_AltPart_\(UUID().uuidString.replacingOccurrences(of: "-", with: "").prefix(16))"
+        let mixedBoundary = "----=_MixedPart_\(UUID().uuidString.replacingOccurrences(of: "-", with: "").prefix(16))"
+
+        let hasHTML = message.htmlBody != nil && !(message.htmlBody?.isEmpty ?? true)
+        let hasText = message.textBody != nil && !(message.textBody?.isEmpty ?? true)
+        let hasAttachments = !message.attachments.isEmpty
+
+        if hasAttachments {
+            lines.append("Content-Type: multipart/mixed;")
+            lines.append("\tboundary=\"\(mixedBoundary)\"")
+            lines.append("")
+            lines.append("--\(mixedBoundary)")
+
+            if hasHTML {
+                let textVersion = hasText ? message.textBody! : htmlToPlainText(message.htmlBody ?? "")
+                lines.append("Content-Type: multipart/alternative;")
+                lines.append("\tboundary=\"\(altBoundary)\"")
+                lines.append("")
+                lines.append("--\(altBoundary)")
+                lines.append("Content-Type: text/plain; charset=\"UTF-8\"")
+                lines.append("Content-Transfer-Encoding: quoted-printable")
+                lines.append("")
+                lines.append(quotedPrintableEncode(textVersion))
+                lines.append("")
+                lines.append("--\(altBoundary)")
+                lines.append("Content-Type: text/html; charset=\"UTF-8\"")
+                lines.append("Content-Transfer-Encoding: quoted-printable")
+                lines.append("")
+                lines.append(quotedPrintableEncode(message.htmlBody ?? ""))
+                lines.append("")
+                lines.append("--\(altBoundary)--")
+            } else {
+                lines.append("Content-Type: text/plain; charset=\"UTF-8\"")
+                lines.append("Content-Transfer-Encoding: quoted-printable")
+                lines.append("")
+                lines.append(quotedPrintableEncode(message.textBody ?? ""))
+            }
+            lines.append("")
+
+            for attachment in message.attachments {
+                lines.append("--\(mixedBoundary)")
+                lines.append("Content-Type: \(attachment.mimeType);")
+                lines.append("\tname=\"\(encodeHeaderRFC2047(attachment.filename))\"")
+                lines.append("Content-Transfer-Encoding: base64")
+                lines.append("Content-Disposition: attachment;")
+                lines.append("\tfilename=\"\(encodeHeaderRFC2047(attachment.filename))\"")
+                lines.append("")
+                lines.append(base64EncodeWithLineBreaks(attachment.data))
+                lines.append("")
+            }
+            lines.append("--\(mixedBoundary)--")
+        } else if hasHTML {
+            let textVersion = hasText ? message.textBody! : htmlToPlainText(message.htmlBody ?? "")
+            lines.append("Content-Type: multipart/alternative;")
+            lines.append("\tboundary=\"\(altBoundary)\"")
+            lines.append("")
+            lines.append("--\(altBoundary)")
+            lines.append("Content-Type: text/plain; charset=\"UTF-8\"")
+            lines.append("Content-Transfer-Encoding: quoted-printable")
+            lines.append("")
+            lines.append(quotedPrintableEncode(textVersion))
+            lines.append("")
+            lines.append("--\(altBoundary)")
+            lines.append("Content-Type: text/html; charset=\"UTF-8\"")
+            lines.append("Content-Transfer-Encoding: quoted-printable")
+            lines.append("")
+            lines.append(quotedPrintableEncode(message.htmlBody ?? ""))
+            lines.append("")
+            lines.append("--\(altBoundary)--")
+        } else {
+            lines.append("Content-Type: text/plain; charset=\"UTF-8\"")
+            lines.append("Content-Transfer-Encoding: quoted-printable")
+            lines.append("")
+            lines.append(quotedPrintableEncode(message.textBody ?? ""))
+        }
+
+        return lines.joined(separator: "\r\n")
+    }
+
+    private func buildUnsignedMIMEMessage(_ message: MailMessage) -> String {
         // Debug: Log attachment info
-        print("📎 [NIO-SMTP] Building MIME message")
+        print("📎 [NIO-SMTP] Building MIME message (unsigned)")
         print("📎 [NIO-SMTP] Attachments count: \(message.attachments.count)")
         for (idx, att) in message.attachments.enumerated() {
             print("📎 [NIO-SMTP] Attachment \(idx): \(att.filename) (\(att.mimeType), \(att.data.count) bytes)")
