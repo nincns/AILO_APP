@@ -686,13 +686,17 @@ struct ComposeMailView: View {
         // Get the current mail body as user text
         let userText = isHTML ? htmlBody : textBody
 
+        // Extract original quote to preserve (Reply/Forward history)
+        let (textBeforeQuote, originalQuote) = extractQuoteFromBody(userText, isHTML: isHTML)
+
         print("🤖 generateWithAI:")
         print("   - prePrompt: \(prePrompt.prefix(200))...")
-        print("   - userText: \(userText.prefix(100))...")
+        print("   - userText: \(textBeforeQuote.prefix(100))...")
+        print("   - hasQuote: \(!originalQuote.isEmpty)")
         print("   - isHTML: \(isHTML)")
 
         // Check if there's content to process
-        guard !prePrompt.isEmpty || !userText.isEmpty else {
+        guard !prePrompt.isEmpty || !textBeforeQuote.isEmpty else {
             generationErrorMessage = String(localized: "compose.ai.error.empty")
             showGenerationError = true
             print("❌ generateWithAI: Empty prompt and text")
@@ -701,30 +705,34 @@ struct ComposeMailView: View {
 
         isGenerating = true
 
-        // Call AIClient with pre-prompt and user text
+        // Call AIClient with pre-prompt and user text (only the part before quote)
         AIClient.rewrite(
             baseURL: "",  // Uses selected provider from settings
             port: nil,
             apiKey: nil,
             model: "",
             prePrompt: prePrompt,
-            userText: userText.isEmpty ? String(localized: "compose.ai.placeholder.text") : userText
+            userText: textBeforeQuote.isEmpty ? String(localized: "compose.ai.placeholder.text") : textBeforeQuote
         ) { result in
             isGenerating = false
 
             switch result {
             case .success(let generatedText):
                 print("✅ AI Response received: \(generatedText.prefix(200))...")
-                // Replace body with AI-generated content
+                // Combine AI-generated content with preserved quote
                 if isHTML {
                     let htmlContent = "<p>\(generatedText.replacingOccurrences(of: "\n", with: "<br>"))</p>"
-                    htmlBody = htmlContent
+                    // Append original quote if exists
+                    let finalContent = originalQuote.isEmpty ? htmlContent : htmlContent + "\n" + originalQuote
+                    htmlBody = finalContent
                     // Directly inject into WebView to bypass isUserEditing check
-                    editorController.setHTMLContent(htmlContent)
-                    print("   - Updated htmlBody and injected via JS")
+                    editorController.setHTMLContent(finalContent)
+                    print("   - Updated htmlBody with preserved quote and injected via JS")
                 } else {
-                    textBody = generatedText
-                    print("   - Updated textBody")
+                    // Append original quote if exists
+                    let finalContent = originalQuote.isEmpty ? generatedText : generatedText + "\n\n" + originalQuote
+                    textBody = finalContent
+                    print("   - Updated textBody with preserved quote")
                 }
 
             case .failure(let error):
@@ -733,6 +741,96 @@ struct ComposeMailView: View {
                 showGenerationError = true
             }
         }
+    }
+
+    /// Extracts the quote portion from the body (for Reply/Forward preservation)
+    /// Returns (textBeforeQuote, quoteWithSeparator)
+    private func extractQuoteFromBody(_ body: String, isHTML: Bool) -> (String, String) {
+        guard !body.isEmpty else { return ("", "") }
+
+        if isHTML {
+            // HTML: Look for forward separator or reply header
+            // Forward: "---------- Weitergeleitete Nachricht ----------"
+            // Reply: "<p>Am " or "schrieb" followed by blockquote
+
+            // Try forward separator first
+            if let range = body.range(of: "---------- Weitergeleitete Nachricht ----------") {
+                // Find the <p> tag that contains this separator
+                let beforeSeparator = String(body[..<range.lowerBound])
+                // Find the last <p> tag before the separator to include it
+                if let pTagRange = beforeSeparator.range(of: "<p>", options: .backwards) {
+                    let textBefore = String(body[..<pTagRange.lowerBound])
+                    let quote = String(body[pTagRange.lowerBound...])
+                    return (textBefore.trimmingCharacters(in: .whitespacesAndNewlines), quote)
+                }
+                let quote = String(body[range.lowerBound...])
+                return (beforeSeparator.trimmingCharacters(in: .whitespacesAndNewlines), quote)
+            }
+
+            // Try reply pattern: "<p>Am " followed by date and "schrieb"
+            if let range = body.range(of: "<p>Am ", options: .caseInsensitive) {
+                let textBefore = String(body[..<range.lowerBound])
+                let quote = String(body[range.lowerBound...])
+                return (textBefore.trimmingCharacters(in: .whitespacesAndNewlines), quote)
+            }
+
+            // Try simpler reply pattern: "schrieb" with blockquote
+            if let range = body.range(of: "schrieb", options: .caseInsensitive),
+               body.contains("<blockquote") {
+                // Find the <p> before "schrieb"
+                let beforeSchrieb = String(body[..<range.lowerBound])
+                if let pTagRange = beforeSchrieb.range(of: "<p>", options: .backwards) {
+                    let textBefore = String(body[..<pTagRange.lowerBound])
+                    let quote = String(body[pTagRange.lowerBound...])
+                    return (textBefore.trimmingCharacters(in: .whitespacesAndNewlines), quote)
+                }
+            }
+
+        } else {
+            // Plain text: Look for forward or reply separators
+
+            // Forward separator
+            if let range = body.range(of: "---------- Weitergeleitete Nachricht ----------") {
+                let textBefore = String(body[..<range.lowerBound])
+                let quote = String(body[range.lowerBound...])
+                return (textBefore.trimmingCharacters(in: .whitespacesAndNewlines), quote)
+            }
+
+            // Reply pattern: "Am [date] schrieb" or just "schrieb"
+            if let range = body.range(of: "Am ", options: .caseInsensitive) {
+                let afterAm = body[range.upperBound...]
+                if afterAm.contains("schrieb") {
+                    let textBefore = String(body[..<range.lowerBound])
+                    let quote = String(body[range.lowerBound...])
+                    return (textBefore.trimmingCharacters(in: .whitespacesAndNewlines), quote)
+                }
+            }
+
+            // Lines starting with ">" are quoted
+            if body.contains("\n>") || body.hasPrefix(">") {
+                let lines = body.components(separatedBy: "\n")
+                var textLines: [String] = []
+                var quoteLines: [String] = []
+                var inQuote = false
+
+                for line in lines {
+                    if line.hasPrefix(">") || (inQuote && line.trimmingCharacters(in: .whitespaces).isEmpty) {
+                        inQuote = true
+                        quoteLines.append(line)
+                    } else if !inQuote {
+                        textLines.append(line)
+                    } else {
+                        quoteLines.append(line)
+                    }
+                }
+
+                return (textLines.joined(separator: "\n").trimmingCharacters(in: .whitespacesAndNewlines),
+                        quoteLines.joined(separator: "\n"))
+            }
+        }
+
+        // No quote found - return full text as editable content
+        return (body, "")
     }
 }
 
