@@ -494,7 +494,9 @@ public final class NIOSMTPClient: SMTPClientProtocol {
         }
 
         // Use LF line endings - mail servers convert CRLF to LF during transport
-        return lines.joined(separator: "\n")
+        // IMPORTANT: Add trailing LF because the CRLF before next boundary becomes LF
+        // and mail clients include it when computing the digest
+        return lines.joined(separator: "\n") + "\n"
     }
 
     /// Quoted-printable encoding with LF line endings (for S/MIME signed content)
