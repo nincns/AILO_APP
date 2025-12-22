@@ -461,8 +461,9 @@ class SMIMESigningService {
 
         var result = Data()
 
-        // Use LF line endings - mail servers convert CRLF to LF during transport
-        let header = "Content-Type: multipart/signed; protocol=\"application/pkcs7-signature\"; micalg=sha-256; boundary=\"\(boundary)\"\n\n"
+        // Use CRLF for SMTP transmission (required by RFC 5321)
+        // But the content was hashed with LF (what recipients receive after server conversion)
+        let header = "Content-Type: multipart/signed; protocol=\"application/pkcs7-signature\"; micalg=sha-256; boundary=\"\(boundary)\"\r\n\r\n"
         result.append(header.data(using: .utf8)!)
 
         // DEBUG: Log Part 1 content that will be in the message
@@ -476,30 +477,44 @@ class SMIMESigningService {
         }
         print("🔐 [S/MIME DEBUG] Part 1 content SHA-256: \(Data(hash).map { String(format: "%02x", $0) }.joined())")
 
-        // Part 1: Original content (uses LF line endings)
-        result.append("--\(boundary)\n".data(using: .utf8)!)
-        result.append(content)
-        result.append("\n".data(using: .utf8)!)
+        // Part 1: Original content (hashed with LF, but convert to CRLF for SMTP)
+        result.append("--\(boundary)\r\n".data(using: .utf8)!)
+        // Convert LF to CRLF for transmission
+        let contentForSMTP = convertLFtoCRLF(content)
+        result.append(contentForSMTP)
+        result.append("\r\n".data(using: .utf8)!)
 
         // Part 2: Signature
-        result.append("--\(boundary)\n".data(using: .utf8)!)
-        result.append("Content-Type: application/pkcs7-signature; name=\"smime.p7s\"\n".data(using: .utf8)!)
-        result.append("Content-Transfer-Encoding: base64\n".data(using: .utf8)!)
-        result.append("Content-Disposition: attachment; filename=\"smime.p7s\"\n\n".data(using: .utf8)!)
+        result.append("--\(boundary)\r\n".data(using: .utf8)!)
+        result.append("Content-Type: application/pkcs7-signature; name=\"smime.p7s\"\r\n".data(using: .utf8)!)
+        result.append("Content-Transfer-Encoding: base64\r\n".data(using: .utf8)!)
+        result.append("Content-Disposition: attachment; filename=\"smime.p7s\"\r\n\r\n".data(using: .utf8)!)
 
-        // Base64 with 76-char lines (LF endings)
+        // Base64 with 76-char lines (CRLF endings for SMTP)
         let base64 = signature.base64EncodedString()
         var idx = base64.startIndex
         while idx < base64.endIndex {
             let end = base64.index(idx, offsetBy: 76, limitedBy: base64.endIndex) ?? base64.endIndex
             result.append(String(base64[idx..<end]).data(using: .utf8)!)
-            result.append("\n".data(using: .utf8)!)
+            result.append("\r\n".data(using: .utf8)!)
             idx = end
         }
 
-        result.append("--\(boundary)--\n".data(using: .utf8)!)
+        result.append("--\(boundary)--\r\n".data(using: .utf8)!)
 
         return result
+    }
+
+    /// Converts LF line endings to CRLF for SMTP transmission
+    private func convertLFtoCRLF(_ data: Data) -> Data {
+        guard let str = String(data: data, encoding: .utf8) else {
+            return data
+        }
+        // Replace lone LF with CRLF (but don't double-convert existing CRLF)
+        let converted = str
+            .replacingOccurrences(of: "\r\n", with: "\n")  // Normalize to LF first
+            .replacingOccurrences(of: "\n", with: "\r\n")  // Then convert all to CRLF
+        return Data(converted.utf8)
     }
 }
 
