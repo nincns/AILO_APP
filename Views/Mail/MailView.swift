@@ -420,19 +420,37 @@ struct MailView: View {
             let panelWidth = max(280, validWidth * 0.7)
             let panelHeight = validHeight + geo.safeAreaInsets.top + geo.safeAreaInsets.bottom
 
-            // Dezenter Pull-Tab am linken Rand (mittig zentriert)
+            // Edge-Swipe Zone am linken Rand (unsichtbar, aber reagiert auf Wischgesten)
+            Color.clear
+                .frame(width: 24)
+                .contentShape(Rectangle())
+                .gesture(
+                    DragGesture(minimumDistance: 20)
+                        .onEnded { value in
+                            // Wischen nach rechts öffnet das Panel
+                            if value.translation.width > 50 && !isMailboxPanelOpen {
+                                withAnimation(.easeInOut(duration: 0.25)) {
+                                    self.isMailboxPanelOpen = true
+                                }
+                            }
+                        }
+                )
+                .frame(maxHeight: .infinity)
+                .zIndex(1)
+
+            // Sichtbarer Pull-Tab am linken Rand (etwas größer für bessere Bedienbarkeit)
             VStack {
                 Spacer()
 
-                // Minimaler Tab-Indikator
+                // Tab-Indikator - größer für echte Geräte
                 Button {
                     withAnimation(.easeInOut(duration: 0.25)) {
                         self.isMailboxPanelOpen = true
                     }
                 } label: {
-                    RoundedRectangle(cornerRadius: 2)
-                        .fill(Color.secondary.opacity(0.35))
-                        .frame(width: 4, height: 36)
+                    RoundedRectangle(cornerRadius: 3)
+                        .fill(Color.secondary.opacity(0.4))
+                        .frame(width: 6, height: 48)
                 }
                 .buttonStyle(.plain)
 
