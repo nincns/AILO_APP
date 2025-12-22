@@ -15,8 +15,6 @@ struct MailView: View {
     @State private var isBackgroundSyncing: Bool = false  // 🆕 Separater Status für Hintergrund-Sync
     @State private var isMailboxPanelOpen: Bool = false
     @State private var sortMode: MailSortMode = .dateDesc
-    @State private var railVerticalOffset: CGFloat = UserDefaults.standard.double(forKey: "mailview.rail.offset")
-    
     @State private var quickFilter: QuickFilter = .all
     
     // MARK: - Phase 3: State-Erweiterung für Custom Folders
@@ -420,7 +418,7 @@ struct MailView: View {
             let panelWidth = max(280, validWidth * 0.7)
             let panelHeight = validHeight + geo.safeAreaInsets.top + geo.safeAreaInsets.bottom
 
-            // Dezenter Pull-Tab am linken Rand (nur kleiner Streifen)
+            // Dezenter Pull-Tab am linken Rand (mittig zentriert)
             VStack {
                 Spacer()
 
@@ -430,43 +428,11 @@ struct MailView: View {
                         self.isMailboxPanelOpen = true
                     }
                 } label: {
-                    VStack(spacing: 3) {
-                        // Kleine Striche als Hinweis
-                        RoundedRectangle(cornerRadius: 1)
-                            .fill(Color.secondary.opacity(0.4))
-                            .frame(width: 3, height: 20)
-                        RoundedRectangle(cornerRadius: 1)
-                            .fill(Color.secondary.opacity(0.3))
-                            .frame(width: 3, height: 12)
-                    }
-                    .padding(.vertical, 16)
-                    .padding(.horizontal, 4)
-                    .background(
-                        RoundedRectangle(cornerRadius: 8, style: .continuous)
-                            .fill(.ultraThinMaterial)
-                            .shadow(color: .black.opacity(0.08), radius: 2, x: 1, y: 0)
-                    )
+                    RoundedRectangle(cornerRadius: 2)
+                        .fill(Color.secondary.opacity(0.35))
+                        .frame(width: 4, height: 36)
                 }
                 .buttonStyle(.plain)
-                .offset(y: railVerticalOffset)
-                .gesture(
-                    DragGesture(coordinateSpace: .global)
-                        .onChanged { value in
-                            // Vertikales Ziehen zum Verschieben
-                            let newOffset = railVerticalOffset + value.translation.height
-                            let maxOffset = validHeight * 0.3
-                            railVerticalOffset = max(-maxOffset, min(maxOffset, newOffset))
-                        }
-                        .onEnded { value in
-                            // Horizontales Wischen öffnet Panel
-                            if value.translation.width > 30 {
-                                withAnimation(.easeInOut(duration: 0.25)) {
-                                    self.isMailboxPanelOpen = true
-                                }
-                            }
-                            UserDefaults.standard.set(railVerticalOffset, forKey: "mailview.rail.offset")
-                        }
-                )
 
                 Spacer()
             }
