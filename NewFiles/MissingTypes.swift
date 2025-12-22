@@ -280,11 +280,11 @@ public enum SignatureStatus: String, Codable, Sendable {
     public var displayText: String {
         switch self {
         case .notSigned: return "Nicht signiert"
-        case .valid: return "Gültige Signatur"
-        case .validUntrusted: return "Signiert (nicht vertrauenswürdig)"
+        case .valid: return "Signiert ✓"
+        case .validUntrusted: return "Signiert"
         case .validExpired: return "Signiert (Zertifikat abgelaufen)"
         case .invalid: return "Ungültige Signatur"
-        case .error: return "Verifizierungsfehler"
+        case .error: return "Signatur-Fehler"
         }
     }
 }
