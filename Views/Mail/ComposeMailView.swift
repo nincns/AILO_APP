@@ -677,7 +677,29 @@ struct ComposeMailView: View {
     /// Inserts an AI separator line BELOW the user's text and ABOVE any existing quote
     /// User writes rough notes above → separator → preserved history below
     private func insertAISeparatorIfNeeded() {
-        let currentBody = isHTML ? htmlBody : textBody
+        Task {
+            await insertAISeparatorAsync()
+        }
+    }
+
+    /// Async version that fetches current WebView content first
+    private func insertAISeparatorAsync() async {
+        // For HTML mode: fetch current content from WebView (may differ from htmlBody state)
+        var currentBody: String
+        if isHTML {
+            if let webViewContent = await editorController.getHTMLContent() {
+                currentBody = webViewContent
+                // Sync state with actual WebView content
+                await MainActor.run {
+                    htmlBody = webViewContent
+                }
+                print("✨ Fetched current WebView content: \(webViewContent.prefix(100))...")
+            } else {
+                currentBody = htmlBody
+            }
+        } else {
+            currentBody = textBody
+        }
 
         // Check if separator already exists
         guard !currentBody.contains(aiSeparatorPattern) else {
@@ -696,29 +718,31 @@ struct ComposeMailView: View {
         // Find where the quote/history starts (if any)
         let quoteStartIndex = findQuoteStartIndex(in: currentBody, isHTML: isHTML)
 
-        if isHTML {
-            if let quoteStart = quoteStartIndex {
-                // Insert separator before the quote
-                let userText = String(currentBody[..<quoteStart])
-                let quoteText = String(currentBody[quoteStart...])
-                let newContent = userText + "\n" + aiSeparatorHTML + "\n" + quoteText
-                htmlBody = newContent
-                editorController.setHTMLContent(newContent)
+        await MainActor.run {
+            if isHTML {
+                if let quoteStart = quoteStartIndex {
+                    // Insert separator before the quote
+                    let userText = String(currentBody[..<quoteStart])
+                    let quoteText = String(currentBody[quoteStart...])
+                    let newContent = userText + "\n" + aiSeparatorHTML + "\n" + quoteText
+                    htmlBody = newContent
+                    editorController.setHTMLContent(newContent)
+                } else {
+                    // No quote found - append separator at the end
+                    let newContent = currentBody + "\n" + aiSeparatorHTML
+                    htmlBody = newContent
+                    editorController.setHTMLContent(newContent)
+                }
             } else {
-                // No quote found - append separator at the end
-                let newContent = currentBody + "\n" + aiSeparatorHTML
-                htmlBody = newContent
-                editorController.setHTMLContent(newContent)
-            }
-        } else {
-            if let quoteStart = quoteStartIndex {
-                // Insert separator before the quote
-                let userText = String(currentBody[..<quoteStart])
-                let quoteText = String(currentBody[quoteStart...])
-                textBody = userText + aiSeparatorText + quoteText
-            } else {
-                // No quote found - append separator at the end
-                textBody = currentBody + aiSeparatorText
+                if let quoteStart = quoteStartIndex {
+                    // Insert separator before the quote
+                    let userText = String(currentBody[..<quoteStart])
+                    let quoteText = String(currentBody[quoteStart...])
+                    textBody = userText + aiSeparatorText + quoteText
+                } else {
+                    // No quote found - append separator at the end
+                    textBody = currentBody + aiSeparatorText
+                }
             }
         }
     }
@@ -766,6 +790,12 @@ struct ComposeMailView: View {
 
     // MARK: - AI Generation
     private func generateWithAI() {
+        Task {
+            await generateWithAIAsync()
+        }
+    }
+
+    private func generateWithAIAsync() async {
         guard let recipe = selectedRecipe else {
             print("❌ generateWithAI: No recipe selected")
             return
@@ -781,8 +811,21 @@ struct ComposeMailView: View {
             presets: catalogManager.presets
         )
 
-        // Get the current mail body as user text
-        let userText = isHTML ? htmlBody : textBody
+        // For HTML mode: fetch current content from WebView first
+        var userText: String
+        if isHTML {
+            if let webViewContent = await editorController.getHTMLContent() {
+                userText = webViewContent
+                await MainActor.run {
+                    htmlBody = webViewContent
+                }
+                print("🤖 Fetched current WebView content for AI")
+            } else {
+                userText = htmlBody
+            }
+        } else {
+            userText = textBody
+        }
 
         // Extract original quote to preserve (Reply/Forward history)
         let (textBeforeQuote, originalQuote) = extractQuoteFromBody(userText, isHTML: isHTML)
@@ -973,6 +1016,27 @@ class RichTextEditorController: ObservableObject {
                 print("❌ setHTMLContent error: \(error)")
             } else {
                 print("✅ setHTMLContent: Content injected via JS")
+            }
+        }
+    }
+
+    /// Get current HTML content from the editor (async)
+    func getHTMLContent() async -> String? {
+        guard let webView = webView else {
+            print("❌ getHTMLContent: No webView")
+            return nil
+        }
+        let js = "document.getElementById('editor').innerHTML"
+        return await withCheckedContinuation { continuation in
+            webView.evaluateJavaScript(js) { result, error in
+                if let error = error {
+                    print("❌ getHTMLContent error: \(error)")
+                    continuation.resume(returning: nil)
+                } else if let html = result as? String {
+                    continuation.resume(returning: html)
+                } else {
+                    continuation.resume(returning: nil)
+                }
             }
         }
     }
