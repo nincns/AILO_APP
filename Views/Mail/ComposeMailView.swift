@@ -674,8 +674,8 @@ struct ComposeMailView: View {
 
     // MARK: - AI Separator Management
 
-    /// Inserts an AI separator line at the beginning of the body if not already present
-    /// This separator marks the boundary between AI-editable content (above) and preserved content (below)
+    /// Inserts an AI separator line BELOW the user's text and ABOVE any existing quote
+    /// User writes rough notes above → separator → preserved history below
     private func insertAISeparatorIfNeeded() {
         let currentBody = isHTML ? htmlBody : textBody
 
@@ -685,23 +685,83 @@ struct ComposeMailView: View {
             return
         }
 
-        // Only insert if there's existing content (Reply/Forward quote)
+        // Only insert if there's existing content
         guard !currentBody.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
             print("✨ No content - separator not needed")
             return
         }
 
-        print("✨ Inserting AI separator line")
+        print("✨ Inserting AI separator line below user text")
+
+        // Find where the quote/history starts (if any)
+        let quoteStartIndex = findQuoteStartIndex(in: currentBody, isHTML: isHTML)
 
         if isHTML {
-            // Insert separator at the beginning, with empty line above for user input
-            let newContent = "<p><br></p>\n" + aiSeparatorHTML + "\n" + htmlBody
-            htmlBody = newContent
-            editorController.setHTMLContent(newContent)
+            if let quoteStart = quoteStartIndex {
+                // Insert separator before the quote
+                let userText = String(currentBody[..<quoteStart])
+                let quoteText = String(currentBody[quoteStart...])
+                let newContent = userText + "\n" + aiSeparatorHTML + "\n" + quoteText
+                htmlBody = newContent
+                editorController.setHTMLContent(newContent)
+            } else {
+                // No quote found - append separator at the end
+                let newContent = currentBody + "\n" + aiSeparatorHTML
+                htmlBody = newContent
+                editorController.setHTMLContent(newContent)
+            }
         } else {
-            // Insert separator at the beginning with empty line
-            textBody = "\n" + aiSeparatorText + textBody
+            if let quoteStart = quoteStartIndex {
+                // Insert separator before the quote
+                let userText = String(currentBody[..<quoteStart])
+                let quoteText = String(currentBody[quoteStart...])
+                textBody = userText + aiSeparatorText + quoteText
+            } else {
+                // No quote found - append separator at the end
+                textBody = currentBody + aiSeparatorText
+            }
         }
+    }
+
+    /// Finds the start index of the quote/history section in the body
+    private func findQuoteStartIndex(in body: String, isHTML: Bool) -> String.Index? {
+        if isHTML {
+            // Forward separator
+            if let range = body.range(of: "---------- Weitergeleitete Nachricht ----------") {
+                // Find the <p> tag containing this
+                let before = body[..<range.lowerBound]
+                if let pRange = before.range(of: "<p>", options: .backwards) {
+                    return pRange.lowerBound
+                }
+                return range.lowerBound
+            }
+            // Reply: "Am [date] schrieb"
+            if let range = body.range(of: "<p>Am ", options: .caseInsensitive) {
+                return range.lowerBound
+            }
+            // Reply with "schrieb" and blockquote
+            if body.contains("<blockquote"), let range = body.range(of: "schrieb", options: .caseInsensitive) {
+                let before = body[..<range.lowerBound]
+                if let pRange = before.range(of: "<p>", options: .backwards) {
+                    return pRange.lowerBound
+                }
+            }
+        } else {
+            // Plain text forward
+            if let range = body.range(of: "---------- Weitergeleitete Nachricht ----------") {
+                return range.lowerBound
+            }
+            // Plain text reply
+            if let range = body.range(of: "Am ", options: .caseInsensitive),
+               body[range.upperBound...].contains("schrieb") {
+                return range.lowerBound
+            }
+            // Lines with ">"
+            if let range = body.range(of: "\n>") {
+                return range.lowerBound
+            }
+        }
+        return nil
     }
 
     // MARK: - AI Generation
@@ -782,7 +842,7 @@ struct ComposeMailView: View {
     }
 
     /// Extracts the quote portion from the body (for Reply/Forward preservation)
-    /// Returns (textBeforeQuote, quoteWithSeparator)
+    /// Returns (textBeforeQuote, preservedContentWithoutSeparator)
     /// Priority: 1. AI Separator (✨), 2. Forward separator, 3. Reply patterns
     private func extractQuoteFromBody(_ body: String, isHTML: Bool) -> (String, String) {
         guard !body.isEmpty else { return ("", "") }
@@ -790,9 +850,24 @@ struct ComposeMailView: View {
         // 🎯 PRIMARY: Check for AI separator first (most reliable)
         if let range = body.range(of: aiSeparatorPattern) {
             let textBefore = String(body[..<range.lowerBound])
-            let preservedContent = String(body[range.lowerBound...])
-            print("✨ Found AI separator - splitting at marker")
-            return (textBefore.trimmingCharacters(in: .whitespacesAndNewlines), preservedContent)
+            var afterSeparator = String(body[range.upperBound...])
+
+            // Remove the separator line completely from preserved content
+            // For HTML: also remove surrounding <p> tags
+            if isHTML {
+                // Remove </p> that might follow the separator pattern
+                if afterSeparator.hasPrefix("</p>") {
+                    afterSeparator = String(afterSeparator.dropFirst(4))
+                }
+                // Clean up leading whitespace/newlines
+                afterSeparator = afterSeparator.trimmingCharacters(in: .whitespacesAndNewlines)
+            } else {
+                // For plain text, just trim
+                afterSeparator = afterSeparator.trimmingCharacters(in: .whitespacesAndNewlines)
+            }
+
+            print("✨ Found AI separator - user text will be replaced, separator removed")
+            return (textBefore.trimmingCharacters(in: .whitespacesAndNewlines), afterSeparator)
         }
 
         // FALLBACK: Use traditional quote detection if no AI separator
