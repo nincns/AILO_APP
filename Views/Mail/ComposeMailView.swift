@@ -92,23 +92,17 @@ struct ComposeMailView: View {
                         Spacer()
 
                         // Center: AI-Manager Button + Generate Button
-                        HStack(spacing: 8) {
+                        HStack(spacing: 12) {
+                            // AI-Manager Button (wand icon)
                             Button {
                                 showPrePromptPicker = true
                             } label: {
-                                HStack(spacing: 4) {
-                                    if selectedRecipe != nil {
-                                        Image(systemName: "checkmark.circle.fill")
-                                            .font(.caption2)
-                                    }
-                                    Text("AI-Manager")
-                                        .font(.caption)
-                                }
-                                .foregroundStyle(selectedRecipe != nil ? .green : .blue)
-                                .padding(.horizontal, 10)
-                                .padding(.vertical, 5)
-                                .background(Color(UIColor.tertiarySystemBackground))
-                                .clipShape(RoundedRectangle(cornerRadius: 6))
+                                Image(systemName: selectedRecipe != nil ? "wand.and.stars.inverse" : "wand.and.stars")
+                                    .font(.system(size: 18))
+                                    .foregroundStyle(selectedRecipe != nil ? .green : .blue)
+                                    .frame(width: 36, height: 36)
+                                    .background(Color(UIColor.tertiarySystemBackground))
+                                    .clipShape(Circle())
                             }
                             .buttonStyle(.plain)
 
@@ -117,22 +111,19 @@ struct ComposeMailView: View {
                                 Button {
                                     generateWithAI()
                                 } label: {
-                                    HStack(spacing: 4) {
+                                    Group {
                                         if isGenerating {
                                             ProgressView()
-                                                .scaleEffect(0.7)
+                                                .scaleEffect(0.8)
                                         } else {
                                             Image(systemName: "sparkles")
-                                                .font(.caption)
+                                                .font(.system(size: 16))
                                         }
-                                        Text("Generate")
-                                            .font(.caption)
                                     }
                                     .foregroundStyle(.white)
-                                    .padding(.horizontal, 10)
-                                    .padding(.vertical, 5)
+                                    .frame(width: 36, height: 36)
                                     .background(isGenerating ? Color.gray : Color.blue)
-                                    .clipShape(RoundedRectangle(cornerRadius: 6))
+                                    .clipShape(Circle())
                                 }
                                 .buttonStyle(.plain)
                                 .disabled(isGenerating)
