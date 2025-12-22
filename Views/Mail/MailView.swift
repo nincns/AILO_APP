@@ -176,6 +176,32 @@ struct MailView: View {
                             }
                             .pickerStyle(.segmented)
                             .padding(.horizontal)
+
+                            // Account-Anzeige unter dem Filter
+                            if let account = mailManager.accounts.first(where: { $0.id == selectedAccountId }) {
+                                HStack(spacing: 8) {
+                                    Image(systemName: "person.crop.circle.fill")
+                                        .foregroundStyle(.secondary)
+                                        .font(.subheadline)
+                                    Text(account.displayName)
+                                        .font(.subheadline)
+                                        .foregroundStyle(.primary)
+                                    Text("·")
+                                        .foregroundStyle(.secondary)
+                                    Text(account.emailAddress)
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                        .lineLimit(1)
+                                    Spacer()
+                                    if isBackgroundSyncing {
+                                        ProgressView()
+                                            .scaleEffect(0.6)
+                                    }
+                                }
+                                .padding(.horizontal)
+                                .padding(.vertical, 4)
+                            }
+
                             Divider()
                         }
                         .background(.ultraThinMaterial)
@@ -183,35 +209,44 @@ struct MailView: View {
                     .toolbar {
                         ToolbarItem(placement: .topBarLeading) {
                             Menu {
-                                ForEach(mailManager.accounts, id: \.id) { acc in
+                                // Synchronisieren
+                                if let accountId = selectedAccountId {
                                     Button(action: {
-                                        self.selectedAccountId = acc.id
                                         Task {
-                                            await self.mailManager.loadAvailableMailboxes(for: self.selectedAccountId)
-                                            // 🚀 Sofortiges Laden aus Cache bei Account-Wechsel
-                                            await self.mailManager.loadCachedMails(for: self.selectedMailbox, accountId: acc.id)
-                                            // Hintergrund-Sync für neuen Account
-                                            await self.performBackgroundSync(accountId: acc.id)
-                                            await self.mailManager.refreshMails(for: self.selectedMailbox, accountId: acc.id)
+                                            await self.syncAccount(accountId)
+                                            await self.refreshMails()
                                         }
                                     }) {
-                                        HStack {
-                                            Text(acc.displayName)
-                                            if acc.id == selectedAccountId { Image(systemName: "checkmark") }
-                                        }
+                                        Label("app.mail.sync", systemImage: "arrow.triangle.2.circlepath")
+                                    }
+                                    Divider()
+                                }
+
+                                // Bulk-Aktionen
+                                Button(action: { Task { await self.markAllRead() } }) {
+                                    Label("app.mail.mark_all_read", systemImage: "envelope.open")
+                                }
+                                Button(action: { Task { await self.markAllUnread() } }) {
+                                    Label("app.mail.mark_all_unread", systemImage: "envelope")
+                                }
+
+                                Divider()
+
+                                // Sortierung
+                                Button(action: { self.sortMode = .dateDesc }) {
+                                    HStack {
+                                        Text("app.mail.sort_newest_first")
+                                        if sortMode == .dateDesc { Image(systemName: "checkmark") }
+                                    }
+                                }
+                                Button(action: { self.sortMode = .sender }) {
+                                    HStack {
+                                        Text("app.mail.sort_by_sender")
+                                        if sortMode == .sender { Image(systemName: "checkmark") }
                                     }
                                 }
                             } label: {
-                                HStack(spacing: 6) {
-                                    Image(systemName: "person.crop.circle")
-                                    Text(self.mailManager.accounts.first(where: { $0.id == self.selectedAccountId })?.displayName ?? String(localized: "app.mail.accounts"))
-                                        .lineLimit(1)
-                                        .minimumScaleFactor(0.8)
-                                    Image(systemName: "chevron.down")
-                                        .font(.caption)
-                                        .foregroundStyle(.secondary)
-                                }
-                                .padding(.vertical, 2)
+                                Image(systemName: "ellipsis.circle")
                             }
                         }
                         ToolbarItem(placement: .primaryAction) {
@@ -607,43 +642,17 @@ struct MailView: View {
     private var detail: some View {
         // Hauptbereich mit Mail-Liste
         VStack(spacing: 0) {
-            // Account-Auswahl Header
-            if let accountId = selectedAccountId,
-               let account = mailManager.accounts.first(where: { $0.id == accountId }) {
-                AccountHeaderView(
-                    account: account,
-                    accountId: accountId,
-                    sortMode: sortMode,
-                    onSync: { id in
-                        Task {
-                            await self.syncAccount(id)
-                            await self.refreshMails()
-                        }
-                    },
-                    onMarkAllRead: {
-                        Task { await self.markAllRead() }
-                    },
-                    onMarkAllUnread: {
-                        Task { await self.markAllUnread() }
-                    },
-                    onSortByDateDesc: {
-                        self.sortMode = .dateDesc
-                    },
-                    onSortBySender: {
-                        self.sortMode = .sender
-                    }
-                )
-                Divider()
-            
-                if let error = mailManager.lastError {
-                    Text(error)
-                        .foregroundColor(.red)
-                        .font(.caption)
-                        .padding(.horizontal)
-                        .padding(.top, 4)
-                }
+            // Fehleranzeige (falls vorhanden)
+            if let error = mailManager.lastError {
+                Text(error)
+                    .foregroundColor(.red)
+                    .font(.caption)
+                    .padding(.horizontal)
+                    .padding(.vertical, 4)
+                    .frame(maxWidth: .infinity)
+                    .background(Color.red.opacity(0.1))
             }
-            
+
             // Mail-Liste
             if displayedMails.isEmpty && !isRefreshing && !isBackgroundSyncing {
                 ContentUnavailableView {
