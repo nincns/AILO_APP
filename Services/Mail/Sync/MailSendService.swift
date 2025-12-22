@@ -438,9 +438,21 @@ public final class MailSendService {
             subject: msg.subject,
             textBody: msg.textBody,
             htmlBody: msg.htmlBody,
-            attachments: msg.attachments.map { MailAttachment(filename: $0.filename, mimeType: $0.mimeType, data: $0.data) }
+            attachments: msg.attachments.map { MailAttachment(filename: $0.filename, mimeType: $0.mimeType, data: $0.data) },
+            signingCertificateId: signingCertificateId(for: item.accountId)
         )
         return await smtp.send(adapted, using: config)
+    }
+
+    /// Returns the signing certificate ID if signing is enabled for the account
+    private func signingCertificateId(for accountId: UUID) -> String? {
+        guard let data = UserDefaults.standard.data(forKey: "mail.accounts"),
+              let list = try? JSONDecoder().decode([MailAccountConfig].self, from: data),
+              let acc = list.first(where: { $0.id == accountId }),
+              acc.signingEnabled,
+              let certId = acc.signingCertificateId,
+              !certId.isEmpty else { return nil }
+        return certId
     }
 
     // MARK: Publishing

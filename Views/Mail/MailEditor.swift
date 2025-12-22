@@ -105,6 +105,42 @@ struct MailEditor: View {
                     .disabled(isFetchingFolders || recvHost.isEmpty || recvUser.isEmpty || recvProtocol != .imap)
                 }
             }
+
+            // S/MIME Signing Section
+            Section(header: Text(String(localized: "smime.section.title"))) {
+                Toggle(String(localized: "smime.signing.enabled"), isOn: $signingEnabled)
+
+                if signingEnabled {
+                    Picker(String(localized: "smime.certificate.select"), selection: $signingCertificateId) {
+                        Text(String(localized: "smime.certificate.none")).tag("")
+                        ForEach(availableCertificates) { cert in
+                            Text(cert.displayName).tag(cert.id)
+                        }
+                    }
+
+                    if !signingCertificateId.isEmpty,
+                       let cert = availableCertificates.first(where: { $0.id == signingCertificateId }) {
+                        HStack {
+                            Text(String(localized: "smime.certificate.email"))
+                            Spacer()
+                            Text(cert.email ?? "-").foregroundColor(.secondary)
+                        }
+                        if let expiry = cert.expiresAt {
+                            HStack {
+                                Text(String(localized: "smime.certificate.expires"))
+                                Spacer()
+                                Text(expiry, style: .date).foregroundColor(.secondary)
+                            }
+                        }
+                    }
+
+                    if availableCertificates.isEmpty {
+                        Text(String(localized: "smime.certificate.not_found"))
+                            .foregroundColor(.secondary)
+                            .font(.footnote)
+                    }
+                }
+            }
         }
         .navigationTitle(Text(String(localized: "mail.editor.title")))
         .toolbar {
@@ -119,7 +155,10 @@ struct MailEditor: View {
         .onChange(of: recvProtocol) { _, _ in updateDefaultIncomingPort() }
         .onChange(of: recvEnc) { _, _ in updateDefaultIncomingPort() }
         .onChange(of: smtpEnc) { _, _ in updateDefaultSmtpPort() }
-        .onAppear { prefillIfNeeded() }
+        .onAppear {
+            prefillIfNeeded()
+            availableCertificates = KeychainCertificateService.shared.listSigningCertificates()
+        }
         .alert(String(localized: "mail.editor.test.title"), isPresented: $showTestAlert) {
             Button("OK", role: .cancel) { isFetchingFolders = false }
         } message: {
@@ -175,6 +214,11 @@ struct MailEditor: View {
     // Check interval in minutes while app is active
     @State private var checkIntervalMin: Int = 15
 
+    // S/MIME Signing
+    @State private var signingEnabled: Bool = false
+    @State private var signingCertificateId: String = ""
+    @State private var availableCertificates: [SigningCertificateInfo] = []
+
     // MARK: - Prefill & Save
     private func prefillIfNeeded() {
         guard let incoming = existingConfig else { return }
@@ -228,6 +272,10 @@ struct MailEditor: View {
         folderDrafts = cfg.folders.drafts
         folderTrash = cfg.folders.trash
         folderSpam = cfg.folders.spam
+
+        // S/MIME Signing
+        signingEnabled = cfg.signingEnabled
+        signingCertificateId = cfg.signingCertificateId ?? ""
 
         // Prefer DAO values only when they are meaningful (avoid overwriting with mere defaults)
         if let factory = MailRepository.shared.factory, let map = try? factory.mailReadDAO.specialFolders(accountId: cfg.id) {
@@ -303,6 +351,8 @@ struct MailEditor: View {
                 accountName: accountName,
                 displayName: displayName.isEmpty ? nil : displayName,
                 replyTo: replyTo.isEmpty ? nil : replyTo,
+                signingEnabled: signingEnabled,
+                signingCertificateId: signingCertificateId.isEmpty ? nil : signingCertificateId,
                 recvProtocol: protoModel,
                 recvHost: recvHost,
                 recvPort: recvPort,

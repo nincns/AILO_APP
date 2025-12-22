@@ -669,3 +669,16 @@
 "cookbook.migrated" = "Imported Prompts";
 
 "keywords.placeholder" = "Keywords: separated by semicolon";
+
+/* MARK: - S/MIME Signing */
+"smime.section.title" = "Digital Signature";
+"smime.signing.enabled" = "Sign emails";
+"smime.certificate.select" = "Certificate";
+"smime.certificate.none" = "No certificate selected";
+"smime.certificate.email" = "Email";
+"smime.certificate.expires" = "Valid until";
+"smime.certificate.not_found" = "No certificates found in keychain";
+"smime.error.certificate_not_found" = "Signing certificate not found";
+"smime.error.private_key" = "Private key not available";
+"smime.error.certificate" = "Certificate error";
+"smime.error.signing_failed" = "Signing failed";

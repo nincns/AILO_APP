@@ -472,6 +472,14 @@ public final class SMTPClient {
     }
 
     private func buildRFC5322(_ msg: MailMessage) -> String {
+        // Check if signing is requested
+        if let certId = msg.signingCertificateId, !certId.isEmpty {
+            return buildSignedRFC5322(msg, certificateId: certId)
+        }
+        return buildUnsignedRFC5322(msg)
+    }
+
+    private func buildUnsignedRFC5322(_ msg: MailMessage) -> String {
         var headers: [String] = []
         headers.append("From: \(msg.from.rfc822)")
         if !msg.to.isEmpty { headers.append("To: " + msg.to.map { $0.rfc822 }.joined(separator: ", ")) }
@@ -502,6 +510,68 @@ public final class SMTPClient {
         }
 
         return headers.joined(separator: "\r\n") + "\r\n\r\n" + body
+    }
+
+    /// Builds a signed RFC5322 message using S/MIME
+    private func buildSignedRFC5322(_ msg: MailMessage, certificateId: String) -> String {
+        // Build the inner MIME content to be signed
+        let innerContent = buildInnerMIMEContent(msg)
+        let innerData = Data(innerContent.utf8)
+
+        // Sign the content
+        let result = SMIMESigningService.shared.signMessage(
+            mimeContent: innerData,
+            certificateId: certificateId
+        )
+
+        switch result {
+        case .success(let signedData):
+            // Build headers for signed message
+            var headers: [String] = []
+            headers.append("From: \(msg.from.rfc822)")
+            if !msg.to.isEmpty { headers.append("To: " + msg.to.map { $0.rfc822 }.joined(separator: ", ")) }
+            if !msg.cc.isEmpty { headers.append("Cc: " + msg.cc.map { $0.rfc822 }.joined(separator: ", ")) }
+            headers.append("Subject: \(msg.subject)")
+            headers.append("MIME-Version: 1.0")
+            headers.append("Date: \(rfc2822Date(Date()))")
+            headers.append("Message-ID: <\(UUID().uuidString)@\(cfg?.heloName ?? "localhost")>")
+
+            // The signed data already contains the Content-Type header for multipart/signed
+            let signedContent = String(data: signedData, encoding: .utf8) ?? ""
+            return headers.joined(separator: "\r\n") + "\r\n" + dotStuff(signedContent)
+
+        case .failure(let error):
+            // Fallback: send unsigned if signing fails
+            print("⚠️ [SMTP] S/MIME signing failed: \(error.localizedDescription) - sending unsigned")
+            return buildUnsignedRFC5322(msg)
+        }
+    }
+
+    /// Builds the inner MIME content without outer headers (for signing)
+    private func buildInnerMIMEContent(_ msg: MailMessage) -> String {
+        var contentHeaders: [String] = []
+
+        let body: String
+        if let text = msg.textBody, let html = msg.htmlBody {
+            let boundary = "=_SwiftBoundary_\(UUID().uuidString.prefix(8))"
+            contentHeaders.append("Content-Type: multipart/alternative; boundary=\"\(boundary)\"")
+            var parts: [String] = []
+            parts.append("--\(boundary)\r\nContent-Type: text/plain; charset=utf-8\r\nContent-Transfer-Encoding: 8bit\r\n\r\n\(text)\r\n")
+            parts.append("--\(boundary)\r\nContent-Type: text/html; charset=utf-8\r\nContent-Transfer-Encoding: 8bit\r\n\r\n\(html)\r\n")
+            parts.append("--\(boundary)--\r\n")
+            body = parts.joined()
+        } else if let html = msg.htmlBody {
+            contentHeaders.append("Content-Type: text/html; charset=utf-8")
+            contentHeaders.append("Content-Transfer-Encoding: 8bit")
+            body = html + "\r\n"
+        } else {
+            let text = msg.textBody ?? ""
+            contentHeaders.append("Content-Type: text/plain; charset=utf-8")
+            contentHeaders.append("Content-Transfer-Encoding: 8bit")
+            body = text + "\r\n"
+        }
+
+        return contentHeaders.joined(separator: "\r\n") + "\r\n\r\n" + body
     }
 
     private func rfc2822Date(_ date: Date) -> String {

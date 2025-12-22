@@ -235,7 +235,7 @@ public struct OutboxAttachment: Codable, Sendable, Equatable {
 
 public enum MailSchema {
     /// Increase when schema changes; DAO should store this in SQLite PRAGMA user_version (or similar)
-    public static let currentVersion: Int = 4
+    public static let currentVersion: Int = 5
 
     // Table names
     public static let tAccounts = "accounts"
@@ -260,7 +260,9 @@ public enum MailSchema {
             host_imap TEXT NOT NULL,
             host_smtp TEXT NOT NULL,
             created_at INTEGER NOT NULL,
-            updated_at INTEGER NOT NULL
+            updated_at INTEGER NOT NULL,
+            signing_enabled INTEGER NOT NULL DEFAULT 0,
+            signing_cert_id TEXT
         );
         """,
 
@@ -483,6 +485,19 @@ public enum MailSchema {
         """
     ]
 
+    // MARK: DDL v5 - S/MIME signing support
+
+    public static let ddl_v5_migrations: [String] = [
+        // Add signing_enabled column for S/MIME signing toggle
+        """
+        ALTER TABLE \(tAccounts) ADD COLUMN signing_enabled INTEGER NOT NULL DEFAULT 0;
+        """,
+        // Add signing_cert_id column for Keychain certificate reference
+        """
+        ALTER TABLE \(tAccounts) ADD COLUMN signing_cert_id TEXT;
+        """
+    ]
+
     // MARK: - Migration API (storage-agnostic)
 
     /// Returns the DDL statements to create the schema for a specific version.
@@ -492,6 +507,7 @@ public enum MailSchema {
         case 2: return ddl_v1 // v2 creates full schema with enhanced columns already in ddl_v1
         case 3: return ddl_v1 // v3 creates full schema with raw_body already in ddl_v1
         case 4: return ddl_v1 // v4 creates full schema with attachments_json already in ddl_v1
+        case 5: return ddl_v1 // v5 creates full schema with signing columns already in ddl_v1
         default: return ddl_v1
         }
     }
@@ -516,6 +532,9 @@ public enum MailSchema {
             case 3:
                 // v3 → v4: Add attachments_json column to outbox
                 steps.append(ddl_v4_migrations)
+            case 4:
+                // v4 → v5: Add S/MIME signing columns to accounts
+                steps.append(ddl_v5_migrations)
             default:
                 steps.append([])
             }

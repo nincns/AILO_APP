@@ -39,6 +39,7 @@ public struct MailMessage: Sendable {
     public let textBody: String?
     public let htmlBody: String?
     public let attachments: [MailAttachment]
+    public let signingCertificateId: String?  // S/MIME signing certificate reference
 
     public init(from: MailAddress,
                 to: [MailAddress],
@@ -47,7 +48,8 @@ public struct MailMessage: Sendable {
                 subject: String,
                 textBody: String? = nil,
                 htmlBody: String? = nil,
-                attachments: [MailAttachment] = []) {
+                attachments: [MailAttachment] = [],
+                signingCertificateId: String? = nil) {
         self.from = from
         self.to = to
         self.cc = cc
@@ -56,6 +58,7 @@ public struct MailMessage: Sendable {
         self.textBody = textBody
         self.htmlBody = htmlBody
         self.attachments = attachments
+        self.signingCertificateId = signingCertificateId
     }
 }
 
@@ -107,6 +110,10 @@ public struct MailAccountConfig: Codable, Identifiable, Equatable, Sendable {
     public var displayName: String?
     public var replyTo: String?
 
+    // S/MIME Signing
+    public var signingEnabled: Bool
+    public var signingCertificateId: String?
+
     public var recvProtocol: MailProtocol
     public var recvHost: String
     public var recvPort: Int
@@ -137,6 +144,8 @@ public struct MailAccountConfig: Codable, Identifiable, Equatable, Sendable {
         accountName: String,
         displayName: String? = nil,
         replyTo: String? = nil,
+        signingEnabled: Bool = false,
+        signingCertificateId: String? = nil,
         recvProtocol: MailProtocol,
         recvHost: String,
         recvPort: Int,
@@ -160,6 +169,8 @@ public struct MailAccountConfig: Codable, Identifiable, Equatable, Sendable {
         self.accountName = accountName
         self.displayName = displayName
         self.replyTo = replyTo
+        self.signingEnabled = signingEnabled
+        self.signingCertificateId = signingCertificateId
         self.recvProtocol = recvProtocol
         self.recvHost = recvHost
         self.recvPort = recvPort

@@ -649,3 +649,16 @@
 "cookbook.migrated" = "Importierte Prompts";
 
 "keywords.placeholder" = "Schlagwörter: mit Semikolon getrennt";
+
+/* MARK: - S/MIME Signierung */
+"smime.section.title" = "Digitale Signatur";
+"smime.signing.enabled" = "E-Mails signieren";
+"smime.certificate.select" = "Zertifikat";
+"smime.certificate.none" = "Kein Zertifikat ausgewählt";
+"smime.certificate.email" = "E-Mail";
+"smime.certificate.expires" = "Gültig bis";
+"smime.certificate.not_found" = "Keine Zertifikate im Schlüsselbund gefunden";
+"smime.error.certificate_not_found" = "Signaturzertifikat nicht gefunden";
+"smime.error.private_key" = "Private Key nicht verfügbar";
+"smime.error.certificate" = "Zertifikatfehler";
+"smime.error.signing_failed" = "Signierung fehlgeschlagen";
