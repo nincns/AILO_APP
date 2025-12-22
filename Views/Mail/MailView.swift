@@ -323,29 +323,27 @@ struct MailView: View {
 
     @ViewBuilder
     private var accountNameView: some View {
-        if let account = mailManager.accounts.first(where: { $0.id == selectedAccountId }) {
-            HStack(spacing: 6) {
-                Image(systemName: "person.crop.circle.fill")
-                    .foregroundColor(.accentColor)
-                    .font(.title2)
-                VStack(alignment: .leading, spacing: 1) {
-                    Text(account.displayName)
-                        .font(.subheadline)
-                        .fontWeight(.medium)
-                        .lineLimit(1)
-                    Text(account.emailAddress)
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
+        GeometryReader { geo in
+            if let account = mailManager.accounts.first(where: { $0.id == selectedAccountId }) {
+                HStack(spacing: 6) {
+                    Image(systemName: "person.crop.circle.fill")
+                        .foregroundColor(.accentColor)
+                        .font(.title2)
+                    VStack(alignment: .leading, spacing: 1) {
+                        Text(account.displayName)
+                            .font(.subheadline)
+                            .fontWeight(.medium)
+                            .lineLimit(1)
+                        Text(account.emailAddress)
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                    }
                 }
-                // Kleiner Puffer + Sync-Indikator
-                if isBackgroundSyncing {
-                    Image(systemName: "circle.fill")
-                        .foregroundStyle(.orange)
-                        .font(.system(size: 8))
-                }
+                .frame(width: geo.size.width, alignment: .leading)
             }
         }
+        .frame(width: UIScreen.main.bounds.width * 0.65, height: 40)
     }
 
     @ViewBuilder
