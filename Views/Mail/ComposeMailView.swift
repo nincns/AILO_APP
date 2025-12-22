@@ -66,6 +66,11 @@ struct ComposeMailView: View {
 
     private let autosaveKey = "compose.autosave"
 
+    // AI Separator markers - visible line that separates AI-editable content from preserved content
+    private let aiSeparatorHTML = "<p style=\"color: #999; text-align: center;\">─────── ✨ ───────</p>"
+    private let aiSeparatorText = "\n─────── ✨ ───────\n"
+    private let aiSeparatorPattern = "─────── ✨ ───────"  // For detection
+
     var body: some View {
         NavigationStack {
             VStack(spacing: 0) {
@@ -95,6 +100,7 @@ struct ComposeMailView: View {
                         HStack(spacing: 12) {
                             // AI-Manager Button (wand icon)
                             Button {
+                                insertAISeparatorIfNeeded()
                                 showPrePromptPicker = true
                             } label: {
                                 Image(systemName: selectedRecipe != nil ? "wand.and.stars.inverse" : "wand.and.stars")
@@ -666,6 +672,38 @@ struct ComposeMailView: View {
         prePromptNavigationPath.removeAll()
     }
 
+    // MARK: - AI Separator Management
+
+    /// Inserts an AI separator line at the beginning of the body if not already present
+    /// This separator marks the boundary between AI-editable content (above) and preserved content (below)
+    private func insertAISeparatorIfNeeded() {
+        let currentBody = isHTML ? htmlBody : textBody
+
+        // Check if separator already exists
+        guard !currentBody.contains(aiSeparatorPattern) else {
+            print("✨ AI Separator already present")
+            return
+        }
+
+        // Only insert if there's existing content (Reply/Forward quote)
+        guard !currentBody.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            print("✨ No content - separator not needed")
+            return
+        }
+
+        print("✨ Inserting AI separator line")
+
+        if isHTML {
+            // Insert separator at the beginning, with empty line above for user input
+            let newContent = "<p><br></p>\n" + aiSeparatorHTML + "\n" + htmlBody
+            htmlBody = newContent
+            editorController.setHTMLContent(newContent)
+        } else {
+            // Insert separator at the beginning with empty line
+            textBody = "\n" + aiSeparatorText + textBody
+        }
+    }
+
     // MARK: - AI Generation
     private func generateWithAI() {
         guard let recipe = selectedRecipe else {
@@ -745,68 +783,61 @@ struct ComposeMailView: View {
 
     /// Extracts the quote portion from the body (for Reply/Forward preservation)
     /// Returns (textBeforeQuote, quoteWithSeparator)
+    /// Priority: 1. AI Separator (✨), 2. Forward separator, 3. Reply patterns
     private func extractQuoteFromBody(_ body: String, isHTML: Bool) -> (String, String) {
         guard !body.isEmpty else { return ("", "") }
 
-        if isHTML {
-            // HTML: Look for forward separator or reply header
-            // Forward: "---------- Weitergeleitete Nachricht ----------"
-            // Reply: "<p>Am " or "schrieb" followed by blockquote
+        // 🎯 PRIMARY: Check for AI separator first (most reliable)
+        if let range = body.range(of: aiSeparatorPattern) {
+            let textBefore = String(body[..<range.lowerBound])
+            let preservedContent = String(body[range.lowerBound...])
+            print("✨ Found AI separator - splitting at marker")
+            return (textBefore.trimmingCharacters(in: .whitespacesAndNewlines), preservedContent)
+        }
 
-            // Try forward separator first
+        // FALLBACK: Use traditional quote detection if no AI separator
+        if isHTML {
+            // Forward: "---------- Weitergeleitete Nachricht ----------"
             if let range = body.range(of: "---------- Weitergeleitete Nachricht ----------") {
-                // Find the <p> tag that contains this separator
                 let beforeSeparator = String(body[..<range.lowerBound])
-                // Find the last <p> tag before the separator to include it
                 if let pTagRange = beforeSeparator.range(of: "<p>", options: .backwards) {
                     let textBefore = String(body[..<pTagRange.lowerBound])
                     let quote = String(body[pTagRange.lowerBound...])
                     return (textBefore.trimmingCharacters(in: .whitespacesAndNewlines), quote)
                 }
-                let quote = String(body[range.lowerBound...])
-                return (beforeSeparator.trimmingCharacters(in: .whitespacesAndNewlines), quote)
+                return (beforeSeparator.trimmingCharacters(in: .whitespacesAndNewlines), String(body[range.lowerBound...]))
             }
 
-            // Try reply pattern: "<p>Am " followed by date and "schrieb"
+            // Reply: "<p>Am " followed by date and "schrieb"
             if let range = body.range(of: "<p>Am ", options: .caseInsensitive) {
                 let textBefore = String(body[..<range.lowerBound])
-                let quote = String(body[range.lowerBound...])
-                return (textBefore.trimmingCharacters(in: .whitespacesAndNewlines), quote)
+                return (textBefore.trimmingCharacters(in: .whitespacesAndNewlines), String(body[range.lowerBound...]))
             }
 
-            // Try simpler reply pattern: "schrieb" with blockquote
+            // Reply: "schrieb" with blockquote
             if let range = body.range(of: "schrieb", options: .caseInsensitive),
                body.contains("<blockquote") {
-                // Find the <p> before "schrieb"
                 let beforeSchrieb = String(body[..<range.lowerBound])
                 if let pTagRange = beforeSchrieb.range(of: "<p>", options: .backwards) {
                     let textBefore = String(body[..<pTagRange.lowerBound])
-                    let quote = String(body[pTagRange.lowerBound...])
-                    return (textBefore.trimmingCharacters(in: .whitespacesAndNewlines), quote)
+                    return (textBefore.trimmingCharacters(in: .whitespacesAndNewlines), String(body[pTagRange.lowerBound...]))
                 }
             }
 
         } else {
-            // Plain text: Look for forward or reply separators
-
-            // Forward separator
+            // Plain text fallbacks
             if let range = body.range(of: "---------- Weitergeleitete Nachricht ----------") {
-                let textBefore = String(body[..<range.lowerBound])
-                let quote = String(body[range.lowerBound...])
-                return (textBefore.trimmingCharacters(in: .whitespacesAndNewlines), quote)
+                return (String(body[..<range.lowerBound]).trimmingCharacters(in: .whitespacesAndNewlines),
+                        String(body[range.lowerBound...]))
             }
 
-            // Reply pattern: "Am [date] schrieb" or just "schrieb"
-            if let range = body.range(of: "Am ", options: .caseInsensitive) {
-                let afterAm = body[range.upperBound...]
-                if afterAm.contains("schrieb") {
-                    let textBefore = String(body[..<range.lowerBound])
-                    let quote = String(body[range.lowerBound...])
-                    return (textBefore.trimmingCharacters(in: .whitespacesAndNewlines), quote)
-                }
+            if let range = body.range(of: "Am ", options: .caseInsensitive),
+               body[range.upperBound...].contains("schrieb") {
+                return (String(body[..<range.lowerBound]).trimmingCharacters(in: .whitespacesAndNewlines),
+                        String(body[range.lowerBound...]))
             }
 
-            // Lines starting with ">" are quoted
+            // Quoted lines with ">"
             if body.contains("\n>") || body.hasPrefix(">") {
                 let lines = body.components(separatedBy: "\n")
                 var textLines: [String] = []
