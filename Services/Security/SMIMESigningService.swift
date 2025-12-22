@@ -461,7 +461,8 @@ class SMIMESigningService {
 
         var result = Data()
 
-        let header = "Content-Type: multipart/signed; protocol=\"application/pkcs7-signature\"; micalg=sha-256; boundary=\"\(boundary)\"\r\n\r\n"
+        // Use LF line endings - mail servers convert CRLF to LF during transport
+        let header = "Content-Type: multipart/signed; protocol=\"application/pkcs7-signature\"; micalg=sha-256; boundary=\"\(boundary)\"\n\n"
         result.append(header.data(using: .utf8)!)
 
         // DEBUG: Log Part 1 content that will be in the message
@@ -475,28 +476,28 @@ class SMIMESigningService {
         }
         print("🔐 [S/MIME DEBUG] Part 1 content SHA-256: \(Data(hash).map { String(format: "%02x", $0) }.joined())")
 
-        // Part 1: Original content
-        result.append("--\(boundary)\r\n".data(using: .utf8)!)
+        // Part 1: Original content (uses LF line endings)
+        result.append("--\(boundary)\n".data(using: .utf8)!)
         result.append(content)
-        result.append("\r\n".data(using: .utf8)!)
+        result.append("\n".data(using: .utf8)!)
 
         // Part 2: Signature
-        result.append("--\(boundary)\r\n".data(using: .utf8)!)
-        result.append("Content-Type: application/pkcs7-signature; name=\"smime.p7s\"\r\n".data(using: .utf8)!)
-        result.append("Content-Transfer-Encoding: base64\r\n".data(using: .utf8)!)
-        result.append("Content-Disposition: attachment; filename=\"smime.p7s\"\r\n\r\n".data(using: .utf8)!)
+        result.append("--\(boundary)\n".data(using: .utf8)!)
+        result.append("Content-Type: application/pkcs7-signature; name=\"smime.p7s\"\n".data(using: .utf8)!)
+        result.append("Content-Transfer-Encoding: base64\n".data(using: .utf8)!)
+        result.append("Content-Disposition: attachment; filename=\"smime.p7s\"\n\n".data(using: .utf8)!)
 
-        // Base64 with 76-char lines
+        // Base64 with 76-char lines (LF endings)
         let base64 = signature.base64EncodedString()
         var idx = base64.startIndex
         while idx < base64.endIndex {
             let end = base64.index(idx, offsetBy: 76, limitedBy: base64.endIndex) ?? base64.endIndex
             result.append(String(base64[idx..<end]).data(using: .utf8)!)
-            result.append("\r\n".data(using: .utf8)!)
+            result.append("\n".data(using: .utf8)!)
             idx = end
         }
 
-        result.append("--\(boundary)--\r\n".data(using: .utf8)!)
+        result.append("--\(boundary)--\n".data(using: .utf8)!)
 
         return result
     }

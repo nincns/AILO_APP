@@ -413,6 +413,8 @@ public final class NIOSMTPClient: SMTPClientProtocol {
     }
 
     /// Builds the inner MIME content without outer headers (for S/MIME signing)
+    /// IMPORTANT: Uses LF line endings because mail servers convert CRLF→LF during transport.
+    /// The signature must be computed on what the recipient will actually receive.
     private func buildInnerMIMEContent(_ message: MailMessage) -> String {
         var lines: [String] = []
         let altBoundary = "----=_AltPart_\(UUID().uuidString.replacingOccurrences(of: "-", with: "").prefix(16))"
@@ -437,20 +439,20 @@ public final class NIOSMTPClient: SMTPClientProtocol {
                 lines.append("Content-Type: text/plain; charset=\"UTF-8\"")
                 lines.append("Content-Transfer-Encoding: quoted-printable")
                 lines.append("")
-                lines.append(quotedPrintableEncode(textVersion))
+                lines.append(quotedPrintableEncodeLF(textVersion))
                 lines.append("")
                 lines.append("--\(altBoundary)")
                 lines.append("Content-Type: text/html; charset=\"UTF-8\"")
                 lines.append("Content-Transfer-Encoding: quoted-printable")
                 lines.append("")
-                lines.append(quotedPrintableEncode(message.htmlBody ?? ""))
+                lines.append(quotedPrintableEncodeLF(message.htmlBody ?? ""))
                 lines.append("")
                 lines.append("--\(altBoundary)--")
             } else {
                 lines.append("Content-Type: text/plain; charset=\"UTF-8\"")
                 lines.append("Content-Transfer-Encoding: quoted-printable")
                 lines.append("")
-                lines.append(quotedPrintableEncode(message.textBody ?? ""))
+                lines.append(quotedPrintableEncodeLF(message.textBody ?? ""))
             }
             lines.append("")
 
@@ -462,7 +464,7 @@ public final class NIOSMTPClient: SMTPClientProtocol {
                 lines.append("Content-Disposition: attachment;")
                 lines.append("\tfilename=\"\(encodeHeaderRFC2047(attachment.filename))\"")
                 lines.append("")
-                lines.append(base64EncodeWithLineBreaks(attachment.data))
+                lines.append(base64EncodeWithLineBreaksLF(attachment.data))
                 lines.append("")
             }
             lines.append("--\(mixedBoundary)--")
@@ -475,23 +477,115 @@ public final class NIOSMTPClient: SMTPClientProtocol {
             lines.append("Content-Type: text/plain; charset=\"UTF-8\"")
             lines.append("Content-Transfer-Encoding: quoted-printable")
             lines.append("")
-            lines.append(quotedPrintableEncode(textVersion))
+            lines.append(quotedPrintableEncodeLF(textVersion))
             lines.append("")
             lines.append("--\(altBoundary)")
             lines.append("Content-Type: text/html; charset=\"UTF-8\"")
             lines.append("Content-Transfer-Encoding: quoted-printable")
             lines.append("")
-            lines.append(quotedPrintableEncode(message.htmlBody ?? ""))
+            lines.append(quotedPrintableEncodeLF(message.htmlBody ?? ""))
             lines.append("")
             lines.append("--\(altBoundary)--")
         } else {
             lines.append("Content-Type: text/plain; charset=\"UTF-8\"")
             lines.append("Content-Transfer-Encoding: quoted-printable")
             lines.append("")
-            lines.append(quotedPrintableEncode(message.textBody ?? ""))
+            lines.append(quotedPrintableEncodeLF(message.textBody ?? ""))
         }
 
-        return lines.joined(separator: "\r\n")
+        // Use LF line endings - mail servers convert CRLF to LF during transport
+        return lines.joined(separator: "\n")
+    }
+
+    /// Quoted-printable encoding with LF line endings (for S/MIME signed content)
+    private func quotedPrintableEncodeLF(_ text: String) -> String {
+        var result = ""
+        var lineLength = 0
+        var pendingWhitespace = ""
+
+        for scalar in text.unicodeScalars {
+            let char = Character(scalar)
+            var encoded: String
+
+            if scalar == "\r" {
+                continue
+            } else if scalar == "\n" {
+                for ws in pendingWhitespace.unicodeScalars {
+                    if ws == " " {
+                        result += "=20"
+                    } else if ws == "\t" {
+                        result += "=09"
+                    }
+                }
+                pendingWhitespace = ""
+                result += "\n"  // LF only
+                lineLength = 0
+                continue
+            } else if scalar == " " || scalar == "\t" {
+                pendingWhitespace += String(char)
+                continue
+            } else {
+                if !pendingWhitespace.isEmpty {
+                    if lineLength + pendingWhitespace.count > 75 {
+                        result += "=\n"  // LF only
+                        lineLength = 0
+                    }
+                    result += pendingWhitespace
+                    lineLength += pendingWhitespace.count
+                    pendingWhitespace = ""
+                }
+
+                if scalar.isASCII && scalar.value >= 33 && scalar.value <= 126 && scalar != "=" {
+                    encoded = String(char)
+                } else {
+                    let bytes = String(char).utf8
+                    encoded = bytes.map { String(format: "=%02X", $0) }.joined()
+                }
+            }
+
+            if lineLength + encoded.count > 75 {
+                result += "=\n"  // LF only
+                lineLength = 0
+            }
+
+            result += encoded
+            lineLength += encoded.count
+        }
+
+        for ws in pendingWhitespace.unicodeScalars {
+            let encoded: String
+            if ws == " " {
+                encoded = "=20"
+            } else if ws == "\t" {
+                encoded = "=09"
+            } else {
+                encoded = String(Character(ws))
+            }
+            if lineLength + encoded.count > 75 {
+                result += "=\n"
+                lineLength = 0
+            }
+            result += encoded
+            lineLength += encoded.count
+        }
+
+        return result
+    }
+
+    /// Base64 encoding with LF line breaks (for S/MIME signed content)
+    private func base64EncodeWithLineBreaksLF(_ data: Data) -> String {
+        let base64 = data.base64EncodedString()
+        var result = ""
+        var index = base64.startIndex
+        while index < base64.endIndex {
+            let endIndex = base64.index(index, offsetBy: 76, limitedBy: base64.endIndex) ?? base64.endIndex
+            result += base64[index..<endIndex]
+            if endIndex < base64.endIndex {
+                result += "\n"  // LF only
+            }
+            index = endIndex
+        }
+        return result
     }
 
     private func buildUnsignedMIMEMessage(_ message: MailMessage) -> String {
