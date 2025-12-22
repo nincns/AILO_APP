@@ -158,113 +158,7 @@ struct MailView: View {
 
     var body: some View {
         ZStack(alignment: .leading) {
-            // Main content area wrapped in NavigationStack to keep titles and toolbars
-            NavigationStack {
-                detail
-                    .safeAreaInset(edge: .top, spacing: 0) {
-                        VStack(spacing: 8) {
-                            Text(currentViewTitle)
-                                .font(.headline)
-                                .multilineTextAlignment(.center)
-                                .lineLimit(2)
-                                .minimumScaleFactor(0.8)
-                                .frame(maxWidth: .infinity)
-                            Picker("Filter", selection: $quickFilter) {
-                                Text("app.mail.filter.all").tag(QuickFilter.all)
-                                Text("app.mail.filter.unread").tag(QuickFilter.unread)
-                                Text("app.mail.filter.flagged").tag(QuickFilter.flagged)
-                            }
-                            .pickerStyle(.segmented)
-                            .padding(.horizontal)
-
-                            Divider()
-                        }
-                        .background(.ultraThinMaterial)
-                    }
-                    .toolbar {
-                        ToolbarItem(placement: .topBarLeading) {
-                            HStack(spacing: 12) {
-                                // Account-Name oben links
-                                if let account = mailManager.accounts.first(where: { $0.id == selectedAccountId }) {
-                                    HStack(spacing: 6) {
-                                        Image(systemName: "person.crop.circle.fill")
-                                            .foregroundStyle(.accentColor)
-                                        Text(account.displayName)
-                                            .font(.subheadline)
-                                            .fontWeight(.medium)
-                                            .lineLimit(1)
-                                        if isBackgroundSyncing {
-                                            ProgressView()
-                                                .scaleEffect(0.6)
-                                        }
-                                    }
-                                }
-
-                                // Optionen-Menu
-                                Menu {
-                                    // Synchronisieren
-                                    if let accountId = selectedAccountId {
-                                        Button(action: {
-                                            Task {
-                                                await self.syncAccount(accountId)
-                                                await self.refreshMails()
-                                            }
-                                        }) {
-                                            Label("app.mail.sync", systemImage: "arrow.triangle.2.circlepath")
-                                        }
-                                        Divider()
-                                    }
-
-                                    // Bulk-Aktionen
-                                    Button(action: { Task { await self.markAllRead() } }) {
-                                        Label("app.mail.mark_all_read", systemImage: "envelope.open")
-                                    }
-                                    Button(action: { Task { await self.markAllUnread() } }) {
-                                        Label("app.mail.mark_all_unread", systemImage: "envelope")
-                                    }
-
-                                    Divider()
-
-                                    // Sortierung
-                                    Button(action: { self.sortMode = .dateDesc }) {
-                                        HStack {
-                                            Text("app.mail.sort_newest_first")
-                                            if sortMode == .dateDesc { Image(systemName: "checkmark") }
-                                        }
-                                    }
-                                    Button(action: { self.sortMode = .sender }) {
-                                        HStack {
-                                            Text("app.mail.sort_by_sender")
-                                            if sortMode == .sender { Image(systemName: "checkmark") }
-                                        }
-                                    }
-                                } label: {
-                                    Image(systemName: "ellipsis.circle")
-                                        .font(.body)
-                                }
-                            }
-                        }
-                        ToolbarItem(placement: .primaryAction) {
-                            Button(action: { self.activeSheet = .compose }) {
-                                Image(systemName: "square.and.pencil")
-                            }
-                        }
-                        ToolbarItem(placement: .topBarTrailing) {
-                            Button(action: { Task { await self.refreshMails() } }) {
-                                HStack(spacing: 4) {
-                                    Image(systemName: "arrow.clockwise")
-                                    if isBackgroundSyncing {
-                                        Image(systemName: "circle.fill")
-                                            .foregroundStyle(.orange)
-                                            .font(.caption2)
-                                    }
-                                }
-                            }
-                            .disabled(self.isRefreshing)
-                        }
-                    }
-                .toolbar(isMailboxPanelOpen ? .hidden : .visible, for: .navigationBar)
-            }
+            mainNavigationContent
 
             // Dimming overlay when panel is open; tap to close
             if isMailboxPanelOpen {
@@ -359,7 +253,140 @@ struct MailView: View {
             }
         }
     }
-    
+
+    // MARK: - Extracted Sub-Views (für Compiler Performance)
+
+    @ViewBuilder
+    private var mainNavigationContent: some View {
+        NavigationStack {
+            detail
+                .safeAreaInset(edge: .top, spacing: 0) {
+                    headerAreaView
+                }
+                .toolbar {
+                    toolbarLeadingItems
+                    toolbarTrailingItems
+                }
+                .toolbar(isMailboxPanelOpen ? .hidden : .visible, for: .navigationBar)
+        }
+    }
+
+    @ViewBuilder
+    private var headerAreaView: some View {
+        VStack(spacing: 8) {
+            Text(currentViewTitle)
+                .font(.headline)
+                .multilineTextAlignment(.center)
+                .lineLimit(2)
+                .minimumScaleFactor(0.8)
+                .frame(maxWidth: .infinity)
+            Picker("Filter", selection: $quickFilter) {
+                Text("app.mail.filter.all").tag(QuickFilter.all)
+                Text("app.mail.filter.unread").tag(QuickFilter.unread)
+                Text("app.mail.filter.flagged").tag(QuickFilter.flagged)
+            }
+            .pickerStyle(.segmented)
+            .padding(.horizontal)
+
+            Divider()
+        }
+        .background(.ultraThinMaterial)
+    }
+
+    @ToolbarContentBuilder
+    private var toolbarLeadingItems: some ToolbarContent {
+        ToolbarItem(placement: .topBarLeading) {
+            HStack(spacing: 12) {
+                accountNameView
+                optionsMenuView
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var accountNameView: some View {
+        if let account = mailManager.accounts.first(where: { $0.id == selectedAccountId }) {
+            HStack(spacing: 6) {
+                Image(systemName: "person.crop.circle.fill")
+                    .foregroundStyle(.accentColor)
+                Text(account.displayName)
+                    .font(.subheadline)
+                    .fontWeight(.medium)
+                    .lineLimit(1)
+                if isBackgroundSyncing {
+                    ProgressView()
+                        .scaleEffect(0.6)
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var optionsMenuView: some View {
+        Menu {
+            if let accountId = selectedAccountId {
+                Button {
+                    Task {
+                        await self.syncAccount(accountId)
+                        await self.refreshMails()
+                    }
+                } label: {
+                    Label("app.mail.sync", systemImage: "arrow.triangle.2.circlepath")
+                }
+                Divider()
+            }
+
+            Button { Task { await self.markAllRead() } } label: {
+                Label("app.mail.mark_all_read", systemImage: "envelope.open")
+            }
+            Button { Task { await self.markAllUnread() } } label: {
+                Label("app.mail.mark_all_unread", systemImage: "envelope")
+            }
+
+            Divider()
+
+            Button { self.sortMode = .dateDesc } label: {
+                HStack {
+                    Text("app.mail.sort_newest_first")
+                    if sortMode == .dateDesc { Image(systemName: "checkmark") }
+                }
+            }
+            Button { self.sortMode = .sender } label: {
+                HStack {
+                    Text("app.mail.sort_by_sender")
+                    if sortMode == .sender { Image(systemName: "checkmark") }
+                }
+            }
+        } label: {
+            Image(systemName: "ellipsis.circle")
+                .font(.body)
+        }
+    }
+
+    @ToolbarContentBuilder
+    private var toolbarTrailingItems: some ToolbarContent {
+        ToolbarItem(placement: .primaryAction) {
+            Button { self.activeSheet = .compose } label: {
+                Image(systemName: "square.and.pencil")
+            }
+        }
+        ToolbarItem(placement: .topBarTrailing) {
+            Button {
+                Task { await self.refreshMails() }
+            } label: {
+                HStack(spacing: 4) {
+                    Image(systemName: "arrow.clockwise")
+                    if isBackgroundSyncing {
+                        Image(systemName: "circle.fill")
+                            .foregroundStyle(.orange)
+                            .font(.caption2)
+                    }
+                }
+            }
+            .disabled(self.isRefreshing)
+        }
+    }
+
     @ViewBuilder
     private var mailboxRailAndPanel: some View {
         GeometryReader { geo in
