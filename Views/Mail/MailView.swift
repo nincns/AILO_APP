@@ -288,9 +288,21 @@ struct MailView: View {
             .pickerStyle(.segmented)
             .padding(.horizontal)
 
-            // Optionen-Zeile unter dem Filter
-            HStack {
-                Spacer()
+            // Suche + Optionen-Zeile unter dem Filter
+            HStack(spacing: 12) {
+                // Suchfeld
+                HStack(spacing: 8) {
+                    Image(systemName: "magnifyingglass")
+                        .foregroundStyle(.secondary)
+                    TextField("Suchen", text: $searchText)
+                        .textFieldStyle(.plain)
+                }
+                .padding(.horizontal, 10)
+                .padding(.vertical, 6)
+                .background(Color(.systemGray6))
+                .clipShape(RoundedRectangle(cornerRadius: 8))
+
+                // Optionen-Menu
                 optionsMenuView
             }
             .padding(.horizontal)
@@ -315,10 +327,16 @@ struct MailView: View {
             HStack(spacing: 6) {
                 Image(systemName: "person.crop.circle.fill")
                     .foregroundColor(.accentColor)
-                Text(account.displayName)
-                    .font(.subheadline)
-                    .fontWeight(.medium)
-                    .lineLimit(1)
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(account.displayName)
+                        .font(.subheadline)
+                        .fontWeight(.medium)
+                        .lineLimit(1)
+                    Text(account.emailAddress)
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                }
                 if isBackgroundSyncing {
                     ProgressView()
                         .scaleEffect(0.6)
