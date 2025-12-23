@@ -28,21 +28,6 @@ struct SchreibenView: View {
     // UI
     @State private var showSaved = false
 
-    // Import / Kontext-Aktionen
-    @State private var showImportMenu = false
-    @State private var showMailImport = false
-    @State private var composeToken: UUID? = nil
-    // Key für Prefill-Übergabe aus der SchreibenMailView
-    private let composePrefillKey = "compose.prefill"
-
-    /// Helper to safely consume and apply the compose prefill.
-    @MainActor private func applyComposePrefill() {
-        if let s = UserDefaults.standard.string(forKey: composePrefillKey), !s.isEmpty {
-            appendImported(s)
-            UserDefaults.standard.removeObject(forKey: composePrefillKey)
-        }
-    }
-
     private enum Field { case title, tagInput, editor }
     @FocusState private var focusedField: Field?
 
@@ -197,11 +182,11 @@ struct SchreibenView: View {
                             .overlay(RoundedRectangle(cornerRadius: 8).stroke(.secondary))
                             .focused($focusedField, equals: .editor)
                         HStack {
-                            // Kontext-Button links
+                            // Einfügen aus Zwischenablage
                             Button {
-                                showImportMenu = true
+                                importFromPasteboard()
                             } label: {
-                                Label(String(localized: "write.action.insert"), systemImage: "tray.and.arrow.down")
+                                Label(String(localized: "write.action.paste"), systemImage: "doc.on.clipboard")
                             }
                             .buttonStyle(.bordered)
 
@@ -212,15 +197,6 @@ struct SchreibenView: View {
                                 .buttonStyle(.borderedProminent)
                                 .disabled(text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                         }
-                    }
-                    .confirmationDialog(String(localized: "write.dialog.insertContent"), isPresented: $showImportMenu, titleVisibility: .visible) {
-                        Button("write.dialog.fromClipboard") {
-                            importFromPasteboard()
-                        }
-                        Button("write.dialog.fromEmail") {
-                            showMailImport = true
-                        }
-                        Button("write.dialog.cancel", role: .cancel) {}
                     }
                     .padding()
                     .background(Color.gray.opacity(0.1))
@@ -239,41 +215,9 @@ struct SchreibenView: View {
         .sheet(isPresented: $showCategoriesSheet, onDismiss: { loadCategories() }) {
             NavigationStack { CategoriesView() }
         }
-        .sheet(isPresented: $showMailImport, onDismiss: { applyComposePrefill() }) {
-            NavigationStack {
-                SchreibenMailView(
-                    onPick: { body in
-                        // Direkt in den Editor übernehmen (nutzt vorhandene Logik inkl. Fokuswechsel)
-                        appendImported(body)
-                    },
-                    onDismissRequest: { showMailImport = false }
-                )
-            }
-        }
-        .onChange(of: showMailImport) { _, isPresented in
-            // Wenn das Mail-Sheet geschlossen wurde, Prefill sicher übernehmen (mit kleinem Delay)
-            if isPresented == false {
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
-                    applyComposePrefill()
-                }
-            }
-        }
         .onAppear {
             loadCategories()
             goto(.title)
-            // Falls die Notification zu früh kam (Sheet schließt schneller), Prefill hier nachziehen
-            applyComposePrefill()
-            if composeToken == nil {
-                composeToken = ComposePrefillCenter.shared.register { body in
-                    // Schreibe direkt in den echten Editor-State
-                    if text.isEmpty { text = body }
-                    else {
-                        let needsNewline = !text.hasSuffix("\n")
-                        text += (needsNewline ? "\n" : "") + body
-                    }
-                    goto(.content)
-                }
-            }
         }
         .onReceive(NotificationCenter.default.publisher(for: UserDefaults.didChangeNotification)) { _ in
             loadCategories()
@@ -283,24 +227,7 @@ struct SchreibenView: View {
                 category = categories.first ?? String(localized: "write.category.default")
             }
         }
-        .onChange(of: store.pendingImportText) { _, newValue in
-            if let incoming = newValue, !incoming.isEmpty {
-                // open the mail view instead of the old paste popup
-                showMailImport = true
-                // reset so subsequent imports re-trigger
-                store.pendingImportText = nil
-            }
-        }
-        .onReceive(NotificationCenter.default.publisher(for: Notification.Name("compose.prefill"))) { _ in
-            applyComposePrefill()
-        }
         .onTapGesture { focusedField = nil }
-        .onDisappear {
-            if let tok = composeToken {
-                ComposePrefillCenter.shared.unregister(tok)
-                composeToken = nil
-            }
-        }
         .toolbar {
             ToolbarItem(placement: .keyboard) {
                 HStack {
@@ -389,11 +316,8 @@ struct SchreibenView: View {
         reminderOn = false
         // optional: reminderDate auf +1h zurücksetzen
         reminderDate = Date().addingTimeInterval(3600)
-
-        // Reset (optional)
-        // title = ""; text = ""; tags = []; reminderOn = false
     }
-    
+
     private func loadCategories() {
         let ud = UserDefaults.standard
         if let data = ud.data(forKey: kCategories),

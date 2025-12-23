@@ -152,6 +152,7 @@
 "write.action.add" = "Hinzufügen";
 "write.action.next" = "Weiter";
 "write.action.insert" = "Einfügen";
+"write.action.paste" = "Einfügen";
 "write.action.save" = "Speichern";
 "write.dialog.insertContent" = "Inhalt einfügen";
 "write.dialog.fromClipboard" = "Aus Zwischenablage einfügen";

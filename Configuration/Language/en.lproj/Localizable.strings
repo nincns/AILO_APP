@@ -204,6 +204,7 @@
 "write.action.add" = "Add";
 "write.action.next" = "Next";
 "write.action.insert" = "Insert";
+"write.action.paste" = "Paste";
 "write.action.save" = "Save";
 "write.dialog.insertContent" = "Insert content";
 "write.dialog.fromClipboard" = "Paste from clipboard";
