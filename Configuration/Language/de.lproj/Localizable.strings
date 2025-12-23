@@ -114,6 +114,7 @@
 "logDetail.label.originalText" = "Originaltext";
 "logDetail.label.aiText" = "KI-Text";
 "logDetail.preset.label" = "Voreinstellung";
+"logDetail.recipe.none" = "Kein Rezept";
 "logDetail.ai.empty" = "KI-Überarbeitung noch nicht ausgeführt.";
 "logDetail.action.edit" = "Bearbeiten";
 "logDetail.action.save" = "Änderungen speichern";
