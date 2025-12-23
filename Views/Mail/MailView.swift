@@ -243,13 +243,22 @@ struct MailView: View {
             }
         }
         .onChange(of: selectedMailbox) { _, newMailbox in
-            // PHASE 3: Setze viewMode wenn selectedMailbox sich ändert  
+            // PHASE 3: Setze viewMode wenn selectedMailbox sich ändert
             self.viewMode = .specialFolder(newMailbox)
             self.selectedCustomFolder = nil
-            
+
             Task {
                 // 🚀 Sofortiges Laden aus Cache bei Mailbox-Wechsel
                 await self.mailManager.loadCachedMails(for: newMailbox, accountId: self.selectedAccountId)
+
+                // 🔄 Lazy Sync: Ordner synchronisieren wenn nicht INBOX (INBOX wurde beim Start synced)
+                if newMailbox != .inbox, let accountId = self.selectedAccountId {
+                    if let folderName = self.mailboxFolderName(for: newMailbox), !folderName.isEmpty {
+                        print("🔄 Triggering lazy sync for folder: \(folderName)")
+                        await self.performBackgroundSync(accountId: accountId, folder: folderName)
+                        await self.mailManager.refreshMails(for: newMailbox, accountId: accountId)
+                    }
+                }
             }
         }
     }
@@ -779,22 +788,29 @@ struct MailView: View {
             print("✅ Custom folder refresh completed: '\(folder)'")
         }
     }
-    
+
     /// Führt Hintergrund-Synchronisation ohne UI-Blocking durch
-    private func performBackgroundSync(accountId: UUID) async {
-        print("🔄 Performing background sync for account: \(accountId)")
-        
-        // PHASE 4: Alle konfigurierten Ordner synchronisieren
-        let allFolders = MailRepository.shared.getAllConfiguredFolders(accountId: accountId)
-        print("📁 Syncing all configured folders: \(allFolders)")
-        
-        // Inkrementelle Sync im Hintergrund für alle Ordner
-        MailRepository.shared.incrementalSync(accountId: accountId, folders: allFolders)
-        
+    /// Optimiert: Nur INBOX beim App-Start, andere Ordner lazy beim Öffnen
+    private func performBackgroundSync(accountId: UUID, folder: String? = nil) async {
+        let folderToSync: [String]
+
+        if let specificFolder = folder {
+            // Lazy sync: Nur den angeforderten Ordner synchronisieren
+            folderToSync = [specificFolder]
+            print("🔄 Lazy sync for folder: \(specificFolder)")
+        } else {
+            // App-Start: Nur INBOX synchronisieren für schnellen Start
+            folderToSync = ["INBOX"]
+            print("🚀 Quick start: Syncing only INBOX")
+        }
+
+        // Inkrementelle Sync im Hintergrund
+        MailRepository.shared.incrementalSync(accountId: accountId, folders: folderToSync)
+
         // Kurze Wartezeit für Sync-Initiation
-        try? await Task.sleep(nanoseconds: 1_000_000_000) // 1 Sekunde
-        
-        print("✅ Background sync completed for account: \(accountId) - synced \(allFolders.count) folders")
+        try? await Task.sleep(nanoseconds: 500_000_000) // 0.5 Sekunden
+
+        print("✅ Background sync completed for: \(folderToSync.joined(separator: ", "))")
     }
     
     private func syncAccount(_ accountId: UUID) async {
