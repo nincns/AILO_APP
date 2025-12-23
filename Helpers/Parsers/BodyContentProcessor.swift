@@ -160,13 +160,16 @@ public class BodyContentProcessor {
     private static func finalizeHTMLForDisplay(_ html: String) -> String {
         var content = html
 
-        // Schritt 1: Entferne verwaiste Meta-Tag-Fragmente (auch für gecachte Mails)
+        // Schritt 1: Quoted-Printable Decoding (auch für gecachte Mails mit Umlauten)
+        content = decodeQuotedPrintableIfNeeded(content)
+
+        // Schritt 2: Entferne verwaiste Meta-Tag-Fragmente (auch für gecachte Mails)
         content = cleanHTMLMetaTags(content)
 
-        // Schritt 2: Sichere minimale HTML-Struktur (falls noch nicht vorhanden)
+        // Schritt 3: Sichere minimale HTML-Struktur (falls noch nicht vorhanden)
         content = ensureMinimalHTMLStructure(content)
 
-        // Schritt 3: Letzte Cleanup-Phase für Anzeige
+        // Schritt 4: Letzte Cleanup-Phase für Anzeige
         content = content.trimmingCharacters(in: .whitespacesAndNewlines)
 
         return content
@@ -261,16 +264,18 @@ public class BodyContentProcessor {
     /// - Returns: Final bereinigter Plain-Text-Content für Anzeige
     private static func finalizePlainTextForDisplay(_ text: String) -> String {
         var content = text
-        
-        // Nur noch finale kosmetische Korrekturen
-        // Schritt 1: Finale Whitespace-Bereinigung
+
+        // Schritt 1: Quoted-Printable Decoding (auch für gecachte Mails)
+        content = decodeQuotedPrintableIfNeeded(content)
+
+        // Schritt 2: Finale Whitespace-Bereinigung
         content = content.trimmingCharacters(in: .whitespacesAndNewlines)
-        
-        // Schritt 2: Stelle sicher dass nicht komplett leer
+
+        // Schritt 3: Stelle sicher dass nicht komplett leer
         if content.isEmpty {
             return "(Kein Textinhalt verfügbar)"
         }
-        
+
         return content
     }
     
