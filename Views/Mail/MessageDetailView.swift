@@ -1376,7 +1376,12 @@ struct MessageDetailView: View {
             return true
         }
 
-        // 3. PDF, Office-Dokumente, etc.
+        // 3. Multipart/related enthält eingebettete Bilder
+        if lowerBody.contains("content-type: multipart/related") {
+            return true
+        }
+
+        // 4. PDF, Office-Dokumente, etc.
         let attachmentTypes = [
             "application/pdf",
             "application/msword",
@@ -1393,9 +1398,20 @@ struct MessageDetailView: View {
             }
         }
 
-        // 4. Dateiname mit typischer Anhang-Erweiterung
-        if lowerBody.contains("filename=") {
-            let attachmentExtensions = [".pdf", ".doc", ".docx", ".xls", ".xlsx", ".ppt", ".pptx", ".zip", ".rar"]
+        // 5. Bilder (inline oder attachment)
+        let imageTypes = ["image/png", "image/jpeg", "image/jpg", "image/gif", "image/bmp", "image/webp"]
+        for type in imageTypes {
+            if lowerBody.contains("content-type: \(type)") {
+                return true
+            }
+        }
+
+        // 6. Dateiname mit typischer Anhang-Erweiterung (inkl. Bilder)
+        if lowerBody.contains("filename=") || lowerBody.contains("name=") {
+            let attachmentExtensions = [
+                ".pdf", ".doc", ".docx", ".xls", ".xlsx", ".ppt", ".pptx", ".zip", ".rar",
+                ".png", ".jpg", ".jpeg", ".gif", ".bmp", ".webp"
+            ]
             for ext in attachmentExtensions {
                 if lowerBody.contains(ext) {
                     return true
