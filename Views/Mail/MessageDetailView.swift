@@ -626,8 +626,14 @@ struct MessageDetailView: View {
                                 text: bodyEntity.text
                             )
 
+                            // Inline-Bilder: CID-Referenzen durch Base64 Data-URLs ersetzen
+                            var finalContent = displayContent.content
+                            if displayContent.isHTML, let rawBody = bodyEntity.rawBody {
+                                finalContent = replaceCIDWithBase64(html: finalContent, rawBody: rawBody)
+                            }
+
                             await MainActor.run {
-                                bodyText = displayContent.content
+                                bodyText = finalContent
                                 isHTML = displayContent.isHTML
                                 rawBodyText = bodyEntity.rawBody ?? ""
                                 isLoadingBody = false
@@ -810,8 +816,14 @@ struct MessageDetailView: View {
                             text: bodyEntity.text
                         )
 
+                        // Inline-Bilder: CID-Referenzen durch Base64 Data-URLs ersetzen
+                        var finalContent = displayContent.content
+                        if displayContent.isHTML, let rawBody = bodyEntity.rawBody {
+                            finalContent = replaceCIDWithBase64(html: finalContent, rawBody: rawBody)
+                        }
+
                         await MainActor.run {
-                            bodyText = displayContent.content
+                            bodyText = finalContent
                             isHTML = displayContent.isHTML
                             rawBodyText = bodyEntity.rawBody ?? ""
                             isLoadingBody = false
@@ -1957,6 +1969,48 @@ struct MessageDetailView: View {
         }
 
         return composeAttachments
+    }
+
+    /// Ersetzt CID-Referenzen in HTML durch Base64 Data-URLs für Inline-Bilder
+    private func replaceCIDWithBase64(html: String, rawBody: String) -> String {
+        guard !rawBody.isEmpty else { return html }
+
+        // Extrahiere Anhänge mit Content-ID
+        let attachments = AttachmentExtractor.extract(from: rawBody)
+        let cidAttachments = attachments.filter { $0.contentId != nil }
+
+        guard !cidAttachments.isEmpty else {
+            print("🖼️ [CID] No attachments with Content-ID found")
+            return html
+        }
+
+        print("🖼️ [CID] Found \(cidAttachments.count) attachments with Content-ID")
+
+        var result = html
+
+        for attachment in cidAttachments {
+            guard let contentId = attachment.contentId else { continue }
+
+            // CID kann verschiedene Formate haben: cid:image001.png@... oder cid:image001.png
+            // Wir suchen nach beiden Varianten
+            let base64String = attachment.data.base64EncodedString()
+            let dataURL = "data:\(attachment.mimeType);base64,\(base64String)"
+
+            // Pattern 1: Vollständige CID (mit @-Teil)
+            let fullCIDPattern = "cid:\(NSRegularExpression.escapedPattern(for: contentId))"
+            result = result.replacingOccurrences(of: fullCIDPattern, with: dataURL, options: .caseInsensitive)
+
+            // Pattern 2: CID ohne @-Teil (nur der Dateiname-Teil)
+            if let atIndex = contentId.firstIndex(of: "@") {
+                let shortCID = String(contentId[..<atIndex])
+                let shortCIDPattern = "cid:\(NSRegularExpression.escapedPattern(for: shortCID))"
+                result = result.replacingOccurrences(of: shortCIDPattern, with: dataURL, options: .caseInsensitive)
+            }
+
+            print("🖼️ [CID] Replaced cid:\(contentId.prefix(30))... with data URL (\(attachment.data.count) bytes)")
+        }
+
+        return result
     }
 
 }
