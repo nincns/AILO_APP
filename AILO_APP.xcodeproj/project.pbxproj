@@ -51,6 +51,7 @@
 		C9B7A0932EF8323900D0D81D /* Cookbook.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9B7A0922EF8323900D0D81D /* Cookbook.swift */; };
 		C9B7A09A2EF939A100D0D81D /* KeychainCertificateService.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9B7A0972EF939A100D0D81D /* KeychainCertificateService.swift */; };
 		C9B7A09B2EF939A100D0D81D /* SMIMESigningService.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9B7A0982EF939A100D0D81D /* SMIMESigningService.swift */; };
+		C9B7A1752EFB52F800D0D81D /* ViewportSyncManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9B7A1742EFB52F800D0D81D /* ViewportSyncManager.swift */; };
 		C9C33C352EB2C0E4006390C7 /* ContentAnalyzer.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9C33C342EB2C0E4006390C7 /* ContentAnalyzer.swift */; };
 		C9C33C372EB2C341006390C7 /* TransferEncodingDecoder.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9C33C362EB2C341006390C7 /* TransferEncodingDecoder.swift */; };
 		C9C33C392EB2C35A006390C7 /* HeaderCharsetDetector.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9C33C382EB2C35A006390C7 /* HeaderCharsetDetector.swift */; };
@@ -181,6 +182,7 @@
 		C9B7A0922EF8323900D0D81D /* Cookbook.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Cookbook.swift; sourceTree = "<group>"; };
 		C9B7A0972EF939A100D0D81D /* KeychainCertificateService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeychainCertificateService.swift; sourceTree = "<group>"; };
 		C9B7A0982EF939A100D0D81D /* SMIMESigningService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SMIMESigningService.swift; sourceTree = "<group>"; };
+		C9B7A1742EFB52F800D0D81D /* ViewportSyncManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ViewportSyncManager.swift; sourceTree = "<group>"; };
 		C9C33C342EB2C0E4006390C7 /* ContentAnalyzer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentAnalyzer.swift; sourceTree = "<group>"; };
 		C9C33C362EB2C341006390C7 /* TransferEncodingDecoder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TransferEncodingDecoder.swift; sourceTree = "<group>"; };
 		C9C33C382EB2C35A006390C7 /* HeaderCharsetDetector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HeaderCharsetDetector.swift; sourceTree = "<group>"; };
@@ -523,6 +525,7 @@
 		C9DEDFD32EAECC4D00C40B92 /* Sync */ = {
 			isa = PBXGroup;
 			children = (
+				C9B7A1742EFB52F800D0D81D /* ViewportSyncManager.swift */,
 				C9DEDFCD2EAECC4D00C40B92 /* FolderDiscoveryService.swift */,
 				C9DEDFCE2EAECC4D00C40B92 /* FolderDiscoveryService_Control.swift */,
 				C9DEDFCF2EAECC4D00C40B92 /* MailRepository.swift */,
@@ -821,6 +824,7 @@
 				C9B7A08F2EF82DAC00D0D81D /* CookbookView.swift in Sources */,
 				C9DEE0182EAECC4D00C40B92 /* MessageDetailView.swift in Sources */,
 				C9DEE0192EAECC4D00C40B92 /* AILO_APPApp.swift in Sources */,
+				C9B7A1752EFB52F800D0D81D /* ViewportSyncManager.swift in Sources */,
 				C9DEE01A2EAECC4D00C40B92 /* AIPrePromptPreset.swift in Sources */,
 				C9FB883A2EB2AB0D002359BA /* AttachmentManager.swift in Sources */,
 				C9DEE01B2EAECC4D00C40B92 /* MailHealthMonitor.swift in Sources */,
