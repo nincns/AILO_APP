@@ -9,18 +9,24 @@ import Foundation
     @Published var unreadCount: Int = 0
     @Published var outboxCount: Int = 0
     @Published var draftsCount: Int = 0
-    
+
     @Published var lastError: String? = nil
     @Published var isLoading: Bool = false
-    
+
     @Published var availableMailboxes: Set<MailboxType> = [.inbox]
-    
+
     // MARK: - Phase 2: Folder-State Management
     @Published var allServerFolders: [String] = []          // Alle Ordner vom Server
     @Published var isLoadingFolders: Bool = false           // Loading-State
     @Published var selectedFolder: String? = nil            // Aktuell gewählter Custom-Folder
     @Published var attachmentStatus: [String: Bool] = [:]   // uid -> hasAttachments
-    
+
+    // MARK: - Viewport-Based Sync Manager
+    /// Scope-basierte Synchronisation: Nur sichtbare Mails werden synchronisiert
+    private(set) lazy var viewportManager: ViewportSyncManager = {
+        ViewportSyncManager(repository: MailRepository.shared)
+    }()
+
     private var syncingAccounts: Set<UUID> = []
     private var accountsChangedObserver: AnyCancellable?
     private var activeChangedObserver: AnyCancellable?
@@ -210,9 +216,12 @@ import Foundation
     /// 2.2 Lädt Mails für beliebigen Ordner
     func loadMailsForFolder(folder: String, accountId: UUID) async {
         print("📂 loadMailsForFolder called - folder: '\(folder)', accountId: \(accountId)")
-        
+
+        // 📍 ViewportSyncManager: Setze Kontext für scope-basierte Sync
+        viewportManager.setContext(accountId: accountId, folder: folder)
+
         // Loading-State aktivieren
-        await MainActor.run { 
+        await MainActor.run {
             self.isLoading = true
             self.lastError = nil
         }
@@ -433,14 +442,17 @@ import Foundation
     func loadCachedMails(for mailbox: MailboxType, accountId: UUID?) async {
         let accIdStr = accountId?.uuidString ?? "nil"
         print("📱 loadCachedMails called for mailbox: \(mailbox), accountId: \(accIdStr)")
-        
+
         guard let accountId = accountId else {
             print("❌ No accountId provided for cached loading")
             return
         }
-        
+
         let folder = await folderNameForMailbox(mailbox, accountId: accountId)
         print("📂 Loading cached data from folder: \(folder)")
+
+        // 📍 ViewportSyncManager: Setze Kontext für scope-basierte Sync
+        viewportManager.setContext(accountId: accountId, folder: folder)
         
         do {
             // 🚀 NEU: Verwende spezielle Cache-Methode ohne Netzwerk-Operationen

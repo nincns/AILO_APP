@@ -9,19 +9,24 @@ struct CompactMessageListView: View {
     @Binding var searchText: String
     let onRefresh: () async -> Void
     @EnvironmentObject var mailManager: MailViewModel
-    
-    init(mails: [MessageHeaderEntity], 
+
+    /// Viewport-based sync manager for on-demand synchronization
+    @ObservedObject var viewportManager: ViewportSyncManager
+
+    init(mails: [MessageHeaderEntity],
          onDelete: @escaping (MessageHeaderEntity) -> Void,
-         onToggleFlag: @escaping (MessageHeaderEntity) -> Void, 
+         onToggleFlag: @escaping (MessageHeaderEntity) -> Void,
          onToggleRead: @escaping (MessageHeaderEntity) -> Void,
          searchText: Binding<String>,
-         onRefresh: @escaping () async -> Void) {
+         onRefresh: @escaping () async -> Void,
+         viewportManager: ViewportSyncManager = ViewportSyncManager()) {
         self.mails = mails
         self.onDelete = onDelete
         self.onToggleFlag = onToggleFlag
         self.onToggleRead = onToggleRead
         self._searchText = searchText
         self.onRefresh = onRefresh
+        self.viewportManager = viewportManager
     }
 
     var body: some View {
@@ -30,8 +35,15 @@ struct CompactMessageListView: View {
                 NavigationLink(value: mail.uid) {
                     EnhancedMailRowView(
                         mail: mail,
-                        hasAttachments: mailManager.attachmentStatus[mail.uid] ?? false  // NEU
+                        hasAttachments: mailManager.attachmentStatus[mail.uid] ?? false
                     )
+                }
+                // MARK: - Viewport Tracking für Scope-basierte Synchronisation
+                .onAppear {
+                    viewportManager.rowAppeared(uid: mail.uid)
+                }
+                .onDisappear {
+                    viewportManager.rowDisappeared(uid: mail.uid)
                 }
                 .swipeActions(edge: .trailing, allowsFullSwipe: true) {
                     Button(role: .destructive) { onDelete(mail) } label: { Label("app.common.delete", systemImage: "trash") }
@@ -41,6 +53,14 @@ struct CompactMessageListView: View {
             }
         }
         .refreshable { await onRefresh() }
+        .onAppear {
+            // Aktualisiere die Liste bekannter UIDs für Prefetch-Berechnung
+            viewportManager.updateKnownUIDs(filtered.map { $0.uid })
+        }
+        .onChange(of: filtered) { _, newFiltered in
+            // Aktualisiere bei Filteränderungen
+            viewportManager.updateKnownUIDs(newFiltered.map { $0.uid })
+        }
         .navigationDestination(for: String.self) { uid in
             if let mail = mails.first(where: { $0.uid == uid }) {
                 MessageDetailView(
@@ -71,11 +91,19 @@ struct CompactMessageListView: View {
 #Preview {
     let mails: [MessageHeaderEntity] = [
         MessageHeaderEntity(accountId: UUID(), folder: "INBOX", uid: "1", from: "Montgomery Scott <scotty@beam-me-up.net>", subject: "Anfrage Beta Test", date: Date(), flags: []),
-        MessageHeaderEntity(accountId: UUID(), folder: "INBOX", uid: "2", from: "bob@example.com", subject: "Meeting", date: Date().addingTimeInterval(-3600), flags: ["\\Seen"]) 
+        MessageHeaderEntity(accountId: UUID(), folder: "INBOX", uid: "2", from: "bob@example.com", subject: "Meeting", date: Date().addingTimeInterval(-3600), flags: ["\\Seen"])
     ]
     return NavigationStack {
-        CompactMessageListView(mails: mails, onDelete: { _ in }, onToggleFlag: { _ in }, onToggleRead: { _ in }, searchText: .constant(""), onRefresh: {})
-            .environmentObject(MailViewModel())  // NEU: EnvironmentObject für Preview
+        CompactMessageListView(
+            mails: mails,
+            onDelete: { _ in },
+            onToggleFlag: { _ in },
+            onToggleRead: { _ in },
+            searchText: .constant(""),
+            onRefresh: {},
+            viewportManager: ViewportSyncManager()
+        )
+        .environmentObject(MailViewModel())
     }
 }
 
