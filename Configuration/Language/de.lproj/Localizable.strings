@@ -625,12 +625,20 @@
 "app.mail.action.reply" = "Antworten";
 "app.mail.action.reply_all" = "Allen antworten";
 "app.mail.action.forward" = "Weiterleiten";
+"app.mail.action.create_log" = "Log erstellen";
 "app.mail.action.flag" = "Markieren";
 "app.mail.action.unflag" = "Markierung entfernen";
 "app.mail.action.mark_read" = "Als gelesen markieren";
 "app.mail.action.mark_unread" = "Als ungelesen markieren";
 "app.mail.action.show_technical" = "Quelltext anzeigen";
 "app.mail.action.hide_technical" = "Quelltext ausblenden";
+
+/* Log creation from mail */
+"app.mail.log_created.title" = "Log erstellt";
+"app.mail.log_created.message" = "Die E-Mail wurde als Log-Eintrag gespeichert.";
+"app.mail.log_default_title" = "E-Mail Import";
+"app.mail.log_category" = "E-Mail";
+
 "app.mail.detail.content_loading" = "Inhalt wird geladen";
 "app.mail.detail.content_unavailable" = "Inhalt nicht verfügbar";
 "app.mail.detail.refresh_content" = "Inhalt neu laden";

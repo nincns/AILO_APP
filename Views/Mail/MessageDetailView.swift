@@ -44,6 +44,10 @@ struct MessageDetailView: View {
     @State private var parsedCCField: String = ""
     @State private var composeSheetId: UUID = UUID()  // Force sheet recreation
 
+    // Log creation state
+    @State private var showLogCreated: Bool = false
+    @EnvironmentObject private var store: DataStore
+
     @Environment(\.dismiss) private var dismiss
     
     // Convenience initializer for use without actions
@@ -129,6 +133,10 @@ struct MessageDetailView: View {
                     }
                     Button(action: forwardAction) {
                         Label(String(localized: "app.mail.action.forward"), systemImage: "arrowshape.turn.up.right")
+                    }
+                    Divider()
+                    Button(action: createLogEntry) {
+                        Label(String(localized: "app.mail.action.create_log"), systemImage: "doc.text.fill")
                     }
                     Divider()
                     Button(action: toggleFlagAction) {
@@ -222,6 +230,11 @@ struct MessageDetailView: View {
             }
         }
         .quickLookPreview($previewURL)
+        .alert(String(localized: "app.mail.log_created.title"), isPresented: $showLogCreated) {
+            Button(String(localized: "common.ok"), role: .cancel) {}
+        } message: {
+            Text(String(localized: "app.mail.log_created.message"))
+        }
     }
     
     @ViewBuilder
@@ -1063,7 +1076,57 @@ struct MessageDetailView: View {
         composeSheetId = UUID()  // Force new view instance
         showReplySheet = true
     }
-    
+
+    private func createLogEntry() {
+        print("📝 Creating log entry from mail: \(mail.subject)")
+
+        // Erstelle den Log-Text aus der Mail
+        var logContent = ""
+
+        // Header-Informationen
+        logContent += "Von: \(mail.from)\n"
+        if let date = mail.date {
+            logContent += "Datum: \(date.formatted(date: .abbreviated, time: .shortened))\n"
+        }
+        logContent += "Betreff: \(mail.subject)\n"
+        logContent += "\n---\n\n"
+
+        // Mail-Body
+        if isHTML {
+            // HTML-Tags entfernen für Plain-Text
+            let plainText = bodyText
+                .replacingOccurrences(of: "<br>", with: "\n", options: .caseInsensitive)
+                .replacingOccurrences(of: "<br/>", with: "\n", options: .caseInsensitive)
+                .replacingOccurrences(of: "<br />", with: "\n", options: .caseInsensitive)
+                .replacingOccurrences(of: "</p>", with: "\n\n", options: .caseInsensitive)
+                .replacingOccurrences(of: "</div>", with: "\n", options: .caseInsensitive)
+                .replacingOccurrences(of: "<[^>]+>", with: "", options: .regularExpression)
+                .replacingOccurrences(of: "&nbsp;", with: " ")
+                .replacingOccurrences(of: "&amp;", with: "&")
+                .replacingOccurrences(of: "&lt;", with: "<")
+                .replacingOccurrences(of: "&gt;", with: ">")
+                .replacingOccurrences(of: "&quot;", with: "\"")
+            logContent += plainText
+        } else {
+            logContent += bodyText
+        }
+
+        // Erstelle den LogEntry
+        let entry = LogEntry.text(
+            logContent.trimmingCharacters(in: .whitespacesAndNewlines),
+            title: mail.subject.isEmpty ? String(localized: "app.mail.log_default_title") : mail.subject,
+            category: String(localized: "app.mail.log_category"),
+            tags: ["E-Mail"]
+        )
+
+        // Zum DataStore hinzufügen
+        store.add(entry)
+
+        // Bestätigung anzeigen
+        showLogCreated = true
+        print("✅ Log entry created successfully")
+    }
+
     private func toggleFlagAction() {
         onToggleFlag?(mail)
         print(" Toggle flag for mail: \(mail.subject)")

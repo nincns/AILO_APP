@@ -618,12 +618,19 @@
 "app.mail.action.reply" = "Reply";
 "app.mail.action.reply_all" = "Reply All";
 "app.mail.action.forward" = "Forward";
+"app.mail.action.create_log" = "Create Log";
 "app.mail.action.flag" = "Flag";
 "app.mail.action.unflag" = "Remove Flag";
 "app.mail.action.mark_read" = "Mark as Read";
 "app.mail.action.mark_unread" = "Mark as Unread";
 "app.mail.action.show_technical" = "Show Source";
 "app.mail.action.hide_technical" = "Hide Source";
+
+/* Log creation from mail */
+"app.mail.log_created.title" = "Log Created";
+"app.mail.log_created.message" = "The email has been saved as a log entry.";
+"app.mail.log_default_title" = "Email Import";
+"app.mail.log_category" = "Email";
 
 /* ============================================================================
    Feature: Mail – Compose
