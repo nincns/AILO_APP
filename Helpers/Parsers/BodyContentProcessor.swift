@@ -528,7 +528,7 @@ public class BodyContentProcessor {
     /// Entfernt/Normalisiert HTML-Meta-Tags
     private static func cleanHTMLMetaTags(_ content: String) -> String {
         var content = content
-        
+
         // Entferne DOCTYPE deklarationen (oft doppelt oder falsch platziert)
         let doctypePattern = "<!DOCTYPE[^>]*>"
         content = content.replacingOccurrences(
@@ -536,15 +536,40 @@ public class BodyContentProcessor {
             with: "",
             options: [.regularExpression, .caseInsensitive]
         )
-        
-        // Entferne problematische Content-Type Meta-Tags
+
+        // Entferne problematische Content-Type Meta-Tags (mit Quotes)
         let metaContentTypePattern = "<meta[^>]*http-equiv=['\"]Content-Type['\"][^>]*>"
         content = content.replacingOccurrences(
             of: metaContentTypePattern,
             with: "",
             options: [.regularExpression, .caseInsensitive]
         )
-        
+
+        // Entferne Content-Type Meta-Tags ohne Quotes
+        let metaContentTypeNoQuotes = "<meta[^>]*http-equiv=Content-Type[^>]*>"
+        content = content.replacingOccurrences(
+            of: metaContentTypeNoQuotes,
+            with: "",
+            options: [.regularExpression, .caseInsensitive]
+        )
+
+        // ✅ NEU: Entferne verwaiste Meta-Tag-Fragmente (wenn <meta bereits fehlt)
+        // Pattern: http-equiv=Content-Type ... charset=... bis zum >
+        let orphanedMetaPattern = "http-equiv=Content-Type[^>]*>"
+        content = content.replacingOccurrences(
+            of: orphanedMetaPattern,
+            with: "",
+            options: [.regularExpression, .caseInsensitive]
+        )
+
+        // ✅ NEU: Entferne auch charset-Fragmente ohne Meta-Tag
+        let orphanedCharsetPattern = "^\\s*charset=[^>\\s]+[>;]?\\s*$"
+        content = content.replacingOccurrences(
+            of: orphanedCharsetPattern,
+            with: "",
+            options: [.regularExpression, .caseInsensitive, .anchorsMatchLines]
+        )
+
         return content
     }
     
