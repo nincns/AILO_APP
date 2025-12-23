@@ -13,8 +13,6 @@ private enum K {
 }
 
 struct ConfigView: View {
-    @Environment(\.dismiss) private var dismiss
-
     // MARK: – Kategorien
     @State private var categories: [String] = []
     @State private var newCategory: String = ""
@@ -106,35 +104,8 @@ struct ConfigView: View {
                     NavigationLink("config.nav.aiManager", destination: AIManagerView())
                     NavigationLink("config.nav.prePrompts", destination: PrePromptManager())
                 }
-
-                // MARK: Save Button Section
-                Section {
-                    Button {
-                        persist(.categories); persist(.mic); persist(.speech); persist(.mail)
-                    } label: {
-                        HStack { Image(systemName: "tray.and.arrow.down"); Text("config.action.save") }
-                    }
-                }
-
-                // MARK: Reset
-                Section {
-                    Button {
-                        resetToDefaults()
-                    } label: {
-                        HStack {
-                            Image(systemName: "arrow.counterclockwise.circle")
-                            Text("config.action.resetDefaults")
-                                .foregroundColor(.red)
-                        }
-                    }
-                }
             }
             .navigationTitle(Text("config.nav.title"))
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("config.toolbar.done") { dismiss() }
-                }
-            }
             .onAppear(perform: loadFromDefaults)
         }
     }
@@ -188,16 +159,6 @@ struct ConfigView: View {
         mailSettingsName = ud.string(forKey: K.mailSettingsName) ?? ""
         
         print("🔧 DEBUG: Loaded config values - micSensitivity: \(micSensitivity), silenceThresholdDB: \(silenceThresholdDB), chunkSeconds: \(chunkSeconds)")
-    }
-
-    private func resetToDefaults() {
-        categories = defaultCategories
-        micSensitivity = 0.85
-        silenceThresholdDB = -40
-        chunkSeconds = 2
-        speechLang = Locale.current.identifier.replacingOccurrences(of: "_", with: "-")
-        mailSettingsName = ""
-        persist(.categories); persist(.mic); persist(.speech); persist(.mail)
     }
 }
 
