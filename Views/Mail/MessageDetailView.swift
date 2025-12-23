@@ -462,9 +462,9 @@ struct MessageDetailView: View {
     @ViewBuilder
     private var attachmentsSection: some View {
         VStack(alignment: .leading, spacing: 2) {
-            // Scrollbare Anhang-Liste (max. 3 sichtbar, Rest per Scroll)
             if attachments.count > 3 {
-                ScrollView {
+                // Scrollbare Liste mit fester Höhe
+                ScrollView(.vertical, showsIndicators: true) {
                     VStack(alignment: .leading, spacing: 2) {
                         ForEach(Array(attachments.enumerated()), id: \.offset) { index, attachment in
                             AttachmentRowView(
@@ -476,10 +476,11 @@ struct MessageDetailView: View {
                             )
                         }
                     }
+                    .frame(maxWidth: .infinity, alignment: .leading)
                 }
-                .frame(maxHeight: 90) // Ca. 3 Zeilen à 30pt
+                .frame(height: 90) // Feste Höhe für ca. 3 Zeilen
             } else {
-                // Bei 3 oder weniger Anhängen: normale Anzeige ohne Scroll
+                // Normale Anzeige ohne Scroll (3 oder weniger)
                 ForEach(Array(attachments.enumerated()), id: \.offset) { index, attachment in
                     AttachmentRowView(
                         attachment: attachment,
@@ -491,8 +492,6 @@ struct MessageDetailView: View {
                 }
             }
         }
-        .padding(.horizontal, 0)
-        .padding(.vertical, 0)
     }
     
     // MARK: - Actions
