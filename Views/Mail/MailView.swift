@@ -705,9 +705,10 @@ struct MailView: View {
                         onToggleFlag: { mail in Task { await self.toggleFlag(mail, flag: "\\Flagged") } },
                         onToggleRead: { mail in Task { await self.toggleReadStatus(mail) } },
                         searchText: $searchText,
-                        onRefresh: { await self.refreshMails() }
+                        onRefresh: { await self.refreshMails() },
+                        viewportManager: mailManager.viewportManager  // Scope-based Sync
                     )
-                    .environmentObject(mailManager)  // ✅ NEU: EnvironmentObject hinzugefügt
+                    .environmentObject(mailManager)
                 }
             }
         }
