@@ -701,8 +701,9 @@ private struct LogRecipePickerSheet: View {
                         .foregroundStyle(.primary)
 
                     if let recipeID = item.recipeID,
-                       let recipe = manager.recipe(withID: recipeID) {
-                        Text(recipe.description?.prefix(60) ?? "")
+                       let recipe = manager.recipe(withID: recipeID),
+                       !recipe.keywords.isEmpty {
+                        Text(recipe.keywords.prefix(60))
                             .font(.caption)
                             .foregroundStyle(.secondary)
                             .lineLimit(1)
