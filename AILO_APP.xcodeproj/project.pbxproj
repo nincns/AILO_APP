@@ -71,7 +71,6 @@
 		C9DEDFFD2EAECC4D00C40B92 /* LogEntry.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9DEDF942EAECC4D00C40B92 /* LogEntry.swift */; };
 		C9DEDFFE2EAECC4D00C40B92 /* MailMetrics.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9DEDFC12EAECC4D00C40B92 /* MailMetrics.swift */; };
 		C9DEDFFF2EAECC4D00C40B92 /* ConfigView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9DEDFD82EAECC4D00C40B92 /* ConfigView.swift */; };
-		C9DEE0002EAECC4D00C40B92 /* SchreibenMailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9DEDFE72EAECC4D00C40B92 /* SchreibenMailView.swift */; };
 		C9DEE0012EAECC4D00C40B92 /* MailModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9DEDF972EAECC4D00C40B92 /* MailModels.swift */; };
 		C9DEE0022EAECC4D00C40B92 /* NIOSMTPClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9DEDFC82EAECC4D00C40B92 /* NIOSMTPClient.swift */; };
 		C9DEE0032EAECC4D00C40B92 /* SMTPClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9DEDFCA2EAECC4D00C40B92 /* SMTPClient.swift */; };
@@ -784,7 +783,6 @@
 				C9CF88562EB2BAF1006CC028 /* PlatformImage.swift in Sources */,
 				C947E9002EB411FE007634FC /* DAOHelpers.swift in Sources */,
 				C9FB88422EB2ACA6002359BA /* AttachmentDetailView.swift in Sources */,
-				C9DEE0002EAECC4D00C40B92 /* SchreibenMailView.swift in Sources */,
 				C9DEE0012EAECC4D00C40B92 /* MailModels.swift in Sources */,
 				C96E33AF2EB156E90058CB0A /* QuotedPrintableDecoder.swift in Sources */,
 				C9DEE0022EAECC4D00C40B92 /* NIOSMTPClient.swift in Sources */,
