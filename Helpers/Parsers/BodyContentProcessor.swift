@@ -560,6 +560,15 @@ public class BodyContentProcessor {
             options: [.regularExpression, .caseInsensitive]
         )
 
+        // ✅ NEU: Entferne verwaiste DTD/URL-Fragmente (z.B. //www.w3.org/TR/REC-html40">)
+        // Diese entstehen wenn DOCTYPE teilweise entfernt wurde
+        let orphanedDTDPattern = "(?m)^\\s*//www\\.w3\\.org[^>]*>"
+        content = content.replacingOccurrences(
+            of: orphanedDTDPattern,
+            with: "",
+            options: [.regularExpression, .caseInsensitive]
+        )
+
         // Entferne problematische Content-Type Meta-Tags (mit Quotes)
         let metaContentTypePattern = "<meta[^>]*http-equiv=['\"]Content-Type['\"][^>]*>"
         content = content.replacingOccurrences(
