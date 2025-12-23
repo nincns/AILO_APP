@@ -92,9 +92,11 @@ struct AIEditor: View {
                     }
                 }
                 .onChange(of: config.type) { oldValue, newValue in
-                    if config.baseURL.isEmpty { config.baseURL = newValue.defaultBaseURL }
-                    if config.port.isEmpty    { config.port    = newValue.defaultPort }
-                    if config.model.isEmpty   { config.model   = newValue.defaultModelPlaceholder }
+                    // Immer die Defaults setzen wenn Provider-Typ wechselt
+                    config.baseURL = newValue.defaultBaseURL
+                    config.port    = newValue.defaultPort
+                    config.model   = newValue.defaultModelPlaceholder
+                    fetchedModels.removeAll()
                 }
             }
 
@@ -187,10 +189,12 @@ extension AIEditor {
 
         func finish(_ models: [String]) {
             DispatchQueue.main.async {
-                self.fetchedModels = models.sorted()
+                // Duplikate entfernen (manche APIs wie Mistral liefern Modelle mehrfach)
+                let uniqueModels = Array(Set(models)).sorted()
+                self.fetchedModels = uniqueModels
                 self.isLoadingModels = false
-                if !models.isEmpty, !models.contains(self.config.model) {
-                    self.config.model = models.first!
+                if !uniqueModels.isEmpty, !uniqueModels.contains(self.config.model) {
+                    self.config.model = uniqueModels.first!
                 }
             }
         }
