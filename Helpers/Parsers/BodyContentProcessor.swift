@@ -604,6 +604,14 @@ public class BodyContentProcessor {
             options: [.regularExpression, .caseInsensitive]
         )
 
+        // ✅ NEU: Entferne versehentlich gespeicherte Debug-Fragmente (z.B. "UID 1234)")
+        let debugUIDPattern = "\\s*UID\\s*\\d+\\)?\\s*$"
+        content = content.replacingOccurrences(
+            of: debugUIDPattern,
+            with: "",
+            options: [.regularExpression, .caseInsensitive]
+        )
+
         return content
     }
     
