@@ -159,14 +159,16 @@ public class BodyContentProcessor {
     /// - Returns: Final bereinigter HTML-Content für Anzeige
     private static func finalizeHTMLForDisplay(_ html: String) -> String {
         var content = html
-        
-        // Nur noch finale kosmetische Korrekturen
-        // Schritt 1: Sichere minimale HTML-Struktur (falls noch nicht vorhanden)
+
+        // Schritt 1: Entferne verwaiste Meta-Tag-Fragmente (auch für gecachte Mails)
+        content = cleanHTMLMetaTags(content)
+
+        // Schritt 2: Sichere minimale HTML-Struktur (falls noch nicht vorhanden)
         content = ensureMinimalHTMLStructure(content)
-        
-        // Schritt 2: Letzte Cleanup-Phase für Anzeige
+
+        // Schritt 3: Letzte Cleanup-Phase für Anzeige
         content = content.trimmingCharacters(in: .whitespacesAndNewlines)
-        
+
         return content
     }
     
