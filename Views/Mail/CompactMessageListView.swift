@@ -19,7 +19,7 @@ struct CompactMessageListView: View {
          onToggleRead: @escaping (MessageHeaderEntity) -> Void,
          searchText: Binding<String>,
          onRefresh: @escaping () async -> Void,
-         viewportManager: ViewportSyncManager = ViewportSyncManager()) {
+         viewportManager: ViewportSyncManager) {
         self.mails = mails
         self.onDelete = onDelete
         self.onToggleFlag = onToggleFlag
@@ -88,22 +88,25 @@ struct CompactMessageListView: View {
 
 
 
-#Preview {
-    let mails: [MessageHeaderEntity] = [
-        MessageHeaderEntity(accountId: UUID(), folder: "INBOX", uid: "1", from: "Montgomery Scott <scotty@beam-me-up.net>", subject: "Anfrage Beta Test", date: Date(), flags: []),
-        MessageHeaderEntity(accountId: UUID(), folder: "INBOX", uid: "2", from: "bob@example.com", subject: "Meeting", date: Date().addingTimeInterval(-3600), flags: ["\\Seen"])
-    ]
-    return NavigationStack {
-        CompactMessageListView(
-            mails: mails,
-            onDelete: { _ in },
-            onToggleFlag: { _ in },
-            onToggleRead: { _ in },
-            searchText: .constant(""),
-            onRefresh: {},
-            viewportManager: ViewportSyncManager()
-        )
-        .environmentObject(MailViewModel())
+// Preview mit MainActor-Wrapper für ViewportSyncManager
+struct CompactMessageListView_Previews: PreviewProvider {
+    @MainActor static var previews: some View {
+        let mails: [MessageHeaderEntity] = [
+            MessageHeaderEntity(accountId: UUID(), folder: "INBOX", uid: "1", from: "Montgomery Scott <scotty@beam-me-up.net>", subject: "Anfrage Beta Test", date: Date(), flags: []),
+            MessageHeaderEntity(accountId: UUID(), folder: "INBOX", uid: "2", from: "bob@example.com", subject: "Meeting", date: Date().addingTimeInterval(-3600), flags: ["\\Seen"])
+        ]
+        NavigationStack {
+            CompactMessageListView(
+                mails: mails,
+                onDelete: { _ in },
+                onToggleFlag: { _ in },
+                onToggleRead: { _ in },
+                searchText: .constant(""),
+                onRefresh: {},
+                viewportManager: ViewportSyncManager()
+            )
+            .environmentObject(MailViewModel())
+        }
     }
 }
 
