@@ -61,9 +61,6 @@ struct ComposeMailView: View {
     // Autosave debounce
     @State private var autosaveTask: Task<Void, Never>? = nil
 
-    // Prefill subscription (reply/forward)
-    @State private var prefillToken: UUID? = nil
-
     private let autosaveKey = "compose.autosave"
 
     // AI Separator markers - visible line that separates AI-editable content from preserved content
@@ -359,22 +356,8 @@ struct ComposeMailView: View {
                 }
                 // Neue Mail: Felder bleiben leer (kein Autosave laden)
                 // Autosave wird nur beim Bearbeiten gespeichert, nicht beim Start geladen
-
-                // Register for prefill (reply/forward)
-                prefillToken = ComposePrefillCenter.shared.register { text in
-                    Task { @MainActor in
-                        if self.textBody.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && !self.isHTML {
-                            self.textBody = quoted(text)
-                        } else if self.htmlBody.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && self.isHTML {
-                            self.htmlBody = "<blockquote>\(text)</blockquote>"
-                        } else {
-                            self.textBody += "\n\n" + quoted(text)
-                        }
-                    }
-                }
             }
             .onDisappear {
-                if let t = prefillToken { ComposePrefillCenter.shared.unregister(t) }
                 autosaveTask?.cancel(); autosaveTask = nil
             }
         }
