@@ -66,6 +66,13 @@
 
 /* Feature: Logs (List & Detail) */
 /* Files: Features/Logs/LogsView.swift, TextLogDetailView.swift */
+/* MARK: - Logs Selection (Main Entry) */
+"logs.selection.title" = "Logs";
+"logs.selection.subtitle" = "Texte erstellen und verwalten";
+"logs.selection.write" = "Schreiben";
+"logs.selection.speak" = "Sprechen";
+"logs.selection.list" = "Log-Liste";
+
 /* MARK: - Logs List */
 "logs.title" = "Logs";
 "logs.search.placeholder" = "Logs durchsuchen";
