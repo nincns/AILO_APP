@@ -4,6 +4,7 @@ import UIKit
 /// Typ des Anbieters – kann bei Bedarf erweitert werden.
 enum AIProviderType: String, CaseIterable, Identifiable, Codable {
     case openAI = "OpenAI"
+    case mistral = "Mistral"
     case ollama = "Ollama"
     case custom = "Custom"
 
@@ -13,6 +14,7 @@ enum AIProviderType: String, CaseIterable, Identifiable, Codable {
     var defaultBaseURL: String {
         switch self {
         case .openAI: return "https://api.openai.com"
+        case .mistral: return "https://api.mistral.ai"
         case .ollama: return "http://localhost"
         case .custom: return ""
         }
@@ -21,6 +23,7 @@ enum AIProviderType: String, CaseIterable, Identifiable, Codable {
     var defaultPort: String {
         switch self {
         case .openAI: return "443"
+        case .mistral: return "443"
         case .ollama: return "11434"
         case .custom: return ""
         }
@@ -30,6 +33,7 @@ enum AIProviderType: String, CaseIterable, Identifiable, Codable {
     var defaultModelPlaceholder: String {
         switch self {
         case .openAI: return "gpt-5-chat-latest"
+        case .mistral: return "mistral-large-latest"
         case .ollama: return "llama3"
         case .custom: return "model-id"
         }
@@ -192,7 +196,7 @@ extension AIEditor {
         }
 
         switch config.type {
-        case .openAI, .custom:
+        case .openAI, .mistral, .custom:
             // Probieren wir OpenAI-kompatibel: /v1/models (nur mit Key sinnvoll)
             guard let url = URL(string: root + "/v1/models") else { return finish([]) }
             var req = URLRequest(url: url)

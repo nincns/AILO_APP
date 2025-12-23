@@ -197,9 +197,10 @@ private extension AIClient {
     }
     #endif
 
+    /// Prüft ob der Host eine OpenAI-kompatible API hat (OpenAI, Mistral, etc.)
     static func isOpenAI(_ root: URL) -> Bool {
         let host = (root.host ?? "").lowercased()
-        return host.contains("openai.com")
+        return host.contains("openai.com") || host.contains("mistral.ai")
     }
 
     static func url(_ root: URL, path: String) -> URL? {
