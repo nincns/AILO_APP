@@ -590,10 +590,18 @@ public class BodyContentProcessor {
 
         // ✅ NEU: Entferne verwaiste Meta-Tag-Fragmente (wenn <meta bereits fehlt)
         // Pattern: http-equiv=Content-Type ... charset=... bis zum >
-        // (?s) = DOTALL mode, damit . auch Zeilenumbrüche matcht
-        let orphanedMetaPattern = "(?s)http-equiv=Content-Type.*?>"
+        // [\s\S]*? matcht alle Zeichen inkl. Newlines (non-greedy)
+        let orphanedMetaPattern = "http-equiv[\\s\\S]*?Content-Type[\\s\\S]*?>"
         content = content.replacingOccurrences(
             of: orphanedMetaPattern,
+            with: "",
+            options: [.regularExpression, .caseInsensitive]
+        )
+
+        // Zusätzlich: Pattern für Fragmente die mit charset= beginnen (am Zeilenanfang)
+        let orphanedCharsetStartPattern = "(?m)^\\s*charset=[^>]*>"
+        content = content.replacingOccurrences(
+            of: orphanedCharsetStartPattern,
             with: "",
             options: [.regularExpression, .caseInsensitive]
         )
