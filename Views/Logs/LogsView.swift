@@ -5,10 +5,10 @@ struct LogsView: View {
         VStack(spacing: 20) {
             // Header
             VStack(spacing: 6) {
-                Text("logs.selection.title")
+                Text(String(localized: "logs.selection.title"))
                     .font(.largeTitle)
                     .bold()
-                Text("logs.selection.subtitle")
+                Text(String(localized: "logs.selection.subtitle"))
                     .font(.subheadline)
                     .foregroundColor(.secondary)
             }
