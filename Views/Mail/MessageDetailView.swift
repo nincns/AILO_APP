@@ -478,7 +478,7 @@ struct MessageDetailView: View {
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
                 }
-                .frame(height: 90) // Feste Höhe für ca. 3 Zeilen
+                .frame(height: 40) // Kompakte Höhe, Rest per Scroll
             } else {
                 // Normale Anzeige ohne Scroll (3 oder weniger)
                 ForEach(Array(attachments.enumerated()), id: \.offset) { index, attachment in
