@@ -22,10 +22,11 @@ struct TextLogDetailView: View {
     @State private var reminderOn: Bool = false
     @State private var reminderDate: Date = Date().addingTimeInterval(3600)
 
-    // Preset state
-    @State private var presets: [AIPrePromptPreset] = []
-    @State private var selectedPresetID: UUID? = nil
-    @State private var showingPresetManager: Bool = false
+    // Recipe picker state (uses Cookbook/Recipe structure like Mail)
+    @ObservedObject private var catalogManager = PrePromptCatalogManager.shared
+    @State private var selectedRecipeID: UUID? = nil
+    @State private var showRecipePicker: Bool = false
+    @State private var recipePickerPath: [UUID] = []
 
     init(entry: LogEntry) {
         self.entry = entry
@@ -124,11 +125,11 @@ struct TextLogDetailView: View {
                                 .foregroundStyle(.secondary)
                         }
                         Spacer()
-                        // Rechts: Sprechblase und daneben der KI‑Schalter
+                        // Rechts: Recipe-Picker und daneben der KI‑Schalter
                         Button {
-                            showingPresetManager = true
+                            showRecipePicker = true
                         } label: {
-                            Text("💬")
+                            Text("📚")
                                 .font(.title3)
                         }
                         .buttonStyle(.plain)
@@ -167,18 +168,18 @@ struct TextLogDetailView: View {
                         }
                         .frame(maxWidth: .infinity, alignment: .leading)
 
-                        // Mitte: Preset‑Picker (Dropdown)
+                        // Mitte: Ausgewähltes Rezept anzeigen
                         HStack {
-                            if !presets.isEmpty {
-                                Picker(String(localized: "logDetail.preset.label"), selection: $selectedPresetID) {
-                                    ForEach(presets) { p in
-                                        Text(p.name).tag(p.id as UUID?)
-                                    }
-                                }
-                                .pickerStyle(.menu)
-                                .onChange(of: selectedPresetID) { _, _ in
-                                    persistSelectedPreset()
-                                }
+                            if let recipeID = selectedRecipeID,
+                               let recipe = catalogManager.recipe(withID: recipeID) {
+                                Text("\(recipe.icon) \(recipe.name)")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                                    .lineLimit(1)
+                            } else {
+                                Text(String(localized: "logDetail.recipe.none"))
+                                    .font(.caption)
+                                    .foregroundStyle(.tertiary)
                             }
                         }
                         .frame(maxWidth: .infinity, alignment: .center)
@@ -237,11 +238,18 @@ struct TextLogDetailView: View {
             .navigationTitle(Text("logDetail.nav.title"))
             .navigationBarTitleDisplayMode(.inline)
             .onAppear {
-                loadPresets()
+                loadSelectedRecipe()
                 // Do not auto-request AI rewrite here; user can trigger via the refresh button.
             }
-            .sheet(isPresented: $showingPresetManager, onDismiss: { loadPresets() }) {
-                PrePromptManager()
+            .sheet(isPresented: $showRecipePicker) {
+                LogRecipePickerSheet(
+                    navigationPath: $recipePickerPath,
+                    onSelectRecipe: { recipe in
+                        selectedRecipeID = recipe.id
+                        persistSelectedRecipe()
+                        showRecipePicker = false
+                    }
+                )
             }
             .onChange(of: reminderOn) { _, _ in
                 persistReminderState()
@@ -265,24 +273,32 @@ struct TextLogDetailView: View {
         store.update(updated)
     }
 
-    // MARK: - AI PrePrompt Presets
-    private func loadPresets() {
-        if let data = UserDefaults.standard.data(forKey: kAIPresetsKey),
-           let arr = try? JSONDecoder().decode([AIPrePromptPreset].self, from: data) { presets = arr }
-        else { presets = [] }
-        if let sel = UserDefaults.standard.string(forKey: kAISelectedPresetKey), let uuid = UUID(uuidString: sel) {
-            selectedPresetID = uuid
+    // MARK: - Recipe Selection (Cookbook/Recipe structure)
+    private let kSelectedRecipeKey = "config.logs.selectedRecipeID"
+
+    private func loadSelectedRecipe() {
+        if let sel = UserDefaults.standard.string(forKey: kSelectedRecipeKey),
+           let uuid = UUID(uuidString: sel) {
+            selectedRecipeID = uuid
         }
-        if selectedPresetID == nil, let first = presets.first?.id {
-            selectedPresetID = first
+        // Fallback: erstes Rezept aus erstem Cookbook
+        if selectedRecipeID == nil,
+           let firstCookbook = catalogManager.cookbooks.first,
+           let firstRecipe = catalogManager.recipes(inCookbook: firstCookbook.id).first {
+            selectedRecipeID = firstRecipe.id
         }
     }
-    private func persistSelectedPreset() {
-        if let id = selectedPresetID { UserDefaults.standard.set(id.uuidString, forKey: kAISelectedPresetKey) }
+
+    private func persistSelectedRecipe() {
+        if let id = selectedRecipeID {
+            UserDefaults.standard.set(id.uuidString, forKey: kSelectedRecipeKey)
+        }
     }
-    private func selectedPresetText() -> String? {
-        guard let id = selectedPresetID, let item = presets.first(where: { $0.id == id }) else { return nil }
-        return item.text
+
+    private func selectedRecipePrompt() -> String? {
+        guard let id = selectedRecipeID,
+              let recipe = catalogManager.recipe(withID: id) else { return nil }
+        return catalogManager.generatePrompt(from: recipe)
     }
 
     // MARK: - AI Networking
@@ -305,7 +321,7 @@ struct TextLogDetailView: View {
         var portStr = (UserDefaults.standard.string(forKey: kAIServerPort) ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
         var key  = UserDefaults.standard.string(forKey: kAIAPIKey) ?? ""
         var model = (UserDefaults.standard.string(forKey: kAIModel) ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
-        let pre = selectedPresetText() ?? (UserDefaults.standard.string(forKey: kAIPrePrompt) ?? "")
+        let pre = selectedRecipePrompt() ?? (UserDefaults.standard.string(forKey: kAIPrePrompt) ?? "")
 
         // Fallback to selected provider (new manager) if legacy empty
         if addr.isEmpty || model.isEmpty {
@@ -497,5 +513,220 @@ struct TextLogDetailView: View {
         var updated = entry
         updated.reminderDate = reminderOn ? reminderDate : nil
         store.update(updated)
+    }
+}
+
+// MARK: - Recipe Picker Sheet (Cookbook/Recipe structure like Mail)
+
+private struct LogRecipePickerSheet: View {
+    @Binding var navigationPath: [UUID]
+    let onSelectRecipe: (PrePromptRecipe) -> Void
+
+    @ObservedObject private var manager = PrePromptCatalogManager.shared
+    @Environment(\.dismiss) private var dismiss
+
+    private var currentCookbookID: UUID? {
+        navigationPath.first
+    }
+
+    private var currentChapterID: UUID? {
+        navigationPath.count > 1 ? navigationPath.last : nil
+    }
+
+    private var currentTitle: String {
+        if let chapterID = currentChapterID,
+           let chapter = manager.recipeMenuItem(withID: chapterID) {
+            return chapter.name
+        }
+        if let cookbookID = currentCookbookID,
+           let cookbook = manager.cookbook(withID: cookbookID) {
+            return cookbook.name
+        }
+        return String(localized: "cookbook.title")
+    }
+
+    private var canGoBack: Bool {
+        !navigationPath.isEmpty
+    }
+
+    var body: some View {
+        NavigationStack {
+            List {
+                if canGoBack {
+                    Button {
+                        navigateBack()
+                    } label: {
+                        HStack(spacing: 8) {
+                            Text("🔙")
+                                .font(.body)
+                            Text(String(localized: "catalog.recipe.picker.back"))
+                                .foregroundStyle(.blue)
+                            Spacer()
+                        }
+                    }
+                    .listRowBackground(Color(UIColor.systemBackground))
+                }
+
+                if currentCookbookID == nil {
+                    cookbookListContent
+                } else {
+                    cookbookContent
+                }
+            }
+            .listStyle(.insetGrouped)
+            .navigationTitle(currentTitle)
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button(String(localized: "common.cancel")) {
+                        navigationPath.removeAll()
+                        dismiss()
+                    }
+                }
+            }
+        }
+        .presentationDetents([.medium, .large])
+        .presentationDragIndicator(.visible)
+    }
+
+    @ViewBuilder
+    private var cookbookListContent: some View {
+        if manager.cookbooks.isEmpty {
+            VStack(spacing: 12) {
+                Text("📚")
+                    .font(.largeTitle)
+                Text("cookbook.list.empty")
+                    .foregroundStyle(.secondary)
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 40)
+            .listRowBackground(Color.clear)
+        } else {
+            ForEach(manager.cookbooks.sorted()) { cookbook in
+                Button {
+                    navigationPath.append(cookbook.id)
+                } label: {
+                    HStack(spacing: 12) {
+                        Text(cookbook.icon)
+                            .font(.title2)
+                            .frame(width: 36, alignment: .leading)
+
+                        VStack(alignment: .leading, spacing: 2) {
+                            HStack {
+                                Text(cookbook.name)
+                                    .foregroundStyle(.primary)
+                                Text("🔜")
+                                    .font(.caption)
+                            }
+
+                            let recipeCount = manager.recipes(inCookbook: cookbook.id).count
+                            Text(String(localized: "cookbook.recipes.count \(recipeCount)"))
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+
+                        Spacer()
+
+                        Image(systemName: "chevron.right")
+                            .font(.caption)
+                            .foregroundStyle(.tertiary)
+                    }
+                }
+                .buttonStyle(.plain)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var cookbookContent: some View {
+        let children = getSortedChildren()
+
+        if children.isEmpty {
+            VStack(spacing: 12) {
+                Text("📭")
+                    .font(.largeTitle)
+                Text("cookbook.empty")
+                    .foregroundStyle(.secondary)
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 40)
+            .listRowBackground(Color.clear)
+        } else {
+            ForEach(children) { item in
+                if item.isChapter {
+                    chapterRow(item)
+                } else {
+                    recipeRow(item)
+                }
+            }
+        }
+    }
+
+    private func chapterRow(_ item: RecipeMenuItem) -> some View {
+        Button {
+            navigationPath.append(item.id)
+        } label: {
+            HStack(spacing: 12) {
+                Text(item.icon)
+                    .font(.title2)
+                    .frame(width: 36, alignment: .leading)
+
+                Text(item.name)
+                    .foregroundStyle(.primary)
+
+                Spacer()
+
+                Image(systemName: "chevron.right")
+                    .font(.caption)
+                    .foregroundStyle(.tertiary)
+            }
+        }
+        .buttonStyle(.plain)
+    }
+
+    private func recipeRow(_ item: RecipeMenuItem) -> some View {
+        Button {
+            if let recipeID = item.recipeID,
+               let recipe = manager.recipe(withID: recipeID) {
+                onSelectRecipe(recipe)
+            }
+        } label: {
+            HStack(spacing: 12) {
+                Text(item.icon)
+                    .font(.title2)
+                    .frame(width: 36, alignment: .leading)
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(item.name)
+                        .foregroundStyle(.primary)
+
+                    if let recipeID = item.recipeID,
+                       let recipe = manager.recipe(withID: recipeID) {
+                        Text(recipe.description?.prefix(60) ?? "")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                    }
+                }
+
+                Spacer()
+
+                Image(systemName: "checkmark.circle")
+                    .font(.body)
+                    .foregroundStyle(.blue)
+            }
+        }
+        .buttonStyle(.plain)
+    }
+
+    private func getSortedChildren() -> [RecipeMenuItem] {
+        guard let cookbookID = currentCookbookID else { return [] }
+        return manager.recipeChildren(of: currentChapterID, in: cookbookID)
+    }
+
+    private func navigateBack() {
+        if !navigationPath.isEmpty {
+            navigationPath.removeLast()
+        }
     }
 }

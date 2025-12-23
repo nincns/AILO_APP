@@ -161,6 +161,7 @@
 "logDetail.label.originalText" = "Original text";
 "logDetail.label.aiText" = "AI text";
 "logDetail.preset.label" = "Preset";
+"logDetail.recipe.none" = "No recipe";
 "logDetail.ai.empty" = "AI rewrite not executed yet.";
 
 /* Additional log detail keys (missing in EN, present only in DE) */
