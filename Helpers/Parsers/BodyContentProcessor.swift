@@ -563,11 +563,12 @@ public class BodyContentProcessor {
         )
 
         // ✅ NEU: Entferne auch charset-Fragmente ohne Meta-Tag
-        let orphanedCharsetPattern = "^\\s*charset=[^>\\s]+[>;]?\\s*$"
+        // (?m) aktiviert multiline mode für ^ und $ anchors
+        let orphanedCharsetPattern = "(?m)^\\s*charset=[^>\\s]+[>;]?\\s*$"
         content = content.replacingOccurrences(
             of: orphanedCharsetPattern,
             with: "",
-            options: [.regularExpression, .caseInsensitive, .anchorsMatchLines]
+            options: [.regularExpression, .caseInsensitive]
         )
 
         return content
