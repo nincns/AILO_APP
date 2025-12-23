@@ -285,23 +285,39 @@ public class BodyContentProcessor {
     /// - Parameter content: Der zu dekodierende Content
     /// - Returns: Dekodierter Content
     private static func decodeQuotedPrintableIfNeeded(_ content: String) -> String {
-        // Prüfe ob Content Quoted-Printable encoded ist
-        // Typische Muster: =XX (hex) oder =\n (soft line break)
-        let hasQuotedPrintable = content.contains("=3D") ||
-                                 content.contains("=C3=") ||
-                                 content.range(of: "=[0-9A-F]{2}", options: .regularExpression) != nil
-        
-        guard hasQuotedPrintable else {
+        // ✅ Prüfe zuerst: Wenn bereits korrekte UTF-8 Umlaute vorhanden, NICHT dekodieren!
+        // Dies verhindert Doppel-Dekodierung von bereits korrektem Content
+        let hasValidUmlauts = content.contains("ä") || content.contains("ö") || content.contains("ü") ||
+                              content.contains("Ä") || content.contains("Ö") || content.contains("Ü") ||
+                              content.contains("ß")
+        if hasValidUmlauts {
+            // Content hat bereits korrekte Umlaute - nicht dekodieren
             return content
         }
-        
+
+        // Prüfe auf SPEZIFISCHE QP-Patterns für deutsche Umlaute (ISO-8859-1)
+        // =FC=ü, =E4=ä, =F6=ö, =DF=ß, =DC=Ü, =C4=Ä, =D6=Ö
+        let germanQPPatterns = ["=FC", "=fc", "=E4", "=e4", "=F6", "=f6",
+                                "=DF", "=df", "=DC", "=dc", "=C4", "=c4", "=D6", "=d6"]
+        let hasGermanQP = germanQPPatterns.contains { content.contains($0) }
+
+        // Oder: =3D (escaped =) ist ein starkes QP-Indiz
+        let hasEscapedEquals = content.contains("=3D") || content.contains("=3d")
+
+        // Oder: Soft line breaks (=\r\n oder = am Zeilenende)
+        let hasSoftLineBreak = content.contains("=\r\n") || content.contains("=\n")
+
+        guard hasGermanQP || hasEscapedEquals || hasSoftLineBreak else {
+            return content
+        }
+
         print("🔄 BodyContentProcessor: Quoted-Printable detected, decoding...")
-        
+
         // Nutze QuotedPrintableDecoder (bereits vorhanden im Projekt)
         let decoded = QuotedPrintableDecoder.decode(content, charset: "utf-8")
-        
+
         print("✅ BodyContentProcessor: Decoded \(content.count) → \(decoded.count) chars")
-        
+
         return decoded
     }
     
