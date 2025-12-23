@@ -88,6 +88,8 @@
 "logs.selection.list" = "Logs List";
 
 /* MARK: - Logs List */
+"logs.list.title" = "All Logs";
+"logs.list.subtitle" = "Saved texts and recordings";
 "logs.title" = "Logs";
 "logs.search.placeholder" = "Search logs";
 "logs.empty" = "No entries yet";

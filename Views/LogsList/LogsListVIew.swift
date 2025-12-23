@@ -47,12 +47,12 @@ struct LogsListView: View {
             // Header
             VStack(spacing: 6) {
                 HStack {
-                    Text("logs.list.title")
+                    Text(String(localized: "logs.list.title"))
                         .font(.title)
                         .bold()
                         .frame(maxWidth: .infinity, alignment: .center)
                 }
-                Text("logs.list.subtitle")
+                Text(String(localized: "logs.list.subtitle"))
                     .font(.subheadline)
                     .foregroundColor(.secondary)
             }

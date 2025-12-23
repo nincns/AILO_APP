@@ -74,6 +74,8 @@
 "logs.selection.list" = "Log-Liste";
 
 /* MARK: - Logs List */
+"logs.list.title" = "Alle Logs";
+"logs.list.subtitle" = "Gespeicherte Texte und Aufnahmen";
 "logs.title" = "Logs";
 "logs.search.placeholder" = "Logs durchsuchen";
 "logs.empty" = "Noch keine Einträge";
