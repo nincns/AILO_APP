@@ -462,15 +462,33 @@ struct MessageDetailView: View {
     @ViewBuilder
     private var attachmentsSection: some View {
         VStack(alignment: .leading, spacing: 2) {
-            // Nur Attachment-Liste (Header ist jetzt in Status-Zeile)
-            ForEach(Array(attachments.enumerated()), id: \.offset) { index, attachment in
-                AttachmentRowView(
-                    attachment: attachment,
-                    tempFileURL: index < tempFiles.count ? tempFiles[index] : nil,
-                    onTap: {
-                        openAttachmentPreview(attachment: attachment)
+            // Scrollbare Anhang-Liste (max. 3 sichtbar, Rest per Scroll)
+            if attachments.count > 3 {
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 2) {
+                        ForEach(Array(attachments.enumerated()), id: \.offset) { index, attachment in
+                            AttachmentRowView(
+                                attachment: attachment,
+                                tempFileURL: index < tempFiles.count ? tempFiles[index] : nil,
+                                onTap: {
+                                    openAttachmentPreview(attachment: attachment)
+                                }
+                            )
+                        }
                     }
-                )
+                }
+                .frame(maxHeight: 90) // Ca. 3 Zeilen à 30pt
+            } else {
+                // Bei 3 oder weniger Anhängen: normale Anzeige ohne Scroll
+                ForEach(Array(attachments.enumerated()), id: \.offset) { index, attachment in
+                    AttachmentRowView(
+                        attachment: attachment,
+                        tempFileURL: index < tempFiles.count ? tempFiles[index] : nil,
+                        onTap: {
+                            openAttachmentPreview(attachment: attachment)
+                        }
+                    )
+                }
             }
         }
         .padding(.horizontal, 0)
