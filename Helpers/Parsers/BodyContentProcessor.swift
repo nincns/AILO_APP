@@ -166,10 +166,13 @@ public class BodyContentProcessor {
         // Schritt 2: Entferne verwaiste Meta-Tag-Fragmente (auch für gecachte Mails)
         content = cleanHTMLMetaTags(content)
 
-        // Schritt 3: Sichere minimale HTML-Struktur (falls noch nicht vorhanden)
+        // Schritt 3: Konvertiere Wingdings-Emoticons zu Unicode-Emojis
+        content = convertWingdingsToEmoji(content)
+
+        // Schritt 4: Sichere minimale HTML-Struktur (falls noch nicht vorhanden)
         content = ensureMinimalHTMLStructure(content)
 
-        // Schritt 4: Letzte Cleanup-Phase für Anzeige
+        // Schritt 5: Letzte Cleanup-Phase für Anzeige
         content = content.trimmingCharacters(in: .whitespacesAndNewlines)
 
         return content
@@ -614,7 +617,59 @@ public class BodyContentProcessor {
 
         return content
     }
-    
+
+    /// Konvertiert Wingdings-Emoticons zu Unicode-Emojis
+    /// Windows/Outlook verwendet Wingdings-Font für Emoticons: J=😊, L=😞, K=😐
+    private static func convertWingdingsToEmoji(_ content: String) -> String {
+        var result = content
+
+        // Pattern für Wingdings-Spans: <span style="...Wingdings...">J</span>
+        // Auch mit font-family: Wingdings oder font-family:"Wingdings"
+        let wingdingsPatterns = [
+            // J = Smiley 😊
+            ("(?i)<span[^>]*font-family[^>]*[Ww]ingdings[^>]*>\\s*J\\s*</span>", "😊"),
+            ("(?i)<span[^>]*[Ww]ingdings[^>]*>\\s*J\\s*</span>", "😊"),
+            // L = Frowny 😞
+            ("(?i)<span[^>]*font-family[^>]*[Ww]ingdings[^>]*>\\s*L\\s*</span>", "😞"),
+            ("(?i)<span[^>]*[Ww]ingdings[^>]*>\\s*L\\s*</span>", "😞"),
+            // K = Neutral 😐
+            ("(?i)<span[^>]*font-family[^>]*[Ww]ingdings[^>]*>\\s*K\\s*</span>", "😐"),
+            ("(?i)<span[^>]*[Ww]ingdings[^>]*>\\s*K\\s*</span>", "😐")
+        ]
+
+        for (pattern, emoji) in wingdingsPatterns {
+            result = result.replacingOccurrences(
+                of: pattern,
+                with: emoji,
+                options: .regularExpression
+            )
+        }
+
+        // Fallback: Einzelne J/L/K nach Wingdings-Font-Deklaration (ohne Span)
+        // z.B. wenn der Font im Parent-Element gesetzt ist
+        if result.lowercased().contains("wingdings") {
+            // Ersetze alleinstehende J/L/K nur wenn Wingdings im Kontext erwähnt wird
+            // Dies ist konservativer um normale J/L/K nicht zu ersetzen
+            result = result.replacingOccurrences(
+                of: "(?i)(wingdings[^<]{0,50})J",
+                with: "$1😊",
+                options: .regularExpression
+            )
+            result = result.replacingOccurrences(
+                of: "(?i)(wingdings[^<]{0,50})L",
+                with: "$1😞",
+                options: .regularExpression
+            )
+            result = result.replacingOccurrences(
+                of: "(?i)(wingdings[^<]{0,50})K",
+                with: "$1😐",
+                options: .regularExpression
+            )
+        }
+
+        return result
+    }
+
     /// Legacy: Normalisiert nicht-druckbare Zeichen (HTML-Entities werden von HTMLEntityDecoder behandelt)
     private static func normalizeSonderzeichen(_ content: String) -> String {
         // Nur noch nicht-druckbare Zeichen entfernen
