@@ -46,6 +46,11 @@ struct SchreibenMailView: View {
     @State private var loadError: String? = nil
     @State private var showCopiedAlert: Bool = false
 
+    // Preview state
+    @State private var previewHTML: String? = nil
+    @State private var previewText: String? = nil
+    @State private var isLoadingPreview: Bool = false
+
     // MARK: - Body
     var body: some View {
         VStack(spacing: 0) {
@@ -117,13 +122,15 @@ struct SchreibenMailView: View {
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
 
                 } else {
-                    VStack(spacing: 12) {
+                    VStack(spacing: 0) {
+                        // Mail list (top half)
                         List {
                             ForEach(Array(messages), id: \.id) { msg in
                                 HStack(alignment: .top, spacing: 10) {
                                     // Radio Button
                                     Button(action: {
                                         selectedUID = msg.id
+                                        Task { await loadPreview(for: msg) }
                                     }) {
                                         Image(systemName: (selectedUID == msg.id) ? "largecircle.fill.circle" : "circle")
                                             .imageScale(.large)
@@ -152,11 +159,47 @@ struct SchreibenMailView: View {
                                 .contentShape(Rectangle())
                                 .onTapGesture {
                                     selectedUID = msg.id
+                                    Task { await loadPreview(for: msg) }
                                 }
                             }
                         }
                         .listStyle(.insetGrouped)
                         .disabled(isLoading)
+                        .frame(maxHeight: selectedUID != nil ? 200 : .infinity)
+
+                        // Preview section (when mail selected)
+                        if selectedUID != nil {
+                            Divider()
+                            VStack(spacing: 8) {
+                                HStack {
+                                    Text(String(localized: "mail.import.preview"))
+                                        .font(.headline)
+                                    Spacer()
+                                    if isLoadingPreview {
+                                        ProgressView().controlSize(.small)
+                                    }
+                                }
+                                .padding(.horizontal)
+                                .padding(.top, 8)
+
+                                if let html = previewHTML {
+                                    MailPreviewWebView(html: html)
+                                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                                } else if let text = previewText {
+                                    ScrollView {
+                                        Text(text)
+                                            .font(.body)
+                                            .frame(maxWidth: .infinity, alignment: .leading)
+                                            .padding(.horizontal)
+                                    }
+                                } else if !isLoadingPreview {
+                                    Text(String(localized: "mail.import.preview.empty"))
+                                        .foregroundStyle(.secondary)
+                                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                                }
+                            }
+                            .frame(maxHeight: .infinity)
+                        }
 
                         // Import Button
                         HStack {
@@ -174,7 +217,7 @@ struct SchreibenMailView: View {
                             Spacer()
                         }
                         .padding(.horizontal)
-                        .padding(.bottom, 8)
+                        .padding(.vertical, 8)
                     }
                 }
             }
@@ -352,7 +395,7 @@ struct SchreibenMailView: View {
         isLoading = true
         loadError = nil
         let service = MailSendReceive()
-        let res = await service.fetchHeaders(limit: 5, folder: selectedFolder, using: account, preferCache: true, force: force)
+        let res = await service.fetchHeaders(limit: 50, folder: selectedFolder, using: account, preferCache: true, force: force)
         switch res {
         case .success(let headers):
             await MainActor.run {
@@ -366,6 +409,91 @@ struct SchreibenMailView: View {
                 self.loadError = err.localizedDescription
             }
         }
+    }
+
+    private func loadPreview(for msg: MailSendReceive.MailHeader) async {
+        guard let account = selectedAccount() else { return }
+        await MainActor.run {
+            isLoadingPreview = true
+            previewHTML = nil
+            previewText = nil
+        }
+        let service = MailSendReceive()
+        let res = await service.fetchMessageUID(msg.id, folder: selectedFolder, using: account)
+        switch res {
+        case .success(let full):
+            await MainActor.run {
+                // Prefer HTML for rendered preview
+                if let html = full.htmlBody, !html.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                    previewHTML = html
+                    previewText = nil
+                } else if let text = full.textBody, !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                    previewHTML = nil
+                    previewText = text
+                } else {
+                    previewHTML = nil
+                    previewText = String(localized: "mail.import.preview.nobody")
+                }
+                isLoadingPreview = false
+            }
+        case .failure:
+            await MainActor.run {
+                previewHTML = nil
+                previewText = String(localized: "mail.import.preview.error")
+                isLoadingPreview = false
+            }
+        }
+    }
+}
+
+// MARK: - Mail Preview WebView
+import WebKit
+
+struct MailPreviewWebView: UIViewRepresentable {
+    let html: String
+
+    func makeUIView(context: Context) -> WKWebView {
+        let config = WKWebViewConfiguration()
+        config.defaultWebpagePreferences.allowsContentJavaScript = false
+        let webView = WKWebView(frame: .zero, configuration: config)
+        webView.isOpaque = false
+        webView.backgroundColor = .clear
+        webView.scrollView.backgroundColor = .clear
+        return webView
+    }
+
+    func updateUIView(_ webView: WKWebView, context: Context) {
+        let styledHTML = """
+        <!DOCTYPE html>
+        <html>
+        <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+        <style>
+            body {
+                font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+                font-size: 14px;
+                line-height: 1.4;
+                margin: 12px;
+                padding: 0;
+                word-wrap: break-word;
+            }
+            img { max-width: 100%; height: auto; }
+            pre, code { white-space: pre-wrap; word-wrap: break-word; }
+            @media (prefers-color-scheme: dark) {
+                body { background-color: #1c1c1e; color: #ffffff; }
+                a { color: #0a84ff; }
+            }
+            @media (prefers-color-scheme: light) {
+                body { background-color: #ffffff; color: #000000; }
+                a { color: #007aff; }
+            }
+        </style>
+        </head>
+        <body>\(html)</body>
+        </html>
+        """
+        webView.loadHTMLString(styledHTML, baseURL: nil)
     }
 }
 

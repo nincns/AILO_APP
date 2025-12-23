@@ -229,10 +229,18 @@
    ========================================================================== */
 "mail.inbox.title"   = "Inbox";
 "mail.inbox.account" = "Account";
+"mail.inbox.folder"  = "Folder";
 "mail.inbox.loading" = "Loading…";
 "mail.inbox.retry"   = "Retry";
 "mail.inbox.empty"   = "No messages";
 "mail.inbox.refresh" = "Refresh";
+"mail.inbox.import"  = "Import";
+
+/* MARK: - Mail Import Preview */
+"mail.import.preview" = "Preview";
+"mail.import.preview.empty" = "Select an email";
+"mail.import.preview.nobody" = "No content found";
+"mail.import.preview.error" = "Error loading";
 
 "app.mail.no_messages" = "No messages";
 "app.mail.no_messages_description" = "There are no messages in this folder.";

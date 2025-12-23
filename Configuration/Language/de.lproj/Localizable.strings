@@ -177,6 +177,13 @@
 "mail.inbox.empty" = "Keine E-Mails gefunden.";
 "mail.inbox.retry" = "Erneut versuchen";
 "mail.inbox.refresh" = "Aktualisieren";
+"mail.inbox.import" = "Importieren";
+
+/* MARK: - Mail Import Preview */
+"mail.import.preview" = "Vorschau";
+"mail.import.preview.empty" = "Wähle eine E-Mail aus";
+"mail.import.preview.nobody" = "Kein Inhalt gefunden";
+"mail.import.preview.error" = "Fehler beim Laden";
 
 /* MARK: - Mail Folder Names (localized) */
 "mail.folder.inbox" = "Posteingang";
