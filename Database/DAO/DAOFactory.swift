@@ -210,7 +210,11 @@ private class MailFullAccessDAOImpl: MailFullAccessDAO {
     func upsertHeaders(accountId: UUID, folder: String, headers: [MailHeader]) throws {
         try factory.mailWriteDAO.upsertHeaders(accountId: accountId, folder: folder, headers: headers)
     }
-    
+
+    func updateFlags(accountId: UUID, folder: String, uid: String, flags: [String]) throws {
+        try factory.mailWriteDAO.updateFlags(accountId: accountId, folder: folder, uid: uid, flags: flags)
+    }
+
     func storeBody(accountId: UUID, folder: String, uid: String, body: MessageBodyEntity) throws {
         try factory.mailWriteDAO.storeBody(accountId: accountId, folder: folder, uid: uid, body: body)
     }
