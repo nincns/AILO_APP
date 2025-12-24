@@ -54,8 +54,22 @@ public class AttachmentExtractor {
         let bodyData = data.dropFirst(bodyStart)
         extractFromMultipart(bodyData, boundary: boundary, results: &results, depth: 0)
 
-        print("📎 [AttachmentExtractor] Total: \(results.count) attachments")
-        return results
+        // 4. S/MIME Signaturdateien ausfiltern (.p7s, .p7m, .p7c)
+        // Diese werden bereits separat als Signatur-Icon angezeigt
+        let filteredResults = results.filter { attachment in
+            let filename = attachment.filename.lowercased()
+            let isSignatureFile = filename.hasSuffix(".p7s") ||
+                                  filename.hasSuffix(".p7m") ||
+                                  filename.hasSuffix(".p7c") ||
+                                  filename == "smime.p7s"
+            if isSignatureFile {
+                print("📎 [AttachmentExtractor] Filtered out S/MIME signature file: \(attachment.filename)")
+            }
+            return !isSignatureFile
+        }
+
+        print("📎 [AttachmentExtractor] Total: \(filteredResults.count) attachments (filtered \(results.count - filteredResults.count) signature files)")
+        return filteredResults
     }
 
     // MARK: - Private Helpers
