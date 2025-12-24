@@ -135,16 +135,10 @@ public struct IMAPParsers {
             // Subject with RFC2047 decoding
             let rawSubject = extractEnvelopeSubject(from: raw) ?? ""
             let subject = RFC2047EncodedWordsParser.decodeSubject(rawSubject)
-            if !rawSubject.isEmpty && rawSubject != subject {
-                print("📧 Subject decoded: '\(rawSubject)' → '\(subject)'")
-            }
 
             // From with RFC2047 decoding
             let rawFrom = extractEnvelopeFrom(from: raw) ?? ""
             let from = RFC2047EncodedWordsParser.decodeFrom(rawFrom)
-            if !rawFrom.isEmpty && rawFrom != from {
-                print("📧 From decoded: '\(rawFrom)' → '\(from)'")
-            }
 
             // InternalDate
             let date = extractInternalDate(from: raw)
@@ -242,20 +236,13 @@ public struct IMAPParsers {
         // Subject with RFC2047 decoding
         let rawSubject = extractEnvelopeSubject(from: line)
         let subject = rawSubject != nil ? RFC2047EncodedWordsParser.decodeSubject(rawSubject!) : nil
-        if let raw = rawSubject, let decoded = subject, raw != decoded {
-            print("📧 Subject decoded: '\(raw)' → '\(decoded)'")
-        }
-        
+
         // From with RFC2047 decoding
         let rawFrom = extractEnvelopeFrom(from: line)
         let from = rawFrom != nil ? RFC2047EncodedWordsParser.decodeFrom(rawFrom!) : nil
-        if let raw = rawFrom, let decoded = from, raw != decoded {
-            print("📧 From decoded: '\(raw)' → '\(decoded)'")
-        }
-        
+
         // Date (INTERNALDATE is usually outside envelope, but try to parse if present)
         let date = extractInternalDate(from: line)
-        // The full address lists are complex; keep tolerant and return minimal info for now.
         return MessageEnvelope(subject: subject, from: from, to: [], cc: [], bcc: [], date: date, messageId: nil)
     }
 
