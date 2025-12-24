@@ -620,24 +620,24 @@ public final class MailRepository: ObservableObject {
     /// Fetch and store body for a specific message
     private func fetchAndStoreBody(accountId: UUID, folder: String, uid: String, account: MailAccountConfig) async {
         print("📥 Fetching body for UID: \(uid) in folder: \(folder)")
-        
+
         do {
             let transport = MailSendReceive()
-            
+
             // Fetch full message (includes body)
             let result = await transport.fetchMessageUID(uid, folder: folder, using: account)
-            
+
             switch result {
             case .success(let fullMessage):
                 let rawBody = fullMessage.rawBody ?? ""
-                
+
                 guard !rawBody.isEmpty else {
                     print("⚠️ Fetched rawBody is empty for UID: \(uid)")
                     return
                 }
-                
+
                 print("✅ Fetched rawBody for UID: \(uid) - size: \(rawBody.count) bytes")
-                
+
                 // ✅ RAW-first Storage mit Anhang-Erkennung
                 let hasAttachments = detectAttachments(in: rawBody)
                 let isMultipart = rawBody.lowercased().contains("content-type: multipart/")
@@ -662,20 +662,64 @@ public final class MailRepository: ObservableObject {
                     rawSize: rawBody.count,
                     processedAt: nil        // ← NIL = nicht verarbeitet
                 )
-                
+
                 // Store in database
                 if let writeDAO = self.writeDAO {
                     try writeDAO.storeBody(accountId: accountId, folder: folder, uid: uid, body: bodyEntity)
                     print("✅ [MailRepository] Stored RAW body for UID: \(uid) - size: \(rawBody.count) bytes")
                 }
-                
+
+                // 📎 NEU: Anhänge extrahieren und in Datenbank speichern
+                if hasAttachments {
+                    await extractAndStoreAttachments(accountId: accountId, folder: folder, uid: uid, rawBody: rawBody)
+                }
+
             case .failure(let error):
                 print("❌ Failed to fetch body for UID: \(uid): \(error)")
             }
-            
+
         } catch {
             print("❌ Error fetching/storing body for UID: \(uid): \(error)")
         }
+    }
+
+    /// Extrahiert Anhänge aus rawBody und speichert sie in der Datenbank
+    private func extractAndStoreAttachments(accountId: UUID, folder: String, uid: String, rawBody: String) async {
+        print("📎 [MailRepository] Extracting attachments for UID: \(uid)")
+
+        // Nutze den zentralen AttachmentExtractor
+        let extracted = AttachmentExtractor.extract(from: rawBody)
+
+        guard !extracted.isEmpty else {
+            print("📎 [MailRepository] No attachments extracted for UID: \(uid)")
+            return
+        }
+
+        print("📎 [MailRepository] Extracted \(extracted.count) attachment(s)")
+
+        // Konvertiere zu AttachmentEntity und speichere
+        var attachmentEntities: [AttachmentEntity] = []
+
+        for (index, attachment) in extracted.enumerated() {
+            let entity = AttachmentEntity(
+                accountId: accountId,
+                folder: folder,
+                uid: uid,
+                partId: "part\(index + 1)",
+                filename: attachment.filename,
+                mimeType: attachment.mimeType,
+                sizeBytes: attachment.data.count,
+                data: attachment.data,
+                contentId: attachment.contentId,
+                isInline: attachment.contentId != nil
+            )
+            attachmentEntities.append(entity)
+            print("📎 [MailRepository] Created entity: \(attachment.filename) (\(attachment.data.count) bytes)")
+        }
+
+        // Speichere alle Anhänge
+        storeAttachments(accountId: accountId, folder: folder, uid: uid, attachments: attachmentEntities)
+        print("✅ [MailRepository] Stored \(attachmentEntities.count) attachment(s) for UID: \(uid)")
     }
 
     /// Fetch bodies for multiple messages in parallel (with rate limiting)
@@ -941,40 +985,21 @@ public final class MailRepository: ObservableObject {
     private func detectAttachments(in rawBody: String) -> Bool {
         let lowerBody = rawBody.lowercased()
 
-        // 1. Explizit als Attachment markiert
-        if lowerBody.contains("content-disposition: attachment") {
+        // 1. Explizit als Attachment markiert (mit/ohne Leerzeichen nach Doppelpunkt)
+        if lowerBody.contains("content-disposition: attachment") ||
+           lowerBody.contains("content-disposition:attachment") {
+            print("📎 [detectAttachments] Found via content-disposition: attachment")
             return true
         }
 
         // 2. Multipart/mixed enthält typischerweise Anhänge
-        if lowerBody.contains("content-type: multipart/mixed") {
+        if lowerBody.contains("content-type: multipart/mixed") ||
+           lowerBody.contains("content-type:multipart/mixed") {
+            print("📎 [detectAttachments] Found via multipart/mixed")
             return true
         }
 
-        // 3. Dateiname im Content-Disposition Header
-        if lowerBody.contains("filename=") {
-            // Check if it's not an inline image
-            let lines = rawBody.components(separatedBy: "\n")
-            for (index, line) in lines.enumerated() {
-                if line.lowercased().contains("filename=") {
-                    // Prüfe vorherige Zeilen für Content-Disposition
-                    if index > 0 && index < lines.count {
-                        let contextStart = max(0, index - 3)
-                        let context = lines[contextStart...index].joined(separator: "\n").lowercased()
-                        if context.contains("content-disposition: attachment") {
-                            return true
-                        }
-                        // Auch prüfen ob es kein inline ist
-                        if !context.contains("content-disposition: inline") &&
-                           !context.contains("content-id:") {
-                            return true
-                        }
-                    }
-                }
-            }
-        }
-
-        // 4. PDF, Office-Dokumente, etc.
+        // 3. PDF, Office-Dokumente, etc. - robustere Erkennung
         let attachmentTypes = [
             "application/pdf",
             "application/msword",
@@ -983,18 +1008,77 @@ public final class MailRepository: ObservableObject {
             "application/vnd.ms-powerpoint",
             "application/zip",
             "application/x-zip",
-            "application/octet-stream"
+            "application/x-zip-compressed",
+            "application/octet-stream",
+            "application/x-pdf",  // Alternative PDF MIME-Type
+            "application/acrobat" // Älterer PDF MIME-Type
         ]
         for type in attachmentTypes {
-            if lowerBody.contains("content-type: \(type)") {
+            // Prüfe mit und ohne Leerzeichen nach Doppelpunkt
+            if lowerBody.contains("content-type: \(type)") ||
+               lowerBody.contains("content-type:\(type)") {
+                print("📎 [detectAttachments] Found via content-type: \(type)")
                 return true
             }
         }
 
-        // 5. Name parameter im Content-Type (häufig bei Anhängen)
+        // 4. Dateiname mit typischen Anhang-Erweiterungen
+        let attachmentExtensions = [".pdf", ".doc", ".docx", ".xls", ".xlsx", ".ppt", ".pptx",
+                                    ".zip", ".rar", ".7z", ".tar", ".gz"]
+        for ext in attachmentExtensions {
+            // Suche nach filename="xxx.pdf" oder name="xxx.pdf"
+            if lowerBody.contains("filename=\"") || lowerBody.contains("name=\"") {
+                // Regex-basierte Suche nach Dateiendung
+                let patterns = [
+                    "filename=\"[^\"]*\\\(ext)\"",
+                    "filename=[^;\\s]*\\\(ext)",
+                    "name=\"[^\"]*\\\(ext)\"",
+                    "name=[^;\\s]*\\\(ext)"
+                ]
+                for pattern in patterns {
+                    if let regex = try? NSRegularExpression(pattern: pattern, options: .caseInsensitive),
+                       regex.firstMatch(in: rawBody, range: NSRange(rawBody.startIndex..., in: rawBody)) != nil {
+                        print("📎 [detectAttachments] Found via filename with extension: \(ext)")
+                        return true
+                    }
+                }
+            }
+        }
+
+        // 5. Generische filename= Erkennung (aber nicht für inline-Bilder)
+        if lowerBody.contains("filename=") {
+            let lines = rawBody.components(separatedBy: "\n")
+            for (index, line) in lines.enumerated() {
+                if line.lowercased().contains("filename=") {
+                    if index > 0 && index < lines.count {
+                        let contextStart = max(0, index - 5)
+                        let context = lines[contextStart...index].joined(separator: "\n").lowercased()
+
+                        // Explizit als Attachment markiert
+                        if context.contains("content-disposition: attachment") ||
+                           context.contains("content-disposition:attachment") {
+                            print("📎 [detectAttachments] Found via filename with disposition")
+                            return true
+                        }
+
+                        // Nicht inline und keine Content-ID (= echtes Attachment)
+                        if !context.contains("content-disposition: inline") &&
+                           !context.contains("content-disposition:inline") &&
+                           !context.contains("content-id:") {
+                            print("📎 [detectAttachments] Found via filename (not inline)")
+                            return true
+                        }
+                    }
+                }
+            }
+        }
+
+        // 6. Name parameter im Content-Type (häufig bei Anhängen)
         if lowerBody.contains("content-type:") && lowerBody.contains("name=") {
-            // Prüfe ob es sich um einen echten Anhang handelt
-            if !lowerBody.contains("content-id:") || lowerBody.contains("content-disposition: attachment") {
+            if !lowerBody.contains("content-id:") ||
+               lowerBody.contains("content-disposition: attachment") ||
+               lowerBody.contains("content-disposition:attachment") {
+                print("📎 [detectAttachments] Found via name parameter in content-type")
                 return true
             }
         }
