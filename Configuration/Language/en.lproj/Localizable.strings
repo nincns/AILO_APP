@@ -15,6 +15,7 @@
 "common.edit" = "Edit";
 "common.done" = "Done";
 "common.delete" = "Delete";
+"app.common.delete" = "Delete";
 "common.close" = "Close";
 "common.back" = "Back";
 "common.yes" = "Yes";
