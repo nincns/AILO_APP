@@ -65,8 +65,7 @@ struct MessageDetailView: View {
                 // Mail header information
                 mailHeaderSection
 
-                // Attachments section - NEUE POSITION
-                let _ = print("📎 [VIEW] attachments.isEmpty = \(attachments.isEmpty), count = \(attachments.count)")
+                // Attachments section
                 if !attachments.isEmpty {
                     attachmentsSection
                 }
@@ -543,39 +542,20 @@ struct MessageDetailView: View {
 
         Task {
             do {
-                print("📧 [MessageDetailView] ========== LOADING MAIL BODY ==========")
-                print("📧 [MessageDetailView] Subject: \(mail.subject)")
-                print("📧 [MessageDetailView] UID: \(mail.uid)")
-                print("📧 [MessageDetailView] From: \(mail.from)")
-                print("🔍 DEBUG: mail.accountId = \(mail.accountId)")
-                print("🔍 DEBUG: mail.folder = \(mail.folder)")
-                print("🔍 DEBUG: mail.uid = \(mail.uid)")
-                print("🔍 DEBUG: MailRepository.shared.dao = \(MailRepository.shared.dao != nil)")
-                
                 var bodyLoaded = false
-                
-                // ✅ PHASE 4: RAW-first Loading mit Safety Guards
+
                 guard let dao = MailRepository.shared.dao else {
-                    print("❌ [MessageDetailView] DAO not available")
                     await MainActor.run {
                         errorMessage = String(localized: "app.mail.detail.database_unavailable")
                         isLoadingBody = false
                     }
                     return
                 }
-                
+
                 do {
                     if let bodyEntity = try dao.bodyEntity(accountId: mail.accountId, folder: mail.folder, uid: mail.uid) {
-                        print("🔍 [MessageDetailView] bodyEntity loaded successfully")
-                        print("   - text: \(bodyEntity.text?.count ?? 0)")
-                        print("   - html: \(bodyEntity.html?.count ?? 0)")
-                        print("   - rawBody: \(bodyEntity.rawBody?.count ?? 0)")
-                        
-                        // ✅ Check: Brauchen wir Processing?
                         let needsProc = MailBodyProcessor.needsProcessing(bodyEntity.html)
-                        print("📧 [MessageDetailView] needsProcessing = \(needsProc)")
                         if needsProc {
-                            print("⚠️ [MessageDetailView] HTML needs processing - triggering decode...")
                             
                             // ✅ NEU - zentrale Methode nutzen:
                             if let rawBody = bodyEntity.rawBody {
@@ -601,10 +581,6 @@ struct MessageDetailView: View {
                                             isInline: att.contentId != nil
                                         )
                                     }
-                                    if !extractedAttachments.isEmpty {
-                                        print("📎 [loadMailBody] AttachmentExtractor found \(extractedAttachments.count) attachment(s)")
-                                    }
-
                                     await MainActor.run {
                                         bodyText = displayText
                                         isHTML = displayIsHTML
@@ -613,20 +589,14 @@ struct MessageDetailView: View {
                                         if !extractedAttachments.isEmpty {
                                             self.attachments = extractedAttachments
                                             self.hasDetectedAttachments = true
-                                            print("📎 [UI] attachments state updated: \(self.attachments.count) items")
-                                            for att in self.attachments {
-                                                print("📎 [UI] - \(att.filename)")
-                                            }
                                         }
                                     }
                                     bodyLoaded = true
 
-                                    // ✅ S/MIME Signature Verification
-                                    print("📧 [MessageDetailView] PATH-A: Calling verifyEmailSignature with \(rawBody.count) chars")
+                                    // S/MIME Signature Verification
                                     await verifyEmailSignature(rawBody: rawBody)
 
                                 } catch {
-                                    print("❌ [loadMailBody] Processing failed: \(error)")
                                     await MainActor.run {
                                         errorMessage = error.localizedDescription
                                         bodyText = ""
@@ -638,14 +608,12 @@ struct MessageDetailView: View {
                                 }
                             }
                         } else {
-                            // ✅ Bereits dekodiert - direkt rendern
-                            print("✅ [MessageDetailView] HTML already processed - rendering directly")
+                            // Bereits dekodiert - direkt rendern
 
                             // ✅ NEU: Anhang-Erkennung und Metadaten-Extraktion
                             if let rawBody = bodyEntity.rawBody, !rawBody.isEmpty {
                                 let detectedAttachments = detectAttachmentsInRawBody(rawBody)
                                 if detectedAttachments && !bodyEntity.hasAttachments {
-                                    print("📎 [MessageDetailView] Late attachment detection: found attachments!")
                                     // Update database with corrected flag
                                     if let writeDAO = MailRepository.shared.writeDAO {
                                         var updatedEntity = bodyEntity
@@ -656,16 +624,12 @@ struct MessageDetailView: View {
                                             uid: mail.uid,
                                             body: updatedEntity
                                         )
-                                        print("✅ [MessageDetailView] Updated hasAttachments flag in DB")
                                     }
                                 }
 
-                                // ✅ FIX: Nutze zentralen AttachmentExtractor statt extractAttachmentMetadata
-                                // AttachmentExtractor handhabt MIME-encoded Dateinamen korrekt
-                                print("📎 [PATH-A] detectedAttachments=\(detectedAttachments), bodyEntity.hasAttachments=\(bodyEntity.hasAttachments)")
+                                // Nutze zentralen AttachmentExtractor
                                 if detectedAttachments || bodyEntity.hasAttachments {
                                     let extracted = AttachmentExtractor.extract(from: rawBody)
-                                    print("📎 [PATH-A] AttachmentExtractor found: \(extracted.count) attachment(s)")
                                     if !extracted.isEmpty {
                                         let attachmentEntities = extracted.enumerated().map { (index, att) in
                                             AttachmentEntity(
@@ -684,7 +648,6 @@ struct MessageDetailView: View {
                                         await MainActor.run {
                                             self.attachments = attachmentEntities
                                             self.hasDetectedAttachments = true
-                                            print("📎 [PATH-A UI] attachments set: \(self.attachments.count)")
                                         }
                                     }
                                 }

@@ -69,134 +69,36 @@ public class MailWriteDAOImpl: BaseDAO, MailWriteDAO {
     
     public func insertHeaders(accountId: UUID, folder: String, headers: [MailHeader]) throws {
         guard !headers.isEmpty else { return }
-        
+
         try DAOPerformanceMonitor.measure("insert_headers") {
             try withTransaction {
                 try ensureOpen()
-                
-                // CRITICAL DEBUG: Check if table exists and schema
-                let checkTableSQL = """
-                    SELECT name FROM sqlite_master WHERE type='table' AND name='\(MailSchema.tMsgHeader)';
-                """
-                let checkStmt = try prepare(checkTableSQL)
-                defer { finalize(checkStmt) }
-                
-                if sqlite3_step(checkStmt) == SQLITE_ROW {
-                    print("🔍 [TABLE-CHECK] Table '\(MailSchema.tMsgHeader)' exists")
-                } else {
-                    print("❌ [TABLE-CHECK] Table '\(MailSchema.tMsgHeader)' does NOT exist!")
-                }
-                
-                // Check schema
-                let schemaSQL = "PRAGMA table_info(\(MailSchema.tMsgHeader));"
-                let schemaStmt = try prepare(schemaSQL)
-                defer { finalize(schemaStmt) }
-                
-                print("🔍 [SCHEMA-CHECK] Table schema for '\(MailSchema.tMsgHeader)':")
-                while sqlite3_step(schemaStmt) == SQLITE_ROW {
-                    let cid = sqlite3_column_int(schemaStmt, 0)
-                    let name = String(cString: sqlite3_column_text(schemaStmt, 1))
-                    let type = String(cString: sqlite3_column_text(schemaStmt, 2))
-                    let notNull = sqlite3_column_int(schemaStmt, 3)
-                    let pk = sqlite3_column_int(schemaStmt, 5)
-                    print("   [\(cid)] \(name): \(type) (NOT NULL: \(notNull), PK: \(pk))")
-                }
-                
+
                 let sql = """
                     INSERT OR IGNORE INTO \(MailSchema.tMsgHeader)
                     (account_id, folder, uid, from_addr, subject, date, flags)
                     VALUES (?, ?, ?, ?, ?, ?, ?)
                 """
-                
-                print("🔍 [SQL-DEBUG-INSERT] Executing SQL:")
-                print("   \(sql)")
-                
+
                 let stmt = try prepare(sql)
                 defer { finalize(stmt) }
-                
-                // UUID DEBUG LOGGING
-                print("🔍 [MailWriteDAO.UUID-DEBUG] WRITE Operation:")
-                print("   - accountId: '\(accountId.uuidString)'")
-                print("   - accountId.count: \(accountId.uuidString.count)")
-                print("   - Contains dashes: \(accountId.uuidString.contains("-"))")
-                print("   - folder: '\(folder)'")
-                
-                // DEBUG LOGGING
-                print("🔍 [MailWriteDAO] Inserting \(headers.count) headers:")
+
                 for header in headers {
-                    print("   - UID: \(header.id), Subject: \(header.subject)")
-                }
-                
-                for header in headers {
-                    // CRITICAL FIX: Clear bindings and reset BEFORE binding new values
                     sqlite3_clear_bindings(stmt)
                     sqlite3_reset(stmt)
-                    
-                    // PRE-BIND DEBUG: Show what we're trying to bind
-                    print("🔍 [PRE-BIND] Header data before binding:")
-                    print("   - header.id: '\(header.id)' (type: \(type(of: header.id)), count: \(header.id.count))")
-                    print("   - header.from: '\(header.from)' (type: \(type(of: header.from)), count: \(header.from.count))")
-                    print("   - header.subject: '\(header.subject)' (type: \(type(of: header.subject)), count: \(header.subject.count))")
-                    print("   - header.date: \(header.date)")
-                    print("   - header.flags: \(header.flags)")
-                    
+
                     bindUUID(stmt, 1, accountId)
-                    print("   🔗 Bound accountId: '\(accountId.uuidString)'")
-                    
                     bindText(stmt, 2, folder)
-                    print("   🔗 Bound folder: '\(folder)'")
-                    
                     bindText(stmt, 3, header.id)
-                    print("   🔗 Bound uid: '\(header.id)'")
-                    
                     bindText(stmt, 4, header.from)
-                    print("   🔗 Bound from: '\(header.from)'")
-                    
                     bindText(stmt, 5, header.subject)
-                    print("   🔗 Bound subject: '\(header.subject)'")
-                    
                     bindDate(stmt, 6, header.date)
-                    print("   🔗 Bound date: \(header.date)")
-                    
                     bindStringArray(stmt, 7, header.flags)
-                    print("   🔗 Bound flags: \(header.flags)")
-                    
-                    // Check SQLite statement after binding
-                    print("🔍 [POST-BIND] SQLite statement parameter count: \(sqlite3_bind_parameter_count(stmt))")
-                    debugBoundValues(stmt)
-                    
-                    let stepResult = sqlite3_step(stmt)
-                    print("🔍 [STEP] SQLite step result: \(stepResult) (SQLITE_DONE = \(SQLITE_DONE))")
-                    
-                    guard stepResult == SQLITE_DONE else {
+
+                    guard sqlite3_step(stmt) == SQLITE_DONE else {
                         let errorMsg = String(cString: sqlite3_errmsg(db))
-                        print("❌ [SQL-ERROR] \(errorMsg)")
                         throw DAOError.sqlError("Failed to insert header for uid: \(header.id), SQLite error: \(errorMsg)")
                     }
-                    print("   ✅ Inserted UID: \(header.id)")
-                }
-                
-                // IMMEDIATE VERIFICATION: Check what was actually written
-                let verifySQL = """
-                    SELECT account_id, uid, subject FROM \(MailSchema.tMsgHeader) 
-                    WHERE account_id = ? AND folder = ?
-                """
-                let verifyStmt = try prepare(verifySQL)
-                defer { finalize(verifyStmt) }
-                
-                bindUUID(verifyStmt, 1, accountId)
-                bindText(verifyStmt, 2, folder)
-                
-                print("🔍 [VERIFY] All rows in DB after insert:")
-                while sqlite3_step(verifyStmt) == SQLITE_ROW {
-                    let dbAccountId = verifyStmt.columnText(0) ?? "NULL"
-                    let dbUid = verifyStmt.columnText(1) ?? "NULL"
-                    let dbSubject = verifyStmt.columnText(2) ?? "NULL"
-                    
-                    print("   - AccountId: '\(dbAccountId)'")
-                    print("   - UID: '\(dbUid)'")
-                    print("   - Subject: '\(dbSubject)'")
-                    print("   - Match: \(dbAccountId == accountId.uuidString)")
                 }
             }
         }
@@ -204,106 +106,36 @@ public class MailWriteDAOImpl: BaseDAO, MailWriteDAO {
     
     public func upsertHeaders(accountId: UUID, folder: String, headers: [MailHeader]) throws {
         guard !headers.isEmpty else { return }
-        
+
         try DAOPerformanceMonitor.measure("upsert_headers") {
             try withTransaction {
                 try ensureOpen()
-                
+
                 let sql = """
                     INSERT OR REPLACE INTO \(MailSchema.tMsgHeader)
                     (account_id, folder, uid, from_addr, subject, date, flags)
                     VALUES (?, ?, ?, ?, ?, ?, ?)
                 """
-                
-                print("🔍 [SQL-DEBUG-UPSERT] Executing SQL:")
-                print("   \(sql)")
-                
+
                 let stmt = try prepare(sql)
                 defer { finalize(stmt) }
-                
-                // UUID DEBUG LOGGING
-                print("🔍 [MailWriteDAO.UUID-DEBUG] UPSERT Operation:")
-                print("   - accountId: '\(accountId.uuidString)'")
-                print("   - accountId.count: \(accountId.uuidString.count)")
-                print("   - Contains dashes: \(accountId.uuidString.contains("-"))")
-                print("   - folder: '\(folder)'")
-                
-                // DEBUG LOGGING
-                print("🔍 [MailWriteDAO] Upserting \(headers.count) headers:")
+
                 for header in headers {
-                    print("   - UID: \(header.id), Subject: \(header.subject)")
-                }
-                
-                for header in headers {
-                    // CRITICAL FIX: Clear bindings and reset BEFORE binding new values  
                     sqlite3_clear_bindings(stmt)
                     sqlite3_reset(stmt)
-                    
-                    // PRE-BIND DEBUG: Show what we're trying to bind
-                    print("🔍 [PRE-BIND-UPSERT] Header data before binding:")
-                    print("   - header.id: '\(header.id)' (type: \(type(of: header.id)), count: \(header.id.count))")
-                    print("   - header.from: '\(header.from)' (type: \(type(of: header.from)), count: \(header.from.count))")
-                    print("   - header.subject: '\(header.subject)' (type: \(type(of: header.subject)), count: \(header.subject.count))")
-                    print("   - header.date: \(header.date)")
-                    print("   - header.flags: \(header.flags)")
-                    
+
                     bindUUID(stmt, 1, accountId)
-                    print("   🔗 Bound accountId: '\(accountId.uuidString)'")
-                    
                     bindText(stmt, 2, folder)
-                    print("   🔗 Bound folder: '\(folder)'")
-                    
                     bindText(stmt, 3, header.id)
-                    print("   🔗 Bound uid: '\(header.id)'")
-                    
                     bindText(stmt, 4, header.from)
-                    print("   🔗 Bound from: '\(header.from)'")
-                    
                     bindText(stmt, 5, header.subject)
-                    print("   🔗 Bound subject: '\(header.subject)'")
-                    
                     bindDate(stmt, 6, header.date)
-                    print("   🔗 Bound date: \(header.date)")
-                    
                     bindStringArray(stmt, 7, header.flags)
-                    print("   🔗 Bound flags: \(header.flags)")
-                    
-                    // Check SQLite statement after binding
-                    print("🔍 [POST-BIND-UPSERT] SQLite statement parameter count: \(sqlite3_bind_parameter_count(stmt))")
-                    debugBoundValues(stmt)
-                    
-                    let stepResult = sqlite3_step(stmt)
-                    print("🔍 [STEP-UPSERT] SQLite step result: \(stepResult) (SQLITE_DONE = \(SQLITE_DONE))")
-                    
-                    guard stepResult == SQLITE_DONE else {
+
+                    guard sqlite3_step(stmt) == SQLITE_DONE else {
                         let errorMsg = String(cString: sqlite3_errmsg(db))
-                        print("❌ [SQL-ERROR-UPSERT] \(errorMsg)")
                         throw DAOError.sqlError("Failed to upsert header for uid: \(header.id), SQLite error: \(errorMsg)")
                     }
-                    print("   ✅ Upserted UID: \(header.id)")
-                }
-                
-                // IMMEDIATE VERIFICATION: Check what was actually written
-                let verifySQL = """
-                    SELECT account_id, uid, subject FROM \(MailSchema.tMsgHeader) 
-                    WHERE account_id = ? AND folder = ?
-                """
-                let verifyStmt = try prepare(verifySQL)
-                defer { finalize(verifyStmt) }
-                
-                bindUUID(verifyStmt, 1, accountId)
-                bindText(verifyStmt, 2, folder)
-                
-                print("🔍 [VERIFY-UPSERT] All rows in DB after upsert:")
-                while sqlite3_step(verifyStmt) == SQLITE_ROW {
-                    let dbAccountId = verifyStmt.columnText(0) ?? "NULL"
-                    let dbUid = verifyStmt.columnText(1) ?? "NULL" 
-                    let dbSubject = verifyStmt.columnText(2) ?? "NULL"
-                    
-                    print("   - AccountId: '\(dbAccountId)'")
-                    print("   - UID: '\(dbUid)'")
-                    print("   - Subject: '\(dbSubject)'")
-                    print("   - Match: \(dbAccountId == accountId.uuidString)")
                 }
             }
         }
@@ -419,8 +251,6 @@ public class MailWriteDAOImpl: BaseDAO, MailWriteDAO {
             }
             sqlite3_reset(stmt)
         }
-        
-        print("✅ [MailWriteDAO] Stored \(parts.count) MIME parts")
     }
     
     public func deleteMimeParts(messageId: UUID) throws {
@@ -461,8 +291,6 @@ public class MailWriteDAOImpl: BaseDAO, MailWriteDAO {
         guard sqlite3_step(stmt) == SQLITE_DONE else {
             throw dbError(context: "storeRenderCache")
         }
-        
-        print("✅ [MailWriteDAO] Stored render cache for message \(messageId)")
     }
     
     public func invalidateRenderCache(messageId: UUID) throws {
@@ -867,9 +695,6 @@ public class MailWriteDAOImpl: BaseDAO, MailWriteDAO {
             guard result == SQLITE_DONE else {
                 throw DAOError.sqlError("Failed to update flags for uid: \(uid)")
             }
-
-            let rowsAffected = sqlite3_changes(db)
-            print("✅ [MailWriteDAO] Updated flags for uid: \(uid) (rows affected: \(rowsAffected))")
         }
     }
 }

@@ -13,16 +13,7 @@ public class AttachmentExtractor {
 
     /// Extrahiert alle Anhänge aus Raw-Mail-Daten
     public static func extract(from rawBody: String) -> [ExtractedAttachment] {
-        print("📎 [AttachmentExtractor] Starting extraction from \(rawBody.count) chars")
-
-        // DEBUG: Zeige Ende der rawBody um Truncation zu erkennen
-        if rawBody.count > 200 {
-            let endPart = String(rawBody.suffix(200))
-            print("📎 [AttachmentExtractor] rawBody ends with: '...\(endPart.replacingOccurrences(of: "\n", with: "\\n").replacingOccurrences(of: "\r", with: "\\r"))'")
-        }
-
         guard let data = rawBody.data(using: .utf8) ?? rawBody.data(using: .isoLatin1) else {
-            print("❌ [AttachmentExtractor] Failed to convert rawBody to Data")
             return []
         }
         return extract(from: data)
@@ -34,41 +25,30 @@ public class AttachmentExtractor {
         // 1. Headers und Body trennen (RFC-konform)
         let (headers, bodyStart) = parseMessageHeaders(data)
 
-        print("📎 [AttachmentExtractor] Parsed \(headers.count) headers, body starts at \(bodyStart)")
-
         // 2. Content-Type und Boundary extrahieren
         guard let contentType = headers["content-type"],
               contentType.lowercased().contains("multipart") else {
-            print("📎 [AttachmentExtractor] Not a multipart message")
             return []
         }
 
         guard let boundary = extractBoundary(from: contentType) else {
-            print("❌ [AttachmentExtractor] No boundary found in: \(contentType.prefix(100))")
             return []
         }
-
-        print("📎 [AttachmentExtractor] Found boundary: \(boundary.prefix(40))...")
 
         // 3. Rekursiv alle Parts verarbeiten
         let bodyData = data.dropFirst(bodyStart)
         extractFromMultipart(bodyData, boundary: boundary, results: &results, depth: 0)
 
         // 4. S/MIME Signaturdateien ausfiltern (.p7s, .p7m, .p7c)
-        // Diese werden bereits separat als Signatur-Icon angezeigt
         let filteredResults = results.filter { attachment in
             let filename = attachment.filename.lowercased()
             let isSignatureFile = filename.hasSuffix(".p7s") ||
                                   filename.hasSuffix(".p7m") ||
                                   filename.hasSuffix(".p7c") ||
                                   filename == "smime.p7s"
-            if isSignatureFile {
-                print("📎 [AttachmentExtractor] Filtered out S/MIME signature file: \(attachment.filename)")
-            }
             return !isSignatureFile
         }
 
-        print("📎 [AttachmentExtractor] Total: \(filteredResults.count) attachments (filtered \(results.count - filteredResults.count) signature files)")
         return filteredResults
     }
 

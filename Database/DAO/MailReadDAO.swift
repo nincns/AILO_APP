@@ -78,44 +78,9 @@ public class MailReadDAOImpl: BaseDAO, MailReadDAO {
                 bindText(stmt, 2, folder)
                 bindInt(stmt, 3, limit)
                 bindInt(stmt, 4, offset)
-                
-                // UUID DEBUG LOGGING
-                print("🔍 [MailReadDAO.UUID-DEBUG] READ Operation:")
-                print("   - Query accountId: '\(accountId.uuidString)'")
-                print("   - Query accountId.count: \(accountId.uuidString.count)")
-                print("   - Contains dashes: \(accountId.uuidString.contains("-"))")
-                print("   - Query folder: '\(folder)'")
-                
-                // DEBUG LOGGING
-                print("🔍 [MailReadDAO] Executing headers query:")
-                print("   - accountId: \(accountId.uuidString)")
-                print("   - folder: \(folder)")
-                print("   - limit: \(limit)")
-                print("   - offset: \(offset)")
-                
+
                 var headers: [MailHeader] = []
-                
-                // ADDITIONAL DEBUG: Check what's actually in the database without WHERE clause
-                print("🔍 [DEBUG-SCAN] Scanning ALL headers in database:")
-                let scanSQL = """
-                    SELECT account_id, folder, uid, subject 
-                    FROM \(MailSchema.tMsgHeader) 
-                    ORDER BY date DESC 
-                    LIMIT 10
-                """
-                let scanStmt = try prepare(scanSQL)
-                defer { finalize(scanStmt) }
-                
-                while sqlite3_step(scanStmt) == SQLITE_ROW {
-                    let dbAccountId = scanStmt.columnText(0) ?? "NULL"
-                    let dbFolder = scanStmt.columnText(1) ?? "NULL"
-                    let dbUid = scanStmt.columnText(2) ?? "NULL"
-                    let dbSubject = scanStmt.columnText(3) ?? "NULL"
-                    print("   - DB: AccountId='\(dbAccountId)', Folder='\(dbFolder)', UID='\(dbUid)', Subject='\(dbSubject)'")
-                }
-                
-                sqlite3_reset(stmt) // Reset the main statement
-                
+
                 while sqlite3_step(stmt) == SQLITE_ROW {
                     let uid = stmt.columnText(0) ?? ""
                     let from = stmt.columnText(1) ?? ""
@@ -127,13 +92,7 @@ public class MailReadDAOImpl: BaseDAO, MailReadDAO {
                                           date: date, flags: flags)
                     headers.append(header)
                 }
-                
-                // DEBUG LOGGING
-                print("🔍 [MailReadDAO] Query returned \(headers.count) headers")
-                for (index, header) in headers.enumerated() {
-                    print("   [\(index)] UID: \(header.id), Subject: \(header.subject)")
-                }
-                
+
                 return headers
             }
         }
