@@ -631,9 +631,17 @@ import Foundation
 
     private func updateBadgeCounts(accountId: UUID) {
         do {
-            // Count unread in INBOX via repository (DAO-backed)
-            let inboxHeaders = try MailRepository.shared.listHeaders(accountId: accountId, folder: "INBOX", limit: 1000, offset: 0)
-            self.unreadCount = inboxHeaders.filter { !$0.flags.contains("\\Seen") }.count
+            // Count unread across ALL active accounts for app badge
+            var totalUnread = 0
+            for account in accounts {
+                let headers = try MailRepository.shared.listHeaders(accountId: account.id, folder: "INBOX", limit: 1000, offset: 0)
+                totalUnread += headers.filter { !$0.flags.contains("\\Seen") }.count
+            }
+            self.unreadCount = totalUnread
+
+            // Update app icon badge with total unread count across all accounts
+            AppBadgeManager.shared.updateFromUnreadCount(totalUnread)
+
             // Outbox count from MailSendService
             let outbox = try MailSendService.shared.dao?.loadAll(accountId: accountId) ?? []
             self.outboxCount = outbox.filter { $0.status == .pending || $0.status == .sending }.count

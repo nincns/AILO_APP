@@ -68,6 +68,13 @@ private enum StartupWarmups {
         warmAudioSession()
         warmTextKit()
         initializeDAOs()
+        requestBadgePermission()
+    }
+
+    private static func requestBadgePermission() {
+        Task {
+            await AppBadgeManager.shared.requestPermission()
+        }
     }
 
     private static func warmAudioSession() {
@@ -197,6 +204,21 @@ private enum StartupWarmups {
         }
         
         print("🎉 Initial mail sync startup completed for all accounts!")
+
+        // Update app badge with initial unread count
+        await updateInitialBadgeCount(accounts: activeAccounts)
+    }
+
+    /// Updates app badge with total unread count after initial sync
+    private static func updateInitialBadgeCount(accounts: [MailAccountConfig]) async {
+        var totalUnread = 0
+        for account in accounts {
+            if let headers = try? MailRepository.shared.listHeaders(accountId: account.id, folder: "INBOX", limit: 1000, offset: 0) {
+                totalUnread += headers.filter { !$0.flags.contains("\\Seen") }.count
+            }
+        }
+        await AppBadgeManager.shared.updateFromUnreadCount(totalUnread)
+        print("📛 Initial badge count set to: \(totalUnread)")
     }
 
     /// Initialisiert den MailSendService mit DAO und SMTP-Konfiguration
