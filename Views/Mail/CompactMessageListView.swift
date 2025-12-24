@@ -181,21 +181,27 @@ struct EnhancedMailRowView: View {
             }
             
             // Zeile 3: Attachment-Icon + Betreff (linksbündig)
+            // Wenn nur S/MIME-Signatur vorhanden ist, zeigen wir KEIN Paperclip
+            // (Signatur-Icon wird bereits oben angezeigt)
             HStack(alignment: .center, spacing: 6) {
                 Spacer()
                     .frame(width: 12)
-                
-                if hasAttachments {
+
+                // Paperclip nur anzeigen wenn echte Anhänge vorhanden
+                // Bei signierten Mails ohne echte Anhänge: kein Paperclip (nur Signatur-Icon)
+                let isSignedOnly = mail.signatureStatus != nil &&
+                                   mail.signatureStatus != .notSigned
+                if hasAttachments && !isSignedOnly {
                     Image(systemName: "paperclip")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
-                
+
                 Text(mail.subject.isEmpty ? String(localized: "app.mail.no_subject") : mail.subject)
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
-                
+
                 Spacer()
             }
         }
