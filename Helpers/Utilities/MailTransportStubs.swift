@@ -222,7 +222,6 @@ final class MailSendReceive {
             
             print("📨 [MailTransportStubs] Fetching \(latest.count) message headers...")
             let fetchLines = try await cmds.uidFetchEnvelope(conn, uids: latest, peek: true)
-            print("🔍 [DEBUG] uidFetchEnvelope returned \(fetchLines.count) lines")
 
             // CRITICAL FIX: Reconstruct multi-line FETCH responses
             // IMAP servers can split responses when using literals {n}
@@ -268,12 +267,6 @@ final class MailSendReceive {
                 reconstructedLines.append(currentFetch)
             }
 
-            print("🔍 [DEBUG] Reconstructed into \(reconstructedLines.count) logical lines")
-            for (idx, line) in reconstructedLines.enumerated() {
-                let preview = line.count > 300 ? String(line.prefix(300)) + "..." : line
-                print("🔍 [DEBUG] Reconstructed[\(idx)]: \(preview)")
-            }
-
             // CRITICAL FIX 2: Remove literal markers {n} from reconstructed lines
             // The parser doesn't handle literal size markers - they're only for the transport layer
             var sanitizedLines: [String] = []
@@ -288,30 +281,8 @@ final class MailSendReceive {
                 sanitizedLines.append(cleaned)
             }
 
-            print("🔍 [DEBUG] After sanitization:")
-            for (idx, line) in sanitizedLines.enumerated() {
-                let preview = line.count > 200 ? String(line.prefix(200)) + "..." : line
-                print("🔍 [DEBUG] Sanitized[\(idx)]: \(preview)")
-            }
-
             let parser = IMAPParsers()
             let envelopes = parser.parseEnvelope(sanitizedLines)
-            print("🔍 [DEBUG] Parsed \(envelopes.count) envelopes")
-
-            if envelopes.isEmpty && !sanitizedLines.isEmpty {
-                print("⚠️ [DEBUG] Parser still returns 0 - checking parser logic...")
-                // Check if lines match parser expectations
-                for line in sanitizedLines {
-                    if line.hasPrefix("* ") && line.contains(" FETCH ") {
-                        print("✅ [DEBUG] Line matches FETCH pattern")
-                        if line.contains("ENVELOPE") {
-                            print("✅ [DEBUG] Line contains ENVELOPE")
-                        } else {
-                            print("❌ [DEBUG] Line missing ENVELOPE!")
-                        }
-                    }
-                }
-            }
             let flags = parser.parseFlags(fetchLines)
             let flagsByUID = Dictionary(uniqueKeysWithValues: flags.map { ($0.uid, $0.flags) })
 

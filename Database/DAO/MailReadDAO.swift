@@ -823,19 +823,14 @@ public class MailReadDAOImpl: BaseDAO, MailReadDAO {
 
                                 if !hasRealAttachment {
                                     hasAttachments = false
-                                    print("📎 [ATTACHMENT] UID \(uid): Signed mail with only .p7s → hiding paperclip")
                                 }
                             }
                         }
 
                         statusMap[uid] = hasAttachments
-                        if hasAttachments {
-                            print("📎 [ATTACHMENT] UID \(uid) has attachments")
-                        }
                     }
                 }
 
-                print("📎 [attachmentStatus] Found \(statusMap.filter { $0.value }.count) messages with attachments")
                 return statusMap
             }
         }
