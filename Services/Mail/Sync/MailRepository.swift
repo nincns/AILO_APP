@@ -982,21 +982,39 @@ public final class MailRepository: ObservableObject {
     // MARK: - Attachment Detection Helpers
 
     /// Erkennt ob eine E-Mail Anhänge enthält basierend auf dem rawBody
+    /// Hinweis: S/MIME Signaturdateien (.p7s) werden NICHT als Anhänge gezählt
     private func detectAttachments(in rawBody: String) -> Bool {
         let lowerBody = rawBody.lowercased()
 
+        // 🔐 S/MIME-Only Check: Wenn NUR eine .p7s Signatur vorhanden ist, keine Anhänge
+        // Prüfe ob es sich um multipart/signed mit nur Signatur handelt
+        let isSignedOnly = lowerBody.contains("multipart/signed") &&
+                           lowerBody.contains("pkcs7-signature") &&
+                           !containsRealAttachment(lowerBody)
+
+        if isSignedOnly {
+            print("📎 [detectAttachments] Only S/MIME signature found, no real attachments")
+            return false
+        }
+
         // 1. Explizit als Attachment markiert (mit/ohne Leerzeichen nach Doppelpunkt)
-        if lowerBody.contains("content-disposition: attachment") ||
-           lowerBody.contains("content-disposition:attachment") {
+        // Aber nicht für .p7s Dateien
+        if (lowerBody.contains("content-disposition: attachment") ||
+            lowerBody.contains("content-disposition:attachment")) &&
+           !lowerBody.contains("smime.p7s") &&
+           !lowerBody.contains("pkcs7-signature") {
             print("📎 [detectAttachments] Found via content-disposition: attachment")
             return true
         }
 
         // 2. Multipart/mixed enthält typischerweise Anhänge
+        // Aber prüfen ob es echte Anhänge gibt (nicht nur Signatur)
         if lowerBody.contains("content-type: multipart/mixed") ||
            lowerBody.contains("content-type:multipart/mixed") {
-            print("📎 [detectAttachments] Found via multipart/mixed")
-            return true
+            if containsRealAttachment(lowerBody) {
+                print("📎 [detectAttachments] Found via multipart/mixed with real attachment")
+                return true
+            }
         }
 
         // 3. PDF, Office-Dokumente, etc. - robustere Erkennung
@@ -1022,7 +1040,7 @@ public final class MailRepository: ObservableObject {
             }
         }
 
-        // 4. Dateiname mit typischen Anhang-Erweiterungen
+        // 4. Dateiname mit typischen Anhang-Erweiterungen (ohne .p7s, .p7m, .p7c)
         let attachmentExtensions = [".pdf", ".doc", ".docx", ".xls", ".xlsx", ".ppt", ".pptx",
                                     ".zip", ".rar", ".7z", ".tar", ".gz"]
         for ext in attachmentExtensions {
@@ -1045,11 +1063,15 @@ public final class MailRepository: ObservableObject {
             }
         }
 
-        // 5. Generische filename= Erkennung (aber nicht für inline-Bilder)
-        if lowerBody.contains("filename=") {
+        // 5. Generische filename= Erkennung (aber nicht für inline-Bilder und nicht für .p7s)
+        if lowerBody.contains("filename=") && !lowerBody.contains("smime.p7s") {
             let lines = rawBody.components(separatedBy: "\n")
             for (index, line) in lines.enumerated() {
-                if line.lowercased().contains("filename=") {
+                let lowerLine = line.lowercased()
+                if lowerLine.contains("filename=") &&
+                   !lowerLine.contains(".p7s") &&
+                   !lowerLine.contains(".p7m") &&
+                   !lowerLine.contains(".p7c") {
                     if index > 0 && index < lines.count {
                         let contextStart = max(0, index - 5)
                         let context = lines[contextStart...index].joined(separator: "\n").lowercased()
@@ -1073,16 +1095,42 @@ public final class MailRepository: ObservableObject {
             }
         }
 
-        // 6. Name parameter im Content-Type (häufig bei Anhängen)
+        // 6. Name parameter im Content-Type (häufig bei Anhängen) - aber nicht für .p7s
         if lowerBody.contains("content-type:") && lowerBody.contains("name=") {
             if !lowerBody.contains("content-id:") ||
                lowerBody.contains("content-disposition: attachment") ||
                lowerBody.contains("content-disposition:attachment") {
-                print("📎 [detectAttachments] Found via name parameter in content-type")
-                return true
+                // Prüfe ob es NICHT nur .p7s ist
+                if containsRealAttachment(lowerBody) {
+                    print("📎 [detectAttachments] Found via name parameter in content-type")
+                    return true
+                }
             }
         }
 
+        return false
+    }
+
+    /// Prüft ob der Body echte Anhänge enthält (nicht nur S/MIME Signaturen)
+    private func containsRealAttachment(_ lowerBody: String) -> Bool {
+        // Liste von echten Anhang-Indikatoren
+        let realAttachmentIndicators = [
+            "application/pdf",
+            "application/msword",
+            "application/vnd.openxmlformats",
+            "application/vnd.ms-excel",
+            "application/vnd.ms-powerpoint",
+            "application/zip",
+            "application/octet-stream",
+            ".pdf\"", ".doc\"", ".docx\"", ".xls\"", ".xlsx\"",
+            ".ppt\"", ".pptx\"", ".zip\"", ".rar\""
+        ]
+
+        for indicator in realAttachmentIndicators {
+            if lowerBody.contains(indicator) {
+                return true
+            }
+        }
         return false
     }
 
