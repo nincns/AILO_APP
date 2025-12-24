@@ -33,6 +33,21 @@ struct AILO_APPApp: App {
 }
 
 struct MainView: View {
+    @StateObject private var mailViewModel = MailViewModel()
+
+    init() {
+        // Customize tab bar badge appearance to teal
+        let tealColor = UIColor.systemTeal
+        let appearance = UITabBarAppearance()
+        appearance.configureWithDefaultBackground()
+        appearance.stackedLayoutAppearance.normal.badgeBackgroundColor = tealColor
+        appearance.stackedLayoutAppearance.selected.badgeBackgroundColor = tealColor
+        UITabBar.appearance().standardAppearance = appearance
+        if #available(iOS 15.0, *) {
+            UITabBar.appearance().scrollEdgeAppearance = appearance
+        }
+    }
+
     var body: some View {
         TabView {
             NavigationStack { DashboardView() }
@@ -46,6 +61,7 @@ struct MainView: View {
                     Image(systemName: "envelope")
                     Text("app.tab.mail")
                 }
+                .badge(mailViewModel.unreadCount > 0 ? mailViewModel.unreadCount : 0)
 
             NavigationStack { LogsView() }
                 .tabItem {
@@ -58,6 +74,12 @@ struct MainView: View {
                     Image(systemName: "gearshape")
                     Text("app.tab.settings")
                 }
+        }
+        .tint(.teal)
+        .onAppear {
+            Task {
+                await mailViewModel.loadAccounts()
+            }
         }
     }
 }
