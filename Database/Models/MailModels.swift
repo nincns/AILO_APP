@@ -248,6 +248,39 @@ public struct MailAccountConfig: Codable, Identifiable, Equatable, Sendable {
         syncLimitIncremental = try container.decodeIfPresent(Int.self, forKey: .syncLimitIncremental) ?? 50
     }
 
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(id, forKey: .id)
+        try container.encode(accountName, forKey: .accountName)
+        try container.encodeIfPresent(displayName, forKey: .displayName)
+        try container.encode(emailAddress, forKey: .emailAddress)
+        try container.encodeIfPresent(replyTo, forKey: .replyTo)
+        try container.encode(signingEnabled, forKey: .signingEnabled)
+        try container.encodeIfPresent(signingCertificateId, forKey: .signingCertificateId)
+        try container.encode(recvProtocol, forKey: .recvProtocol)
+        try container.encode(recvHost, forKey: .recvHost)
+        try container.encode(recvPort, forKey: .recvPort)
+        try container.encode(recvEncryption, forKey: .recvEncryption)
+        try container.encode(recvUsername, forKey: .recvUsername)
+        try container.encodeIfPresent(recvPassword, forKey: .recvPassword)
+        try container.encode(smtpHost, forKey: .smtpHost)
+        try container.encode(smtpPort, forKey: .smtpPort)
+        try container.encode(smtpEncryption, forKey: .smtpEncryption)
+        try container.encode(smtpUsername, forKey: .smtpUsername)
+        try container.encodeIfPresent(smtpPassword, forKey: .smtpPassword)
+        try container.encode(authMethod, forKey: .authMethod)
+        try container.encodeIfPresent(oauthToken, forKey: .oauthToken)
+        try container.encode(connectionTimeoutSec, forKey: .connectionTimeoutSec)
+        try container.encode(enableLogging, forKey: .enableLogging)
+        try container.encode(autoMarkAsRead, forKey: .autoMarkAsRead)
+        try container.encodeIfPresent(checkIntervalMin, forKey: .checkIntervalMin)
+        try container.encode(checkIntervalEnabled, forKey: .checkIntervalEnabled)
+        try container.encode(folders, forKey: .folders)
+        try container.encode(syncLimitInitial, forKey: .syncLimitInitial)
+        try container.encode(syncLimitRefresh, forKey: .syncLimitRefresh)
+        try container.encode(syncLimitIncremental, forKey: .syncLimitIncremental)
+    }
+
     private enum CodingKeys: String, CodingKey {
         case id, accountName, displayName, emailAddress, replyTo
         case signingEnabled, signingCertificateId
