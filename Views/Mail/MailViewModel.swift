@@ -682,24 +682,61 @@ import Foundation
     
     func toggleFlag(_ mail: MessageHeaderEntity, flag: String) async {
         let has = mail.flags.contains(flag)
+        var storeSucceeded = false
+
         await withIMAP(accountId: mail.accountId, folder: mail.folder, readOnly: false) { _, conn in
             let client = IMAPClient(connection: conn)
             try await client.store(uids: [mail.uid], flags: [flag], mode: has ? .remove : .add)
+            storeSucceeded = true
         }
-        // Update in-memory flags for immediate UI feedback
-        applyFlagLocally(uids: [mail.uid], folder: mail.folder, flag: flag, add: !has)
-        self.updateBadgeCounts(accountId: mail.accountId)
+
+        // Only update local state if STORE succeeded
+        if storeSucceeded {
+            // Calculate new flags
+            var newFlags = mail.flags
+            if has {
+                newFlags.removeAll { $0 == flag }
+            } else {
+                if !newFlags.contains(flag) { newFlags.append(flag) }
+            }
+
+            // Persist to database immediately
+            persistFlagsToDB(accountId: mail.accountId, folder: mail.folder, uid: mail.uid, flags: newFlags)
+
+            // Update in-memory flags for immediate UI feedback
+            applyFlagLocally(uids: [mail.uid], folder: mail.folder, flag: flag, add: !has)
+            self.updateBadgeCounts(accountId: mail.accountId)
+        }
     }
     
     func toggleReadStatus(_ mail: MessageHeaderEntity) async {
         let flag = "\\Seen"
         let isRead = mail.flags.contains(flag)
+        var storeSucceeded = false
+
         await withIMAP(accountId: mail.accountId, folder: mail.folder, readOnly: false) { _, conn in
             let client = IMAPClient(connection: conn)
             try await client.store(uids: [mail.uid], flags: [flag], mode: isRead ? .remove : .add)
+            storeSucceeded = true
         }
-        applyFlagLocally(uids: [mail.uid], folder: mail.folder, flag: flag, add: !isRead)
-        self.updateBadgeCounts(accountId: mail.accountId)
+
+        // Only update local state if STORE succeeded
+        if storeSucceeded {
+            // Calculate new flags
+            var newFlags = mail.flags
+            if isRead {
+                newFlags.removeAll { $0 == flag }
+            } else {
+                if !newFlags.contains(flag) { newFlags.append(flag) }
+            }
+
+            // Persist to database immediately
+            persistFlagsToDB(accountId: mail.accountId, folder: mail.folder, uid: mail.uid, flags: newFlags)
+
+            // Update in-memory UI state
+            applyFlagLocally(uids: [mail.uid], folder: mail.folder, flag: flag, add: !isRead)
+            self.updateBadgeCounts(accountId: mail.accountId)
+        }
     }
     
     func markAllRead(in mails: [MessageHeaderEntity]) async {
@@ -790,6 +827,22 @@ import Foundation
         }
     }
 
+    /// Persist flag changes to the local database
+    /// This ensures flag changes survive app restarts and sync cycles
+    private func persistFlagsToDB(accountId: UUID, folder: String, uid: String, flags: [String]) {
+        do {
+            try MailRepository.shared.writeDAO?.updateFlags(
+                accountId: accountId,
+                folder: folder,
+                uid: uid,
+                flags: flags
+            )
+            print("✅ [MailViewModel] Persisted flags to DB for uid: \(uid) - flags: \(flags)")
+        } catch {
+            print("❌ [MailViewModel] Failed to persist flags to DB: \(error)")
+        }
+    }
+
     private func batchToggleSeen(in mails: [MessageHeaderEntity], add: Bool) async {
         struct FolderKey: Hashable { let accountId: UUID; let folder: String }
         let groups = Dictionary(grouping: mails, by: { FolderKey(accountId: $0.accountId, folder: $0.folder) })
@@ -797,12 +850,30 @@ import Foundation
             let accId = key.accountId
             let folder = key.folder
             let uids = Array(Set(items.map { $0.uid }))
+            var storeSucceeded = false
+
             await self.withIMAP(accountId: accId, folder: folder, readOnly: false) { [add, uids] _, conn in
                 let client = IMAPClient(connection: conn)
                 try await client.store(uids: uids, flags: ["\\Seen"], mode: add ? .add : .remove)
+                storeSucceeded = true
             }
-            self.applyFlagLocally(uids: uids, folder: folder, flag: "\\Seen", add: add)
-            self.updateBadgeCounts(accountId: accId)
+
+            // Only update local state if STORE succeeded
+            if storeSucceeded {
+                // Persist to database immediately for each mail
+                for item in items {
+                    var newFlags = item.flags
+                    if add {
+                        if !newFlags.contains("\\Seen") { newFlags.append("\\Seen") }
+                    } else {
+                        newFlags.removeAll { $0 == "\\Seen" }
+                    }
+                    persistFlagsToDB(accountId: accId, folder: folder, uid: item.uid, flags: newFlags)
+                }
+
+                self.applyFlagLocally(uids: uids, folder: folder, flag: "\\Seen", add: add)
+                self.updateBadgeCounts(accountId: accId)
+            }
         }
     }
     

@@ -11,6 +11,9 @@ public protocol MailWriteDAO {
     // Header operations
     func insertHeaders(accountId: UUID, folder: String, headers: [MailHeader]) throws
     func upsertHeaders(accountId: UUID, folder: String, headers: [MailHeader]) throws
+
+    // Flag operations
+    func updateFlags(accountId: UUID, folder: String, uid: String, flags: [String]) throws
     
     // Body operations  
     func storeBody(accountId: UUID, folder: String, uid: String, body: MessageBodyEntity) throws
@@ -825,16 +828,48 @@ public class MailWriteDAOImpl: BaseDAO, MailWriteDAO {
     
     public func deleteBlobMeta(_ blobId: String) throws {
         try ensureOpen()
-        
+
         let sql = "DELETE FROM \(MailSchema.tBlobMeta) WHERE blob_id = ?"
-        
+
         let stmt = try prepare(sql)
         defer { finalize(stmt) }
-        
+
         bindText(stmt, 1, blobId)
-        
+
         guard sqlite3_step(stmt) == SQLITE_DONE else {
             throw dbError(context: "deleteBlobMeta")
+        }
+    }
+
+    // MARK: - Flag Operations
+
+    /// Update flags for a specific message in the database
+    /// This is called after successfully updating flags on the IMAP server
+    public func updateFlags(accountId: UUID, folder: String, uid: String, flags: [String]) throws {
+        try DAOPerformanceMonitor.measure("update_flags") {
+            try ensureOpen()
+
+            let sql = """
+                UPDATE \(MailSchema.tMsgHeader)
+                SET flags = ?
+                WHERE account_id = ? AND folder = ? AND uid = ?
+            """
+
+            let stmt = try prepare(sql)
+            defer { finalize(stmt) }
+
+            bindStringArray(stmt, 1, flags)
+            bindUUID(stmt, 2, accountId)
+            bindText(stmt, 3, folder)
+            bindText(stmt, 4, uid)
+
+            let result = sqlite3_step(stmt)
+            guard result == SQLITE_DONE else {
+                throw DAOError.sqlError("Failed to update flags for uid: \(uid)")
+            }
+
+            let rowsAffected = sqlite3_changes(db)
+            print("✅ [MailWriteDAO] Updated flags for uid: \(uid) (rows affected: \(rowsAffected))")
         }
     }
 }
