@@ -574,6 +574,12 @@
 "mail.editor.smtp.user" = "Username";
 "mail.editor.smtp.password" = "Password";
 "mail.editor.authMethod" = "Authentication";
+"mail.editor.timeout" = "Timeout";
+"mail.editor.logging" = "Connection Logging";
+"mail.editor.autoMarkAsRead" = "Mark as read when opened";
+"mail.editor.interval.enabled" = "Enable automatic check";
+"mail.editor.interval.min" = "Check interval";
+"mail.editor.folders" = "Folders";
 
 /* Sync Limits */
 "mail.editor.section.sync" = "Synchronization";
@@ -622,6 +628,8 @@
 "app.mail.action.create_log" = "Create Log";
 "app.mail.action.flag" = "Flag";
 "app.mail.action.unflag" = "Remove Flag";
+"app.mail.flag" = "Flag";
+"app.mail.read_unread" = "Read/Unread";
 "app.mail.action.mark_read" = "Mark as Read";
 "app.mail.action.mark_unread" = "Mark as Unread";
 "app.mail.action.show_technical" = "Show Source";

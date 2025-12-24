@@ -88,6 +88,7 @@ struct MailEditor: View {
                     HStack { Text(String(localized: "mail.editor.timeout")); Spacer(); Text("\(timeoutSeconds)s") }
                 }
                 Toggle(String(localized: "mail.editor.logging"), isOn: $connectionLogging)
+                Toggle(String(localized: "mail.editor.autoMarkAsRead"), isOn: $autoMarkAsRead)
                 Toggle(String(localized: "mail.editor.interval.enabled"), isOn: $intervalActive)
                 Stepper(value: $checkIntervalMin, in: 1...120) {
                     HStack { Text(String(localized: "mail.editor.interval.min")); Spacer(); Text("\(checkIntervalMin) min") }
@@ -346,6 +347,7 @@ struct MailEditor: View {
     @State private var authMethod: String = "Password"
     @State private var timeoutSeconds: Int = 30
     @State private var connectionLogging: Bool = false
+    @State private var autoMarkAsRead: Bool = true
 
     @State private var folderInbox: String = ""
     @State private var folderSent: String = ""
@@ -440,6 +442,7 @@ struct MailEditor: View {
         }()
         timeoutSeconds = cfg.connectionTimeoutSec
         connectionLogging = cfg.enableLogging
+        autoMarkAsRead = cfg.autoMarkAsRead
         intervalActive = cfg.checkIntervalEnabled
         checkIntervalMin = cfg.checkIntervalMin ?? checkIntervalMin
         // Folders
@@ -550,6 +553,7 @@ struct MailEditor: View {
                 oauthToken: nil,
                 connectionTimeoutSec: safeTimeoutSeconds,
                 enableLogging: connectionLogging,
+                autoMarkAsRead: autoMarkAsRead,
                 checkIntervalMin: intervalActive ? safeCheckInterval : nil,
                 checkIntervalEnabled: intervalActive,
                 folders: .init(

@@ -530,6 +530,7 @@
 "mail.editor.authMethod" = "Authentifizierung";
 "mail.editor.timeout" = "Timeout";
 "mail.editor.logging" = "Verbindungsprotokoll";
+"mail.editor.autoMarkAsRead" = "Beim Öffnen als gelesen markieren";
 "mail.editor.interval.enabled" = "Automatische Prüfung aktivieren";
 "mail.editor.interval.min" = "Prüfintervall";
 "mail.editor.folders" = "Ordner";
@@ -568,6 +569,7 @@
 "app.mail.mark_read" = "Als gelesen markieren";
 "app.mail.mark_unread" = "Als ungelesen markieren";
 "app.mail.flag" = "Markieren";
+"app.mail.read_unread" = "Gelesen/Ungelesen";
 "app.mail.delete" = "Löschen";
 
 /* Search */

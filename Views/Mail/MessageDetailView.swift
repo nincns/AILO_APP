@@ -188,6 +188,7 @@ struct MessageDetailView: View {
         }
         .onAppear {
             loadMailBody()
+            autoMarkAsReadIfEnabled()
         }
         .onDisappear {
             cleanupTempFiles()
@@ -508,7 +509,34 @@ struct MessageDetailView: View {
     }
     
     // MARK: - Actions
-    
+
+    /// Automatically mark mail as read when opening, based on account settings
+    private func autoMarkAsReadIfEnabled() {
+        // Skip if already read
+        guard !mail.flags.contains("\\Seen") else {
+            print("📧 [MessageDetailView] Mail already read, skipping auto-mark")
+            return
+        }
+
+        // Load account config to check autoMarkAsRead setting
+        guard let data = UserDefaults.standard.data(forKey: "mail.accounts"),
+              let accounts = try? JSONDecoder().decode([MailAccountConfig].self, from: data),
+              let account = accounts.first(where: { $0.id == mail.accountId }) else {
+            print("📧 [MessageDetailView] Could not load account config for auto-mark check")
+            return
+        }
+
+        // Check if auto-mark is enabled for this account
+        guard account.autoMarkAsRead else {
+            print("📧 [MessageDetailView] autoMarkAsRead disabled for this account")
+            return
+        }
+
+        // Mark as read
+        print("📧 [MessageDetailView] Auto-marking mail as read")
+        onToggleRead?(mail)
+    }
+
     private func loadMailBody() {
         isLoadingBody = true
         errorMessage = nil

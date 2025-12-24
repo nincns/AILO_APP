@@ -134,6 +134,9 @@ public struct MailAccountConfig: Codable, Identifiable, Equatable, Sendable {
     public var connectionTimeoutSec: Int
     public var enableLogging: Bool
 
+    /// Whether to automatically mark emails as read when opened in detail view
+    public var autoMarkAsRead: Bool
+
     /// Interval in minutes. Only used if `checkIntervalEnabled` is true.
     public var checkIntervalMin: Int?
     public var checkIntervalEnabled: Bool
@@ -168,6 +171,7 @@ public struct MailAccountConfig: Codable, Identifiable, Equatable, Sendable {
         oauthToken: String? = nil,
         connectionTimeoutSec: Int = 15,
         enableLogging: Bool = false,
+        autoMarkAsRead: Bool = true,
         checkIntervalMin: Int? = nil,
         checkIntervalEnabled: Bool = false,
         folders: Folders = Folders(),
@@ -197,6 +201,7 @@ public struct MailAccountConfig: Codable, Identifiable, Equatable, Sendable {
         self.oauthToken = oauthToken
         self.connectionTimeoutSec = connectionTimeoutSec
         self.enableLogging = enableLogging
+        self.autoMarkAsRead = autoMarkAsRead
         self.checkIntervalMin = checkIntervalMin
         self.checkIntervalEnabled = checkIntervalEnabled
         self.folders = folders
@@ -232,6 +237,7 @@ public struct MailAccountConfig: Codable, Identifiable, Equatable, Sendable {
         oauthToken = try container.decodeIfPresent(String.self, forKey: .oauthToken)
         connectionTimeoutSec = try container.decodeIfPresent(Int.self, forKey: .connectionTimeoutSec) ?? 15
         enableLogging = try container.decodeIfPresent(Bool.self, forKey: .enableLogging) ?? false
+        autoMarkAsRead = try container.decodeIfPresent(Bool.self, forKey: .autoMarkAsRead) ?? true
         checkIntervalMin = try container.decodeIfPresent(Int.self, forKey: .checkIntervalMin)
         checkIntervalEnabled = try container.decodeIfPresent(Bool.self, forKey: .checkIntervalEnabled) ?? false
         folders = try container.decodeIfPresent(Folders.self, forKey: .folders) ?? Folders()
@@ -247,7 +253,7 @@ public struct MailAccountConfig: Codable, Identifiable, Equatable, Sendable {
         case signingEnabled, signingCertificateId
         case recvProtocol, recvHost, recvPort, recvEncryption, recvUsername, recvPassword
         case smtpHost, smtpPort, smtpEncryption, smtpUsername, smtpPassword
-        case authMethod, oauthToken, connectionTimeoutSec, enableLogging
+        case authMethod, oauthToken, connectionTimeoutSec, enableLogging, autoMarkAsRead
         case checkIntervalMin, checkIntervalEnabled, folders
         case syncLimitInitial, syncLimitRefresh, syncLimitIncremental
     }
