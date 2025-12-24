@@ -809,9 +809,14 @@ public class MailReadDAOImpl: BaseDAO, MailReadDAO {
             return try dbQueue.sync {
                 try ensureOpen()
 
+                // ✅ FIX: Erweiterte Abfrage die S/MIME-signierte Mails ohne echte Anhänge ausschließt
+                // Wenn content_type 'multipart/signed' enthält UND raw_body KEINE echten Anhänge hat,
+                // dann zeigen wir KEIN Attachment-Icon (nur Signatur-Icon)
                 let sql = """
                     SELECT h.uid,
-                           COALESCE(b.has_attachments, h.has_attachments, 0) as has_attachments
+                           COALESCE(b.has_attachments, h.has_attachments, 0) as has_attachments,
+                           b.content_type,
+                           b.raw_body
                     FROM \(MailSchema.tMsgHeader) h
                     LEFT JOIN \(MailSchema.tMsgBody) b
                         ON h.account_id = b.account_id
@@ -830,7 +835,40 @@ public class MailReadDAOImpl: BaseDAO, MailReadDAO {
 
                 while sqlite3_step(stmt) == SQLITE_ROW {
                     if let uid = stmt.columnText(0) {
-                        let hasAttachments = stmt.columnBool(1)
+                        var hasAttachments = stmt.columnBool(1)
+                        let contentType = stmt.columnText(2)?.lowercased() ?? ""
+                        let rawBody = stmt.columnText(3)?.lowercased() ?? ""
+
+                        // 🔐 S/MIME Check: Wenn signiert und nur .p7s Anhang → false
+                        if hasAttachments {
+                            let isSigned = contentType.contains("multipart/signed") ||
+                                           rawBody.contains("multipart/signed") ||
+                                           rawBody.contains("pkcs7-signature")
+
+                            if isSigned {
+                                // Prüfe ob echte Anhänge vorhanden (PDF, Office, ZIP etc.)
+                                let hasRealAttachment =
+                                    rawBody.contains("application/pdf") ||
+                                    rawBody.contains("application/msword") ||
+                                    rawBody.contains("application/vnd.openxmlformats") ||
+                                    rawBody.contains("application/vnd.ms-") ||
+                                    rawBody.contains("application/zip") ||
+                                    rawBody.contains(".pdf\"") ||
+                                    rawBody.contains(".doc\"") ||
+                                    rawBody.contains(".docx\"") ||
+                                    rawBody.contains(".xls\"") ||
+                                    rawBody.contains(".xlsx\"") ||
+                                    rawBody.contains(".ppt\"") ||
+                                    rawBody.contains(".pptx\"") ||
+                                    rawBody.contains(".zip\"")
+
+                                if !hasRealAttachment {
+                                    hasAttachments = false
+                                    print("📎 [ATTACHMENT] UID \(uid): Signed mail with only .p7s → hiding paperclip")
+                                }
+                            }
+                        }
+
                         statusMap[uid] = hasAttachments
                         if hasAttachments {
                             print("📎 [ATTACHMENT] UID \(uid) has attachments")
