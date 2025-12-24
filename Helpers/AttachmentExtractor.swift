@@ -451,32 +451,83 @@ public class AttachmentExtractor {
     private static func decodeMimeFilename(_ filename: String) -> String {
         var result = filename
 
-        // =?charset?encoding?text?= Format (MIME encoded-word)
-        if result.contains("=?") {
-            // UTF-8 Quoted-Printable
-            result = result.replacingOccurrences(of: "=?utf-8?Q?", with: "", options: .caseInsensitive)
-            result = result.replacingOccurrences(of: "=?UTF-8?Q?", with: "", options: .caseInsensitive)
-            result = result.replacingOccurrences(of: "=?iso-8859-1?Q?", with: "", options: .caseInsensitive)
-            result = result.replacingOccurrences(of: "?=", with: "")
-            result = result.replacingOccurrences(of: "_", with: " ")
+        // RFC 2047: =?charset?encoding?text?= Format (MIME encoded-word)
+        // Unterstützt mehrere encoded-words die zusammengehören
+        guard result.contains("=?") else { return result }
 
-            // =XX hex decode (Quoted-Printable)
-            var decoded = ""
-            var i = result.startIndex
-            while i < result.endIndex {
-                if result[i] == "=" && result.distance(from: i, to: result.endIndex) >= 3 {
-                    let hexStart = result.index(after: i)
-                    let hexEnd = result.index(hexStart, offsetBy: 2)
-                    if let byte = UInt8(String(result[hexStart..<hexEnd]), radix: 16) {
-                        decoded.append(Character(UnicodeScalar(byte)))
-                        i = hexEnd
-                        continue
-                    }
+        // Regex für encoded-word: =?charset?encoding?encoded_text?=
+        let pattern = "=\\?([^?]+)\\?([BbQq])\\?([^?]*)\\?="
+        guard let regex = try? NSRegularExpression(pattern: pattern, options: []) else {
+            return result
+        }
+
+        var decodedParts: [String] = []
+        var lastEnd = result.startIndex
+        let nsRange = NSRange(result.startIndex..., in: result)
+        let matches = regex.matches(in: result, options: [], range: nsRange)
+
+        for match in matches {
+            // Text zwischen encoded-words (normalerweise Leerzeichen/Newlines - ignorieren bei aufeinanderfolgenden)
+            if let range = Range(match.range, in: result) {
+                // Hole die Capture Groups
+                guard match.numberOfRanges >= 4,
+                      let charsetRange = Range(match.range(at: 1), in: result),
+                      let encodingRange = Range(match.range(at: 2), in: result),
+                      let textRange = Range(match.range(at: 3), in: result) else {
+                    continue
                 }
-                decoded.append(result[i])
-                i = result.index(after: i)
+
+                let charset = String(result[charsetRange]).lowercased()
+                let encoding = String(result[encodingRange]).uppercased()
+                let encodedText = String(result[textRange])
+
+                var decodedText = ""
+
+                if encoding == "B" {
+                    // Base64 decoding
+                    if let data = Data(base64Encoded: encodedText, options: .ignoreUnknownCharacters) {
+                        // Versuche verschiedene Charsets
+                        if charset.contains("utf-8") || charset.contains("utf8") {
+                            decodedText = String(data: data, encoding: .utf8) ?? ""
+                        } else if charset.contains("iso-8859") || charset.contains("latin") {
+                            decodedText = String(data: data, encoding: .isoLatin1) ?? ""
+                        } else if charset.contains("windows-1252") {
+                            decodedText = String(data: data, encoding: .windowsCP1252) ?? ""
+                        } else {
+                            // Fallback: UTF-8
+                            decodedText = String(data: data, encoding: .utf8) ?? String(data: data, encoding: .isoLatin1) ?? ""
+                        }
+                    }
+                } else if encoding == "Q" {
+                    // Quoted-Printable decoding
+                    var qpResult = encodedText.replacingOccurrences(of: "_", with: " ")
+                    var decoded = ""
+                    var i = qpResult.startIndex
+                    while i < qpResult.endIndex {
+                        if qpResult[i] == "=" && qpResult.distance(from: i, to: qpResult.endIndex) >= 3 {
+                            let hexStart = qpResult.index(after: i)
+                            let hexEnd = qpResult.index(hexStart, offsetBy: 2)
+                            if let byte = UInt8(String(qpResult[hexStart..<hexEnd]), radix: 16) {
+                                decoded.append(Character(UnicodeScalar(byte)))
+                                i = hexEnd
+                                continue
+                            }
+                        }
+                        decoded.append(qpResult[i])
+                        i = qpResult.index(after: i)
+                    }
+                    decodedText = decoded
+                }
+
+                decodedParts.append(decodedText)
+                lastEnd = range.upperBound
             }
-            result = decoded
+        }
+
+        // Falls decoded parts gefunden wurden, zusammenfügen
+        if !decodedParts.isEmpty {
+            result = decodedParts.joined()
+            print("📎 [decodeMimeFilename] Decoded: '\(result)'")
         }
 
         return result

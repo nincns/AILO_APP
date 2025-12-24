@@ -557,10 +557,24 @@ struct MessageDetailView: View {
                                         bodyEntity: bodyEntity
                                     )
 
-                                    // ✅ NEU: Anhang-Metadaten extrahieren
-                                    let extractedAttachments = extractAttachmentMetadata(from: rawBody)
+                                    // ✅ FIX: Nutze zentralen AttachmentExtractor
+                                    let extracted = AttachmentExtractor.extract(from: rawBody)
+                                    let extractedAttachments: [AttachmentEntity] = extracted.enumerated().map { (index, att) in
+                                        AttachmentEntity(
+                                            accountId: mail.accountId,
+                                            folder: mail.folder,
+                                            uid: mail.uid,
+                                            partId: "part\(index + 1)",
+                                            filename: att.filename,
+                                            mimeType: att.mimeType,
+                                            sizeBytes: att.data.count,
+                                            data: att.data,
+                                            contentId: att.contentId,
+                                            isInline: att.contentId != nil
+                                        )
+                                    }
                                     if !extractedAttachments.isEmpty {
-                                        print("📎 [loadMailBody] Extracted \(extractedAttachments.count) attachment(s)")
+                                        print("📎 [loadMailBody] AttachmentExtractor found \(extractedAttachments.count) attachment(s)")
                                     }
 
                                     await MainActor.run {
@@ -618,15 +632,29 @@ struct MessageDetailView: View {
                                     }
                                 }
 
-                                // ✅ NEU: Anhang-Metadaten aus rawBody extrahieren
+                                // ✅ FIX: Nutze zentralen AttachmentExtractor statt extractAttachmentMetadata
+                                // AttachmentExtractor handhabt MIME-encoded Dateinamen korrekt
                                 print("📎 [PATH-A] detectedAttachments=\(detectedAttachments), bodyEntity.hasAttachments=\(bodyEntity.hasAttachments)")
                                 if detectedAttachments || bodyEntity.hasAttachments {
-                                    let extractedAttachments = extractAttachmentMetadata(from: rawBody)
-                                    print("📎 [PATH-A] extractedAttachments.count = \(extractedAttachments.count)")
-                                    if !extractedAttachments.isEmpty {
-                                        print("📎 [PATH-A] Extracted \(extractedAttachments.count) attachment(s)")
+                                    let extracted = AttachmentExtractor.extract(from: rawBody)
+                                    print("📎 [PATH-A] AttachmentExtractor found: \(extracted.count) attachment(s)")
+                                    if !extracted.isEmpty {
+                                        let attachmentEntities = extracted.enumerated().map { (index, att) in
+                                            AttachmentEntity(
+                                                accountId: mail.accountId,
+                                                folder: mail.folder,
+                                                uid: mail.uid,
+                                                partId: "part\(index + 1)",
+                                                filename: att.filename,
+                                                mimeType: att.mimeType,
+                                                sizeBytes: att.data.count,
+                                                data: att.data,
+                                                contentId: att.contentId,
+                                                isInline: att.contentId != nil
+                                            )
+                                        }
                                         await MainActor.run {
-                                            self.attachments = extractedAttachments
+                                            self.attachments = attachmentEntities
                                             self.hasDetectedAttachments = true
                                             print("📎 [PATH-A UI] attachments set: \(self.attachments.count)")
                                         }
@@ -755,10 +783,24 @@ struct MessageDetailView: View {
                                     bodyEntity: bodyEntity
                                 )
 
-                                // ✅ NEU: Anhang-Metadaten extrahieren
-                                let extractedAttachments = extractAttachmentMetadata(from: rawBody)
+                                // ✅ FIX: Nutze zentralen AttachmentExtractor
+                                let extracted = AttachmentExtractor.extract(from: rawBody)
+                                let extractedAttachments: [AttachmentEntity] = extracted.enumerated().map { (index, att) in
+                                    AttachmentEntity(
+                                        accountId: mail.accountId,
+                                        folder: mail.folder,
+                                        uid: mail.uid,
+                                        partId: "part\(index + 1)",
+                                        filename: att.filename,
+                                        mimeType: att.mimeType,
+                                        sizeBytes: att.data.count,
+                                        data: att.data,
+                                        contentId: att.contentId,
+                                        isInline: att.contentId != nil
+                                    )
+                                }
                                 if !extractedAttachments.isEmpty {
-                                    print("📎 [loadMailBodyAfterSync] Extracted \(extractedAttachments.count) attachment(s)")
+                                    print("📎 [loadMailBodyAfterSync] AttachmentExtractor found \(extractedAttachments.count) attachment(s)")
                                 }
 
                                 await MainActor.run {
@@ -811,13 +853,27 @@ struct MessageDetailView: View {
                                 }
                             }
 
-                            // ✅ NEU: Anhang-Metadaten aus rawBody extrahieren
+                            // ✅ FIX: Nutze zentralen AttachmentExtractor
                             if detectedAttachments || bodyEntity.hasAttachments {
-                                let extractedAttachments = extractAttachmentMetadata(from: rawBody)
-                                if !extractedAttachments.isEmpty {
-                                    print("📎 [MessageDetailView] Extracted \(extractedAttachments.count) attachment(s) (post-sync)")
+                                let extracted = AttachmentExtractor.extract(from: rawBody)
+                                if !extracted.isEmpty {
+                                    let attachmentEntities = extracted.enumerated().map { (index, att) in
+                                        AttachmentEntity(
+                                            accountId: mail.accountId,
+                                            folder: mail.folder,
+                                            uid: mail.uid,
+                                            partId: "part\(index + 1)",
+                                            filename: att.filename,
+                                            mimeType: att.mimeType,
+                                            sizeBytes: att.data.count,
+                                            data: att.data,
+                                            contentId: att.contentId,
+                                            isInline: att.contentId != nil
+                                        )
+                                    }
+                                    print("📎 [MessageDetailView] AttachmentExtractor found \(attachmentEntities.count) attachment(s) (post-sync)")
                                     await MainActor.run {
-                                        self.attachments = extractedAttachments
+                                        self.attachments = attachmentEntities
                                         self.hasDetectedAttachments = true
                                     }
                                 }
