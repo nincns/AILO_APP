@@ -22,6 +22,7 @@ struct JourneyDetailView: View {
     // Calendar State
     @State private var showCalendarSheet: Bool = false
     @State private var calendarEventTitle: String?
+    @State private var calendarEventDeleted: Bool = false
 
     var body: some View {
         ScrollView {
@@ -230,6 +231,15 @@ struct JourneyDetailView: View {
         guard let eventId = node.calendarEventId, !eventId.isEmpty else { return }
         if let event = JourneyCalendarService.shared.fetchEvent(identifier: eventId) {
             calendarEventTitle = event.title
+            calendarEventDeleted = false
+        } else {
+            // Event wurde extern gelöscht - calendarEventId entfernen
+            calendarEventDeleted = true
+            Task {
+                var updated = node
+                updated.calendarEventId = nil
+                try? await store.updateNode(updated)
+            }
         }
     }
 
@@ -245,11 +255,12 @@ struct JourneyDetailView: View {
     }
 
     private func updateCalendarEventId(_ eventId: String) {
+        calendarEventDeleted = false
+        calendarEventTitle = node.title
         Task {
             var updated = node
             updated.calendarEventId = eventId
             try? await store.updateNode(updated)
-            calendarEventTitle = node.title
         }
     }
 
@@ -374,7 +385,7 @@ struct JourneyDetailView: View {
             Text(String(localized: "journey.calendar"))
                 .font(.headline)
 
-            if let eventId = node.calendarEventId, !eventId.isEmpty {
+            if let eventId = node.calendarEventId, !eventId.isEmpty, !calendarEventDeleted {
                 // Event existiert
                 HStack {
                     Image(systemName: "calendar.badge.checkmark")
