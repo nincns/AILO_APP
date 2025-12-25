@@ -1,5 +1,6 @@
 // Views/Journey/JourneyDetailView.swift
 import SwiftUI
+import EventKit
 
 struct JourneyDetailView: View {
     let node: JourneyNode
