@@ -1,5 +1,6 @@
 // Views/Journey/JourneyEditorView.swift
 import SwiftUI
+import PhotosUI
 
 struct JourneyEditorView: View {
     let node: JourneyNode?
@@ -24,13 +25,29 @@ struct JourneyEditorView: View {
     @State private var hasDueDate: Bool = false
     @State private var progress: Double = 0
 
+    // Attachments
+    @State private var attachments: [JourneyAttachment] = []
+    @State private var pendingAttachments: [(attachment: JourneyAttachment, data: Data)] = []
+    @State private var attachmentsToDelete: Set<UUID> = []
+    @State private var showPhotoPicker: Bool = false
+    @State private var showDocumentPicker: Bool = false
+    @State private var selectedPhotoItems: [PhotosPickerItem] = []
+    @State private var isLoadingAttachments: Bool = false
+
     // Original values to detect changes
     @State private var originalTitle: String = ""
 
     private var isNewNode: Bool { node == nil }
 
     private var hasUnsavedChanges: Bool {
-        title != originalTitle || !content.isEmpty || !tagsText.isEmpty
+        title != originalTitle || !content.isEmpty || !tagsText.isEmpty || !pendingAttachments.isEmpty
+    }
+
+    /// Alle sichtbaren Attachments (bestehende + pending, ohne gelöschte)
+    private var allAttachments: [JourneyAttachment] {
+        let existing = attachments.filter { !attachmentsToDelete.contains($0.id) }
+        let pending = pendingAttachments.map { $0.attachment }
+        return existing + pending
     }
 
     init(
@@ -80,6 +97,9 @@ struct JourneyEditorView: View {
                     TextEditor(text: $content)
                         .frame(minHeight: 150)
                 }
+
+                // Attachments Section
+                attachmentsSection
             }
 
             // Tags
@@ -149,6 +169,20 @@ struct JourneyEditorView: View {
                 .disabled(title.isEmpty)
             }
         }
+        .sheet(isPresented: $showDocumentPicker) {
+            JourneyDocumentPickerForEditor(
+                isPresented: $showDocumentPicker,
+                onSelect: { items in
+                    addPendingAttachments(items)
+                }
+            )
+        }
+        .onChange(of: selectedPhotoItems) { _, newItems in
+            if !newItems.isEmpty {
+                processPhotoItems(newItems)
+                selectedPhotoItems = []
+            }
+        }
         .onAppear {
             if let node = node {
                 title = node.title
@@ -163,6 +197,9 @@ struct JourneyEditorView: View {
                     hasDueDate = true
                 }
                 if let p = node.progress { progress = Double(p) }
+
+                // Load attachments
+                loadAttachments()
             } else {
                 // Für neue Nodes: preselected values setzen
                 if let section = preselectedSection {
@@ -174,6 +211,139 @@ struct JourneyEditorView: View {
             }
         }
     }
+
+    // MARK: - Attachments Section
+
+    private var attachmentsSection: some View {
+        Section(String(localized: "journey.attachments")) {
+            if isLoadingAttachments {
+                ProgressView()
+            } else if allAttachments.isEmpty {
+                Text(String(localized: "journey.attachments.empty"))
+                    .foregroundStyle(.secondary)
+            } else {
+                ForEach(allAttachments) { attachment in
+                    JourneyAttachmentRow(attachment: attachment)
+                        .environmentObject(store)
+                }
+                .onDelete { indices in
+                    deleteAttachments(at: indices)
+                }
+            }
+
+            // Add Buttons
+            HStack(spacing: 16) {
+                PhotosPicker(
+                    selection: $selectedPhotoItems,
+                    maxSelectionCount: 10,
+                    matching: .any(of: [.images, .videos])
+                ) {
+                    Label(String(localized: "journey.attachments.photo"), systemImage: "photo")
+                }
+                .buttonStyle(.bordered)
+
+                Button {
+                    showDocumentPicker = true
+                } label: {
+                    Label(String(localized: "journey.attachments.file"), systemImage: "doc")
+                }
+                .buttonStyle(.bordered)
+            }
+            .padding(.vertical, 4)
+        }
+    }
+
+    // MARK: - Attachment Helpers
+
+    private func loadAttachments() {
+        guard let node = node else { return }
+        isLoadingAttachments = true
+        Task {
+            do {
+                attachments = try await store.getAttachments(for: node.id)
+            } catch {
+                print("❌ Load attachments failed: \(error)")
+            }
+            isLoadingAttachments = false
+        }
+    }
+
+    private func processPhotoItems(_ items: [PhotosPickerItem]) {
+        Task {
+            for item in items {
+                do {
+                    guard let data = try await item.loadTransferable(type: Data.self) else {
+                        continue
+                    }
+
+                    let filename = generateFilename(for: item)
+                    let attachment = JourneyAttachmentService.createAttachment(
+                        nodeId: node?.id ?? UUID(),
+                        filename: filename,
+                        data: data
+                    )
+
+                    await MainActor.run {
+                        pendingAttachments.append((attachment, data))
+                    }
+                } catch {
+                    print("❌ Photo processing failed: \(error)")
+                }
+            }
+        }
+    }
+
+    private func generateFilename(for item: PhotosPickerItem) -> String {
+        let timestamp = ISO8601DateFormatter().string(from: Date())
+            .replacingOccurrences(of: ":", with: "-")
+
+        let ext: String
+        if let type = item.supportedContentTypes.first {
+            if type.conforms(to: .jpeg) || type.conforms(to: .heic) {
+                ext = "jpg"
+            } else if type.conforms(to: .png) {
+                ext = "png"
+            } else if type.conforms(to: .gif) {
+                ext = "gif"
+            } else if type.conforms(to: .movie) || type.conforms(to: .quickTimeMovie) {
+                ext = "mov"
+            } else if type.conforms(to: .mpeg4Movie) {
+                ext = "mp4"
+            } else {
+                ext = type.preferredFilenameExtension ?? "bin"
+            }
+        } else {
+            ext = "jpg"
+        }
+
+        return "photo_\(timestamp).\(ext)"
+    }
+
+    private func addPendingAttachments(_ items: [(filename: String, data: Data)]) {
+        for item in items {
+            let attachment = JourneyAttachmentService.createAttachment(
+                nodeId: node?.id ?? UUID(),
+                filename: item.filename,
+                data: item.data
+            )
+            pendingAttachments.append((attachment, item.data))
+        }
+    }
+
+    private func deleteAttachments(at indices: IndexSet) {
+        for index in indices {
+            let attachment = allAttachments[index]
+
+            // Check if pending or existing
+            if let pendingIndex = pendingAttachments.firstIndex(where: { $0.attachment.id == attachment.id }) {
+                pendingAttachments.remove(at: pendingIndex)
+            } else {
+                attachmentsToDelete.insert(attachment.id)
+            }
+        }
+    }
+
+    // MARK: - Actions
 
     private func cancelEditing() {
         // Wenn neu erstellt und keine Änderungen: Node löschen
@@ -193,6 +363,8 @@ struct JourneyEditorView: View {
     private func saveNode() {
         Task {
             do {
+                let nodeId: UUID
+
                 if let existingNode = node {
                     // Update existing node
                     var updated = existingNode
@@ -207,9 +379,10 @@ struct JourneyEditorView: View {
                     }
 
                     try await store.updateNode(updated)
+                    nodeId = existingNode.id
                 } else {
                     // Create new node
-                    _ = try await store.createNode(
+                    let newNode = try await store.createNode(
                         section: selectedSection,
                         nodeType: selectedType,
                         title: title,
@@ -217,7 +390,23 @@ struct JourneyEditorView: View {
                         parentId: parentId,
                         tags: parseTags()
                     )
+                    nodeId = newNode.id
                 }
+
+                // Delete marked attachments
+                for attachmentId in attachmentsToDelete {
+                    if let attachment = attachments.first(where: { $0.id == attachmentId }) {
+                        try? await store.deleteAttachment(attachment)
+                    }
+                }
+
+                // Save pending attachments
+                for pending in pendingAttachments {
+                    var attachment = pending.attachment
+                    attachment.nodeId = nodeId
+                    try? await store.addAttachment(attachment, withData: pending.data)
+                }
+
                 dismiss()
             } catch {
                 print("❌ Failed to save node: \(error)")
@@ -230,6 +419,58 @@ struct JourneyEditorView: View {
             .components(separatedBy: ",")
             .map { $0.trimmingCharacters(in: .whitespaces) }
             .filter { !$0.isEmpty }
+    }
+}
+
+// MARK: - Document Picker for Editor
+
+struct JourneyDocumentPickerForEditor: UIViewControllerRepresentable {
+    @Binding var isPresented: Bool
+    let onSelect: ([(filename: String, data: Data)]) -> Void
+
+    func makeUIViewController(context: Context) -> UIDocumentPickerViewController {
+        let supportedTypes: [UTType] = [
+            .pdf, .plainText, .rtf, .image, .movie, .audio, .archive, .data
+        ]
+
+        let picker = UIDocumentPickerViewController(forOpeningContentTypes: supportedTypes, asCopy: true)
+        picker.delegate = context.coordinator
+        picker.allowsMultipleSelection = true
+        return picker
+    }
+
+    func updateUIViewController(_ uiViewController: UIDocumentPickerViewController, context: Context) {}
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator(self)
+    }
+
+    class Coordinator: NSObject, UIDocumentPickerDelegate {
+        let parent: JourneyDocumentPickerForEditor
+
+        init(_ parent: JourneyDocumentPickerForEditor) {
+            self.parent = parent
+        }
+
+        func documentPicker(_ controller: UIDocumentPickerViewController, didPickDocumentsAt urls: [URL]) {
+            var items: [(filename: String, data: Data)] = []
+
+            for url in urls {
+                guard url.startAccessingSecurityScopedResource() else { continue }
+                defer { url.stopAccessingSecurityScopedResource() }
+
+                if let data = try? Data(contentsOf: url) {
+                    items.append((url.lastPathComponent, data))
+                }
+            }
+
+            parent.onSelect(items)
+            parent.isPresented = false
+        }
+
+        func documentPickerWasCancelled(_ controller: UIDocumentPickerViewController) {
+            parent.isPresented = false
+        }
     }
 }
 
