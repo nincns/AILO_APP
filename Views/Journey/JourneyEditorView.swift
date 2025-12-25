@@ -3,6 +3,7 @@ import SwiftUI
 
 struct JourneyEditorView: View {
     let node: JourneyNode?
+    let isNewlyCreated: Bool
     @EnvironmentObject var store: JourneyStore
 
     @Environment(\.dismiss) private var dismiss
@@ -19,10 +20,18 @@ struct JourneyEditorView: View {
     @State private var hasDueDate: Bool = false
     @State private var progress: Double = 0
 
+    // Original values to detect changes
+    @State private var originalTitle: String = ""
+
     private var isNewNode: Bool { node == nil }
 
-    init(node: JourneyNode? = nil) {
+    private var hasUnsavedChanges: Bool {
+        title != originalTitle || !content.isEmpty || !tagsText.isEmpty
+    }
+
+    init(node: JourneyNode? = nil, isNewlyCreated: Bool = false) {
         self.node = node
+        self.isNewlyCreated = isNewlyCreated
     }
 
     var body: some View {
@@ -117,7 +126,7 @@ struct JourneyEditorView: View {
         .toolbar {
             ToolbarItem(placement: .cancellationAction) {
                 Button("common.cancel") {
-                    dismiss()
+                    cancelEditing()
                 }
             }
             ToolbarItem(placement: .confirmationAction) {
@@ -130,6 +139,7 @@ struct JourneyEditorView: View {
         .onAppear {
             if let node = node {
                 title = node.title
+                originalTitle = node.title
                 content = node.content ?? ""
                 selectedSection = node.section
                 selectedType = node.nodeType
@@ -142,6 +152,21 @@ struct JourneyEditorView: View {
                 if let p = node.progress { progress = Double(p) }
             }
         }
+    }
+
+    private func cancelEditing() {
+        // Wenn neu erstellt und keine Änderungen: Node löschen
+        if isNewlyCreated, let node = node, !hasUnsavedChanges {
+            Task {
+                do {
+                    try await store.deleteNode(node)
+                    print("🗑️ Newly created node deleted (no changes)")
+                } catch {
+                    print("❌ Failed to delete node: \(error)")
+                }
+            }
+        }
+        dismiss()
     }
 
     private func saveNode() {
