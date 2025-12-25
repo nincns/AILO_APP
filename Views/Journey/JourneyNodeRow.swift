@@ -2,7 +2,7 @@
 import SwiftUI
 
 struct JourneyNodeRow: View {
-    let node: JourneyNodeMock
+    let node: JourneyNode
 
     var body: some View {
         HStack(spacing: 12) {
@@ -116,8 +116,8 @@ struct CircularProgressView: View {
 
 #Preview {
     List {
-        JourneyNodeRow(node: JourneyMockData.projects.first!.children!.first!)
-        JourneyNodeRow(node: JourneyMockData.wiki.first!)
-        JourneyNodeRow(node: JourneyMockData.inbox.first!)
+        JourneyNodeRow(node: JourneyMockData.projectNodes.first!.children!.first!)
+        JourneyNodeRow(node: JourneyMockData.wikiNodes.first!)
+        JourneyNodeRow(node: JourneyMockData.inboxNodes.first!)
     }
 }

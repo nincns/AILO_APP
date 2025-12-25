@@ -4,19 +4,20 @@ import SwiftUI
 struct JourneySectionView: View {
     let section: JourneySection
     @Binding var searchText: String
+    @EnvironmentObject var store: JourneyStore
 
-    private var nodes: [JourneyNodeMock] {
-        JourneyMockData.nodes(for: section)
+    private var nodes: [JourneyNode] {
+        store.nodes(for: section)
     }
 
-    private var filteredNodes: [JourneyNodeMock] {
+    private var filteredNodes: [JourneyNode] {
         guard !searchText.isEmpty else { return nodes }
         return filterNodes(nodes, searchText: searchText)
     }
 
     var body: some View {
         Group {
-            if filteredNodes.isEmpty {
+            if filteredNodes.isEmpty && !store.isLoading {
                 ContentUnavailableView {
                     Label(String(localized: "journey.empty"), systemImage: section.icon)
                 } description: {
@@ -27,12 +28,20 @@ struct JourneySectionView: View {
                     JourneyTreeView(nodes: filteredNodes, section: section)
                 }
                 .listStyle(.sidebar)
+                .refreshable {
+                    await store.refreshSection(section)
+                }
+            }
+        }
+        .onAppear {
+            Task {
+                await store.refreshSection(section)
             }
         }
     }
 
     // Rekursive Filterung
-    private func filterNodes(_ nodes: [JourneyNodeMock], searchText: String) -> [JourneyNodeMock] {
+    private func filterNodes(_ nodes: [JourneyNode], searchText: String) -> [JourneyNode] {
         nodes.compactMap { node in
             let matchesTitle = node.title.localizedCaseInsensitiveContains(searchText)
             let matchesTags = node.tags.contains { $0.localizedCaseInsensitiveContains(searchText) }
@@ -56,5 +65,6 @@ struct JourneySectionView: View {
 #Preview {
     NavigationStack {
         JourneySectionView(section: .wiki, searchText: .constant(""))
+            .environmentObject(JourneyStore.shared)
     }
 }

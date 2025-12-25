@@ -2,7 +2,7 @@
 import SwiftUI
 
 struct JourneyTreeView: View {
-    let nodes: [JourneyNodeMock]
+    let nodes: [JourneyNode]
     let section: JourneySection
 
     var body: some View {
@@ -28,7 +28,7 @@ struct JourneyTreeView: View {
     NavigationStack {
         List {
             JourneyTreeView(
-                nodes: JourneyMockData.wiki,
+                nodes: JourneyMockData.wikiNodes,
                 section: .wiki
             )
         }
