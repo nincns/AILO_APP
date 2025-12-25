@@ -1,5 +1,6 @@
 # macOS system files
 .DS_Store
+**/.DS_Store
 .AppleDouble
 .LSOverride
 Icon?
@@ -76,8 +77,3 @@ playground.xcworkspace
 !*.xcodeproj/project.pbxproj
 !*.xcscheme
 build_info.txt
-Configuration/.DS_Store
-Database/.DS_Store
-Helpers/.DS_Store
-Views/.DS_Store
-Configuration/.DS_Store
