@@ -25,7 +25,7 @@ struct JourneyView: View {
             )
         }
         .navigationTitle(String(localized: "journey.title"))
-        .navigationBarTitleDisplayMode(.large)
+        .navigationBarTitleDisplayMode(.inline)
         .searchable(
             text: $searchText,
             placement: .navigationBarDrawer(displayMode: .always),
