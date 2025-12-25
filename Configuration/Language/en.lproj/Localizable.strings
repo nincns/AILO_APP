@@ -798,3 +798,18 @@
 "journey.role.stakeholder" = "Stakeholder";
 "journey.role.reviewer" = "Reviewer";
 "journey.role.contact" = "Contact";
+
+/* Journey Move/Context (Phase 3) */
+"journey.move.title" = "Move";
+"journey.move.section" = "Section";
+"journey.move.parent" = "Parent Element";
+"journey.move.root" = "Root Level";
+"journey.move.confirm" = "Move";
+"journey.move.error" = "Move failed";
+"journey.delete.confirm.title" = "Confirm Delete";
+"journey.delete.confirm.message %@" = "Do you really want to delete \"%@\"? All sub-entries will also be deleted.";
+"journey.context.edit" = "Edit";
+"journey.context.move" = "Move";
+"journey.context.delete" = "Delete";
+"journey.context.newEntry" = "New Entry";
+"journey.context.newFolder" = "New Subfolder";

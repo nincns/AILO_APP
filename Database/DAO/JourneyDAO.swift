@@ -512,6 +512,60 @@ public class JourneyDAO: BaseDAO {
         }
     }
 
+    // MARK: - Batch Sort Order Update
+
+    /// Aktualisiert sortOrder für mehrere Nodes (nach Drag & Drop Reorder)
+    public func updateSortOrders(_ updates: [(id: UUID, sortOrder: Int)]) throws {
+        try dbQueue.sync {
+            try ensureOpen()
+
+            let sql = "UPDATE \(JourneySchema.tNodes) SET sort_order = ?, modified_at = ? WHERE id = ?"
+            let stmt = try prepare(sql)
+            defer { finalize(stmt) }
+
+            let now = Date()
+
+            for update in updates {
+                sqlite3_reset(stmt)
+                sqlite3_clear_bindings(stmt)
+
+                bindInt(stmt, 1, update.sortOrder)
+                bindDate(stmt, 2, now)
+                bindUUID(stmt, 3, update.id)
+
+                guard sqlite3_step(stmt) == SQLITE_DONE else {
+                    throw dbError(context: "updateSortOrders")
+                }
+            }
+        }
+    }
+
+    /// Gibt maximale sortOrder für einen Parent zurück
+    public func getMaxSortOrder(parentId: UUID?) throws -> Int {
+        let sql: String
+        if parentId != nil {
+            sql = "SELECT MAX(sort_order) FROM \(JourneySchema.tNodes) WHERE parent_id = ?"
+        } else {
+            sql = "SELECT MAX(sort_order) FROM \(JourneySchema.tNodes) WHERE parent_id IS NULL"
+        }
+
+        return try dbQueue.sync {
+            try ensureOpen()
+            let stmt = try prepare(sql)
+            defer { finalize(stmt) }
+
+            if let parentId = parentId {
+                bindUUID(stmt, 1, parentId)
+            }
+
+            guard sqlite3_step(stmt) == SQLITE_ROW else {
+                return 0
+            }
+
+            return stmt.columnInt(0)
+        }
+    }
+
     // MARK: - Helpers
 
     private func bindTagsJSON(_ statement: OpaquePointer, _ index: Int32, _ tags: [String]) {

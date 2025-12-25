@@ -5,6 +5,7 @@ struct JourneySectionView: View {
     let section: JourneySection
     @Binding var searchText: String
     @EnvironmentObject var store: JourneyStore
+    @State private var editMode: EditMode = .inactive
 
     private var nodes: [JourneyNode] {
         store.nodes(for: section)
@@ -29,6 +30,7 @@ struct JourneySectionView: View {
                         .environmentObject(store)
                 }
                 .listStyle(.sidebar)
+                .environment(\.editMode, $editMode)
                 .refreshable {
                     await store.refreshSection(section)
                 }

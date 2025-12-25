@@ -319,6 +319,37 @@ public final class JourneyStore: ObservableObject {
         try await updateNode(updated)
     }
 
+    // MARK: - Reorder Support
+
+    /// Sortiert Nodes innerhalb eines Parents neu
+    public func reorderNodes(_ nodes: [JourneyNode], in section: JourneySection) async throws {
+        guard let dao = dao else {
+            throw JourneyStoreError.daoNotInitialized
+        }
+
+        let updates = nodes.enumerated().map { (index, node) in
+            (id: node.id, sortOrder: index)
+        }
+
+        try dao.updateSortOrders(updates)
+        await refreshSection(section)
+    }
+
+    /// Fügt Node am Ende eines Parents ein
+    public func appendNode(_ node: JourneyNode, toParent parentId: UUID?) async throws {
+        guard let dao = dao else {
+            throw JourneyStoreError.daoNotInitialized
+        }
+
+        let maxOrder = try dao.getMaxSortOrder(parentId: parentId)
+        var mutableNode = node
+        mutableNode.sortOrder = maxOrder + 1
+        mutableNode.parentId = parentId
+
+        try dao.insertNode(mutableNode)
+        await refreshSection(node.section)
+    }
+
     // MARK: - Helpers
 
     /// Flacht Baum zu Liste ab

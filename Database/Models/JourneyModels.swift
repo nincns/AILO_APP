@@ -2,6 +2,14 @@
 // Journey Feature - Data Models
 
 import Foundation
+import UniformTypeIdentifiers
+import SwiftUI
+
+// MARK: - UTType für Journey Node
+
+extension UTType {
+    static let journeyNode = UTType(exportedAs: "com.ailo.journey.node")
+}
 
 // MARK: - Enums
 
@@ -193,6 +201,14 @@ public struct JourneyNode: Identifiable, Codable, Equatable, Sendable {
         case sortOrder, tags, createdAt, modifiedAt, doingAt
         case status, dueDate, progress, calendarEventId
         case assignedTo, createdBy, completedAt, completedBy
+    }
+}
+
+// MARK: - Transferable Conformance (für Drag & Drop)
+
+extension JourneyNode: Transferable {
+    public static var transferRepresentation: some TransferRepresentation {
+        CodableRepresentation(for: JourneyNode.self, contentType: .journeyNode)
     }
 }
 

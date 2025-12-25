@@ -755,3 +755,18 @@
 "journey.role.stakeholder" = "Stakeholder";
 "journey.role.reviewer" = "Prüfer";
 "journey.role.contact" = "Kontakt";
+
+/* Journey Move/Context (Phase 3) */
+"journey.move.title" = "Verschieben";
+"journey.move.section" = "Bereich";
+"journey.move.parent" = "Übergeordnetes Element";
+"journey.move.root" = "Stammebene";
+"journey.move.confirm" = "Verschieben";
+"journey.move.error" = "Verschieben fehlgeschlagen";
+"journey.delete.confirm.title" = "Löschen bestätigen";
+"journey.delete.confirm.message %@" = "Möchtest du \"%@\" wirklich löschen? Alle Untereinträge werden ebenfalls gelöscht.";
+"journey.context.edit" = "Bearbeiten";
+"journey.context.move" = "Verschieben";
+"journey.context.delete" = "Löschen";
+"journey.context.newEntry" = "Neuer Eintrag";
+"journey.context.newFolder" = "Neuer Unterordner";
