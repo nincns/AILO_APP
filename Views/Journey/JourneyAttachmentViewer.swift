@@ -1,6 +1,7 @@
 // Views/Journey/JourneyAttachmentViewer.swift
 import SwiftUI
 import QuickLook
+import UIKit
 
 struct JourneyAttachmentViewer: View {
     let attachment: JourneyAttachment
@@ -78,28 +79,54 @@ struct JourneyAttachmentViewer: View {
     }
 
     private func loadContent() async {
+        print("🖼️ Loading attachment: \(attachment.filename), hash: \(attachment.dataHash), isImage: \(isImage)")
+
         do {
             guard let data = try await store.getBlobData(hash: attachment.dataHash) else {
-                error = "Datei nicht gefunden"
-                isLoading = false
+                print("❌ Blob data not found for hash: \(attachment.dataHash)")
+                await MainActor.run {
+                    error = "Datei nicht gefunden"
+                    isLoading = false
+                }
                 return
             }
 
-            if isImage {
-                imageData = data
-            } else {
-                // Speichere in Temp-Datei für QuickLook
-                let tempDir = FileManager.default.temporaryDirectory
-                let url = tempDir.appendingPathComponent(UUID().uuidString + "_" + attachment.filename)
-                try data.write(to: url)
-                tempURL = url
+            print("✅ Loaded blob data: \(data.count) bytes")
+
+            await MainActor.run {
+                if isImage {
+                    print("🖼️ Setting imageData for image type")
+                    imageData = data
+
+                    // Verify UIImage can be created
+                    if UIImage(data: data) != nil {
+                        print("✅ UIImage created successfully")
+                    } else {
+                        print("❌ Failed to create UIImage from data")
+                        error = "Bild konnte nicht geladen werden"
+                    }
+                } else {
+                    // Speichere in Temp-Datei für QuickLook
+                    let tempDir = FileManager.default.temporaryDirectory
+                    let url = tempDir.appendingPathComponent(UUID().uuidString + "_" + attachment.filename)
+                    do {
+                        try data.write(to: url)
+                        tempURL = url
+                        print("✅ Wrote temp file to: \(url)")
+                    } catch {
+                        print("❌ Failed to write temp file: \(error)")
+                        self.error = error.localizedDescription
+                    }
+                }
+                isLoading = false
             }
 
-            isLoading = false
-
         } catch {
-            self.error = error.localizedDescription
-            isLoading = false
+            print("❌ Error loading blob: \(error)")
+            await MainActor.run {
+                self.error = error.localizedDescription
+                isLoading = false
+            }
         }
     }
 }
