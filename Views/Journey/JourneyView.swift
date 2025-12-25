@@ -7,6 +7,27 @@ struct JourneyView: View {
 
     var body: some View {
         VStack(spacing: 0) {
+            // Search Field (fixed)
+            HStack {
+                Image(systemName: "magnifyingglass")
+                    .foregroundStyle(.secondary)
+                TextField(String(localized: "journey.search.placeholder"), text: $searchText)
+                    .textFieldStyle(.plain)
+                if !searchText.isEmpty {
+                    Button {
+                        searchText = ""
+                    } label: {
+                        Image(systemName: "xmark.circle.fill")
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            }
+            .padding(10)
+            .background(Color(.systemGray6))
+            .clipShape(RoundedRectangle(cornerRadius: 10))
+            .padding(.horizontal)
+            .padding(.top, 8)
+
             // Section Picker
             Picker("Section", selection: $selectedSection) {
                 ForEach(JourneySection.allCases) { section in
@@ -26,11 +47,6 @@ struct JourneyView: View {
         }
         .navigationTitle(String(localized: "journey.title"))
         .navigationBarTitleDisplayMode(.inline)
-        .searchable(
-            text: $searchText,
-            placement: .navigationBarDrawer(displayMode: .always),
-            prompt: String(localized: "journey.search.placeholder")
-        )
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 Menu {
