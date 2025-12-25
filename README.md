@@ -4,42 +4,55 @@
 
 AILO ist eine native iOS-App, die KI-Unterstützung für die Verwaltung von Notizen, E-Mails und Audio-Logs bereitstellt. Die App kombiniert klassische Produktivitätsfunktionen mit intelligenter Textverarbeitung und Spracherkennung.
 
+**Website:** [ailo.network](https://ailo.network)
+**Beta-Test:** [TestFlight beitreten](https://testflight.apple.com/join/a1WE6GrB)
+
 ---
 
 ## Features
 
-### 📝 Schreiben (Write)
-- Schnelle Texteingabe mit Kategorisierung
-- Tags und Erinnerungen
-- E-Mail-Import zum direkten Übernehmen von Inhalten
-- Markdown-Unterstützung
+### 📊 Dashboard
+- Übersicht anstehender Erinnerungen
+- Schnellzugriff auf kürzlich hinzugefügte Einträge
+- Zentrale Navigation zu allen Funktionen
 
-### 🎙️ Sprechen (Speak)
-- Audio-Aufnahme mit Live-Transkription
+### ✉️ E-Mail Client
+- Vollwertiger IMAP/SMTP-Client
+- Multi-Account-Verwaltung
+- Rich-Text-Editor mit Anhängen
+- KI-gestützte Textgenerierung beim Verfassen
+- Badge zeigt ungelesene Nachrichten (App Icon + Tab Bar)
+- Automatische Gelesen/Ungelesen-Synchronisation
+- Ordner-Verwaltung (INBOX, Gesendet, Entwürfe, etc.)
+
+### 📝 Logs
+- Text- und Audio-Einträge erstellen
+- Live-Transkription bei Sprachaufnahmen
+- KI-Überarbeitung von Texten
+- Kategorien, Tags und Erinnerungen
+- Per Swipe direkt als E-Mail versenden
+- Volltextsuche über alle Einträge
+
+### 🎙️ Audio-Aufnahmen
+- Hochwertige Audio-Aufnahme
 - Automatische Spracherkennung (deutsch/englisch)
+- Echtzeit-Transkription
 - Speicherung von Audio + Transkript
 
-### 📓 Logs
-- Zentrale Übersicht aller Einträge (Text + Audio)
-- Volltextsuche
-- Export-Funktionen
-- KI-basierte Überarbeitung gespeicherter Texte
-
-### 📧 E-Mail Integration
-- IMAP/SMTP-Unterstützung
-- Multi-Account-Verwaltung
-- Posteingang direkt in der App
-- E-Mails als Log-Einträge speichern
-
 ### 🤖 KI-Integration
-- OpenAI und Ollama Support
-- Konfigurierbare Pre-Prompts
+- **OpenAI** (GPT-4, GPT-3.5, etc.)
+- **Ollama** (lokale Modelle)
+- **Eigene Server** (kompatible API)
+- Pre-Prompt-Katalog ("Kochbuch") für häufige Anweisungen
 - Automatische Textverbesserung
 - Mehrere Provider parallel nutzbar
 
-### 🎯 Dashboard
-- Übersicht kürzlich hinzugefügter Einträge
-- Schnellzugriff auf häufig genutzte Funktionen
+### ⚙️ Einstellungen
+- E-Mail-Konten konfigurieren (IMAP/SMTP)
+- KI-Provider verwalten
+- Pre-Prompts als Kochbuch organisieren
+- Eigene Kategorien für Logs definieren
+- Auto-Mark-As-Read Toggle
 
 ---
 
@@ -50,7 +63,7 @@ AILO ist eine native iOS-App, die KI-Unterstützung für die Verwaltung von Noti
 - **Framework:** SwiftUI
 - **Datenbank:** SwiftData
 - **Audio:** AVFoundation, Speech Framework
-- **Netzwerk:** URLSession, SwiftNIO (SMTP/IMAP)
+- **Netzwerk:** SwiftNIO (SMTP/IMAP), URLSession
 - **Sicherheit:** Keychain für sensible Daten
 
 ---
@@ -66,8 +79,8 @@ AILO ist eine native iOS-App, die KI-Unterstützung für die Verwaltung von Noti
 
 1. Repository klonen:
 ```bash
-git clone https://github.com/[username]/AILO.git
-cd AILO
+git clone https://github.com/nincns/AILO_APP.git
+cd AILO_APP
 ```
 
 2. Projekt in Xcode öffnen:
@@ -105,6 +118,8 @@ open AILO_APP.xcodeproj
 3. Verbindung testen
 4. Ordner-Zuordnung (Posteingang, Gesendet, etc.)
 
+**Hinweis:** Für Gmail/Outlook App-Passwörter statt normaler Passwörter verwenden.
+
 ---
 
 ## Projekt-Struktur
@@ -112,21 +127,36 @@ open AILO_APP.xcodeproj
 ```
 AILO_APP/
 ├── App/                    # App-Entry & Navigation
-├── Features/               # Feature-Module
+├── Views/                  # UI-Komponenten
 │   ├── Dashboard/
-│   ├── Logs/
 │   ├── Mail/
+│   ├── LogsList/
 │   ├── Schreiben/
-│   └── Sprechen/
+│   ├── Sprechen/
+│   └── Config/
 ├── Services/              # Business Logic
-│   ├── AI/               # KI-Integration
-│   ├── Audio/            # Audio-Recording
-│   └── Mail/             # IMAP/SMTP
-├── Database/             # SwiftData Models & DAOs
-├── Configuration/        # Settings & Language
-├── Helpers/              # Utilities & Parsers
-└── Views/                # Shared UI-Components
+│   ├── AppBadgeManager    # App Icon Badge
+│   ├── AI/                # KI-Integration
+│   ├── Audio/             # Audio-Recording
+│   └── Mail/              # IMAP/SMTP
+├── Database/              # SwiftData Models & DAOs
+├── Configuration/         # Settings & Language
+├── Helpers/               # Utilities & Parsers
+│   └── Utilities/         # IMAP Parser, Mail Transport
+├── www/                   # Website (ailo.network)
+│   ├── index.html         # Landing Page
+│   ├── demo.php           # Interaktive Demo
+│   └── docs/              # PDF-Dokumentation
+└── scripts/               # Build & Deploy Scripts
 ```
+
+---
+
+## Web-Demo
+
+Eine interaktive Demo der App ist unter [ailo.network/demo.php](https://ailo.network/demo.php) verfügbar.
+
+Die Demo zeigt alle Hauptbereiche der App mit navigierbaren Screenshots.
 
 ---
 
@@ -141,10 +171,25 @@ Lokalisierungsdateien: `Configuration/Language/`
 
 ## Sicherheit & Datenschutz
 
-- Alle API-Keys und Passwörter werden im Keychain gespeichert
+- Alle API-Keys und Passwörter werden im iOS Keychain gespeichert
 - E-Mail-Credentials verschlüsselt
 - Lokale Datenspeicherung (keine Cloud-Synchronisation)
 - Audio-Dateien bleiben auf dem Gerät
+- Keine Tracking- oder Analytics-Dienste
+
+---
+
+## Changelog (Neueste Änderungen)
+
+### Version 1.0 Beta
+- App Icon Badge für ungelesene E-Mails
+- Teal-farbiges Tab Bar Badge
+- Log-Einträge direkt als E-Mail versenden (integrierter Composer)
+- Verbesserte IMAP-Performance (optimiertes Parsing)
+- Read/Unread-Status Synchronisation mit Server
+- Auto-Mark-As-Read Option
+- Pre-Prompt "Kochbuch" für KI-Anweisungen
+- Interaktive Web-Demo
 
 ---
 
@@ -155,32 +200,25 @@ Lokalisierungsdateien: `Configuration/Language/`
 - [ ] Export-Formate (PDF, Markdown)
 - [ ] Widget-Support
 - [ ] Siri-Shortcuts
+- [ ] Push-Notifications für neue E-Mails
 - [ ] macOS native App (ohne Catalyst)
 
 ---
 
 ## Lizenz
 
-noch keine Lizenz und damit meins
-
----
-
-## Beitragen
-
-Contributions sind willkommen! Bitte erst ein Issue erstellen, bevor größere Pull Requests eingereicht werden.
-
-1. Fork erstellen
-2. Feature-Branch erstellen (`git checkout -b feature/AmazingFeature`)
-3. Commit (`git commit -m 'Add some AmazingFeature'`)
-4. Push (`git push origin feature/AmazingFeature`)
-5. Pull Request öffnen
+Proprietär - Alle Rechte vorbehalten.
 
 ---
 
 ## Support
 
-Bei Fragen oder Problemen bitte ein [Issue](https://github.com/[username]/AILO/issues) erstellen.
+- **TestFlight:** Feedback-Funktion in der App nutzen
+- **E-Mail:** [support@ailo.network](mailto:support@ailo.network)
+- **Issues:** [GitHub Issues](https://github.com/nincns/AILO_APP/issues)
 
 ---
 
 **Made with ❤️ for productive workflows**
+
+© 2025 AILO.network
