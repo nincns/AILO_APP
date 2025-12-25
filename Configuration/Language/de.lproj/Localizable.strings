@@ -745,3 +745,13 @@
 "journey.status.inProgress" = "In Arbeit";
 "journey.status.done" = "Erledigt";
 "journey.status.cancelled" = "Abgebrochen";
+"journey.new.folder" = "Neuer Ordner";
+"journey.new.entry" = "Neuer Eintrag";
+"journey.new.task" = "Neue Aufgabe";
+
+/* Journey Contact Roles */
+"journey.role.assignee" = "Zugewiesen";
+"journey.role.owner" = "Besitzer";
+"journey.role.stakeholder" = "Stakeholder";
+"journey.role.reviewer" = "Prüfer";
+"journey.role.contact" = "Kontakt";

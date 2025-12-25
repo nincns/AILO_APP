@@ -2,7 +2,8 @@
 import SwiftUI
 
 struct JourneyEditorView: View {
-    let node: JourneyNodeMock?
+    let node: JourneyNode?
+    @EnvironmentObject var store: JourneyStore
 
     @Environment(\.dismiss) private var dismiss
 
@@ -20,7 +21,7 @@ struct JourneyEditorView: View {
 
     private var isNewNode: Bool { node == nil }
 
-    init(node: JourneyNodeMock? = nil) {
+    init(node: JourneyNode? = nil) {
         self.node = node
     }
 
@@ -121,8 +122,7 @@ struct JourneyEditorView: View {
             }
             ToolbarItem(placement: .confirmationAction) {
                 Button("common.save") {
-                    // TODO: Speichern
-                    dismiss()
+                    saveNode()
                 }
                 .disabled(title.isEmpty)
             }
@@ -144,6 +144,41 @@ struct JourneyEditorView: View {
         }
     }
 
+    private func saveNode() {
+        Task {
+            do {
+                if let existingNode = node {
+                    // Update existing node
+                    var updated = existingNode
+                    updated.title = title
+                    updated.content = content.isEmpty ? nil : content
+                    updated.tags = parseTags()
+
+                    if updated.nodeType == .task {
+                        updated.status = status
+                        updated.dueDate = hasDueDate ? dueDate : nil
+                        updated.progress = Int(progress)
+                    }
+
+                    try await store.updateNode(updated)
+                } else {
+                    // Create new node
+                    _ = try await store.createNode(
+                        section: selectedSection,
+                        nodeType: selectedType,
+                        title: title,
+                        content: content.isEmpty ? nil : content,
+                        parentId: nil,
+                        tags: parseTags()
+                    )
+                }
+                dismiss()
+            } catch {
+                print("❌ Failed to save node: \(error)")
+            }
+        }
+    }
+
     private func parseTags() -> [String] {
         tagsText
             .components(separatedBy: ",")
@@ -155,11 +190,13 @@ struct JourneyEditorView: View {
 #Preview("Neu") {
     NavigationStack {
         JourneyEditorView()
+            .environmentObject(JourneyStore.shared)
     }
 }
 
 #Preview("Bearbeiten") {
     NavigationStack {
-        JourneyEditorView(node: JourneyMockData.projects.first!.children!.first!)
+        JourneyEditorView(node: JourneyMockData.projectNodes.first!.children!.first!)
+            .environmentObject(JourneyStore.shared)
     }
 }

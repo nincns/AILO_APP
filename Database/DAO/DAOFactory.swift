@@ -31,6 +31,9 @@ public class DAOFactory {
     )
     private lazy var _folderDAO: FolderDAOImpl = FolderDAOImpl(dbPath: dbPath)
     private lazy var _accountDAO: AccountDAOImpl = AccountDAOImpl(dbPath: dbPath)
+
+    // Journey DAO
+    private lazy var _journeyDAO: JourneyDAO = JourneyDAO(dbPath: dbPath)
     
     // MARK: - Initialization
     
@@ -62,7 +65,10 @@ public class DAOFactory {
     public var outboxDAO: MailOutboxDAO { _outboxDAO }
     public var folderDAO: FolderDAO { _folderDAO }
     public var accountDAO: AccountDAO { _accountDAO }
-    
+
+    // Journey DAO
+    public var journeyDAO: JourneyDAO { _journeyDAO }
+
     // Combined DAO for components that need both read and write
     public var mailFullAccessDAO: MailFullAccessDAO { MailFullAccessDAOImpl(factory: self) }
     
@@ -83,10 +89,22 @@ public class DAOFactory {
         _attachmentDAO.setSharedConnection(sharedDB)
         _outboxDAO.setSharedConnection(sharedDB)
         _folderDAO.setSharedConnection(sharedDB)
-        
+        _journeyDAO.setSharedConnection(sharedDB)
+
         print("🔧 Creating database schema...")
         try MailSchemaManager.createTables(using: _accountDAO)
         try MailSchemaManager.migrateIfNeeded(using: _accountDAO)
+
+        // Initialize Journey schema
+        print("🔧 Creating Journey database schema...")
+        try _journeyDAO.initializeSchema()
+        print("✅ Journey schema initialized")
+
+        // Initialize JourneyStore with DAO
+        Task { @MainActor in
+            JourneyStore.shared.setDAO(_journeyDAO)
+            print("✅ JourneyStore initialized with DAO")
+        }
     }
     
     public func closeAllConnections() {
@@ -101,6 +119,7 @@ public class DAOFactory {
         _attachmentDAO.setSharedConnection(nil)
         _outboxDAO.setSharedConnection(nil)
         _folderDAO.setSharedConnection(nil)
+        _journeyDAO.setSharedConnection(nil)
     }
     
     // MARK: - Performance Monitoring

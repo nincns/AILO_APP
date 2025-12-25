@@ -2,8 +2,9 @@
 import SwiftUI
 
 struct JourneyDetailView: View {
-    let node: JourneyNodeMock
+    let node: JourneyNode
     @State private var showEditor = false
+    @EnvironmentObject var store: JourneyStore
 
     var body: some View {
         ScrollView {
@@ -59,7 +60,7 @@ struct JourneyDetailView: View {
                         Label("Als Markdown exportieren", systemImage: "doc.plaintext")
                     }
                     Divider()
-                    Button(role: .destructive, action: { /* TODO: Delete */ }) {
+                    Button(role: .destructive, action: { deleteNode() }) {
                         Label("Löschen", systemImage: "trash")
                     }
                 } label: {
@@ -70,6 +71,19 @@ struct JourneyDetailView: View {
         .sheet(isPresented: $showEditor) {
             NavigationStack {
                 JourneyEditorView(node: node)
+                    .environmentObject(store)
+            }
+        }
+    }
+
+    // MARK: - Actions
+
+    private func deleteNode() {
+        Task {
+            do {
+                try await store.deleteNode(node)
+            } catch {
+                print("❌ Failed to delete node: \(error)")
             }
         }
     }
@@ -216,6 +230,7 @@ struct JourneyDetailView: View {
 
 #Preview {
     NavigationStack {
-        JourneyDetailView(node: JourneyMockData.wiki.first!.children!.first!.children!.first!)
+        JourneyDetailView(node: JourneyMockData.wikiNodes.first!.children!.first!.children!.first!)
+            .environmentObject(JourneyStore.shared)
     }
 }

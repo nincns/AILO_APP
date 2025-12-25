@@ -788,3 +788,13 @@
 "journey.status.inProgress" = "In Progress";
 "journey.status.done" = "Done";
 "journey.status.cancelled" = "Cancelled";
+"journey.new.folder" = "New Folder";
+"journey.new.entry" = "New Entry";
+"journey.new.task" = "New Task";
+
+/* Journey Contact Roles */
+"journey.role.assignee" = "Assignee";
+"journey.role.owner" = "Owner";
+"journey.role.stakeholder" = "Stakeholder";
+"journey.role.reviewer" = "Reviewer";
+"journey.role.contact" = "Contact";
