@@ -6,6 +6,13 @@ struct JourneyDetailView: View {
     @State private var showEditor = false
     @EnvironmentObject var store: JourneyStore
 
+    // Attachments State
+    @State private var attachments: [JourneyAttachment] = []
+    @State private var isLoadingAttachments: Bool = false
+    @State private var selectedAttachment: JourneyAttachment?
+    @State private var showPhotoPicker: Bool = false
+    @State private var showDocumentPicker: Bool = false
+
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
@@ -21,6 +28,12 @@ struct JourneyDetailView: View {
                     ContentUnavailableView {
                         Label("Kein Inhalt", systemImage: "doc.text")
                     }
+                }
+
+                // Attachments Section
+                if node.nodeType != .folder {
+                    Divider()
+                    attachmentsSection
                 }
 
                 Divider()
@@ -53,13 +66,34 @@ struct JourneyDetailView: View {
 
             ToolbarItem(placement: .secondaryAction) {
                 Menu {
+                    // Attachment hinzufügen
+                    Menu {
+                        Button {
+                            showPhotoPicker = true
+                        } label: {
+                            Label(String(localized: "journey.attachments.photo"), systemImage: "photo")
+                        }
+
+                        Button {
+                            showDocumentPicker = true
+                        } label: {
+                            Label(String(localized: "journey.attachments.file"), systemImage: "doc")
+                        }
+                    } label: {
+                        Label(String(localized: "journey.attachments.add"), systemImage: "paperclip")
+                    }
+
+                    Divider()
+
                     Button(action: { /* TODO: Export */ }) {
                         Label("Als PDF exportieren", systemImage: "doc.richtext")
                     }
                     Button(action: { /* TODO: Export */ }) {
                         Label("Als Markdown exportieren", systemImage: "doc.plaintext")
                     }
+
                     Divider()
+
                     Button(role: .destructive, action: { deleteNode() }) {
                         Label("Löschen", systemImage: "trash")
                     }
@@ -74,6 +108,29 @@ struct JourneyDetailView: View {
                     .environmentObject(store)
             }
         }
+        .sheet(isPresented: $showPhotoPicker) {
+            JourneyPhotoPicker(
+                isPresented: $showPhotoPicker,
+                nodeId: node.id,
+                onComplete: { loadAttachments() }
+            )
+            .environmentObject(store)
+        }
+        .sheet(isPresented: $showDocumentPicker) {
+            JourneyDocumentPickerSheet(
+                isPresented: $showDocumentPicker,
+                nodeId: node.id,
+                onComplete: { loadAttachments() }
+            )
+            .environmentObject(store)
+        }
+        .sheet(item: $selectedAttachment) { attachment in
+            JourneyAttachmentViewer(attachment: attachment)
+                .environmentObject(store)
+        }
+        .task {
+            loadAttachments()
+        }
     }
 
     // MARK: - Actions
@@ -85,6 +142,18 @@ struct JourneyDetailView: View {
             } catch {
                 print("❌ Failed to delete node: \(error)")
             }
+        }
+    }
+
+    private func loadAttachments() {
+        isLoadingAttachments = true
+        Task {
+            do {
+                attachments = try await store.getAttachments(for: node.id)
+            } catch {
+                print("❌ Load attachments failed: \(error)")
+            }
+            isLoadingAttachments = false
         }
     }
 
@@ -122,6 +191,38 @@ struct JourneyDetailView: View {
             Text(content)
                 .font(.body)
                 .textSelection(.enabled)
+        }
+    }
+
+    private var attachmentsSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Text(String(localized: "journey.attachments"))
+                    .font(.headline)
+
+                Spacer()
+
+                if !attachments.isEmpty {
+                    Text("\(attachments.count)")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                }
+            }
+
+            if isLoadingAttachments {
+                ProgressView()
+                    .frame(maxWidth: .infinity)
+                    .padding()
+            } else {
+                JourneyAttachmentGallery(
+                    attachments: attachments,
+                    onDelete: nil,  // Read-only in Detail View
+                    onTap: { attachment in
+                        selectedAttachment = attachment
+                    }
+                )
+                .environmentObject(store)
+            }
         }
     }
 

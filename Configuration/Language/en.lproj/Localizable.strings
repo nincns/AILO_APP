@@ -813,3 +813,13 @@
 "journey.context.delete" = "Delete";
 "journey.context.newEntry" = "New Entry";
 "journey.context.newFolder" = "New Subfolder";
+
+/* Journey Attachments (Phase 4) */
+"journey.attachments" = "Attachments";
+"journey.attachments.empty" = "No attachments";
+"journey.attachments.add" = "Add attachment";
+"journey.attachments.photo" = "Add photo";
+"journey.attachments.file" = "Add file";
+"journey.attachments.importing" = "Importing...";
+"journey.attachments.select.photos" = "Select photos";
+"journey.attachments.select.limit" = "Up to 10 photos or videos";
