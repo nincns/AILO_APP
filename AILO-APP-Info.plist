@@ -2,6 +2,14 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<!-- Privacy Keys -->
+	<key>NSContactsUsageDescription</key>
+	<string>AILO benötigt Zugriff auf deine Kontakte, um Personen mit Projekten und Aufgaben zu verknüpfen.</string>
+	<key>NSCalendarsUsageDescription</key>
+	<string>AILO benötigt Zugriff auf deinen Kalender, um Deadlines und Termine zu synchronisieren.</string>
+	<key>NSCalendarsFullAccessUsageDescription</key>
+	<string>AILO benötigt vollen Kalenderzugriff, um Termine für deine Aufgaben zu erstellen und zu verwalten.</string>
+
 	<key>CFBundleGetInfoString</key>
 	<string></string>
 	<key>CFBundleSignature</key>

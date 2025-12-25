@@ -35,6 +35,15 @@ struct JourneyEditorView: View {
     @State private var isLoadingAttachments: Bool = false
     @State private var selectedAttachment: JourneyAttachment?
 
+    // Contacts
+    @State private var contacts: [JourneyContactRef] = []
+    @State private var pendingContacts: [JourneyContactRef] = []
+    @State private var contactsToDelete: [JourneyContactRef] = []
+    @State private var showContactPicker: Bool = false
+
+    // Calendar
+    @State private var syncToCalendar: Bool = false
+
     // Original values to detect changes
     @State private var originalTitle: String = ""
 
@@ -153,6 +162,24 @@ struct JourneyEditorView: View {
                         Slider(value: $progress, in: 0...100, step: 5)
                     }
                 }
+
+                // Kalender-Sync Section
+                if hasDueDate {
+                    Section(String(localized: "journey.calendar")) {
+                        Toggle(String(localized: "journey.calendar.sync"), isOn: $syncToCalendar)
+
+                        if syncToCalendar {
+                            Text(String(localized: "journey.calendar.willCreate"))
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                }
+            }
+
+            // Kontakte Section
+            if selectedType != .folder {
+                contactsSection
             }
         }
         .navigationTitle(isNewNode ? "Neu" : "Bearbeiten")
@@ -182,6 +209,15 @@ struct JourneyEditorView: View {
             JourneyAttachmentViewer(attachment: attachment)
                 .environmentObject(store)
         }
+        .sheet(isPresented: $showContactPicker) {
+            JourneyContactPickerSheet(
+                isPresented: $showContactPicker,
+                nodeId: node?.id ?? UUID(),
+                onSelect: { contactRef in
+                    pendingContacts.append(contactRef)
+                }
+            )
+        }
         .onChange(of: selectedPhotoItems) { _, newItems in
             if !newItems.isEmpty {
                 processPhotoItems(newItems)
@@ -205,6 +241,12 @@ struct JourneyEditorView: View {
 
                 // Load attachments
                 loadAttachments()
+
+                // Load contacts
+                loadContacts()
+
+                // Kalender-Sync Status
+                syncToCalendar = node.calendarEventId != nil && !node.calendarEventId!.isEmpty
             } else {
                 // Für neue Nodes: preselected values setzen
                 if let section = preselectedSection {
@@ -214,6 +256,55 @@ struct JourneyEditorView: View {
                     selectedType = nodeType
                 }
             }
+        }
+    }
+
+    // MARK: - Contacts Section
+
+    /// Alle sichtbaren Kontakte (bestehende + pending, ohne gelöschte)
+    private var allContacts: [JourneyContactRef] {
+        let existing = contacts.filter { c in
+            !contactsToDelete.contains(where: { $0.id == c.id })
+        }
+        return existing + pendingContacts
+    }
+
+    private var contactsSection: some View {
+        Section(String(localized: "journey.contacts")) {
+            if allContacts.isEmpty {
+                Text(String(localized: "journey.contacts.empty"))
+                    .foregroundStyle(.secondary)
+            } else {
+                ForEach(allContacts) { contact in
+                    JourneyContactRow(
+                        contact: contact,
+                        onDelete: {
+                            removeContact(contact)
+                        }
+                    )
+                }
+            }
+
+            Button {
+                showContactPicker = true
+            } label: {
+                Label(String(localized: "journey.contacts.add"), systemImage: "person.badge.plus")
+            }
+        }
+    }
+
+    private func loadContacts() {
+        guard let node = node else { return }
+        Task {
+            contacts = (try? await store.getContacts(for: node.id)) ?? []
+        }
+    }
+
+    private func removeContact(_ contact: JourneyContactRef) {
+        if let pendingIndex = pendingContacts.firstIndex(where: { $0.id == contact.id }) {
+            pendingContacts.remove(at: pendingIndex)
+        } else {
+            contactsToDelete.append(contact)
         }
     }
 
@@ -418,6 +509,33 @@ struct JourneyEditorView: View {
                     var attachment = pending.attachment
                     attachment.nodeId = nodeId
                     try? await store.addAttachment(attachment, withData: pending.data)
+                }
+
+                // Delete marked contacts
+                for contact in contactsToDelete {
+                    try? await store.deleteContact(contact)
+                }
+
+                // Save pending contacts
+                for var contact in pendingContacts {
+                    contact.nodeId = nodeId
+                    try? await store.addContact(contact)
+                }
+
+                // Kalender-Sync
+                if syncToCalendar && (selectedType == .task || node?.nodeType == .task) && hasDueDate {
+                    // Erstelle/aktualisiere Kalender-Event
+                    var nodeForCalendar = node ?? JourneyNode(section: selectedSection, nodeType: selectedType, title: title)
+                    nodeForCalendar.title = title
+                    nodeForCalendar.dueDate = dueDate
+                    nodeForCalendar.status = status
+
+                    if let eventId = try? JourneyCalendarService.shared.syncTask(nodeForCalendar) {
+                        var updated = nodeForCalendar
+                        updated.id = nodeId
+                        updated.calendarEventId = eventId
+                        try? await store.updateNode(updated)
+                    }
                 }
 
                 dismiss()

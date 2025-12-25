@@ -780,3 +780,42 @@
 "journey.attachments.importing" = "Importiere...";
 "journey.attachments.select.photos" = "Fotos auswählen";
 "journey.attachments.select.limit" = "Bis zu 10 Fotos oder Videos";
+
+/* Journey Contacts (Phase 5) */
+"journey.contacts" = "Beteiligte";
+"journey.contacts.empty" = "Keine Personen verknüpft";
+"journey.contacts.add" = "Person hinzufügen";
+"journey.contacts.select" = "Kontakt auswählen";
+"journey.contacts.noAccess" = "Kein Zugriff auf Kontakte";
+"journey.contacts.noAccess.message" = "Bitte erlaube AILO den Zugriff auf deine Kontakte in den Einstellungen.";
+"journey.contacts.other" = "Sonstige";
+"journey.role" = "Rolle";
+"journey.role.assignee" = "Zugewiesen an";
+"journey.role.owner" = "Inhaber";
+"journey.role.stakeholder" = "Beteiligter";
+"journey.role.reviewer" = "Prüfer";
+"journey.role.contact" = "Kontakt";
+
+/* Journey Calendar (Phase 5) */
+"journey.calendar" = "Kalender";
+"journey.calendar.add" = "Zum Kalender hinzufügen";
+"journey.calendar.sync" = "In Kalender eintragen";
+"journey.calendar.synced" = "Im Kalender";
+"journey.calendar.open" = "Öffnen";
+"journey.calendar.noDeadline" = "Setze eine Deadline, um einen Kalendereintrag zu erstellen";
+"journey.calendar.noAccess" = "Kein Zugriff auf Kalender";
+"journey.calendar.noAccess.message" = "Bitte erlaube AILO den Zugriff auf deinen Kalender in den Einstellungen.";
+"journey.calendar.noCalendars" = "Keine Kalender verfügbar";
+"journey.calendar.willCreate" = "Ein Kalendereintrag wird beim Speichern erstellt";
+"journey.calendar.details" = "Details";
+"journey.calendar.datetime" = "Datum & Uhrzeit";
+"journey.calendar.when" = "Wann";
+"journey.calendar.reminder" = "Erinnerung";
+"journey.calendar.reminder.15min" = "15 Minuten vorher";
+"journey.calendar.reminder.30min" = "30 Minuten vorher";
+"journey.calendar.reminder.1h" = "1 Stunde vorher";
+"journey.calendar.reminder.1d" = "1 Tag vorher";
+
+/* Common additions */
+"common.openSettings" = "Einstellungen öffnen";
+"common.create" = "Erstellen";
