@@ -120,12 +120,24 @@ struct JourneyTreeNodeView: View {
             }
         }
         .alert(String(localized: "journey.delete.confirm.title"), isPresented: $showDeleteAlert) {
-            Button(String(localized: "common.cancel"), role: .cancel) { }
+            Button(String(localized: "common.cancel"), role: .cancel) {
+                print("🔴 Delete alert cancelled")
+            }
             Button(String(localized: "common.delete"), role: .destructive) {
+                print("🔴 Delete confirmed")
                 deleteNode()
             }
         } message: {
             Text("journey.delete.confirm.message \(node.title)")
+        }
+        .onChange(of: showDeleteAlert) { oldValue, newValue in
+            print("🔴 showDeleteAlert changed: \(oldValue) -> \(newValue)")
+        }
+        .onChange(of: showEditSheet) { oldValue, newValue in
+            print("🔵 showEditSheet changed: \(oldValue) -> \(newValue)")
+        }
+        .onChange(of: showMoveSheet) { oldValue, newValue in
+            print("🟠 showMoveSheet changed: \(oldValue) -> \(newValue)")
         }
     }
 
@@ -170,8 +182,9 @@ struct JourneyTreeNodeView: View {
             // Swipe Actions
             .swipeActions(edge: .trailing, allowsFullSwipe: false) {
                 Button(role: .destructive) {
-                    // Delay damit Swipe-Animation abschließen kann
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                    print("🔴 Swipe Delete tapped - scheduling alert")
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                        print("🔴 Showing delete alert now")
                         showDeleteAlert = true
                     }
                 } label: {
@@ -179,7 +192,9 @@ struct JourneyTreeNodeView: View {
                 }
 
                 Button {
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                    print("🔵 Swipe Edit tapped - scheduling sheet")
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                        print("🔵 Showing edit sheet now")
                         showEditSheet = true
                     }
                 } label: {
@@ -189,7 +204,9 @@ struct JourneyTreeNodeView: View {
             }
             .swipeActions(edge: .leading, allowsFullSwipe: false) {
                 Button {
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                    print("🟠 Swipe Move tapped - scheduling sheet")
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                        print("🟠 Showing move sheet now")
                         showMoveSheet = true
                     }
                 } label: {
