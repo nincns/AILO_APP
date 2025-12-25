@@ -13,6 +13,15 @@ struct JourneyDetailView: View {
     @State private var showPhotoPicker: Bool = false
     @State private var showDocumentPicker: Bool = false
 
+    // Contacts State
+    @State private var contacts: [JourneyContactRef] = []
+    @State private var isLoadingContacts: Bool = false
+    @State private var showContactPicker: Bool = false
+
+    // Calendar State
+    @State private var showCalendarSheet: Bool = false
+    @State private var calendarEventTitle: String?
+
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
@@ -34,6 +43,18 @@ struct JourneyDetailView: View {
                 if node.nodeType != .folder {
                     Divider()
                     attachmentsSection
+                }
+
+                // Contacts Section
+                if node.nodeType != .folder {
+                    Divider()
+                    contactsSection
+                }
+
+                // Calendar Section (nur für Tasks)
+                if node.nodeType == .task {
+                    Divider()
+                    calendarSection
                 }
 
                 Divider()
@@ -85,6 +106,24 @@ struct JourneyDetailView: View {
 
                     Divider()
 
+                    // Kontakt hinzufügen
+                    Button {
+                        showContactPicker = true
+                    } label: {
+                        Label(String(localized: "journey.contacts.add"), systemImage: "person.badge.plus")
+                    }
+
+                    // Kalender (nur für Tasks mit Deadline)
+                    if node.nodeType == .task && node.dueDate != nil && (node.calendarEventId == nil || node.calendarEventId?.isEmpty == true) {
+                        Button {
+                            showCalendarSheet = true
+                        } label: {
+                            Label(String(localized: "journey.calendar.add"), systemImage: "calendar.badge.plus")
+                        }
+                    }
+
+                    Divider()
+
                     Button(action: { /* TODO: Export */ }) {
                         Label("Als PDF exportieren", systemImage: "doc.richtext")
                     }
@@ -128,8 +167,25 @@ struct JourneyDetailView: View {
             JourneyAttachmentViewer(attachment: attachment)
                 .environmentObject(store)
         }
+        .sheet(isPresented: $showContactPicker) {
+            JourneyContactPickerSheet(
+                isPresented: $showContactPicker,
+                nodeId: node.id,
+                onSelect: { contactRef in
+                    addContact(contactRef)
+                }
+            )
+        }
+        .sheet(isPresented: $showCalendarSheet) {
+            JourneyCalendarSheet(node: node) { eventId in
+                updateCalendarEventId(eventId)
+            }
+            .environmentObject(store)
+        }
         .task {
             loadAttachments()
+            loadContacts()
+            loadCalendarEvent()
         }
     }
 
@@ -154,6 +210,52 @@ struct JourneyDetailView: View {
                 print("❌ Load attachments failed: \(error)")
             }
             isLoadingAttachments = false
+        }
+    }
+
+    private func loadContacts() {
+        isLoadingContacts = true
+        Task {
+            do {
+                contacts = try await store.getContacts(for: node.id)
+            } catch {
+                print("❌ Load contacts failed: \(error)")
+            }
+            isLoadingContacts = false
+        }
+    }
+
+    private func loadCalendarEvent() {
+        guard let eventId = node.calendarEventId, !eventId.isEmpty else { return }
+        if let event = JourneyCalendarService.shared.fetchEvent(identifier: eventId) {
+            calendarEventTitle = event.title
+        }
+    }
+
+    private func addContact(_ contactRef: JourneyContactRef) {
+        Task {
+            do {
+                try await store.addContact(contactRef)
+                loadContacts()
+            } catch {
+                print("❌ Add contact failed: \(error)")
+            }
+        }
+    }
+
+    private func updateCalendarEventId(_ eventId: String) {
+        Task {
+            var updated = node
+            updated.calendarEventId = eventId
+            try? await store.updateNode(updated)
+            calendarEventTitle = node.title
+        }
+    }
+
+    private func openCalendarEvent(_ eventId: String) {
+        // Deep-Link in Kalender-App
+        if let url = URL(string: "calshow://") {
+            UIApplication.shared.open(url)
         }
     }
 
@@ -222,6 +324,99 @@ struct JourneyDetailView: View {
                     }
                 )
                 .environmentObject(store)
+            }
+        }
+    }
+
+    private var contactsSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Text(String(localized: "journey.contacts"))
+                    .font(.headline)
+
+                Spacer()
+
+                if !contacts.isEmpty {
+                    Text("\(contacts.count)")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                }
+
+                Button {
+                    showContactPicker = true
+                } label: {
+                    Image(systemName: "plus.circle")
+                }
+            }
+
+            if isLoadingContacts {
+                ProgressView()
+                    .frame(maxWidth: .infinity)
+                    .padding()
+            } else if contacts.isEmpty {
+                Text(String(localized: "journey.contacts.empty"))
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .padding(.vertical, 8)
+            } else {
+                VStack(spacing: 8) {
+                    ForEach(contacts) { contact in
+                        JourneyContactRow(contact: contact, onDelete: nil)
+                    }
+                }
+            }
+        }
+    }
+
+    private var calendarSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text(String(localized: "journey.calendar"))
+                .font(.headline)
+
+            if let eventId = node.calendarEventId, !eventId.isEmpty {
+                // Event existiert
+                HStack {
+                    Image(systemName: "calendar.badge.checkmark")
+                        .foregroundStyle(.green)
+                        .font(.title2)
+
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(String(localized: "journey.calendar.synced"))
+                            .font(.body)
+                        if let title = calendarEventTitle {
+                            Text(title)
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+
+                    Spacer()
+
+                    Button(String(localized: "journey.calendar.open")) {
+                        openCalendarEvent(eventId)
+                    }
+                    .buttonStyle(.bordered)
+                }
+                .padding()
+                .background(Color(.secondarySystemBackground))
+                .clipShape(RoundedRectangle(cornerRadius: 12))
+            } else if node.dueDate != nil {
+                // Deadline vorhanden, aber kein Event
+                Button {
+                    showCalendarSheet = true
+                } label: {
+                    HStack {
+                        Image(systemName: "calendar.badge.plus")
+                        Text(String(localized: "journey.calendar.add"))
+                    }
+                    .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.bordered)
+            } else {
+                Text(String(localized: "journey.calendar.noDeadline"))
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .padding(.vertical, 8)
             }
         }
     }

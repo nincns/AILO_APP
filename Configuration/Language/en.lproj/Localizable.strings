@@ -823,3 +823,37 @@
 "journey.attachments.importing" = "Importing...";
 "journey.attachments.select.photos" = "Select photos";
 "journey.attachments.select.limit" = "Up to 10 photos or videos";
+
+/* Journey Contacts (Phase 5) */
+"journey.contacts" = "People";
+"journey.contacts.empty" = "No people linked";
+"journey.contacts.add" = "Add person";
+"journey.contacts.select" = "Select contact";
+"journey.contacts.noAccess" = "No access to contacts";
+"journey.contacts.noAccess.message" = "Please allow AILO access to your contacts in Settings.";
+"journey.contacts.other" = "Other";
+"journey.role" = "Role";
+
+/* Journey Calendar (Phase 5) */
+"journey.calendar" = "Calendar";
+"journey.calendar.add" = "Add to calendar";
+"journey.calendar.sync" = "Add to calendar";
+"journey.calendar.synced" = "In calendar";
+"journey.calendar.open" = "Open";
+"journey.calendar.noDeadline" = "Set a deadline to create a calendar event";
+"journey.calendar.noAccess" = "No access to calendar";
+"journey.calendar.noAccess.message" = "Please allow AILO access to your calendar in Settings.";
+"journey.calendar.noCalendars" = "No calendars available";
+"journey.calendar.willCreate" = "A calendar event will be created when saving";
+"journey.calendar.details" = "Details";
+"journey.calendar.datetime" = "Date & Time";
+"journey.calendar.when" = "When";
+"journey.calendar.reminder" = "Reminder";
+"journey.calendar.reminder.15min" = "15 minutes before";
+"journey.calendar.reminder.30min" = "30 minutes before";
+"journey.calendar.reminder.1h" = "1 hour before";
+"journey.calendar.reminder.1d" = "1 day before";
+
+/* Common additions */
+"common.openSettings" = "Open Settings";
+"common.create" = "Create";
