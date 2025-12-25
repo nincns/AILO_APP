@@ -18,32 +18,36 @@ struct JourneyAttachmentViewer: View {
         JourneyAttachmentService.isImage(mimeType: attachment.mimeType)
     }
 
+    @ViewBuilder
+    private var contentView: some View {
+        if isLoading {
+            ProgressView("Lade...")
+        } else if let error = error {
+            ContentUnavailableView {
+                Label("Fehler", systemImage: "exclamationmark.triangle")
+            } description: {
+                Text(error)
+            }
+        } else if isImage, let data = imageData, let uiImage = UIImage(data: data) {
+            // Image Viewer mit Zoom
+            ZoomableImageView(image: uiImage)
+                .id(data.count)  // Force view refresh when data changes
+        } else if let url = tempURL {
+            // QuickLook für andere Dateitypen
+            QuickLookPreview(url: url)
+        } else {
+            ContentUnavailableView {
+                Label("Nicht unterstützt", systemImage: "doc.questionmark")
+            } description: {
+                Text("Dieser Dateityp kann nicht angezeigt werden")
+            }
+        }
+    }
+
     var body: some View {
         NavigationStack {
-            Group {
-                if isLoading {
-                    ProgressView("Lade...")
-                } else if let error = error {
-                    ContentUnavailableView {
-                        Label("Fehler", systemImage: "exclamationmark.triangle")
-                    } description: {
-                        Text(error)
-                    }
-                } else if isImage, let data = imageData, let uiImage = UIImage(data: data) {
-                    // Image Viewer mit Zoom
-                    ZoomableImageView(image: uiImage)
-                } else if let url = tempURL {
-                    // QuickLook für andere Dateitypen
-                    QuickLookPreview(url: url)
-                } else {
-                    ContentUnavailableView {
-                        Label("Nicht unterstützt", systemImage: "doc.questionmark")
-                    } description: {
-                        Text("Dieser Dateityp kann nicht angezeigt werden")
-                    }
-                }
-            }
-            .navigationTitle(attachment.filename)
+            contentView
+                .navigationTitle(attachment.filename)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
@@ -79,11 +83,8 @@ struct JourneyAttachmentViewer: View {
     }
 
     private func loadContent() async {
-        print("🖼️ Loading attachment: \(attachment.filename), hash: \(attachment.dataHash), isImage: \(isImage)")
-
         do {
             guard let data = try await store.getBlobData(hash: attachment.dataHash) else {
-                print("❌ Blob data not found for hash: \(attachment.dataHash)")
                 await MainActor.run {
                     error = "Datei nicht gefunden"
                     isLoading = false
@@ -91,18 +92,12 @@ struct JourneyAttachmentViewer: View {
                 return
             }
 
-            print("✅ Loaded blob data: \(data.count) bytes")
-
             await MainActor.run {
                 if isImage {
-                    print("🖼️ Setting imageData for image type")
                     imageData = data
 
                     // Verify UIImage can be created
-                    if UIImage(data: data) != nil {
-                        print("✅ UIImage created successfully")
-                    } else {
-                        print("❌ Failed to create UIImage from data")
+                    if UIImage(data: data) == nil {
                         error = "Bild konnte nicht geladen werden"
                     }
                 } else {
@@ -112,9 +107,7 @@ struct JourneyAttachmentViewer: View {
                     do {
                         try data.write(to: url)
                         tempURL = url
-                        print("✅ Wrote temp file to: \(url)")
                     } catch {
-                        print("❌ Failed to write temp file: \(error)")
                         self.error = error.localizedDescription
                     }
                 }
@@ -122,7 +115,6 @@ struct JourneyAttachmentViewer: View {
             }
 
         } catch {
-            print("❌ Error loading blob: \(error)")
             await MainActor.run {
                 self.error = error.localizedDescription
                 isLoading = false
