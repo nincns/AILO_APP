@@ -50,12 +50,14 @@ struct JourneyDocumentPicker: UIViewControllerRepresentable {
 
                 for url in urls {
                     do {
-                        // Starte Security Scope
-                        guard url.startAccessingSecurityScopedResource() else {
-                            print("⚠️ Could not access security scoped resource: \(url)")
-                            continue
+                        // Mit asCopy: true ist die Datei bereits lokal kopiert
+                        // Security Scope ist nicht nötig für lokale Kopien
+                        let needsSecurityScope = url.startAccessingSecurityScopedResource()
+                        defer {
+                            if needsSecurityScope {
+                                url.stopAccessingSecurityScopedResource()
+                            }
                         }
-                        defer { url.stopAccessingSecurityScopedResource() }
 
                         // Lade Daten
                         let data = try Data(contentsOf: url)
