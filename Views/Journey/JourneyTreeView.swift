@@ -170,13 +170,18 @@ struct JourneyTreeNodeView: View {
             // Swipe Actions
             .swipeActions(edge: .trailing, allowsFullSwipe: false) {
                 Button(role: .destructive) {
-                    showDeleteAlert = true
+                    // Delay damit Swipe-Animation abschließen kann
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                        showDeleteAlert = true
+                    }
                 } label: {
                     Label(String(localized: "common.delete"), systemImage: "trash")
                 }
 
                 Button {
-                    showEditSheet = true
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                        showEditSheet = true
+                    }
                 } label: {
                     Label(String(localized: "journey.context.edit"), systemImage: "pencil")
                 }
@@ -184,7 +189,9 @@ struct JourneyTreeNodeView: View {
             }
             .swipeActions(edge: .leading, allowsFullSwipe: false) {
                 Button {
-                    showMoveSheet = true
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                        showMoveSheet = true
+                    }
                 } label: {
                     Label(String(localized: "journey.context.move"), systemImage: "folder")
                 }
