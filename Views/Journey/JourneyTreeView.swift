@@ -64,8 +64,8 @@ struct JourneyTreeNodeView: View {
     @State private var showMoveSheet: Bool = false
     @State private var showEditSheet: Bool = false
     @State private var showDeleteAlert: Bool = false
-    @State private var newlyCreatedNode: JourneyNode?
     @State private var showNewNodeEditor: Bool = false
+    @State private var newNodeType: JourneyNodeType = .entry
 
     private var isDropTarget: Bool {
         dropTargetId == node.id && draggedNode?.id != node.id
@@ -110,11 +110,13 @@ struct JourneyTreeNodeView: View {
             }
         }
         .sheet(isPresented: $showNewNodeEditor) {
-            if let newNode = newlyCreatedNode {
-                NavigationStack {
-                    JourneyEditorView(node: newNode, isNewlyCreated: true)
-                        .environmentObject(store)
-                }
+            NavigationStack {
+                JourneyEditorView(
+                    parentId: node.id,
+                    preselectedSection: section,
+                    preselectedType: newNodeType
+                )
+                .environmentObject(store)
             }
         }
         .alert(String(localized: "journey.delete.confirm.title"), isPresented: $showDeleteAlert) {
@@ -168,13 +170,13 @@ struct JourneyTreeNodeView: View {
             // Swipe Actions
             .swipeActions(edge: .trailing, allowsFullSwipe: false) {
                 Button(role: .destructive) {
-                    showDeleteAlertDelayed()
+                    showDeleteAlert = true
                 } label: {
                     Label(String(localized: "common.delete"), systemImage: "trash")
                 }
 
                 Button {
-                    showEditSheetDelayed()
+                    showEditSheet = true
                 } label: {
                     Label(String(localized: "journey.context.edit"), systemImage: "pencil")
                 }
@@ -182,41 +184,12 @@ struct JourneyTreeNodeView: View {
             }
             .swipeActions(edge: .leading, allowsFullSwipe: false) {
                 Button {
-                    showMoveSheetDelayed()
+                    showMoveSheet = true
                 } label: {
                     Label(String(localized: "journey.context.move"), systemImage: "folder")
                 }
                 .tint(.orange)
             }
-    }
-
-    // MARK: - Delayed Presentation Helpers
-
-    private func showDeleteAlertDelayed() {
-        Task {
-            try? await Task.sleep(for: .milliseconds(300))
-            await MainActor.run {
-                showDeleteAlert = true
-            }
-        }
-    }
-
-    private func showEditSheetDelayed() {
-        Task {
-            try? await Task.sleep(for: .milliseconds(300))
-            await MainActor.run {
-                showEditSheet = true
-            }
-        }
-    }
-
-    private func showMoveSheetDelayed() {
-        Task {
-            try? await Task.sleep(for: .milliseconds(300))
-            await MainActor.run {
-                showMoveSheet = true
-            }
-        }
     }
 
     // MARK: - Context Menu
@@ -288,45 +261,13 @@ struct JourneyTreeNodeView: View {
     }
 
     private func createChildEntry() {
-        Task {
-            do {
-                let newNode = try await store.createNode(
-                    section: section,
-                    nodeType: .entry,
-                    title: String(localized: "journey.new.entry"),
-                    parentId: node.id
-                )
-                // Kleine Verzögerung damit Kontextmenü vollständig schließt
-                try? await Task.sleep(for: .milliseconds(300))
-                await MainActor.run {
-                    newlyCreatedNode = newNode
-                    showNewNodeEditor = true
-                }
-            } catch {
-                print("❌ Create child failed: \(error)")
-            }
-        }
+        newNodeType = .entry
+        showNewNodeEditor = true
     }
 
     private func createChildFolder() {
-        Task {
-            do {
-                let newNode = try await store.createNode(
-                    section: section,
-                    nodeType: .folder,
-                    title: String(localized: "journey.new.folder"),
-                    parentId: node.id
-                )
-                // Kleine Verzögerung damit Kontextmenü vollständig schließt
-                try? await Task.sleep(for: .milliseconds(300))
-                await MainActor.run {
-                    newlyCreatedNode = newNode
-                    showNewNodeEditor = true
-                }
-            } catch {
-                print("❌ Create child folder failed: \(error)")
-            }
-        }
+        newNodeType = .folder
+        showNewNodeEditor = true
     }
 
     // MARK: - Helpers

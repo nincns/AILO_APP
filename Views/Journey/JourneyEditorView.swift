@@ -4,6 +4,10 @@ import SwiftUI
 struct JourneyEditorView: View {
     let node: JourneyNode?
     let isNewlyCreated: Bool
+    let parentId: UUID?
+    let preselectedSection: JourneySection?
+    let preselectedType: JourneyNodeType?
+
     @EnvironmentObject var store: JourneyStore
 
     @Environment(\.dismiss) private var dismiss
@@ -29,9 +33,18 @@ struct JourneyEditorView: View {
         title != originalTitle || !content.isEmpty || !tagsText.isEmpty
     }
 
-    init(node: JourneyNode? = nil, isNewlyCreated: Bool = false) {
+    init(
+        node: JourneyNode? = nil,
+        isNewlyCreated: Bool = false,
+        parentId: UUID? = nil,
+        preselectedSection: JourneySection? = nil,
+        preselectedType: JourneyNodeType? = nil
+    ) {
         self.node = node
         self.isNewlyCreated = isNewlyCreated
+        self.parentId = parentId
+        self.preselectedSection = preselectedSection
+        self.preselectedType = preselectedType
     }
 
     var body: some View {
@@ -150,6 +163,14 @@ struct JourneyEditorView: View {
                     hasDueDate = true
                 }
                 if let p = node.progress { progress = Double(p) }
+            } else {
+                // Für neue Nodes: preselected values setzen
+                if let section = preselectedSection {
+                    selectedSection = section
+                }
+                if let nodeType = preselectedType {
+                    selectedType = nodeType
+                }
             }
         }
     }
@@ -193,7 +214,7 @@ struct JourneyEditorView: View {
                         nodeType: selectedType,
                         title: title,
                         content: content.isEmpty ? nil : content,
-                        parentId: nil,
+                        parentId: parentId,
                         tags: parseTags()
                     )
                 }
