@@ -56,6 +56,12 @@ struct MainView: View {
                     Text("app.tab.dashboard")
                 }
 
+            NavigationStack { JourneyView() }
+                .tabItem {
+                    Image(systemName: "book.closed")
+                    Text("app.tab.journey")
+                }
+
             NavigationStack { MailView() }
                 .tabItem {
                     Image(systemName: "envelope")
@@ -67,12 +73,6 @@ struct MainView: View {
                 .tabItem {
                     Image(systemName: "plus.rectangle.on.folder")
                     Text("app.tab.logs")
-                }
-
-            NavigationStack { JourneyView() }
-                .tabItem {
-                    Image(systemName: "book.closed")
-                    Text("app.tab.journey")
                 }
 
             NavigationStack { ConfigView() }
