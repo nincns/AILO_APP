@@ -64,6 +64,8 @@ struct JourneyTreeNodeView: View {
     @State private var showMoveSheet: Bool = false
     @State private var showEditSheet: Bool = false
     @State private var showDeleteAlert: Bool = false
+    @State private var newlyCreatedNode: JourneyNode?
+    @State private var showNewNodeEditor: Bool = false
 
     private var isDropTarget: Bool {
         dropTargetId == node.id && draggedNode?.id != node.id
@@ -105,6 +107,14 @@ struct JourneyTreeNodeView: View {
             NavigationStack {
                 JourneyEditorView(node: node)
                     .environmentObject(store)
+            }
+        }
+        .sheet(isPresented: $showNewNodeEditor) {
+            if let newNode = newlyCreatedNode {
+                NavigationStack {
+                    JourneyEditorView(node: newNode, isNewlyCreated: true)
+                        .environmentObject(store)
+                }
             }
         }
         .alert(String(localized: "journey.delete.confirm.title"), isPresented: $showDeleteAlert) {
@@ -251,12 +261,16 @@ struct JourneyTreeNodeView: View {
     private func createChildEntry() {
         Task {
             do {
-                _ = try await store.createNode(
+                let newNode = try await store.createNode(
                     section: section,
                     nodeType: .entry,
                     title: String(localized: "journey.new.entry"),
                     parentId: node.id
                 )
+                await MainActor.run {
+                    newlyCreatedNode = newNode
+                    showNewNodeEditor = true
+                }
             } catch {
                 print("❌ Create child failed: \(error)")
             }
@@ -266,12 +280,16 @@ struct JourneyTreeNodeView: View {
     private func createChildFolder() {
         Task {
             do {
-                _ = try await store.createNode(
+                let newNode = try await store.createNode(
                     section: section,
                     nodeType: .folder,
                     title: String(localized: "journey.new.folder"),
                     parentId: node.id
                 )
+                await MainActor.run {
+                    newlyCreatedNode = newNode
+                    showNewNodeEditor = true
+                }
             } catch {
                 print("❌ Create child folder failed: \(error)")
             }
