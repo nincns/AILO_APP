@@ -121,7 +121,13 @@ struct JourneyTreeView: View {
             String(localized: "journey.delete.confirm.title"),
             isPresented: Binding(
                 get: { presentationState.activeAlert != nil },
-                set: { if !$0 { presentationState.activeAlert = nil } }
+                set: { newValue in
+                    if !newValue {
+                        Task { @MainActor in
+                            presentationState.activeAlert = nil
+                        }
+                    }
+                }
             ),
             presenting: presentationState.activeAlert
         ) { alertType in
