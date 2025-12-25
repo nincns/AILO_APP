@@ -5,6 +5,8 @@ struct JourneyView: View {
     @StateObject private var store = JourneyStore.shared
     @State private var selectedSection: JourneySection = .inbox
     @State private var searchText: String = ""
+    @State private var nodeToEdit: JourneyNode?
+    @State private var showEditor = false
 
     var body: some View {
         VStack(spacing: 0) {
@@ -73,6 +75,14 @@ struct JourneyView: View {
                 ProgressView()
             }
         }
+        .sheet(isPresented: $showEditor) {
+            if let node = nodeToEdit {
+                NavigationStack {
+                    JourneyEditorView(node: node)
+                        .environmentObject(store)
+                }
+            }
+        }
     }
 
     // MARK: - Actions
@@ -80,11 +90,15 @@ struct JourneyView: View {
     private func createFolder() {
         Task {
             do {
-                _ = try await store.createNode(
+                let node = try await store.createNode(
                     section: selectedSection,
                     nodeType: .folder,
                     title: String(localized: "journey.new.folder")
                 )
+                await MainActor.run {
+                    nodeToEdit = node
+                    showEditor = true
+                }
             } catch {
                 print("❌ Failed to create folder: \(error)")
             }
@@ -94,11 +108,15 @@ struct JourneyView: View {
     private func createEntry() {
         Task {
             do {
-                _ = try await store.createNode(
+                let node = try await store.createNode(
                     section: selectedSection,
                     nodeType: .entry,
                     title: String(localized: "journey.new.entry")
                 )
+                await MainActor.run {
+                    nodeToEdit = node
+                    showEditor = true
+                }
             } catch {
                 print("❌ Failed to create entry: \(error)")
             }
@@ -108,50 +126,19 @@ struct JourneyView: View {
     private func createTask() {
         Task {
             do {
-                _ = try await store.createNode(
+                let node = try await store.createNode(
                     section: selectedSection,
                     nodeType: .task,
-                    title: String(localized: "journey.new.task"),
-                    status: .open
+                    title: String(localized: "journey.new.task")
                 )
+                await MainActor.run {
+                    nodeToEdit = node
+                    showEditor = true
+                }
             } catch {
                 print("❌ Failed to create task: \(error)")
             }
         }
-    }
-}
-
-// MARK: - JourneyNode Extension for creating with status
-
-extension JourneyStore {
-    func createNode(
-        section: JourneySection,
-        nodeType: JourneyNodeType,
-        title: String,
-        status: JourneyTaskStatus? = nil
-    ) async throws -> JourneyNode {
-        guard let dao = self as? JourneyStore else {
-            throw JourneyStoreError.daoNotInitialized
-        }
-
-        var node = JourneyNode(
-            section: section,
-            nodeType: nodeType,
-            title: title
-        )
-
-        if nodeType == .task {
-            node.status = status ?? .open
-        }
-
-        return try await createNode(
-            section: section,
-            nodeType: nodeType,
-            title: title,
-            content: nil,
-            parentId: nil,
-            tags: []
-        )
     }
 }
 
