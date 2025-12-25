@@ -207,8 +207,12 @@ public struct JourneyNode: Identifiable, Codable, Equatable, Sendable {
 // MARK: - Transferable Conformance (für Drag & Drop)
 
 extension JourneyNode: Transferable {
-    public nonisolated static var transferRepresentation: some TransferRepresentation {
-        CodableRepresentation(for: JourneyNode.self, contentType: .journeyNode)
+    public static var transferRepresentation: some TransferRepresentation {
+        DataRepresentation(contentType: .journeyNode) { node in
+            try JSONEncoder().encode(node)
+        } importing: { data in
+            try JSONDecoder().decode(JourneyNode.self, from: data)
+        }
     }
 }
 
