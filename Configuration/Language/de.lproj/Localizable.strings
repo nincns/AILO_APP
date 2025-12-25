@@ -715,3 +715,33 @@
 "smime.import.error.no_identity" = "Kein Zertifikat in der Datei gefunden";
 "smime.import.error.keychain" = "Schlüsselbund-Fehler";
 "smime.import.error.failed" = "Import fehlgeschlagen";
+
+/* MARK: - Journey */
+"app.tab.journey" = "Journey";
+"journey.title" = "Journey";
+"journey.section.inbox" = "Inbox";
+"journey.section.journal" = "Journal";
+"journey.section.wiki" = "Wiki";
+"journey.section.projects" = "Projekte";
+"journey.empty" = "Noch keine Einträge";
+"journey.action.new" = "Neu";
+"journey.action.newFolder" = "Neuer Ordner";
+"journey.action.newEntry" = "Neuer Eintrag";
+"journey.action.newTask" = "Neue Aufgabe";
+"journey.search.placeholder" = "Suchen...";
+"journey.node.folder" = "Ordner";
+"journey.node.entry" = "Eintrag";
+"journey.node.task" = "Aufgabe";
+"journey.detail.title" = "Titel";
+"journey.detail.content" = "Inhalt";
+"journey.detail.tags" = "Tags";
+"journey.detail.created" = "Erstellt";
+"journey.detail.modified" = "Geändert";
+"journey.detail.status" = "Status";
+"journey.detail.dueDate" = "Fällig";
+"journey.detail.progress" = "Fortschritt";
+"journey.detail.edit" = "Bearbeiten";
+"journey.status.open" = "Offen";
+"journey.status.inProgress" = "In Arbeit";
+"journey.status.done" = "Erledigt";
+"journey.status.cancelled" = "Abgebrochen";

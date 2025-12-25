@@ -758,3 +758,33 @@
 "smime.import.error.no_identity" = "No certificate found in file";
 "smime.import.error.keychain" = "Keychain error";
 "smime.import.error.failed" = "Import failed";
+
+/* MARK: - Journey */
+"app.tab.journey" = "Journey";
+"journey.title" = "Journey";
+"journey.section.inbox" = "Inbox";
+"journey.section.journal" = "Journal";
+"journey.section.wiki" = "Wiki";
+"journey.section.projects" = "Projects";
+"journey.empty" = "No entries yet";
+"journey.action.new" = "New";
+"journey.action.newFolder" = "New Folder";
+"journey.action.newEntry" = "New Entry";
+"journey.action.newTask" = "New Task";
+"journey.search.placeholder" = "Search...";
+"journey.node.folder" = "Folder";
+"journey.node.entry" = "Entry";
+"journey.node.task" = "Task";
+"journey.detail.title" = "Title";
+"journey.detail.content" = "Content";
+"journey.detail.tags" = "Tags";
+"journey.detail.created" = "Created";
+"journey.detail.modified" = "Modified";
+"journey.detail.status" = "Status";
+"journey.detail.dueDate" = "Due";
+"journey.detail.progress" = "Progress";
+"journey.detail.edit" = "Edit";
+"journey.status.open" = "Open";
+"journey.status.inProgress" = "In Progress";
+"journey.status.done" = "Done";
+"journey.status.cancelled" = "Cancelled";
