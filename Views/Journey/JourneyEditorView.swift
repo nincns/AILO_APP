@@ -13,7 +13,7 @@ struct JourneyEditorView: View {
     @State private var tagsText: String = ""
 
     // Task-spezifisch
-    @State private var status: TaskStatus = .open
+    @State private var status: JourneyTaskStatus = .open
     @State private var dueDate: Date = Date()
     @State private var hasDueDate: Bool = false
     @State private var progress: Double = 0
@@ -83,7 +83,7 @@ struct JourneyEditorView: View {
             if selectedType == .task || node?.nodeType == .task {
                 Section("Aufgabe") {
                     Picker(String(localized: "journey.detail.status"), selection: $status) {
-                        ForEach(TaskStatus.allCases, id: \.self) { s in
+                        ForEach(JourneyTaskStatus.allCases, id: \.self) { s in
                             Label(s.title, systemImage: s.icon)
                                 .tag(s)
                         }
