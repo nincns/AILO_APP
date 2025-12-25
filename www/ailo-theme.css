@@ -1,0 +1,651 @@
+/*
+ * ============================================================================
+ * AILO HANDBUCH - CSS DESIGN KONZEPT
+ * ============================================================================
+ * 
+ * Basierend auf Logo-Analyse:
+ * - Gradient: Blau/Lila → Rot/Orange (technisch, modern)
+ * - Elemente: Schaltkreise, Zahnrad, Profil, Sprechblase
+ * - Stil: Clean, futuristisch, KI-inspiriert
+ * 
+ * ============================================================================
+ */
+
+/* ============================================================================
+   1. CSS VARIABLEN - FARBPALETTE
+   ============================================================================ */
+
+:root {
+  /* Primäre Gradient-Farben (aus Logo extrahiert) */
+  --color-primary-blue: #1a237e;
+  --color-primary-purple: #4a148c;
+  --color-primary-magenta: #880e4f;
+  --color-primary-red: #c62828;
+  --color-primary-orange: #e65100;
+  
+  /* Haupt-Gradient */
+  --gradient-primary: linear-gradient(135deg, 
+    var(--color-primary-blue) 0%, 
+    var(--color-primary-purple) 25%, 
+    var(--color-primary-magenta) 50%, 
+    var(--color-primary-red) 75%, 
+    var(--color-primary-orange) 100%
+  );
+  
+  /* Subtiler Gradient für Hintergründe */
+  --gradient-subtle: linear-gradient(135deg, 
+    rgba(26, 35, 126, 0.1) 0%, 
+    rgba(136, 14, 79, 0.05) 50%, 
+    rgba(230, 81, 0, 0.1) 100%
+  );
+  
+  /* Akzent-Gradient für Buttons/Links */
+  --gradient-accent: linear-gradient(90deg, 
+    var(--color-primary-purple) 0%, 
+    var(--color-primary-red) 100%
+  );
+  
+  /* Dark Mode Farben */
+  --color-bg-dark: #0a0a0f;
+  --color-bg-card: #12121a;
+  --color-bg-elevated: #1a1a25;
+  --color-border-dark: rgba(255, 255, 255, 0.08);
+  
+  /* Light Mode Farben */
+  --color-bg-light: #fafafa;
+  --color-bg-card-light: #ffffff;
+  --color-border-light: rgba(0, 0, 0, 0.08);
+  
+  /* Text-Farben */
+  --color-text-primary: #ffffff;
+  --color-text-secondary: rgba(255, 255, 255, 0.7);
+  --color-text-muted: rgba(255, 255, 255, 0.5);
+  --color-text-dark: #1a1a2e;
+  --color-text-dark-secondary: rgba(26, 26, 46, 0.7);
+  
+  /* Funktionale Farben */
+  --color-success: #00c853;
+  --color-warning: #ffab00;
+  --color-error: #ff1744;
+  --color-info: #00b0ff;
+  
+  /* Schaltkreis-Akzent (aus Logo) */
+  --color-circuit: var(--color-primary-purple);
+  --color-circuit-glow: rgba(74, 20, 140, 0.4);
+  
+  /* Spacing */
+  --spacing-xs: 0.25rem;
+  --spacing-sm: 0.5rem;
+  --spacing-md: 1rem;
+  --spacing-lg: 1.5rem;
+  --spacing-xl: 2rem;
+  --spacing-2xl: 3rem;
+  --spacing-3xl: 4rem;
+  
+  /* Border Radius */
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+  --radius-full: 9999px;
+  
+  /* Shadows */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.4);
+  --shadow-lg: 0 10px 25px rgba(0, 0, 0, 0.5);
+  --shadow-glow: 0 0 20px var(--color-circuit-glow);
+  
+  /* Typography */
+  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: 'JetBrains Mono', 'Fira Code', 'SF Mono', Consolas, monospace;
+  
+  /* Transitions */
+  --transition-fast: 150ms ease;
+  --transition-normal: 250ms ease;
+  --transition-slow: 400ms ease;
+}
+
+/* ============================================================================
+   2. BASE STYLES
+   ============================================================================ */
+
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  font-size: 16px;
+  scroll-behavior: smooth;
+}
+
+body {
+  font-family: var(--font-sans);
+  background: var(--color-bg-dark);
+  color: var(--color-text-primary);
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Schaltkreis-Hintergrundmuster */
+body::before {
+  content: '';
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-image: 
+    radial-gradient(circle at 20% 50%, var(--color-circuit-glow) 0%, transparent 25%),
+    radial-gradient(circle at 80% 20%, rgba(230, 81, 0, 0.15) 0%, transparent 25%),
+    radial-gradient(circle at 40% 80%, rgba(136, 14, 79, 0.1) 0%, transparent 20%);
+  pointer-events: none;
+  z-index: -1;
+}
+
+/* ============================================================================
+   3. TYPOGRAPHY
+   ============================================================================ */
+
+h1, h2, h3, h4, h5, h6 {
+  font-weight: 600;
+  line-height: 1.3;
+  margin-bottom: var(--spacing-md);
+}
+
+h1 {
+  font-size: 2.5rem;
+  background: var(--gradient-primary);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+h2 {
+  font-size: 1.875rem;
+  color: var(--color-text-primary);
+  border-bottom: 2px solid transparent;
+  border-image: var(--gradient-accent) 1;
+  padding-bottom: var(--spacing-sm);
+}
+
+h3 {
+  font-size: 1.5rem;
+  color: var(--color-text-primary);
+}
+
+h4 {
+  font-size: 1.25rem;
+  color: var(--color-text-secondary);
+}
+
+p {
+  margin-bottom: var(--spacing-md);
+  color: var(--color-text-secondary);
+}
+
+a {
+  color: var(--color-primary-orange);
+  text-decoration: none;
+  transition: color var(--transition-fast);
+}
+
+a:hover {
+  color: var(--color-primary-red);
+  text-decoration: underline;
+}
+
+code {
+  font-family: var(--font-mono);
+  font-size: 0.875em;
+  background: var(--color-bg-elevated);
+  padding: 0.2em 0.4em;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-border-dark);
+}
+
+pre {
+  background: var(--color-bg-card);
+  border: 1px solid var(--color-border-dark);
+  border-radius: var(--radius-lg);
+  padding: var(--spacing-lg);
+  overflow-x: auto;
+  margin: var(--spacing-lg) 0;
+}
+
+pre code {
+  background: transparent;
+  border: none;
+  padding: 0;
+}
+
+/* ============================================================================
+   4. LAYOUT COMPONENTS
+   ============================================================================ */
+
+/* Container */
+.container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 var(--spacing-lg);
+}
+
+/* Header mit Gradient-Border */
+.header {
+  background: var(--color-bg-card);
+  border-bottom: 1px solid var(--color-border-dark);
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  backdrop-filter: blur(10px);
+}
+
+.header::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: var(--gradient-primary);
+}
+
+/* Sidebar Navigation */
+.sidebar {
+  background: var(--color-bg-card);
+  border-right: 1px solid var(--color-border-dark);
+  width: 280px;
+  height: 100vh;
+  position: fixed;
+  overflow-y: auto;
+  padding: var(--spacing-lg);
+}
+
+.sidebar-nav-item {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-sm) var(--spacing-md);
+  border-radius: var(--radius-md);
+  color: var(--color-text-secondary);
+  transition: all var(--transition-fast);
+  margin-bottom: var(--spacing-xs);
+}
+
+.sidebar-nav-item:hover {
+  background: var(--color-bg-elevated);
+  color: var(--color-text-primary);
+  text-decoration: none;
+}
+
+.sidebar-nav-item.active {
+  background: var(--gradient-accent);
+  color: var(--color-text-primary);
+}
+
+/* Main Content */
+.main-content {
+  margin-left: 280px;
+  padding: var(--spacing-2xl);
+  min-height: 100vh;
+}
+
+/* ============================================================================
+   5. CARDS & COMPONENTS
+   ============================================================================ */
+
+/* Feature Card */
+.card {
+  background: var(--color-bg-card);
+  border: 1px solid var(--color-border-dark);
+  border-radius: var(--radius-xl);
+  padding: var(--spacing-xl);
+  transition: all var(--transition-normal);
+}
+
+.card:hover {
+  border-color: var(--color-primary-purple);
+  box-shadow: var(--shadow-glow);
+  transform: translateY(-2px);
+}
+
+/* Card mit Gradient-Border */
+.card-gradient {
+  position: relative;
+  background: var(--color-bg-card);
+  border-radius: var(--radius-xl);
+  padding: var(--spacing-xl);
+}
+
+.card-gradient::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: var(--radius-xl);
+  padding: 1px;
+  background: var(--gradient-primary);
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+}
+
+/* Info Box */
+.info-box {
+  background: rgba(0, 176, 255, 0.1);
+  border-left: 4px solid var(--color-info);
+  border-radius: var(--radius-md);
+  padding: var(--spacing-md) var(--spacing-lg);
+  margin: var(--spacing-lg) 0;
+}
+
+.warning-box {
+  background: rgba(255, 171, 0, 0.1);
+  border-left: 4px solid var(--color-warning);
+  border-radius: var(--radius-md);
+  padding: var(--spacing-md) var(--spacing-lg);
+  margin: var(--spacing-lg) 0;
+}
+
+.tip-box {
+  background: rgba(0, 200, 83, 0.1);
+  border-left: 4px solid var(--color-success);
+  border-radius: var(--radius-md);
+  padding: var(--spacing-md) var(--spacing-lg);
+  margin: var(--spacing-lg) 0;
+}
+
+/* ============================================================================
+   6. BUTTONS
+   ============================================================================ */
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-sm) var(--spacing-lg);
+  border-radius: var(--radius-md);
+  font-weight: 500;
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  border: none;
+  text-decoration: none;
+}
+
+.btn-primary {
+  background: var(--gradient-accent);
+  color: var(--color-text-primary);
+}
+
+.btn-primary:hover {
+  box-shadow: var(--shadow-glow);
+  transform: translateY(-1px);
+}
+
+.btn-secondary {
+  background: transparent;
+  border: 1px solid var(--color-border-dark);
+  color: var(--color-text-secondary);
+}
+
+.btn-secondary:hover {
+  border-color: var(--color-primary-purple);
+  color: var(--color-text-primary);
+}
+
+/* ============================================================================
+   7. SCHALTKREIS-DEKORATIONEN (KI-Thema)
+   ============================================================================ */
+
+/* Schaltkreis-Linien Dekoration */
+.circuit-decoration {
+  position: relative;
+}
+
+.circuit-decoration::before {
+  content: '';
+  position: absolute;
+  width: 60px;
+  height: 2px;
+  background: var(--gradient-primary);
+  left: -80px;
+  top: 50%;
+}
+
+.circuit-decoration::after {
+  content: '';
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  background: var(--color-primary-purple);
+  border-radius: 50%;
+  left: -88px;
+  top: 50%;
+  transform: translateY(-50%);
+  box-shadow: 0 0 10px var(--color-circuit-glow);
+}
+
+/* Leuchtende Punkte (wie im Logo) */
+.glow-dot {
+  width: 10px;
+  height: 10px;
+  background: var(--color-primary-orange);
+  border-radius: 50%;
+  box-shadow: 0 0 15px var(--color-primary-orange);
+  animation: pulse 2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.7; transform: scale(1.2); }
+}
+
+/* ============================================================================
+   8. SCREENSHOT CONTAINER
+   ============================================================================ */
+
+.screenshot-container {
+  background: var(--color-bg-elevated);
+  border: 1px solid var(--color-border-dark);
+  border-radius: var(--radius-xl);
+  padding: var(--spacing-md);
+  margin: var(--spacing-xl) 0;
+  text-align: center;
+}
+
+.screenshot-container img {
+  max-width: 100%;
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+}
+
+.screenshot-caption {
+  margin-top: var(--spacing-md);
+  font-size: 0.875rem;
+  color: var(--color-text-muted);
+  font-style: italic;
+}
+
+/* iPhone Mockup Frame */
+.iphone-frame {
+  display: inline-block;
+  background: linear-gradient(145deg, #2a2a35, #1a1a25);
+  border-radius: 40px;
+  padding: 12px;
+  box-shadow: 
+    0 25px 50px rgba(0, 0, 0, 0.5),
+    inset 0 1px 1px rgba(255, 255, 255, 0.1);
+}
+
+.iphone-frame img {
+  border-radius: 28px;
+  display: block;
+}
+
+/* ============================================================================
+   9. TABLE STYLES
+   ============================================================================ */
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: var(--spacing-lg) 0;
+}
+
+th, td {
+  padding: var(--spacing-md);
+  text-align: left;
+  border-bottom: 1px solid var(--color-border-dark);
+}
+
+th {
+  background: var(--color-bg-elevated);
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+tr:hover td {
+  background: rgba(74, 20, 140, 0.1);
+}
+
+/* ============================================================================
+   10. FEATURE ICONS (passend zum Logo-Stil)
+   ============================================================================ */
+
+.feature-icon {
+  width: 48px;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--gradient-accent);
+  border-radius: var(--radius-lg);
+  font-size: 1.5rem;
+  margin-bottom: var(--spacing-md);
+}
+
+/* Grid für Feature-Übersicht */
+.feature-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: var(--spacing-xl);
+  margin: var(--spacing-2xl) 0;
+}
+
+/* ============================================================================
+   11. STEP-BY-STEP ANLEITUNG
+   ============================================================================ */
+
+.steps {
+  counter-reset: step-counter;
+  list-style: none;
+  padding: 0;
+}
+
+.step {
+  position: relative;
+  padding-left: 60px;
+  padding-bottom: var(--spacing-xl);
+  border-left: 2px solid var(--color-border-dark);
+  margin-left: 20px;
+}
+
+.step::before {
+  counter-increment: step-counter;
+  content: counter(step-counter);
+  position: absolute;
+  left: -21px;
+  width: 40px;
+  height: 40px;
+  background: var(--gradient-accent);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 1rem;
+}
+
+.step:last-child {
+  border-left-color: transparent;
+}
+
+/* ============================================================================
+   12. RESPONSIVE DESIGN
+   ============================================================================ */
+
+@media (max-width: 1024px) {
+  .sidebar {
+    transform: translateX(-100%);
+    transition: transform var(--transition-normal);
+  }
+  
+  .sidebar.open {
+    transform: translateX(0);
+  }
+  
+  .main-content {
+    margin-left: 0;
+  }
+}
+
+@media (max-width: 768px) {
+  h1 { font-size: 2rem; }
+  h2 { font-size: 1.5rem; }
+  h3 { font-size: 1.25rem; }
+  
+  .container {
+    padding: 0 var(--spacing-md);
+  }
+  
+  .feature-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ============================================================================
+   13. LIGHT MODE (optional)
+   ============================================================================ */
+
+@media (prefers-color-scheme: light) {
+  .light-mode body {
+    background: var(--color-bg-light);
+    color: var(--color-text-dark);
+  }
+  
+  .light-mode .card,
+  .light-mode .sidebar,
+  .light-mode .header {
+    background: var(--color-bg-card-light);
+    border-color: var(--color-border-light);
+  }
+  
+  .light-mode p,
+  .light-mode .sidebar-nav-item {
+    color: var(--color-text-dark-secondary);
+  }
+}
+
+/* ============================================================================
+   14. PRINT STYLES
+   ============================================================================ */
+
+@media print {
+  body::before { display: none; }
+  .sidebar { display: none; }
+  .main-content { margin-left: 0; }
+  
+  .card, .card-gradient {
+    border: 1px solid #ccc;
+    box-shadow: none;
+  }
+  
+  h1 {
+    -webkit-text-fill-color: var(--color-primary-purple);
+    color: var(--color-primary-purple);
+  }
+}
