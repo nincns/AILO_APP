@@ -6,6 +6,7 @@ struct JourneyView: View {
     @State private var selectedSection: JourneySection = .inbox
     @State private var searchText: String = ""
     @State private var nodeToEdit: JourneyNode?
+    @State private var isNewlyCreated: Bool = false
     @State private var showEditor = false
 
     var body: some View {
@@ -78,7 +79,7 @@ struct JourneyView: View {
         .sheet(isPresented: $showEditor) {
             if let node = nodeToEdit {
                 NavigationStack {
-                    JourneyEditorView(node: node)
+                    JourneyEditorView(node: node, isNewlyCreated: isNewlyCreated)
                         .environmentObject(store)
                 }
             }
@@ -97,6 +98,7 @@ struct JourneyView: View {
                 )
                 await MainActor.run {
                     nodeToEdit = node
+                    isNewlyCreated = true
                     showEditor = true
                 }
             } catch {
@@ -115,6 +117,7 @@ struct JourneyView: View {
                 )
                 await MainActor.run {
                     nodeToEdit = node
+                    isNewlyCreated = true
                     showEditor = true
                 }
             } catch {
@@ -133,6 +136,7 @@ struct JourneyView: View {
                 )
                 await MainActor.run {
                     nodeToEdit = node
+                    isNewlyCreated = true
                     showEditor = true
                 }
             } catch {
