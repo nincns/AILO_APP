@@ -18,6 +18,12 @@ struct ComposeMailView: View {
     var preselectedAccountId: UUID? = nil
     var originalAttachments: [Attachment] = []  // Anhänge aus Original-Mail
 
+    // MARK: - New Compose Parameters (for Log-Mail etc.)
+    var initialSubject: String = ""
+    var initialBody: String = ""
+    var initialIsHTML: Bool = false
+    var initialTo: String = ""
+
     // MARK: - Addressing
     @State private var accounts: [MailAccountConfig] = []
     @State private var activeIDs: Set<UUID> = []
@@ -353,6 +359,19 @@ struct ComposeMailView: View {
                 // Check if this is a reply/forward
                 if let mail = replyToMail {
                     prefillForReply(mail: mail)
+                } else if !initialSubject.isEmpty || !initialBody.isEmpty {
+                    // New compose with pre-filled content (e.g., from Logs)
+                    subject = initialSubject
+                    if initialIsHTML {
+                        htmlBody = initialBody
+                        isHTML = true
+                    } else {
+                        textBody = initialBody
+                        isHTML = false
+                    }
+                    if !initialTo.isEmpty {
+                        to = initialTo
+                    }
                 }
                 // Neue Mail: Felder bleiben leer (kein Autosave laden)
                 // Autosave wird nur beim Bearbeiten gespeichert, nicht beim Start geladen

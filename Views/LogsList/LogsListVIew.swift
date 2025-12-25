@@ -5,10 +5,9 @@ import UniformTypeIdentifiers
 struct LogsListView: View {
     @EnvironmentObject private var store: DataStore
     @State private var alert: (title: String, message: String)?
-    @State private var showMail = false
-    @State private var mailSubject: String = ""
-    @State private var mailBody: String = ""
-    @State private var mailComposerID: Int = 0
+    @State private var showComposeSheet = false
+    @State private var composeSubject: String = ""
+    @State private var composeBody: String = ""
     @State private var selectedTextEntry: LogEntry? = nil
     @State private var showPlayer = false
     @State private var playerURL: URL?
@@ -164,9 +163,12 @@ struct LogsListView: View {
         ) { ia in
             Alert(title: Text(ia.title), message: Text(ia.message), dismissButton: .default(Text("common.ok")))
         }
-        .sheet(isPresented: $showMail) {
-            MailComposer(subject: mailSubject, body: mailBody, attachments: mailAttachments)
-                .id(mailComposerID)
+        .sheet(isPresented: $showComposeSheet) {
+            ComposeMailView(
+                initialSubject: composeSubject,
+                initialBody: composeBody,
+                initialIsHTML: false
+            )
         }
         .sheet(isPresented: $showPlayer) {
             if let url = playerURL {
@@ -185,47 +187,27 @@ struct LogsListView: View {
         let useAI = entry.useAI ?? false
         return useAI ? (ai.isEmpty ? raw : ai) : raw
     }
-    
-    private func recomputeMailComposerID() {
-        var hasher = Hasher()
-        hasher.combine(mailSubject)
-        hasher.combine(mailBody)
-        hasher.combine(mailAttachments.count)
-        // Include attachment filenames and sizes (not data bytes) for a stable but fast hash
-        for att in mailAttachments {
-            hasher.combine(att.fileName)
-        }
-        mailComposerID = hasher.finalize()
-    }
-    
-    @State private var mailAttachments: [MailComposer.Attachment] = []
+
     private func prepareMail(for entry: LogEntry) {
         let title = entry.title ?? (entry.type == .audio ? String(localized: "logs.item.fallback.audio") : String(localized: "logs.mail.fallback.log"))
-        self.mailSubject = title
+        composeSubject = title
+
         let when = dateFormatter.string(from: entry.date)
+        var body = "\(String(localized: "logs.mail.body.titlePrefix")) \(title)\n"
+        body += "\(String(localized: "logs.mail.body.datePrefix")) \(when)\n\n"
+
         switch entry.type {
         case .text:
-            let body = preferredText(for: entry)
-            self.mailBody = "\(String(localized: "logs.mail.body.titlePrefix")) \(title)\n\(String(localized: "logs.mail.body.datePrefix")) \(when)\n\n\(body)"
-            self.mailAttachments = []
+            let textContent = preferredText(for: entry)
+            body += textContent
         case .audio:
             let name = entry.audioFileName ?? String(localized: "logs.mail.fallback.untitledAudio")
-            let url = store.audioURL(for: name)
-            if FileManager.default.fileExists(atPath: url.path),
-               let data = try? Data(contentsOf: url) {
-                let attachment = MailComposer.Attachment(data: data, mimeType: "audio/m4a", fileName: name)
-                self.mailBody = "\(String(localized: "logs.mail.body.titlePrefix")) \(title)\n\(String(localized: "logs.mail.body.datePrefix")) \(when)\n\(String(localized: "logs.mail.body.filePrefix")) \(name)"
-                self.mailAttachments = [attachment]
-            } else {
-                self.mailBody = "\(String(localized: "logs.mail.body.titlePrefix")) \(title)\n\(String(localized: "logs.mail.body.datePrefix")) \(when)\n\(String(localized: "logs.mail.body.filePrefix")) \(name)\n\n\(String(localized: "logs.mail.body.audioNote"))"
-                self.mailAttachments = []
-            }
+            body += "\(String(localized: "logs.mail.body.filePrefix")) \(name)\n\n"
+            body += String(localized: "logs.mail.body.audioNote")
         }
-        // Force a fresh MailComposer instance for the first real content
-        self.recomputeMailComposerID()
-        DispatchQueue.main.async {
-            self.showMail = true
-        }
+
+        composeBody = body
+        showComposeSheet = true
     }
     
     private func play(entry: LogEntry) {
