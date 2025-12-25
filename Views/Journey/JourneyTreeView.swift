@@ -262,12 +262,18 @@ struct JourneyTreeNodeView: View {
 
     private func createChildEntry() {
         newNodeType = .entry
-        showNewNodeEditor = true
+        // Warten bis Kontextmenü vollständig geschlossen ist
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
+            showNewNodeEditor = true
+        }
     }
 
     private func createChildFolder() {
         newNodeType = .folder
-        showNewNodeEditor = true
+        // Warten bis Kontextmenü vollständig geschlossen ist
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
+            showNewNodeEditor = true
+        }
     }
 
     // MARK: - Helpers
