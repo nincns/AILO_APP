@@ -168,13 +168,13 @@ struct JourneyTreeNodeView: View {
             // Swipe Actions
             .swipeActions(edge: .trailing, allowsFullSwipe: false) {
                 Button(role: .destructive) {
-                    showDeleteAlert = true
+                    showDeleteAlertDelayed()
                 } label: {
                     Label(String(localized: "common.delete"), systemImage: "trash")
                 }
 
                 Button {
-                    showEditSheet = true
+                    showEditSheetDelayed()
                 } label: {
                     Label(String(localized: "journey.context.edit"), systemImage: "pencil")
                 }
@@ -182,12 +182,41 @@ struct JourneyTreeNodeView: View {
             }
             .swipeActions(edge: .leading, allowsFullSwipe: false) {
                 Button {
-                    showMoveSheet = true
+                    showMoveSheetDelayed()
                 } label: {
                     Label(String(localized: "journey.context.move"), systemImage: "folder")
                 }
                 .tint(.orange)
             }
+    }
+
+    // MARK: - Delayed Presentation Helpers
+
+    private func showDeleteAlertDelayed() {
+        Task {
+            try? await Task.sleep(for: .milliseconds(300))
+            await MainActor.run {
+                showDeleteAlert = true
+            }
+        }
+    }
+
+    private func showEditSheetDelayed() {
+        Task {
+            try? await Task.sleep(for: .milliseconds(300))
+            await MainActor.run {
+                showEditSheet = true
+            }
+        }
+    }
+
+    private func showMoveSheetDelayed() {
+        Task {
+            try? await Task.sleep(for: .milliseconds(300))
+            await MainActor.run {
+                showMoveSheet = true
+            }
+        }
     }
 
     // MARK: - Context Menu
