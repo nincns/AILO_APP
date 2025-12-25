@@ -2,6 +2,7 @@
 import Foundation
 import CryptoKit
 import UniformTypeIdentifiers
+import UIKit
 
 public struct JourneyAttachmentService {
 
