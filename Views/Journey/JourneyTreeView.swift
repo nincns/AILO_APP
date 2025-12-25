@@ -267,6 +267,8 @@ struct JourneyTreeNodeView: View {
                     title: String(localized: "journey.new.entry"),
                     parentId: node.id
                 )
+                // Kleine Verzögerung damit Kontextmenü vollständig schließt
+                try? await Task.sleep(for: .milliseconds(300))
                 await MainActor.run {
                     newlyCreatedNode = newNode
                     showNewNodeEditor = true
@@ -286,6 +288,8 @@ struct JourneyTreeNodeView: View {
                     title: String(localized: "journey.new.folder"),
                     parentId: node.id
                 )
+                // Kleine Verzögerung damit Kontextmenü vollständig schließt
+                try? await Task.sleep(for: .milliseconds(300))
                 await MainActor.run {
                     newlyCreatedNode = newNode
                     showNewNodeEditor = true
