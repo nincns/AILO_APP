@@ -53,8 +53,8 @@ class JourneyPresentationState: ObservableObject {
             return
         }
         isTransitioning = true
-        // Kurze Verzögerung um Kontext-Menü/Swipe-Animation abzuwarten
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) { [weak self] in
+        // Längere Verzögerung für Sheets (Kontextmenü braucht ~350ms zum Schließen)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) { [weak self] in
             self?.activeSheet = sheet
             self?.isTransitioning = false
         }
@@ -66,7 +66,8 @@ class JourneyPresentationState: ObservableObject {
             return
         }
         isTransitioning = true
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) { [weak self] in
+        // Kürzere Verzögerung für Alerts (Swipe ist schneller)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) { [weak self] in
             self?.activeAlert = alert
             self?.isTransitioning = false
         }
