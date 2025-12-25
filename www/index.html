@@ -287,388 +287,65 @@
         <button class="close-btn" onclick="closeModal()">&times;</button>
       </div>
       <div class="modal-body">
-        
-        <div class="toc">
-          <h3>Inhaltsverzeichnis</h3>
-          <ul>
-            <li><a href="#dashboard">Dashboard</a></li>
-            <li><a href="#mail">Mail – E-Mail-Verwaltung</a></li>
-            <li><a href="#logs">Logs – Einträge verwalten</a></li>
-            <li><a href="#schreiben">Texteinträge erstellen</a></li>
-            <li><a href="#sprechen">Sprachaufnahmen erstellen</a></li>
-            <li><a href="#einstellungen">Einstellungen</a></li>
-            <li><a href="#ki-funktionen">KI-Funktionen nutzen</a></li>
-            <li><a href="#tipps">Tipps & Tricks</a></li>
-          </ul>
-        </div>
 
-        <h2 id="dashboard">Dashboard</h2>
-        <p>Das <strong>Dashboard</strong> ist deine Startseite und zeigt auf einen Blick:</p>
-        
-        <h3>Anstehende Erinnerungen</h3>
+        <p style="text-align: center; margin-bottom: 2rem;">
+          <a href="docs/ailo-kurzanleitung.pdf" target="_blank" class="btn-manual" style="display: inline-block; font-size: 1.1rem;">
+            📄 Vollständige Kurzanleitung als PDF herunterladen
+          </a>
+        </p>
+
+        <h2>🚀 Schnellstart</h2>
+        <p>AILO ist deine KI-gestützte Kommunikations-App mit vier Hauptbereichen:</p>
+
+        <h3>📊 Dashboard</h3>
         <ul>
-          <li>Einträge mit gesetztem Erinnerungsdatum</li>
-          <li>Sortiert nach Datum (nächste zuerst)</li>
-          <li>Maximal 6 Einträge werden angezeigt</li>
-          <li>Durch Antippen öffnest du die Detailansicht</li>
+          <li>Übersicht über anstehende Erinnerungen</li>
+          <li>Deine letzten Einträge auf einen Blick</li>
         </ul>
 
-        <h3>Letzte Einträge</h3>
+        <h3>✉️ Mail</h3>
         <ul>
-          <li>Deine 6 neuesten Notizen und Aufnahmen</li>
-          <li>Chronologisch sortiert (neueste zuerst)</li>
-          <li>Zeigt Titel, Vorschau und Erstellungsdatum</li>
-          <li>Text- und Audio-Einträge gemischt dargestellt</li>
+          <li>Vollwertiger E-Mail-Client (IMAP/SMTP)</li>
+          <li>Mehrere Konten gleichzeitig verwalten</li>
+          <li>Rich-Text-Editor mit Anhängen</li>
+          <li>KI-gestützte Textgenerierung beim Verfassen</li>
+          <li>Badge zeigt ungelesene Nachrichten</li>
         </ul>
 
-        <h2 id="mail">Mail – E-Mail-Verwaltung</h2>
-        <p>Der <strong>Mail</strong>-Tab bietet dir vollständige E-Mail-Funktionalität direkt in AILO.</p>
-
-        <h3>E-Mail-Konto hinzufügen</h3>
-        <ol>
-          <li>Wechsle zu <strong>Einstellungen → E-Mail-Konten</strong></li>
-          <li>Tippe auf das <strong>Plus-Symbol</strong></li>
-          <li>Gib deine Daten ein:
-            <ul>
-              <li><strong>Kontoname</strong>: Beliebiger Name (z.B. "Arbeit")</li>
-              <li><strong>Protokoll</strong>: IMAP (empfohlen) oder POP3</li>
-              <li><strong>Server</strong>: z.B. <code>imap.gmail.com</code></li>
-              <li><strong>Port</strong>: z.B. 993 (IMAP SSL)</li>
-              <li><strong>Verschlüsselung</strong>: SSL/TLS empfohlen</li>
-              <li><strong>Benutzername</strong>: Deine E-Mail-Adresse</li>
-              <li><strong>Passwort</strong>: Dein E-Mail-Passwort oder App-Passwort</li>
-            </ul>
-          </li>
-          <li>Gib die <strong>SMTP-Daten</strong> ein (für Versand)</li>
-          <li>Tippe auf <strong>"Verbindung testen"</strong></li>
-          <li>Bei Erfolg: <strong>"Sichern"</strong></li>
-        </ol>
-
-        <p><strong>Gmail-Hinweis:</strong> Verwende <strong>App-Passwörter</strong> statt normaler Passwörter. Diese erstellst du in deinen Google-Kontoeinstellungen unter "Sicherheit".</p>
-
-        <h3>Posteingang nutzen</h3>
+        <h3>📝 Logs</h3>
         <ul>
-          <li><strong>Ordner wählen</strong>: Posteingang, Gesendet, Entwürfe, Papierkorb, Spam</li>
-          <li><strong>E-Mails lesen</strong>: Antippen zum Öffnen der Detailansicht</li>
-          <li><strong>Suchen</strong>: Nach Betreff oder Absender durchsuchen</li>
-          <li><strong>Filtern</strong>: Alle, Ungelesen, Markiert</li>
-          <li><strong>Aktualisieren</strong>: Pull-to-Refresh für neue E-Mails</li>
+          <li>Text- und Audio-Einträge erstellen</li>
+          <li>Live-Transkription bei Sprachaufnahmen</li>
+          <li>KI-Überarbeitung von Texten</li>
+          <li>Kategorien, Tags und Erinnerungen</li>
+          <li>Per Swipe direkt als E-Mail versenden</li>
         </ul>
 
-        <h3>E-Mail-Aktionen</h3>
+        <h3>⚙️ Einstellungen</h3>
         <ul>
-          <li><strong>Als gelesen/ungelesen markieren</strong>: Über Kontextmenü</li>
-          <li><strong>Markieren</strong>: Wichtige E-Mails hervorheben</li>
-          <li><strong>Löschen</strong>: Nach links wischen</li>
-          <li><strong>In Log importieren</strong>: E-Mail-Inhalt als Texteintrag speichern</li>
+          <li><strong>E-Mail-Konten</strong>: IMAP/SMTP konfigurieren</li>
+          <li><strong>KI-Provider</strong>: OpenAI, Ollama oder eigene Server</li>
+          <li><strong>Pre-Prompt-Katalog</strong>: KI-Anweisungen als Kochbuch organisiert</li>
+          <li><strong>Kategorien</strong>: Eigene Kategorien für Logs definieren</li>
         </ul>
 
-        <h3>Ordner-Synchronisation</h3>
-        <p>AILO synchronisiert automatisch deine E-Mail-Ordner:</p>
+        <h2>💡 Wichtige Tipps</h2>
         <ul>
-          <li>Konfigurierbare Prüfintervalle in den Einstellungen</li>
-          <li>Manuelles Aktualisieren jederzeit möglich</li>
-          <li>Ordner-Zuordnung anpassbar (Inbox, Sent, Drafts, etc.)</li>
+          <li><strong>Gmail/Outlook</strong>: Verwende App-Passwörter statt normaler Passwörter</li>
+          <li><strong>KI nutzen</strong>: Pre-Prompts im Katalog anlegen, dann beim Schreiben auswählen</li>
+          <li><strong>Datenschutz</strong>: Alle Daten bleiben lokal auf deinem Gerät</li>
         </ul>
 
-        <h2 id="logs">Logs – Einträge verwalten</h2>
-        <p>Der <strong>Logs</strong>-Tab ist deine zentrale Verwaltung für alle Text- und Audio-Einträge.</p>
-
-        <h3>Übersicht</h3>
+        <h2>📞 Support</h2>
         <ul>
-          <li><strong>Suchleiste</strong>: Durchsuche Titel, Texte und Transkripte</li>
-          <li><strong>Zahnrad-Symbol</strong>: Öffnet die Einstellungen</li>
-          <li><strong>Filter</strong>: Nach Kategorie oder Typ (Text/Audio)</li>
+          <li>TestFlight-Feedback-Funktion nutzen</li>
+          <li>E-Mail: <a href="mailto:support@ailo.network" style="color: #fff;">support@ailo.network</a></li>
         </ul>
 
-        <h3>Text-Einträge</h3>
-        <ul>
-          <li>Zeigen Titel, Vorschau und Datum</li>
-          <li><strong>Antippen</strong>: Öffnet die Detailansicht zum Bearbeiten</li>
-          <li><strong>Nach links wischen</strong>: E-Mail versenden oder löschen</li>
-          <li><strong>KI-Überarbeitung</strong>: Text mit KI verbessern</li>
-        </ul>
-
-        <h3>Audio-Einträge</h3>
-        <ul>
-          <li>Zeigen Titel, Transkript-Vorschau und Datum</li>
-          <li><strong>"Abspielen"</strong>-Button: Spielt die Aufnahme ab</li>
-          <li><strong>Nach links wischen</strong>: E-Mail versenden oder löschen</li>
-          <li>Transkript wird automatisch gespeichert</li>
-        </ul>
-
-        <h3>Export-Funktionen</h3>
-        <ul>
-          <li><strong>Per E-Mail versenden</strong>: Text oder Audio-Datei als Anhang</li>
-          <li><strong>Zwischenablage</strong>: Text kopieren</li>
-          <li><strong>Teilen</strong>: Über iOS Share-Sheet</li>
-        </ul>
-
-        <h2 id="schreiben">Texteinträge erstellen</h2>
-        <p>Erstelle strukturierte Texteinträge über den Logs-Tab:</p>
-
-        <h3>1. Titel & Kategorie</h3>
-        <ul>
-          <li><strong>Titel</strong> eingeben (optional)</li>
-          <li><strong>Kategorie</strong> aus dem Dropdown wählen</li>
-          <li><strong>Zahnrad-Symbol</strong>: Kategorien verwalten</li>
-          <li><strong>"Weiter"</strong> für nächsten Schritt</li>
-        </ul>
-
-        <h3>2. Schlagworte (Tags)</h3>
-        <ul>
-          <li>Tags im Textfeld eingeben</li>
-          <li><strong>"Hinzufügen"</strong> zum Übernehmen</li>
-          <li>Vorhandene Tags werden als Chips angezeigt</li>
-          <li>Durch Antippen von <strong>"x"</strong> entfernen</li>
-        </ul>
-
-        <h3>3. Erinnerung</h3>
-        <ul>
-          <li><strong>Schalter</strong> aktivieren für Erinnerung</li>
-          <li><strong>Datum & Uhrzeit</strong> wählen</li>
-          <li>Erinnerungen erscheinen im Dashboard</li>
-        </ul>
-
-        <h3>4. Inhalt</h3>
-        <ul>
-          <li><strong>Text</strong> im Editor eingeben</li>
-          <li><strong>"Einfügen"</strong>-Button öffnet Optionen:
-            <ul>
-              <li><strong>Aus Zwischenablage</strong>: Text aus Clipboard</li>
-              <li><strong>Aus E-Mail</strong>: E-Mail-Inhalt importieren</li>
-            </ul>
-          </li>
-          <li>Markdown-Unterstützung für Formatierung</li>
-        </ul>
-
-        <h3>E-Mail-Import</h3>
-        <ol>
-          <li>Im Schreiben-Tab <strong>"Einfügen" → "Aus E-Mail"</strong> wählen</li>
-          <li><strong>Konto</strong> und <strong>Ordner</strong> auswählen</li>
-          <li><strong>E-Mail</strong> doppelt antippen</li>
-          <li>Text wird automatisch eingefügt (HTML wird bereinigt)</li>
-          <li>Bei Bedarf nachbearbeiten und speichern</li>
-        </ol>
-
-        <h2 id="sprechen">Sprachaufnahmen erstellen</h2>
-        <p>Erstelle Audio-Logs mit Live-Transkription:</p>
-
-        <h3>Aufnahme starten</h3>
-        <ol>
-          <li>Wechsle zum <strong>"Logs"</strong>-Tab</li>
-          <li>Wähle <strong>"Neuer Audio-Log"</strong></li>
-          <li>Optional: Gib einen <strong>Titel</strong> ein</li>
-          <li>Tippe auf <strong>"Aufnahme starten"</strong></li>
-        </ol>
-
-        <h3>Während der Aufnahme</h3>
-        <ul>
-          <li><strong>Live-Transkription</strong>: Text erscheint in Echtzeit</li>
-          <li><strong>Pegelanzeige</strong>: Zeigt deine aktuelle Lautstärke</li>
-          <li><strong>Timer</strong>: Zeigt die verstrichene Zeit</li>
-          <li><strong>Pause/Fortsetzen</strong>: Unterbricht die Aufnahme temporär</li>
-          <li><strong>Stoppen</strong>: Beendet die Aufnahme</li>
-        </ul>
-
-        <h3>Nach der Aufnahme</h3>
-        <ul>
-          <li>Prüfe das automatisch erstellte Transkript</li>
-          <li>Tippe auf <strong>"Speichern"</strong></li>
-          <li>Audio-Datei und Transkript werden gemeinsam gespeichert</li>
-          <li>Eintrag erscheint in der Logs-Übersicht</li>
-        </ul>
-
-        <h3>Spracherkennung</h3>
-        <p>AILO unterstützt automatische Spracherkennung für:</p>
-        <ul>
-          <li>Deutsch</li>
-          <li>Englisch</li>
-          <li>Automatische Absatzerkennung durch Pausen</li>
-          <li>Offline-Transkription (iOS Speech Framework)</li>
-        </ul>
-
-        <h2 id="einstellungen">Einstellungen</h2>
-        <p>Über das <strong>Zahnrad-Symbol</strong> erreichst du die Einstellungen:</p>
-
-        <h3>Kategorien verwalten</h3>
-        <ul>
-          <li><strong>Neue Kategorie</strong>: Eingabefeld nutzen und "Hinzufügen"</li>
-          <li><strong>Löschen</strong>: Nach links wischen</li>
-          <li><strong>Reihenfolge</strong>: Gedrückt halten und ziehen</li>
-          <li><strong>Standard-Kategorien</strong>: Allgemein, Netzwerk, Dokumentation</li>
-        </ul>
-
-        <h3>Mikrofon & Aufnahme</h3>
-        <ul>
-          <li><strong>Empfindlichkeit</strong> (0–100%): Standard 85%</li>
-          <li><strong>Stille-Schwelle</strong> (-60 bis 0 dB): Standard -40 dB</li>
-          <li><strong>Chunk-Länge</strong> (1–10 Sekunden): Standard 2 Sekunden</li>
-        </ul>
-
-        <h3>E-Mail-Einstellungen</h3>
-        <ul>
-          <li><strong>Konten verwalten</strong>: Hinzufügen, Bearbeiten, Löschen</li>
-          <li><strong>Prüfintervall</strong>: Automatische Synchronisation (Standard: 15 Min)</li>
-          <li><strong>Ordner-Zuordnung</strong>: Posteingang, Gesendet, Entwürfe, etc.</li>
-          <li><strong>Verbindungstest</strong>: IMAP/SMTP-Zugangsdaten prüfen</li>
-        </ul>
-
-        <h3>KI-Einstellungen</h3>
-        <ul>
-          <li><strong>"KI-Provider"</strong>: Server-Anbieter verwalten</li>
-          <li><strong>"Pre-Prompts"</strong>: Vorlagen für KI-Anweisungen</li>
-          <li>Unterstützung für OpenAI und Ollama</li>
-        </ul>
-
-        <h2 id="ki-funktionen">KI-Funktionen nutzen</h2>
-
-        <h3>KI-Provider einrichten</h3>
-        <ol>
-          <li><strong>Einstellungen</strong> → <strong>KI-Provider</strong></li>
-          <li><strong>Plus-Symbol</strong> antippen</li>
-          <li>Daten eingeben:
-            <ul>
-              <li><strong>Name</strong>: Anzeigename (z.B. "OpenAI Prod")</li>
-              <li><strong>Typ</strong>: OpenAI / Ollama / Custom</li>
-              <li><strong>Server-Adresse</strong>: z.B. <code>https://api.openai.com</code></li>
-              <li><strong>Port</strong>: Standard 443 (OpenAI), 11434 (Ollama lokal)</li>
-              <li><strong>API Key</strong>: Dein Zugriffsschlüssel</li>
-              <li><strong>Modell</strong>: z.B. <code>gpt-4</code> oder <code>llama3</code></li>
-            </ul>
-          </li>
-          <li><strong>"Sichern"</strong> antippen</li>
-        </ol>
-
-        <h3>Pre-Prompts erstellen</h3>
-        <ol>
-          <li><strong>Einstellungen</strong> → <strong>Pre-Prompts</strong></li>
-          <li><strong>Name</strong> eingeben (z.B. "Rechtschreibkorrektur")</li>
-          <li><strong>Text</strong> verfassen (Anweisung für KI)</li>
-          <li><strong>"Hinzufügen"</strong> antippen</li>
-        </ol>
-
-        <p><strong>Beispiel Pre-Prompts:</strong></p>
-        <ul>
-          <li><em>"Korrigiere Rechtschreibung und Grammatik"</em></li>
-          <li><em>"Fasse den Text in 3 Sätzen zusammen"</em></li>
-          <li><em>"Übersetze ins Englische"</em></li>
-          <li><em>"Formuliere professioneller und formeller"</em></li>
-        </ul>
-
-        <h3>Text mit KI verbessern</h3>
-        <ol>
-          <li>Text-Eintrag in der Detailansicht öffnen</li>
-          <li><strong>Pre-Prompt</strong> aus Dropdown wählen</li>
-          <li><strong>KI-Schalter</strong> aktivieren</li>
-          <li>Warten, bis Text generiert wurde</li>
-          <li>Zwischen <strong>Original</strong> und <strong>KI-Text</strong> wechseln</li>
-          <li><strong>"Speichern"</strong> für Übernahme</li>
-        </ol>
-
-        <p><strong>Wichtig:</strong> Der Original-Text bleibt erhalten – du kannst jederzeit zurück zur ursprünglichen Version wechseln.</p>
-
-        <h2 id="tipps">Tipps & Tricks</h2>
-
-        <h3>Effiziente Sprachaufnahmen</h3>
-        <ul>
-          <li>Spreche deutlich und in normalem Tempo</li>
-          <li>Vermeide Hintergrundgeräusche für bessere Transkription</li>
-          <li>Nutze die Pause-Funktion für längere Unterbrechungen</li>
-          <li>Kurze Pausen strukturieren das Transkript automatisch</li>
-        </ul>
-
-        <h3>Kategorien sinnvoll nutzen</h3>
-        <p>Erstelle Kategorien für verschiedene Bereiche:</p>
-        <ul>
-          <li><strong>Arbeit</strong>: Meetings, Protokolle, Projektnotizen</li>
-          <li><strong>Privat</strong>: Ideen, Erinnerungen, Tagebuch</li>
-          <li><strong>Projekte</strong>: Nach Projektnamen organisieren</li>
-          <li><strong>Lernen</strong>: Mitschriften, Zusammenfassungen</li>
-        </ul>
-
-        <h3>E-Mail-Workflow optimieren</h3>
-        <ul>
-          <li>Wichtige E-Mails als Log-Einträge speichern</li>
-          <li>Tags nutzen für Kategorisierung</li>
-          <li>Erinnerungen setzen für Follow-ups</li>
-          <li>KI-Zusammenfassungen für lange E-Mail-Threads</li>
-        </ul>
-
-        <h3>KI optimal einsetzen</h3>
-        <p>Verschiedene Pre-Prompts für unterschiedliche Zwecke:</p>
-        <ul>
-          <li><strong>Rechtschreibung</strong>: "Korrigiere Rechtschreibung und Grammatik"</li>
-          <li><strong>Zusammenfassung</strong>: "Fasse die wichtigsten Punkte zusammen"</li>
-          <li><strong>Übersetzung</strong>: "Übersetze ins [Sprache]"</li>
-          <li><strong>Stil</strong>: "Formuliere formeller/lockerer"</li>
-          <li><strong>Struktur</strong>: "Gliedere in Stichpunkte"</li>
-        </ul>
-
-        <h2>Problemlösung</h2>
-
-        <h3>Spracherkennung funktioniert nicht</h3>
-        <ol>
-          <li><strong>Mikrofon-Berechtigung</strong> prüfen (iOS-Einstellungen → AILO)</li>
-          <li><strong>Spracherkennung</strong> aktiviert? (iOS-Einstellungen → AILO)</li>
-          <li><strong>Empfindlichkeit</strong> in den Einstellungen erhöhen</li>
-          <li><strong>Hintergrundgeräusche</strong> reduzieren</li>
-          <li><strong>App neu starten</strong></li>
-        </ol>
-
-        <h3>E-Mail-Verbindung schlägt fehl</h3>
-        <ol>
-          <li><strong>Internet-Verbindung</strong> prüfen</li>
-          <li><strong>Server-Adresse</strong> auf Tippfehler kontrollieren</li>
-          <li><strong>Port</strong> korrekt? (IMAP SSL: 993, SMTP SSL: 465)</li>
-          <li><strong>App-Passwort</strong> verwenden (Gmail, Outlook, etc.)</li>
-          <li><strong>Firewall/VPN</strong> temporär deaktivieren zum Testen</li>
-        </ol>
-
-        <h3>KI-Verbindung schlägt fehl</h3>
-        <ol>
-          <li><strong>Internet-Verbindung</strong> prüfen</li>
-          <li><strong>API-Key</strong> in den Einstellungen überprüfen</li>
-          <li><strong>Server-Adresse</strong> auf Tippfehler kontrollieren</li>
-          <li><strong>Port</strong> korrekt? (OpenAI: 443, Ollama lokal: 11434)</li>
-          <li><strong>Guthaben</strong> prüfen (bei OpenAI)</li>
-        </ol>
-
-        <h2>Datenschutz & Sicherheit</h2>
-
-        <h3>Lokale Speicherung</h3>
-        <ul>
-          <li>Alle Einträge werden <strong>lokal auf deinem Gerät</strong> gespeichert</li>
-          <li>Keine automatische Cloud-Synchronisation</li>
-          <li>SwiftData-Datenbank (verschlüsselt bei aktiviertem iOS-Geräteschutz)</li>
-          <li>Du hast volle Kontrolle über deine Daten</li>
-        </ul>
-
-        <h3>E-Mail-Sicherheit</h3>
-        <ul>
-          <li>Passwörter werden im <strong>iOS Keychain</strong> gespeichert</li>
-          <li>Verschlüsselte Übertragung (SSL/TLS, STARTTLS)</li>
-          <li>Keine Speicherung auf externen Servern</li>
-          <li>E-Mails bleiben auf deinem Gerät</li>
-        </ul>
-
-        <h3>KI-Verarbeitung</h3>
-        <ul>
-          <li>Texte werden nur bei aktivierter KI-Funktion versendet</li>
-          <li>Übertragung erfolgt verschlüsselt (HTTPS)</li>
-          <li>Wähle vertrauenswürdige KI-Provider</li>
-          <li>Lokale KI (Ollama) für sensible Daten empfohlen</li>
-        </ul>
-
-        <h2>Support & Feedback</h2>
-        <p>Du hast Fragen, Probleme oder Verbesserungsvorschläge?</p>
-        <ul>
-          <li>Nutze die TestFlight-Feedback-Funktion</li>
-          <li>Kontaktiere uns per E-Mail: <a href="mailto:support@ailo.network" style="color: #fff;">support@ailo.network</a></li>
-        </ul>
-
-        <p style="margin-top: 3rem; text-align: center; font-size: 1.2rem;">
-          <strong>Viel Erfolg mit AILO!</strong> 🎯📧📝🎙️✨
+        <p style="margin-top: 2rem; text-align: center;">
+          <a href="docs/ailo-kurzanleitung.pdf" target="_blank" style="color: #00c7be;">
+            📄 Ausführliche Anleitung als PDF →
+          </a>
         </p>
 
       </div>
