@@ -84,7 +84,7 @@ struct JourneyNodeRow: View {
         }
     }
 
-    private func statusColor(_ status: TaskStatus) -> Color {
+    private func statusColor(_ status: JourneyTaskStatus) -> Color {
         switch status {
         case .open: return .gray
         case .inProgress: return .blue

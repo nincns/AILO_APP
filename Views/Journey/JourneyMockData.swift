@@ -53,7 +53,7 @@ enum JourneyNodeType: String, CaseIterable {
     }
 }
 
-enum TaskStatus: String, CaseIterable {
+enum JourneyTaskStatus: String, CaseIterable {
     case open = "open"
     case inProgress = "in_progress"
     case done = "done"
@@ -103,7 +103,7 @@ struct JourneyNodeMock: Identifiable {
     let doingAt: Date?
 
     // Task-spezifisch
-    let status: TaskStatus?
+    let status: JourneyTaskStatus?
     let dueDate: Date?
     let progress: Int?
 
@@ -122,7 +122,7 @@ struct JourneyNodeMock: Identifiable {
         createdAt: Date = Date(),
         modifiedAt: Date = Date(),
         doingAt: Date? = nil,
-        status: TaskStatus? = nil,
+        status: JourneyTaskStatus? = nil,
         dueDate: Date? = nil,
         progress: Int? = nil,
         children: [JourneyNodeMock]? = nil
