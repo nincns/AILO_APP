@@ -69,6 +69,12 @@ struct MainView: View {
                     Text("app.tab.logs")
                 }
 
+            NavigationStack { JourneyView() }
+                .tabItem {
+                    Image(systemName: "book.closed")
+                    Text("app.tab.journey")
+                }
+
             NavigationStack { ConfigView() }
                 .tabItem {
                     Image(systemName: "gearshape")
