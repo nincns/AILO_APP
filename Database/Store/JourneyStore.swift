@@ -126,11 +126,11 @@ public final class JourneyStore: ObservableObject {
         }
 
         let node = JourneyNode(
+            parentId: parentId,
             section: section,
             nodeType: nodeType,
             title: title,
             content: content,
-            parentId: parentId,
             tags: tags
         )
 
