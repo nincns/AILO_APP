@@ -33,6 +33,7 @@ struct JourneyEditorView: View {
     @State private var showDocumentPicker: Bool = false
     @State private var selectedPhotoItems: [PhotosPickerItem] = []
     @State private var isLoadingAttachments: Bool = false
+    @State private var selectedAttachment: JourneyAttachment?
 
     // Original values to detect changes
     @State private var originalTitle: String = ""
@@ -177,6 +178,10 @@ struct JourneyEditorView: View {
                 }
             )
         }
+        .sheet(item: $selectedAttachment) { attachment in
+            JourneyAttachmentViewer(attachment: attachment)
+                .environmentObject(store)
+        }
         .onChange(of: selectedPhotoItems) { _, newItems in
             if !newItems.isEmpty {
                 processPhotoItems(newItems)
@@ -223,8 +228,16 @@ struct JourneyEditorView: View {
                     .foregroundStyle(.secondary)
             } else {
                 ForEach(allAttachments) { attachment in
-                    JourneyAttachmentRow(attachment: attachment)
-                        .environmentObject(store)
+                    Button {
+                        // Nur bestehende Attachments können geöffnet werden (nicht pending)
+                        if !pendingAttachments.contains(where: { $0.attachment.id == attachment.id }) {
+                            selectedAttachment = attachment
+                        }
+                    } label: {
+                        JourneyAttachmentRow(attachment: attachment)
+                            .environmentObject(store)
+                    }
+                    .buttonStyle(.plain)
                 }
                 .onDelete { indices in
                     deleteAttachments(at: indices)
@@ -456,8 +469,13 @@ struct JourneyDocumentPickerForEditor: UIViewControllerRepresentable {
             var items: [(filename: String, data: Data)] = []
 
             for url in urls {
-                guard url.startAccessingSecurityScopedResource() else { continue }
-                defer { url.stopAccessingSecurityScopedResource() }
+                // Mit asCopy: true ist die Datei bereits lokal kopiert
+                let needsSecurityScope = url.startAccessingSecurityScopedResource()
+                defer {
+                    if needsSecurityScope {
+                        url.stopAccessingSecurityScopedResource()
+                    }
+                }
 
                 if let data = try? Data(contentsOf: url) {
                     items.append((url.lastPathComponent, data))
