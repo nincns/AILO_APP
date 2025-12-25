@@ -207,7 +207,7 @@ public struct JourneyNode: Identifiable, Codable, Equatable, Sendable {
 // MARK: - Transferable Conformance (für Drag & Drop)
 
 extension JourneyNode: Transferable {
-    public static var transferRepresentation: some TransferRepresentation {
+    public nonisolated static var transferRepresentation: some TransferRepresentation {
         CodableRepresentation(for: JourneyNode.self, contentType: .journeyNode)
     }
 }
