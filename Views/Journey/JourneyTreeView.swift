@@ -49,6 +49,34 @@ struct JourneyTreeView: View {
     }
 }
 
+// MARK: - Presentation Types
+
+/// Enum für alle möglichen Sheet-Präsentationen
+enum JourneySheetType: Identifiable {
+    case edit(JourneyNode)
+    case move(JourneyNode)
+    case newNode(parentId: UUID, section: JourneySection, nodeType: JourneyNodeType)
+
+    var id: String {
+        switch self {
+        case .edit(let node): return "edit-\(node.id)"
+        case .move(let node): return "move-\(node.id)"
+        case .newNode(let parentId, _, let nodeType): return "new-\(parentId)-\(nodeType)"
+        }
+    }
+}
+
+/// Enum für Alert-Präsentationen
+enum JourneyAlertType: Identifiable {
+    case delete(JourneyNode)
+
+    var id: String {
+        switch self {
+        case .delete(let node): return "delete-\(node.id)"
+        }
+    }
+}
+
 // MARK: - Single Tree Node View
 
 struct JourneyTreeNodeView: View {
@@ -61,20 +89,17 @@ struct JourneyTreeNodeView: View {
 
     @EnvironmentObject private var store: JourneyStore
     @State private var isExpanded: Bool = true
-    @State private var showMoveSheet: Bool = false
-    @State private var showEditSheet: Bool = false
-    @State private var showDeleteAlert: Bool = false
-    @State private var showNewNodeEditor: Bool = false
-    @State private var newNodeType: JourneyNodeType = .entry
+
+    // Unified presentation state - nur EINE Präsentation gleichzeitig möglich
+    @State private var activeSheet: JourneySheetType?
+    @State private var activeAlert: JourneyAlertType?
+    @State private var isPresentationInProgress: Bool = false
 
     private var isDropTarget: Bool {
         dropTargetId == node.id && draggedNode?.id != node.id
     }
 
     private var canAcceptDrop: Bool {
-        // Kann Drop akzeptieren wenn:
-        // - Nicht auf sich selbst
-        // - Nicht auf eigene Kinder (würde Zyklus erzeugen)
         guard let dragged = draggedNode else { return false }
         if dragged.id == node.id { return false }
         if isDescendant(of: dragged, node: node) { return false }
@@ -99,46 +124,81 @@ struct JourneyTreeNodeView: View {
                 }
             }
         }
-        .sheet(isPresented: $showMoveSheet) {
-            JourneyMoveSheet(node: node)
-                .environmentObject(store)
+        // Unified Sheet - nur ein Sheet kann aktiv sein
+        .sheet(item: $activeSheet, onDismiss: {
+            isPresentationInProgress = false
+        }) { sheetType in
+            sheetContent(for: sheetType)
         }
-        .sheet(isPresented: $showEditSheet) {
-            NavigationStack {
-                JourneyEditorView(node: node)
-                    .environmentObject(store)
+        // Alert für Löschbestätigung
+        .alert(
+            String(localized: "journey.delete.confirm.title"),
+            isPresented: Binding(
+                get: { activeAlert != nil },
+                set: { if !$0 { activeAlert = nil; isPresentationInProgress = false } }
+            ),
+            presenting: activeAlert
+        ) { alertType in
+            Button(String(localized: "common.cancel"), role: .cancel) { }
+            Button(String(localized: "common.delete"), role: .destructive) {
+                if case .delete(let nodeToDelete) = alertType {
+                    deleteNode(nodeToDelete)
+                }
+            }
+        } message: { alertType in
+            if case .delete(let nodeToDelete) = alertType {
+                Text("journey.delete.confirm.message \(nodeToDelete.title)")
             }
         }
-        .sheet(isPresented: $showNewNodeEditor) {
+    }
+
+    // MARK: - Sheet Content
+
+    @ViewBuilder
+    private func sheetContent(for type: JourneySheetType) -> some View {
+        switch type {
+        case .edit(let nodeToEdit):
+            NavigationStack {
+                JourneyEditorView(node: nodeToEdit)
+                    .environmentObject(store)
+            }
+
+        case .move(let nodeToMove):
+            JourneyMoveSheet(node: nodeToMove)
+                .environmentObject(store)
+
+        case .newNode(let parentId, let section, let nodeType):
             NavigationStack {
                 JourneyEditorView(
-                    parentId: node.id,
+                    parentId: parentId,
                     preselectedSection: section,
-                    preselectedType: newNodeType
+                    preselectedType: nodeType
                 )
                 .environmentObject(store)
             }
         }
-        .alert(String(localized: "journey.delete.confirm.title"), isPresented: $showDeleteAlert) {
-            Button(String(localized: "common.cancel"), role: .cancel) {
-                print("🔴 Delete alert cancelled")
-            }
-            Button(String(localized: "common.delete"), role: .destructive) {
-                print("🔴 Delete confirmed")
-                deleteNode()
-            }
-        } message: {
-            Text("journey.delete.confirm.message \(node.title)")
+    }
+
+    // MARK: - Safe Presentation
+
+    /// Zeigt ein Sheet nur wenn keine andere Präsentation aktiv ist
+    private func presentSheet(_ sheet: JourneySheetType) {
+        guard !isPresentationInProgress else {
+            print("⚠️ Presentation blocked - another presentation in progress")
+            return
         }
-        .onChange(of: showDeleteAlert) { oldValue, newValue in
-            print("🔴 showDeleteAlert changed: \(oldValue) -> \(newValue)")
+        isPresentationInProgress = true
+        activeSheet = sheet
+    }
+
+    /// Zeigt ein Alert nur wenn keine andere Präsentation aktiv ist
+    private func presentAlert(_ alert: JourneyAlertType) {
+        guard !isPresentationInProgress else {
+            print("⚠️ Alert blocked - another presentation in progress")
+            return
         }
-        .onChange(of: showEditSheet) { oldValue, newValue in
-            print("🔵 showEditSheet changed: \(oldValue) -> \(newValue)")
-        }
-        .onChange(of: showMoveSheet) { oldValue, newValue in
-            print("🟠 showMoveSheet changed: \(oldValue) -> \(newValue)")
-        }
+        isPresentationInProgress = true
+        activeAlert = alert
     }
 
     // MARK: - Node Row mit Drag & Drop
@@ -148,7 +208,6 @@ struct JourneyTreeNodeView: View {
         JourneyNodeRow(node: node)
             // Drag Source
             .draggable(node) {
-                // Drag Preview
                 JourneyNodeRow(node: node)
                     .frame(width: 250)
                     .background(Color(.systemBackground))
@@ -182,21 +241,13 @@ struct JourneyTreeNodeView: View {
             // Swipe Actions
             .swipeActions(edge: .trailing, allowsFullSwipe: false) {
                 Button(role: .destructive) {
-                    print("🔴 Swipe Delete tapped - scheduling alert")
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                        print("🔴 Showing delete alert now")
-                        showDeleteAlert = true
-                    }
+                    presentAlert(.delete(node))
                 } label: {
                     Label(String(localized: "common.delete"), systemImage: "trash")
                 }
 
                 Button {
-                    print("🔵 Swipe Edit tapped - scheduling sheet")
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                        print("🔵 Showing edit sheet now")
-                        showEditSheet = true
-                    }
+                    presentSheet(.edit(node))
                 } label: {
                     Label(String(localized: "journey.context.edit"), systemImage: "pencil")
                 }
@@ -204,11 +255,7 @@ struct JourneyTreeNodeView: View {
             }
             .swipeActions(edge: .leading, allowsFullSwipe: false) {
                 Button {
-                    print("🟠 Swipe Move tapped - scheduling sheet")
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                        print("🟠 Showing move sheet now")
-                        showMoveSheet = true
-                    }
+                    presentSheet(.move(node))
                 } label: {
                     Label(String(localized: "journey.context.move"), systemImage: "folder")
                 }
@@ -221,13 +268,13 @@ struct JourneyTreeNodeView: View {
     @ViewBuilder
     private var contextMenuItems: some View {
         Button {
-            showEditSheet = true
+            presentSheet(.edit(node))
         } label: {
             Label(String(localized: "journey.context.edit"), systemImage: "pencil")
         }
 
         Button {
-            showMoveSheet = true
+            presentSheet(.move(node))
         } label: {
             Label(String(localized: "journey.context.move"), systemImage: "folder")
         }
@@ -236,13 +283,13 @@ struct JourneyTreeNodeView: View {
             Divider()
 
             Button {
-                createChildEntry()
+                presentSheet(.newNode(parentId: node.id, section: section, nodeType: .entry))
             } label: {
                 Label(String(localized: "journey.context.newEntry"), systemImage: "doc.badge.plus")
             }
 
             Button {
-                createChildFolder()
+                presentSheet(.newNode(parentId: node.id, section: section, nodeType: .folder))
             } label: {
                 Label(String(localized: "journey.context.newFolder"), systemImage: "folder.badge.plus")
             }
@@ -251,7 +298,7 @@ struct JourneyTreeNodeView: View {
         Divider()
 
         Button(role: .destructive) {
-            showDeleteAlert = true
+            presentAlert(.delete(node))
         } label: {
             Label(String(localized: "journey.context.delete"), systemImage: "trash")
         }
@@ -264,7 +311,6 @@ struct JourneyTreeNodeView: View {
 
         Task {
             do {
-                // Node unter diesen Parent verschieben
                 try await store.moveNode(dropped, toParent: node.id, sortOrder: 0)
             } catch {
                 print("❌ Drop failed: \(error)")
@@ -274,35 +320,18 @@ struct JourneyTreeNodeView: View {
         return true
     }
 
-    private func deleteNode() {
+    private func deleteNode(_ nodeToDelete: JourneyNode) {
         Task {
             do {
-                try await store.deleteNode(node)
+                try await store.deleteNode(nodeToDelete)
             } catch {
                 print("❌ Delete failed: \(error)")
             }
         }
     }
 
-    private func createChildEntry() {
-        newNodeType = .entry
-        // Warten bis Kontextmenü vollständig geschlossen ist
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
-            showNewNodeEditor = true
-        }
-    }
-
-    private func createChildFolder() {
-        newNodeType = .folder
-        // Warten bis Kontextmenü vollständig geschlossen ist
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
-            showNewNodeEditor = true
-        }
-    }
-
     // MARK: - Helpers
 
-    /// Prüft ob `child` ein Nachkomme von `parent` ist
     private func isDescendant(of parent: JourneyNode, node child: JourneyNode) -> Bool {
         guard let children = parent.children else { return false }
         for c in children {
