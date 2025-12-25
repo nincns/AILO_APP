@@ -26,6 +26,7 @@ struct JourneySectionView: View {
             } else {
                 List {
                     JourneyTreeView(nodes: filteredNodes, section: section)
+                        .environmentObject(store)
                 }
                 .listStyle(.sidebar)
                 .refreshable {
