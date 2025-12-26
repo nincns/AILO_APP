@@ -170,11 +170,14 @@ public final class IMAPConnection {
     /// Send raw data without appending CRLF (used for IMAP literals like APPEND).
     public func sendRaw(_ data: Data) async throws {
         guard let c = conn else { throw IMAPError.invalidState("sendRaw on nil connection") }
+        print("📤 [sendRaw] Sending \(data.count) bytes...")
         try await withCheckedThrowingContinuation { (cont: CheckedContinuation<Void, Error>) in
             c.send(content: data, completion: .contentProcessed { error in
                 if let error {
+                    print("📤 [sendRaw] Error: \(error)")
                     cont.resume(throwing: self.mapNWError(error, context: "sendRaw \(data.count) bytes"))
                 } else {
+                    print("📤 [sendRaw] Successfully sent \(data.count) bytes")
                     cont.resume()
                 }
             })
@@ -223,29 +226,43 @@ public final class IMAPConnection {
             // Use a timeout for receive to prevent blocking forever
             let receiveTimeout = min(timeout, 10.0) // Max 10 seconds per receive
             print("📡 [receiveLines] Waiting for data (max \(receiveTimeout)s)...")
-            let data: Data? = try await withThrowingTaskGroup(of: Data?.self) { group in
-                group.addTask {
-                    try await withCheckedThrowingContinuation { (cont: CheckedContinuation<Data?, Error>) in
-                        c.receive(minimumIncompleteLength: 1, maximumLength: 16 * 1024) { data, _, _, error in
-                            if let error {
-                                cont.resume(throwing: self.mapNWError(error, context: "receive"))
-                                return
-                            }
-                            cont.resume(returning: data)
-                        }
+
+            // Use DispatchWorkItem timer for proper NWConnection timeout
+            // (NWConnection.receive is callback-based, not Swift Concurrency cancellation-aware)
+            let data: Data? = try await withCheckedThrowingContinuation { (cont: CheckedContinuation<Data?, Error>) in
+                var hasResumed = false
+                let lock = NSLock()
+
+                // Set up timeout timer
+                let timeoutTimer = DispatchWorkItem { [weak self] in
+                    lock.lock()
+                    defer { lock.unlock() }
+                    guard !hasResumed else { return }
+                    hasResumed = true
+                    print("📡 [receiveLines] Timeout fired after \(receiveTimeout)s")
+                    cont.resume(returning: nil)
+                }
+                self.queue.asyncAfter(deadline: .now() + receiveTimeout, execute: timeoutTimer)
+
+                // Start receive
+                c.receive(minimumIncompleteLength: 1, maximumLength: 16 * 1024) { data, _, _, error in
+                    timeoutTimer.cancel()
+                    lock.lock()
+                    defer { lock.unlock() }
+                    guard !hasResumed else {
+                        print("📡 [receiveLines] Receive callback after timeout (ignored)")
+                        return
                     }
+                    hasResumed = true
+
+                    if let error {
+                        cont.resume(throwing: self.mapNWError(error, context: "receive"))
+                        return
+                    }
+                    cont.resume(returning: data)
                 }
-                group.addTask {
-                    try await Task.sleep(nanoseconds: UInt64(receiveTimeout * 1_000_000_000))
-                    return nil // Timeout - return nil to signal no data
-                }
-                // Return the first result (either data or timeout)
-                if let result = try await group.next() {
-                    group.cancelAll()
-                    return result
-                }
-                return nil
             }
+
             if data == nil {
                 print("📡 [receiveLines] Receive returned nil (timeout or no data)")
             } else {
@@ -312,8 +329,27 @@ public final class IMAPConnection {
                 var remaining = need
                 while remaining > 0 && Date() < idleDeadline && (hardDeadline == nil || Date() < hardDeadline!) {
                     let readLen = min(16 * 1024, remaining)
+                    // Use DispatchWorkItem timer for proper timeout
                     let more: Data? = try await withCheckedThrowingContinuation { (cont: CheckedContinuation<Data?, Error>) in
+                        var hasResumed = false
+                        let lock = NSLock()
+                        let literalTimeout = DispatchWorkItem { [weak self] in
+                            lock.lock()
+                            defer { lock.unlock() }
+                            guard !hasResumed else { return }
+                            hasResumed = true
+                            print("📡 [receiveLines] Literal read timeout")
+                            cont.resume(returning: nil)
+                        }
+                        self.queue.asyncAfter(deadline: .now() + receiveTimeout, execute: literalTimeout)
+
                         c.receive(minimumIncompleteLength: 1, maximumLength: readLen) { data, _, _, error in
+                            literalTimeout.cancel()
+                            lock.lock()
+                            defer { lock.unlock() }
+                            guard !hasResumed else { return }
+                            hasResumed = true
+
                             if let error {
                                 cont.resume(throwing: self.mapNWError(error, context: "receive literal"))
                                 return
