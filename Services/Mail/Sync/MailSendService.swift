@@ -362,8 +362,11 @@ public final class MailSendService {
         // RFC822 Message bauen
         let rfc822Message = buildRFC822Message(draft: draft, account: account)
         logger.info(.SEND, accountId: accountId, "📤 RFC822 message built: \(rfc822Message.count) chars")
-        // Debug: Erste 500 Zeichen der Message loggen für Troubleshooting
-        print("📤 [APPEND] RFC822 preview:\n\(rfc822Message.prefix(500))")
+        // Debug: Escaped version loggen um CRLF sichtbar zu machen
+        let escapedPreview = rfc822Message
+            .replacingOccurrences(of: "\r", with: "\\r")
+            .replacingOccurrences(of: "\n", with: "\\n\n")
+        print("📤 [APPEND] RFC822 escaped (first 1000 chars):\n\(escapedPreview.prefix(1000))")
 
         do {
             // IMAP Verbindung öffnen
@@ -520,22 +523,43 @@ public final class MailSendService {
             lines.append(quotedPrintableEncode(draft.textBody ?? ""))
         }
 
-        return lines.joined(separator: "\r\n")
+        let result = lines.joined(separator: "\r\n")
+
+        // Validierung: Prüfe auf ungültige doppelte CRLF in den Headers
+        // Headers enden bei der ersten leeren Zeile (erste \r\n\r\n)
+        if let headerEndRange = result.range(of: "\r\n\r\n") {
+            let headerPart = String(result[..<headerEndRange.lowerBound])
+            if headerPart.contains("\r\n\r\n") {
+                print("⚠️ [RFC822] WARNING: Double CRLF detected in headers!")
+            }
+            // Prüfe auch auf einzelne \n ohne \r (Unix-Style Newlines)
+            let unixNewlines = headerPart.replacingOccurrences(of: "\r\n", with: "").contains("\n")
+            if unixNewlines {
+                print("⚠️ [RFC822] WARNING: Unix-style newlines (\\n without \\r) detected in headers!")
+            }
+        }
+
+        return result
     }
 
     private func formatAddress(_ addr: MailSendAddress) -> String {
+        // Entferne Newlines aus Name und Email um RFC822 nicht zu brechen
+        let cleanEmail = addr.email.replacingOccurrences(of: "\r", with: "").replacingOccurrences(of: "\n", with: "")
         if let name = addr.name, !name.isEmpty {
-            return "\"\(name)\" <\(addr.email)>"
+            let cleanName = name.replacingOccurrences(of: "\r", with: "").replacingOccurrences(of: "\n", with: "")
+            return "\"\(cleanName)\" <\(cleanEmail)>"
         }
-        return addr.email
+        return cleanEmail
     }
 
     private func encodeHeader(_ text: String) -> String {
+        // Entferne Newlines aus Header-Text um RFC822 nicht zu brechen
+        let cleanText = text.replacingOccurrences(of: "\r", with: "").replacingOccurrences(of: "\n", with: " ")
         // Einfache Implementierung - bei Bedarf RFC2047 encoding
-        if text.allSatisfy({ $0.isASCII }) {
-            return text
+        if cleanText.allSatisfy({ $0.isASCII }) {
+            return cleanText
         }
-        let encoded = text.data(using: .utf8)?.base64EncodedString() ?? text
+        let encoded = cleanText.data(using: .utf8)?.base64EncodedString() ?? cleanText
         return "=?UTF-8?B?\(encoded)?="
     }
 
