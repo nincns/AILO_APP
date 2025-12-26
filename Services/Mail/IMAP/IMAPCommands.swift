@@ -527,9 +527,15 @@ public final class IMAPClient {
         let response = try await conn.receiveLines(untilTag: tag, idleTimeout: idleTimeout)
         print("📧 [APPEND] Response received: \(response)")
 
-        // Check for success
-        if let lastLine = response.last, lastLine.contains("NO") || lastLine.contains("BAD") {
+        // Check for success - must find tagged OK response
+        guard let lastLine = response.last else {
+            throw IMAPError.protocolError("APPEND failed: no response from server (timeout)")
+        }
+        if lastLine.contains("NO") || lastLine.contains("BAD") {
             throw IMAPError.protocolError("APPEND failed: \(lastLine)")
+        }
+        if !lastLine.contains("\(tag) OK") {
+            throw IMAPError.protocolError("APPEND failed: unexpected response: \(lastLine)")
         }
         print("📧 [APPEND] APPEND completed successfully!")
     }
