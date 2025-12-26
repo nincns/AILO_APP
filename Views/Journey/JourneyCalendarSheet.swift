@@ -173,7 +173,7 @@ struct JourneyCalendarSheet: View {
             do {
                 let eventId = try service.createEvent(
                     title: node.title,
-                    dueDate: dueDate,
+                    startDate: dueDate,
                     notes: "AILO Journey Task",
                     calendar: selectedCalendar,
                     alarm: hasReminder ? reminderOffset : nil
