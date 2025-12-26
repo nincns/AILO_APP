@@ -826,8 +826,12 @@
 "journey.role.reviewer" = "Prüfer";
 "journey.role.contact" = "Kontakt";
 
+/* Journey Task */
+"journey.task.hasDueDate" = "Fälligkeitsdatum";
+
 /* Journey Calendar (Phase 5) */
 "journey.calendar" = "Kalender";
+"journey.calendar.configure" = "Kalender konfigurieren";
 "journey.calendar.add" = "Zum Kalender hinzufügen";
 "journey.calendar.sync" = "In Kalender eintragen";
 "journey.calendar.synced" = "Im Kalender";
