@@ -45,6 +45,11 @@ struct JourneyEditorView: View {
     @State private var contactsToDelete: [JourneyContactRef] = []
     @State private var showContactPicker: Bool = false
 
+    // AI Rewrite (für Wiki)
+    @State private var showPrePromptPicker: Bool = false
+    @State private var isRewriting: Bool = false
+    @State private var rewriteError: String?
+
     // Calendar wird jetzt automatisch gesynct wenn konfiguriert
 
     // Original values to detect changes
@@ -134,6 +139,34 @@ struct JourneyEditorView: View {
                 Section(String(localized: "journey.detail.content")) {
                     TextEditor(text: $content)
                         .frame(minHeight: 150)
+
+                    // AI Rewrite Button für Wiki
+                    if selectedSection == .wiki && !content.isEmpty {
+                        HStack {
+                            if isRewriting {
+                                ProgressView()
+                                    .scaleEffect(0.8)
+                                Text(String(localized: "journey.wiki.ai.rewriting"))
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            } else {
+                                Button {
+                                    showPrePromptPicker = true
+                                } label: {
+                                    Label(String(localized: "journey.wiki.ai.rewrite"), systemImage: "wand.and.stars")
+                                }
+                                .buttonStyle(.bordered)
+                                .tint(.purple)
+                            }
+                            Spacer()
+                        }
+
+                        if let error = rewriteError {
+                            Text(error)
+                                .font(.caption)
+                                .foregroundStyle(.red)
+                        }
+                    }
                 }
 
                 // Attachments Section
@@ -280,6 +313,13 @@ struct JourneyEditorView: View {
                 nodeId: node?.id ?? UUID(),
                 onSelect: { contactRef in
                     pendingContacts.append(contactRef)
+                }
+            )
+        }
+        .sheet(isPresented: $showPrePromptPicker) {
+            PrePromptPicker(
+                onSelect: { preset in
+                    rewriteContent(with: preset)
                 }
             )
         }
@@ -545,6 +585,30 @@ struct JourneyEditorView: View {
             }
         }
         dismiss()
+    }
+
+    private func rewriteContent(with preset: AIPrePromptPreset) {
+        isRewriting = true
+        rewriteError = nil
+
+        AIClient.rewrite(
+            baseURL: "",  // Uses fallback from UserDefaults
+            port: nil,
+            apiKey: nil,
+            model: "",
+            prePrompt: preset.text,
+            userText: content
+        ) { result in
+            DispatchQueue.main.async {
+                isRewriting = false
+                switch result {
+                case .success(let rewritten):
+                    content = rewritten
+                case .failure(let error):
+                    rewriteError = error.localizedDescription
+                }
+            }
+        }
     }
 
     private func saveNode() {

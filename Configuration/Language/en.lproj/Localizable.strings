@@ -949,6 +949,10 @@
 "journey.import.error.invalidArchive" = "Invalid archive format";
 "journey.import.error.unsupportedVersion %lld" = "Unsupported version: %lld";
 
+/* Journey Wiki AI Rewrite */
+"journey.wiki.ai.rewrite" = "Rewrite with AI";
+"journey.wiki.ai.rewriting" = "Rewriting...";
+
 /* Common additions */
 "common.openSettings" = "Open Settings";
 "common.create" = "Create";
