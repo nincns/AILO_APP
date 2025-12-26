@@ -117,8 +117,17 @@ public final class JourneyImportService: @unchecked Sendable {
 
             // Map parent ID if parent was already imported with new ID
             var nodeToImport = importNode
-            if let oldParentId = importNode.parentId, let newParentId = idMapping[oldParentId] {
-                nodeToImport.parentId = newParentId
+
+            if let oldParentId = importNode.parentId {
+                if let newParentId = idMapping[oldParentId] {
+                    // Parent was imported with new ID
+                    nodeToImport.parentId = newParentId
+                } else if try dao.getNode(id: oldParentId) == nil {
+                    // Parent doesn't exist in DB and wasn't imported - fallback to Inbox
+                    nodeToImport.parentId = nil
+                    nodeToImport.section = .inbox
+                    print("⚠️ Import: Node '\(importNode.title)' orphaned, placing in Inbox")
+                }
             }
 
             do {
@@ -135,9 +144,7 @@ public final class JourneyImportService: @unchecked Sendable {
                         idMapping[importNode.id] = existing.id
                         result.importedNodes += 1
                     } else {
-                        try dao.insertNode(nodeToImport)
-                        idMapping[importNode.id] = nodeToImport.id
-                        result.importedNodes += 1
+                        try insertNodeSafely(&nodeToImport, idMapping: &idMapping, result: &result)
                     }
 
                 case .keepBoth:
@@ -145,13 +152,9 @@ public final class JourneyImportService: @unchecked Sendable {
                         var newNode = nodeToImport
                         newNode.id = UUID()
                         newNode.title = "\(importNode.title) (importiert)"
-                        try dao.insertNode(newNode)
-                        idMapping[importNode.id] = newNode.id
-                        result.importedNodes += 1
+                        try insertNodeSafely(&newNode, idMapping: &idMapping, result: &result, originalId: importNode.id)
                     } else {
-                        try dao.insertNode(nodeToImport)
-                        idMapping[importNode.id] = nodeToImport.id
-                        result.importedNodes += 1
+                        try insertNodeSafely(&nodeToImport, idMapping: &idMapping, result: &result)
                     }
                 }
             } catch {
@@ -206,6 +209,38 @@ public final class JourneyImportService: @unchecked Sendable {
     }
 
     // MARK: - Private Helpers
+
+    /// Inserts a node, with fallback to Inbox if parent doesn't exist
+    private func insertNodeSafely(
+        _ node: inout JourneyNode,
+        idMapping: inout [UUID: UUID],
+        result: inout JourneyImportResult,
+        originalId: UUID? = nil
+    ) throws {
+        let nodeId = originalId ?? node.id
+
+        do {
+            try dao.insertNode(node)
+            idMapping[nodeId] = node.id
+            result.importedNodes += 1
+        } catch {
+            // Check if it's a FOREIGN KEY constraint error
+            let errorString = String(describing: error)
+            if errorString.contains("FOREIGN KEY") || errorString.contains("constraint") {
+                // Fallback: place in Inbox as root node
+                print("⚠️ Import: Node '\(node.title)' FOREIGN KEY failed, placing in Inbox")
+                node.parentId = nil
+                node.section = .inbox
+
+                // Retry insert
+                try dao.insertNode(node)
+                idMapping[nodeId] = node.id
+                result.importedNodes += 1
+            } else {
+                throw error
+            }
+        }
+    }
 
     /// Sorts nodes so that parent nodes come before their children
     private func sortNodesByHierarchy(_ nodes: [JourneyNode]) -> [JourneyNode] {
