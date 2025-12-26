@@ -140,20 +140,20 @@ struct JourneyEditorView: View {
                     TextEditor(text: $content)
                         .frame(minHeight: 150)
 
-                    // AI Rewrite Button für Wiki
-                    if selectedSection == .wiki && !content.isEmpty {
+                    // AI Rewrite Button (für alle Einträge außer Ordner)
+                    if selectedType != .folder && !content.isEmpty {
                         HStack {
                             if isRewriting {
                                 ProgressView()
                                     .scaleEffect(0.8)
-                                Text(String(localized: "journey.wiki.ai.rewriting"))
+                                Text(String(localized: "journey.ai.rewriting"))
                                     .font(.caption)
                                     .foregroundStyle(.secondary)
                             } else {
                                 Button {
                                     showPrePromptPicker = true
                                 } label: {
-                                    Label(String(localized: "journey.wiki.ai.rewrite"), systemImage: "wand.and.stars")
+                                    Label(String(localized: "journey.ai.rewrite"), systemImage: "wand.and.stars")
                                 }
                                 .buttonStyle(.bordered)
                                 .tint(.purple)
@@ -317,11 +317,9 @@ struct JourneyEditorView: View {
             )
         }
         .sheet(isPresented: $showPrePromptPicker) {
-            PrePromptPicker(
-                onSelect: { preset in
-                    rewriteContent(with: preset)
-                }
-            )
+            CookbookPicker { cookbook, prompt in
+                rewriteContent(with: prompt)
+            }
         }
         .onChange(of: selectedPhotoItems) { _, newItems in
             if !newItems.isEmpty {
@@ -587,7 +585,7 @@ struct JourneyEditorView: View {
         dismiss()
     }
 
-    private func rewriteContent(with preset: AIPrePromptPreset) {
+    private func rewriteContent(with prompt: String) {
         isRewriting = true
         rewriteError = nil
 
@@ -596,7 +594,7 @@ struct JourneyEditorView: View {
             port: nil,
             apiKey: nil,
             model: "",
-            prePrompt: preset.text,
+            prePrompt: prompt,
             userText: content
         ) { result in
             DispatchQueue.main.async {

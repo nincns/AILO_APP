@@ -949,9 +949,16 @@
 "journey.import.error.invalidArchive" = "Invalid archive format";
 "journey.import.error.unsupportedVersion %lld" = "Unsupported version: %lld";
 
-/* Journey Wiki AI Rewrite */
+/* Journey AI Rewrite */
+"journey.ai.rewrite" = "Rewrite with AI";
+"journey.ai.rewriting" = "Rewriting...";
 "journey.wiki.ai.rewrite" = "Rewrite with AI";
 "journey.wiki.ai.rewriting" = "Rewriting...";
+
+/* Cookbook Picker */
+"cookbook.picker.title" = "Choose Prompt Manager";
+"cookbook.picker.empty" = "No Prompt Managers";
+"cookbook.picker.empty.hint" = "Create Prompt Managers in Settings";
 
 /* Common additions */
 "common.openSettings" = "Open Settings";
