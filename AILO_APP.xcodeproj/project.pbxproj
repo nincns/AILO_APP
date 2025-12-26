@@ -52,7 +52,6 @@
 		C9B7A09A2EF939A100D0D81D /* KeychainCertificateService.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9B7A0972EF939A100D0D81D /* KeychainCertificateService.swift */; };
 		C9B7A09B2EF939A100D0D81D /* SMIMESigningService.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9B7A0982EF939A100D0D81D /* SMIMESigningService.swift */; };
 		C9B7A1752EFB52F800D0D81D /* ViewportSyncManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9B7A1742EFB52F800D0D81D /* ViewportSyncManager.swift */; };
-		C9B7A1772EFC4D8600D0D81D /* AppBadgeManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9B7A1762EFC4D8600D0D81D /* AppBadgeManager.swift */; };
 		C9B7A2392EFD3FFB00D0D81D /* AttachmentDownloadController.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9B7A2282EFD3FFB00D0D81D /* AttachmentDownloadController.swift */; };
 		C9B7A23A2EFD3FFB00D0D81D /* AttachmentSecurityService.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9B7A2292EFD3FFB00D0D81D /* AttachmentSecurityService.swift */; };
 		C9B7A23B2EFD3FFB00D0D81D /* AttachmentServingService.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9B7A22A2EFD3FFB00D0D81D /* AttachmentServingService.swift */; };
@@ -64,12 +63,35 @@
 		C9B7A2412EFD3FFB00D0D81D /* MessageProcessingOrchestrator.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9B7A2302EFD3FFB00D0D81D /* MessageProcessingOrchestrator.swift */; };
 		C9B7A2422EFD3FFB00D0D81D /* MessageProcessingService.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9B7A2312EFD3FFB00D0D81D /* MessageProcessingService.swift */; };
 		C9B7A2432EFD3FFB00D0D81D /* MissingTypes.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9B7A2322EFD3FFB00D0D81D /* MissingTypes.swift */; };
-		C9B7A2442EFD3FFB00D0D81D /* PerformanceMonitor.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9B7A2332EFD3FFB00D0D81D /* PerformanceMonitor.swift */; };
 		C9B7A2452EFD3FFB00D0D81D /* PGPVerificationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9B7A2342EFD3FFB00D0D81D /* PGPVerificationService.swift */; };
 		C9B7A2462EFD3FFB00D0D81D /* RenderCacheDAO.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9B7A2352EFD3FFB00D0D81D /* RenderCacheDAO.swift */; };
 		C9B7A2472EFD3FFB00D0D81D /* SecureMailPartHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9B7A2362EFD3FFB00D0D81D /* SecureMailPartHandler.swift */; };
 		C9B7A2482EFD3FFB00D0D81D /* SMIMEVerificationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9B7A2372EFD3FFB00D0D81D /* SMIMEVerificationService.swift */; };
 		C9B7A2492EFD3FFB00D0D81D /* TechnicalHeaderParser.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9B7A2382EFD3FFB00D0D81D /* TechnicalHeaderParser.swift */; };
+		C9B7A2552EFD7CAC00D0D81D /* JourneySectionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9B7A2512EFD7CAC00D0D81D /* JourneySectionView.swift */; };
+		C9B7A2562EFD7CAC00D0D81D /* JourneyMockData.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9B7A24F2EFD7CAC00D0D81D /* JourneyMockData.swift */; };
+		C9B7A2572EFD7CAC00D0D81D /* JourneyDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9B7A24D2EFD7CAC00D0D81D /* JourneyDetailView.swift */; };
+		C9B7A2582EFD7CAC00D0D81D /* JourneyEditorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9B7A24E2EFD7CAC00D0D81D /* JourneyEditorView.swift */; };
+		C9B7A2592EFD7CAC00D0D81D /* JourneyView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9B7A2532EFD7CAC00D0D81D /* JourneyView.swift */; };
+		C9B7A25A2EFD7CAC00D0D81D /* JourneyNodeRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9B7A2502EFD7CAC00D0D81D /* JourneyNodeRow.swift */; };
+		C9B7A25B2EFD7CAC00D0D81D /* JourneyTreeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9B7A2522EFD7CAC00D0D81D /* JourneyTreeView.swift */; };
+		C9B7A26D2EFD8A7200D0D81D /* JourneyModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9B7A26C2EFD8A7200D0D81D /* JourneyModels.swift */; };
+		C9B7A26F2EFD8A7D00D0D81D /* JourneySchema.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9B7A26E2EFD8A7D00D0D81D /* JourneySchema.swift */; };
+		C9B7A2712EFD8A8700D0D81D /* JourneyStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9B7A2702EFD8A8700D0D81D /* JourneyStore.swift */; };
+		C9B7A2732EFD8AAC00D0D81D /* JourneyDAO.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9B7A2722EFD8AAC00D0D81D /* JourneyDAO.swift */; };
+		C9B7A28D2EFDB9F900D0D81D /* JourneyMoveSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9B7A28C2EFDB9F900D0D81D /* JourneyMoveSheet.swift */; };
+		C9B7A2CD2EFDD92F00D0D81D /* JourneyDocumentPicker.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9B7A2CB2EFDD92F00D0D81D /* JourneyDocumentPicker.swift */; };
+		C9B7A2CE2EFDD92F00D0D81D /* JourneyAttachmentRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9B7A2C92EFDD92F00D0D81D /* JourneyAttachmentRow.swift */; };
+		C9B7A2CF2EFDD92F00D0D81D /* JourneyAttachmentViewer.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9B7A2CA2EFDD92F00D0D81D /* JourneyAttachmentViewer.swift */; };
+		C9B7A2D02EFDD92F00D0D81D /* JourneyPhotoPicker.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9B7A2CC2EFDD92F00D0D81D /* JourneyPhotoPicker.swift */; };
+		C9B7A2D12EFDD92F00D0D81D /* JourneyAttachmentGallery.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9B7A2C82EFDD92F00D0D81D /* JourneyAttachmentGallery.swift */; };
+		C9B7A2FA2EFDEABA00D0D81D /* JourneyCalendarSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9B7A2F62EFDEABA00D0D81D /* JourneyCalendarSheet.swift */; };
+		C9B7A2FB2EFDEABA00D0D81D /* JourneyContactList.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9B7A2F72EFDEABA00D0D81D /* JourneyContactList.swift */; };
+		C9B7A2FC2EFDEABA00D0D81D /* JourneyContactPicker.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9B7A2F82EFDEABA00D0D81D /* JourneyContactPicker.swift */; };
+		C9B7A2FD2EFDEABA00D0D81D /* JourneyContactRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9B7A2F92EFDEABA00D0D81D /* JourneyContactRow.swift */; };
+		C9B7A3332EFE8DAC00D0D81D /* JourneyCalendarSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9B7A3322EFE8DAC00D0D81D /* JourneyCalendarSettingsView.swift */; };
+		C9B7A37A2EFEE78400D0D81D /* JourneyExportSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9B7A3782EFEE78400D0D81D /* JourneyExportSheet.swift */; };
+		C9B7A37B2EFEE78400D0D81D /* JourneyImportSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9B7A3792EFEE78400D0D81D /* JourneyImportSheet.swift */; };
 		C9C33C352EB2C0E4006390C7 /* ContentAnalyzer.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9C33C342EB2C0E4006390C7 /* ContentAnalyzer.swift */; };
 		C9C33C372EB2C341006390C7 /* TransferEncodingDecoder.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9C33C362EB2C341006390C7 /* TransferEncodingDecoder.swift */; };
 		C9C33C392EB2C35A006390C7 /* HeaderCharsetDetector.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9C33C382EB2C35A006390C7 /* HeaderCharsetDetector.swift */; };
@@ -201,7 +223,6 @@
 		C9B7A0972EF939A100D0D81D /* KeychainCertificateService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeychainCertificateService.swift; sourceTree = "<group>"; };
 		C9B7A0982EF939A100D0D81D /* SMIMESigningService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SMIMESigningService.swift; sourceTree = "<group>"; };
 		C9B7A1742EFB52F800D0D81D /* ViewportSyncManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ViewportSyncManager.swift; sourceTree = "<group>"; };
-		C9B7A1762EFC4D8600D0D81D /* AppBadgeManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppBadgeManager.swift; sourceTree = "<group>"; };
 		C9B7A2282EFD3FFB00D0D81D /* AttachmentDownloadController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AttachmentDownloadController.swift; sourceTree = "<group>"; };
 		C9B7A2292EFD3FFB00D0D81D /* AttachmentSecurityService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AttachmentSecurityService.swift; sourceTree = "<group>"; };
 		C9B7A22A2EFD3FFB00D0D81D /* AttachmentServingService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AttachmentServingService.swift; sourceTree = "<group>"; };
@@ -213,12 +234,35 @@
 		C9B7A2302EFD3FFB00D0D81D /* MessageProcessingOrchestrator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MessageProcessingOrchestrator.swift; sourceTree = "<group>"; };
 		C9B7A2312EFD3FFB00D0D81D /* MessageProcessingService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MessageProcessingService.swift; sourceTree = "<group>"; };
 		C9B7A2322EFD3FFB00D0D81D /* MissingTypes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MissingTypes.swift; sourceTree = "<group>"; };
-		C9B7A2332EFD3FFB00D0D81D /* PerformanceMonitor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PerformanceMonitor.swift; sourceTree = "<group>"; };
 		C9B7A2342EFD3FFB00D0D81D /* PGPVerificationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PGPVerificationService.swift; sourceTree = "<group>"; };
 		C9B7A2352EFD3FFB00D0D81D /* RenderCacheDAO.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RenderCacheDAO.swift; sourceTree = "<group>"; };
 		C9B7A2362EFD3FFB00D0D81D /* SecureMailPartHandler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SecureMailPartHandler.swift; sourceTree = "<group>"; };
 		C9B7A2372EFD3FFB00D0D81D /* SMIMEVerificationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SMIMEVerificationService.swift; sourceTree = "<group>"; };
 		C9B7A2382EFD3FFB00D0D81D /* TechnicalHeaderParser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TechnicalHeaderParser.swift; sourceTree = "<group>"; };
+		C9B7A24D2EFD7CAC00D0D81D /* JourneyDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JourneyDetailView.swift; sourceTree = "<group>"; };
+		C9B7A24E2EFD7CAC00D0D81D /* JourneyEditorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JourneyEditorView.swift; sourceTree = "<group>"; };
+		C9B7A24F2EFD7CAC00D0D81D /* JourneyMockData.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JourneyMockData.swift; sourceTree = "<group>"; };
+		C9B7A2502EFD7CAC00D0D81D /* JourneyNodeRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JourneyNodeRow.swift; sourceTree = "<group>"; };
+		C9B7A2512EFD7CAC00D0D81D /* JourneySectionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JourneySectionView.swift; sourceTree = "<group>"; };
+		C9B7A2522EFD7CAC00D0D81D /* JourneyTreeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JourneyTreeView.swift; sourceTree = "<group>"; };
+		C9B7A2532EFD7CAC00D0D81D /* JourneyView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JourneyView.swift; sourceTree = "<group>"; };
+		C9B7A26C2EFD8A7200D0D81D /* JourneyModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JourneyModels.swift; sourceTree = "<group>"; };
+		C9B7A26E2EFD8A7D00D0D81D /* JourneySchema.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JourneySchema.swift; sourceTree = "<group>"; };
+		C9B7A2702EFD8A8700D0D81D /* JourneyStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JourneyStore.swift; sourceTree = "<group>"; };
+		C9B7A2722EFD8AAC00D0D81D /* JourneyDAO.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JourneyDAO.swift; sourceTree = "<group>"; };
+		C9B7A28C2EFDB9F900D0D81D /* JourneyMoveSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JourneyMoveSheet.swift; sourceTree = "<group>"; };
+		C9B7A2C82EFDD92F00D0D81D /* JourneyAttachmentGallery.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JourneyAttachmentGallery.swift; sourceTree = "<group>"; };
+		C9B7A2C92EFDD92F00D0D81D /* JourneyAttachmentRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JourneyAttachmentRow.swift; sourceTree = "<group>"; };
+		C9B7A2CA2EFDD92F00D0D81D /* JourneyAttachmentViewer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JourneyAttachmentViewer.swift; sourceTree = "<group>"; };
+		C9B7A2CB2EFDD92F00D0D81D /* JourneyDocumentPicker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JourneyDocumentPicker.swift; sourceTree = "<group>"; };
+		C9B7A2CC2EFDD92F00D0D81D /* JourneyPhotoPicker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JourneyPhotoPicker.swift; sourceTree = "<group>"; };
+		C9B7A2F62EFDEABA00D0D81D /* JourneyCalendarSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JourneyCalendarSheet.swift; sourceTree = "<group>"; };
+		C9B7A2F72EFDEABA00D0D81D /* JourneyContactList.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JourneyContactList.swift; sourceTree = "<group>"; };
+		C9B7A2F82EFDEABA00D0D81D /* JourneyContactPicker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JourneyContactPicker.swift; sourceTree = "<group>"; };
+		C9B7A2F92EFDEABA00D0D81D /* JourneyContactRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JourneyContactRow.swift; sourceTree = "<group>"; };
+		C9B7A3322EFE8DAC00D0D81D /* JourneyCalendarSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JourneyCalendarSettingsView.swift; sourceTree = "<group>"; };
+		C9B7A3782EFEE78400D0D81D /* JourneyExportSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JourneyExportSheet.swift; sourceTree = "<group>"; };
+		C9B7A3792EFEE78400D0D81D /* JourneyImportSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JourneyImportSheet.swift; sourceTree = "<group>"; };
 		C9C33C342EB2C0E4006390C7 /* ContentAnalyzer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentAnalyzer.swift; sourceTree = "<group>"; };
 		C9C33C362EB2C341006390C7 /* TransferEncodingDecoder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TransferEncodingDecoder.swift; sourceTree = "<group>"; };
 		C9C33C382EB2C35A006390C7 /* HeaderCharsetDetector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HeaderCharsetDetector.swift; sourceTree = "<group>"; };
@@ -297,6 +341,16 @@
 			path = LogsList;
 			sourceTree = "<group>";
 		};
+		C9B7A3762EFEE74C00D0D81D /* Journey */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = Journey;
+			sourceTree = "<group>";
+		};
+		C9B7A3772EFEE76300D0D81D /* System */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = System;
+			sourceTree = "<group>";
+		};
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -320,6 +374,32 @@
 				C9B7A0982EF939A100D0D81D /* SMIMESigningService.swift */,
 			);
 			path = Security;
+			sourceTree = "<group>";
+		};
+		C9B7A2542EFD7CAC00D0D81D /* Journey */ = {
+			isa = PBXGroup;
+			children = (
+				C9B7A3782EFEE78400D0D81D /* JourneyExportSheet.swift */,
+				C9B7A3792EFEE78400D0D81D /* JourneyImportSheet.swift */,
+				C9B7A2F62EFDEABA00D0D81D /* JourneyCalendarSheet.swift */,
+				C9B7A2F72EFDEABA00D0D81D /* JourneyContactList.swift */,
+				C9B7A2F82EFDEABA00D0D81D /* JourneyContactPicker.swift */,
+				C9B7A2F92EFDEABA00D0D81D /* JourneyContactRow.swift */,
+				C9B7A2C82EFDD92F00D0D81D /* JourneyAttachmentGallery.swift */,
+				C9B7A2C92EFDD92F00D0D81D /* JourneyAttachmentRow.swift */,
+				C9B7A2CA2EFDD92F00D0D81D /* JourneyAttachmentViewer.swift */,
+				C9B7A2CB2EFDD92F00D0D81D /* JourneyDocumentPicker.swift */,
+				C9B7A2CC2EFDD92F00D0D81D /* JourneyPhotoPicker.swift */,
+				C9B7A28C2EFDB9F900D0D81D /* JourneyMoveSheet.swift */,
+				C9B7A24D2EFD7CAC00D0D81D /* JourneyDetailView.swift */,
+				C9B7A24E2EFD7CAC00D0D81D /* JourneyEditorView.swift */,
+				C9B7A24F2EFD7CAC00D0D81D /* JourneyMockData.swift */,
+				C9B7A2502EFD7CAC00D0D81D /* JourneyNodeRow.swift */,
+				C9B7A2512EFD7CAC00D0D81D /* JourneySectionView.swift */,
+				C9B7A2522EFD7CAC00D0D81D /* JourneyTreeView.swift */,
+				C9B7A2532EFD7CAC00D0D81D /* JourneyView.swift */,
+			);
+			path = Journey;
 			sourceTree = "<group>";
 		};
 		C9DEDF772EAECC4D00C40B92 /* AILO_APP */ = {
@@ -374,6 +454,7 @@
 		C9DEDF922EAECC4D00C40B92 /* DAO */ = {
 			isa = PBXGroup;
 			children = (
+				C9B7A2722EFD8AAC00D0D81D /* JourneyDAO.swift */,
 				C9B7A0342EF7531300D0D81D /* OutboxDAOAdapter.swift */,
 				C947E8FD2EB411E5007634FC /* BaseDAO.swift */,
 				C947E8FF2EB411FE007634FC /* DAOHelpers.swift */,
@@ -394,6 +475,7 @@
 		C9DEDF982EAECC4D00C40B92 /* Models */ = {
 			isa = PBXGroup;
 			children = (
+				C9B7A26C2EFD8A7200D0D81D /* JourneyModels.swift */,
 				C9B7A0922EF8323900D0D81D /* Cookbook.swift */,
 				C9B7A0902EF82E3D00D0D81D /* RecipeMenuItem.swift */,
 				C9B7A08C2EF823CB00D0D81D /* PrePromptRecipe.swift */,
@@ -411,6 +493,7 @@
 		C9DEDF9A2EAECC4D00C40B92 /* Schema */ = {
 			isa = PBXGroup;
 			children = (
+				C9B7A26E2EFD8A7D00D0D81D /* JourneySchema.swift */,
 				C9DEDF992EAECC4D00C40B92 /* MailSchema.swift */,
 			);
 			path = Schema;
@@ -419,6 +502,7 @@
 		C9DEDF9C2EAECC4D00C40B92 /* Store */ = {
 			isa = PBXGroup;
 			children = (
+				C9B7A2702EFD8A8700D0D81D /* JourneyStore.swift */,
 				C9DEDF9B2EAECC4D00C40B92 /* DataStore.swift */,
 			);
 			path = Store;
@@ -599,12 +683,12 @@
 		C9DEDFD62EAECC4D00C40B92 /* Services */ = {
 			isa = PBXGroup;
 			children = (
-				C9B7A1762EFC4D8600D0D81D /* AppBadgeManager.swift */,
+				C9B7A3772EFEE76300D0D81D /* System */,
+				C9B7A3762EFEE74C00D0D81D /* Journey */,
 				C9B7A0992EF939A100D0D81D /* Security */,
 				C9DEDFBC2EAECC4D00C40B92 /* AI */,
 				C9DEDFBE2EAECC4D00C40B92 /* Audio */,
 				C9DEDFD52EAECC4D00C40B92 /* Mail */,
-				C9B7A2332EFD3FFB00D0D81D /* PerformanceMonitor.swift */,
 			);
 			path = Services;
 			sourceTree = "<group>";
@@ -612,6 +696,7 @@
 		C9DEDFDA2EAECC4D00C40B92 /* Configuration */ = {
 			isa = PBXGroup;
 			children = (
+				C9B7A3322EFE8DAC00D0D81D /* JourneyCalendarSettingsView.swift */,
 				C9B7A08E2EF82DAC00D0D81D /* CookbookView.swift */,
 				C9B7A08A2EF7EBF100D0D81D /* PrePromptCatalogView.swift */,
 				C9DEDFD72EAECC4D00C40B92 /* AIEditor.swift */,
@@ -689,6 +774,7 @@
 		C9DEDFEF2EAECC4D00C40B92 /* Views */ = {
 			isa = PBXGroup;
 			children = (
+				C9B7A2542EFD7CAC00D0D81D /* Journey */,
 				C981572A2EB52CB30016F2DC /* LogsList */,
 				C9DEDFDA2EAECC4D00C40B92 /* Configuration */,
 				C9DEDFDC2EAECC4D00C40B92 /* Dashboard */,
@@ -742,6 +828,8 @@
 			);
 			fileSystemSynchronizedGroups = (
 				C981572A2EB52CB30016F2DC /* LogsList */,
+				C9B7A3762EFEE74C00D0D81D /* Journey */,
+				C9B7A3772EFEE76300D0D81D /* System */,
 			);
 			name = AILO_APP;
 			packageProductDependencies = (
@@ -810,6 +898,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				C9B7A2712EFD8A8700D0D81D /* JourneyStore.swift in Sources */,
 				C9DEDFF62EAECC4D00C40B92 /* MailTransportStubs.swift in Sources */,
 				C9DEDFF72EAECC4D00C40B92 /* CircuitBreaker.swift in Sources */,
 				C9DEDFF82EAECC4D00C40B92 /* MailDomainModels.swift in Sources */,
@@ -824,8 +913,8 @@
 				C9DEDFFC2EAECC4D00C40B92 /* LogsView.swift in Sources */,
 				C9DEDFFD2EAECC4D00C40B92 /* LogEntry.swift in Sources */,
 				C947E8FE2EB411E5007634FC /* BaseDAO.swift in Sources */,
-				C9B7A1772EFC4D8600D0D81D /* AppBadgeManager.swift in Sources */,
 				C9DEDFFE2EAECC4D00C40B92 /* MailMetrics.swift in Sources */,
+				C9B7A2732EFD8AAC00D0D81D /* JourneyDAO.swift in Sources */,
 				C9DEDFFF2EAECC4D00C40B92 /* ConfigView.swift in Sources */,
 				C9FB88402EB2AC76002359BA /* EnhancedMessageDetailView.swift in Sources */,
 				C9B7A09A2EF939A100D0D81D /* KeychainCertificateService.swift in Sources */,
@@ -870,22 +959,34 @@
 				C9DEE0162EAECC4D00C40B92 /* Categories.swift in Sources */,
 				C9DEE0172EAECC4D00C40B92 /* SMTPAbstractions.swift in Sources */,
 				C9B7A08F2EF82DAC00D0D81D /* CookbookView.swift in Sources */,
+				C9B7A3332EFE8DAC00D0D81D /* JourneyCalendarSettingsView.swift in Sources */,
 				C9DEE0182EAECC4D00C40B92 /* MessageDetailView.swift in Sources */,
 				C9DEE0192EAECC4D00C40B92 /* AILO_APPApp.swift in Sources */,
 				C9B7A1752EFB52F800D0D81D /* ViewportSyncManager.swift in Sources */,
 				C9DEE01A2EAECC4D00C40B92 /* AIPrePromptPreset.swift in Sources */,
 				C9B7A2392EFD3FFB00D0D81D /* AttachmentDownloadController.swift in Sources */,
 				C9B7A23A2EFD3FFB00D0D81D /* AttachmentSecurityService.swift in Sources */,
+				C9B7A2CD2EFDD92F00D0D81D /* JourneyDocumentPicker.swift in Sources */,
+				C9B7A2CE2EFDD92F00D0D81D /* JourneyAttachmentRow.swift in Sources */,
+				C9B7A2CF2EFDD92F00D0D81D /* JourneyAttachmentViewer.swift in Sources */,
+				C9B7A2D02EFDD92F00D0D81D /* JourneyPhotoPicker.swift in Sources */,
+				C9B7A2D12EFDD92F00D0D81D /* JourneyAttachmentGallery.swift in Sources */,
 				C9B7A23B2EFD3FFB00D0D81D /* AttachmentServingService.swift in Sources */,
 				C9B7A23C2EFD3FFB00D0D81D /* BlobStore.swift in Sources */,
 				C9B7A23D2EFD3FFB00D0D81D /* BodySelectionHeuristic.swift in Sources */,
+				C9B7A2FA2EFDEABA00D0D81D /* JourneyCalendarSheet.swift in Sources */,
+				C9B7A2FB2EFDEABA00D0D81D /* JourneyContactList.swift in Sources */,
+				C9B7A2FC2EFDEABA00D0D81D /* JourneyContactPicker.swift in Sources */,
+				C9B7A2FD2EFDEABA00D0D81D /* JourneyContactRow.swift in Sources */,
 				C9B7A23E2EFD3FFB00D0D81D /* ErrorRecoveryService.swift in Sources */,
+				C9B7A26D2EFD8A7200D0D81D /* JourneyModels.swift in Sources */,
 				C9B7A23F2EFD3FFB00D0D81D /* FetchStrategy.swift in Sources */,
 				C9B7A2402EFD3FFB00D0D81D /* MessageLimitsService.swift in Sources */,
 				C9B7A2412EFD3FFB00D0D81D /* MessageProcessingOrchestrator.swift in Sources */,
 				C9B7A2422EFD3FFB00D0D81D /* MessageProcessingService.swift in Sources */,
 				C9B7A2432EFD3FFB00D0D81D /* MissingTypes.swift in Sources */,
-				C9B7A2442EFD3FFB00D0D81D /* PerformanceMonitor.swift in Sources */,
+				C9B7A37A2EFEE78400D0D81D /* JourneyExportSheet.swift in Sources */,
+				C9B7A37B2EFEE78400D0D81D /* JourneyImportSheet.swift in Sources */,
 				C9B7A2452EFD3FFB00D0D81D /* PGPVerificationService.swift in Sources */,
 				C9B7A2462EFD3FFB00D0D81D /* RenderCacheDAO.swift in Sources */,
 				C9B7A2472EFD3FFB00D0D81D /* SecureMailPartHandler.swift in Sources */,
@@ -907,6 +1008,7 @@
 				C9DEE0232EAECC4D00C40B92 /* ComposeMailView.swift in Sources */,
 				C9DEE0252EAECC4D00C40B92 /* MailLogger.swift in Sources */,
 				C93D2CB32EB16D7700AA4072 /* MailViewComponents.swift in Sources */,
+				C9B7A26F2EFD8A7D00D0D81D /* JourneySchema.swift in Sources */,
 				C9DEE0282EAECC4D00C40B92 /* FolderDiscoveryService.swift in Sources */,
 				C96E33B92EB1597D0058CB0A /* RFC2047EncodedWordsParser.swift in Sources */,
 				C9DEE0292EAECC4D00C40B92 /* AudioPlayer.swift in Sources */,
@@ -916,6 +1018,13 @@
 				C9B7A08B2EF7EBF100D0D81D /* PrePromptCatalogView.swift in Sources */,
 				C947E90C2EB41367007634FC /* AccountDAO.swift in Sources */,
 				C93D2CB72EB16E2400AA4072 /* MailboxNavigationPanel.swift in Sources */,
+				C9B7A2552EFD7CAC00D0D81D /* JourneySectionView.swift in Sources */,
+				C9B7A2562EFD7CAC00D0D81D /* JourneyMockData.swift in Sources */,
+				C9B7A2572EFD7CAC00D0D81D /* JourneyDetailView.swift in Sources */,
+				C9B7A2582EFD7CAC00D0D81D /* JourneyEditorView.swift in Sources */,
+				C9B7A2592EFD7CAC00D0D81D /* JourneyView.swift in Sources */,
+				C9B7A25A2EFD7CAC00D0D81D /* JourneyNodeRow.swift in Sources */,
+				C9B7A25B2EFD7CAC00D0D81D /* JourneyTreeView.swift in Sources */,
 				C9DEE02B2EAECC4D00C40B92 /* MailComposer.swift in Sources */,
 				C9C33C372EB2C341006390C7 /* TransferEncodingDecoder.swift in Sources */,
 				C9DEE02D2EAECC4D00C40B92 /* RegularSplitView.swift in Sources */,
@@ -931,6 +1040,7 @@
 				C9492FE82EB617DC00F2EE4B /* MailBodyProcessor.swift in Sources */,
 				C9DEE0342EAECC4D00C40B92 /* MailEditor.swift in Sources */,
 				C93D2CB52EB16DC300AA4072 /* MailViewSheets.swift in Sources */,
+				C9B7A28D2EFDB9F900D0D81D /* JourneyMoveSheet.swift in Sources */,
 				C9B7A08D2EF823CB00D0D81D /* PrePromptRecipe.swift in Sources */,
 				C9DEE0352EAECC4D00C40B92 /* CompactMessageListView.swift in Sources */,
 				C96E33B12EB157550058CB0A /* MIMEMultipartParser.swift in Sources */,
