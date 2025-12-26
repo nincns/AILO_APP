@@ -287,7 +287,14 @@ struct JourneyTreeNodeView: View {
             }
             .swipeActions(edge: .trailing, allowsFullSwipe: false) {
                 Button(role: .destructive) {
-                    presentationState.presentAlert(.delete(node))
+                    // Direkt löschen ohne Bestätigungsdialog
+                    Task {
+                        do {
+                            try await store.deleteNode(node)
+                        } catch {
+                            print("❌ Delete failed: \(error)")
+                        }
+                    }
                 } label: {
                     Label(String(localized: "common.delete"), systemImage: "trash")
                 }
