@@ -869,8 +869,15 @@
 
 /* Journey Task */
 "journey.task.hasDueDate" = "Create Appointment";
-"journey.task.startTime" = "From";
-"journey.task.endTime" = "To";
+"journey.task.datetime" = "Date & Time";
+"journey.task.duration" = "Duration";
+"journey.task.allDay" = "All Day";
+"journey.task.duration.15min" = "15 minutes";
+"journey.task.duration.30min" = "30 minutes";
+"journey.task.duration.1h" = "1 hour";
+"journey.task.duration.2h" = "2 hours";
+"journey.task.duration.4h" = "4 hours";
+"journey.task.duration.8h" = "8 hours";
 
 /* Journey Calendar (Phase 5) */
 "journey.calendar" = "Calendar";
