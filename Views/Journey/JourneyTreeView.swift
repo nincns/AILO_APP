@@ -9,13 +9,13 @@ import Combine
 enum JourneySheetType: Identifiable, Equatable {
     case edit(JourneyNode)
     case move(JourneyNode)
-    case newNode(parentId: UUID, section: JourneySection, nodeType: JourneyNodeType)
+    case newNode(parentId: UUID?, section: JourneySection, nodeType: JourneyNodeType)
 
     var id: String {
         switch self {
         case .edit(let node): return "edit-\(node.id)"
         case .move(let node): return "move-\(node.id)"
-        case .newNode(let parentId, _, let nodeType): return "new-\(parentId)-\(nodeType)"
+        case .newNode(let parentId, _, let nodeType): return "new-\(parentId?.uuidString ?? "root")-\(nodeType)"
         }
     }
 
