@@ -10,12 +10,20 @@ enum JourneySheetType: Identifiable, Equatable {
     case edit(JourneyNode)
     case move(JourneyNode)
     case newNode(parentId: UUID?, section: JourneySection, nodeType: JourneyNodeType)
+    case exportNodes([JourneyNode])
+    case exportSection(JourneySection)
+    case exportAll
+    case importFile(URL?)
 
     var id: String {
         switch self {
         case .edit(let node): return "edit-\(node.id)"
         case .move(let node): return "move-\(node.id)"
         case .newNode(let parentId, _, let nodeType): return "new-\(parentId?.uuidString ?? "root")-\(nodeType)"
+        case .exportNodes(let nodes): return "export-\(nodes.map { $0.id.uuidString }.joined())"
+        case .exportSection(let section): return "export-section-\(section.rawValue)"
+        case .exportAll: return "export-all"
+        case .importFile(let url): return "import-\(url?.absoluteString ?? "picker")"
         }
     }
 

@@ -24,6 +24,9 @@ struct JourneyDetailView: View {
     @State private var calendarEventTitle: String?
     @State private var calendarEventDeleted: Bool = false
 
+    // Export State
+    @State private var showExportSheet: Bool = false
+
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
@@ -126,17 +129,14 @@ struct JourneyDetailView: View {
 
                     Divider()
 
-                    Button(action: { /* TODO: Export */ }) {
-                        Label("Als PDF exportieren", systemImage: "doc.richtext")
-                    }
-                    Button(action: { /* TODO: Export */ }) {
-                        Label("Als Markdown exportieren", systemImage: "doc.plaintext")
+                    Button(action: { showExportSheet = true }) {
+                        Label(String(localized: "journey.action.export"), systemImage: "square.and.arrow.up")
                     }
 
                     Divider()
 
                     Button(role: .destructive, action: { deleteNode() }) {
-                        Label("Löschen", systemImage: "trash")
+                        Label(String(localized: "common.delete"), systemImage: "trash")
                     }
                 } label: {
                     Image(systemName: "ellipsis.circle")
@@ -183,6 +183,10 @@ struct JourneyDetailView: View {
                 updateCalendarEventId(eventId)
             }
             .environmentObject(store)
+        }
+        .sheet(isPresented: $showExportSheet) {
+            JourneyExportSheet(nodes: [node])
+                .environmentObject(store)
         }
         .task {
             loadAttachments()

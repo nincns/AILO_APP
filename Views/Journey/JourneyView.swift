@@ -64,6 +64,20 @@ struct JourneyView: View {
                     Button(action: { createFolder() }) {
                         Label(String(localized: "journey.action.newFolder"), systemImage: "folder.badge.plus")
                     }
+                    Divider()
+                    Menu {
+                        Button(action: { exportSection() }) {
+                            Label(String(localized: "journey.export.currentSection"), systemImage: "square.and.arrow.up")
+                        }
+                        Button(action: { exportAll() }) {
+                            Label(String(localized: "journey.export.all"), systemImage: "square.and.arrow.up.on.square")
+                        }
+                    } label: {
+                        Label(String(localized: "journey.action.export"), systemImage: "square.and.arrow.up")
+                    }
+                    Button(action: { importFile() }) {
+                        Label(String(localized: "journey.action.import"), systemImage: "square.and.arrow.down")
+                    }
                 } label: {
                     Image(systemName: "plus")
                 }
@@ -132,6 +146,22 @@ struct JourneyView: View {
                 )
                 .environmentObject(store)
             }
+
+        case .exportNodes(let nodes):
+            JourneyExportSheet(nodes: nodes)
+                .environmentObject(store)
+
+        case .exportSection(let section):
+            JourneyExportSheet(section: section)
+                .environmentObject(store)
+
+        case .exportAll:
+            JourneyExportSheet()
+                .environmentObject(store)
+
+        case .importFile(let url):
+            JourneyImportSheet(url: url)
+                .environmentObject(store)
         }
     }
 
@@ -169,6 +199,18 @@ struct JourneyView: View {
                 print("❌ Delete failed: \(error)")
             }
         }
+    }
+
+    private func exportSection() {
+        presentationState.presentSheet(.exportSection(selectedSection))
+    }
+
+    private func exportAll() {
+        presentationState.presentSheet(.exportAll)
+    }
+
+    private func importFile() {
+        presentationState.presentSheet(.importFile(nil))
     }
 }
 
