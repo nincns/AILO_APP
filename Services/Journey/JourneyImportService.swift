@@ -107,10 +107,19 @@ public final class JourneyImportService: @unchecked Sendable {
         var result = JourneyImportResult()
         var idMapping: [UUID: UUID] = [:]
 
-        // Import nodes
-        for importNode in container.nodes {
+        // Sort nodes by hierarchy: parents before children
+        let sortedNodes = sortNodesByHierarchy(container.nodes)
+
+        // Import nodes in correct order
+        for importNode in sortedNodes {
             let resolution = resolutions[importNode.id] ?? defaultResolution
             let existingNode = try dao.getNodeByOriginId(importNode.originId)
+
+            // Map parent ID if parent was already imported with new ID
+            var nodeToImport = importNode
+            if let oldParentId = importNode.parentId, let newParentId = idMapping[oldParentId] {
+                nodeToImport.parentId = newParentId
+            }
 
             do {
                 switch resolution {
@@ -119,29 +128,29 @@ public final class JourneyImportService: @unchecked Sendable {
 
                 case .overwrite:
                     if let existing = existingNode {
-                        var updated = importNode
+                        var updated = nodeToImport
                         updated.id = existing.id
                         updated.revision = importNode.revision
                         try dao.updateNode(updated)
                         idMapping[importNode.id] = existing.id
                         result.importedNodes += 1
                     } else {
-                        try dao.insertNode(importNode)
-                        idMapping[importNode.id] = importNode.id
+                        try dao.insertNode(nodeToImport)
+                        idMapping[importNode.id] = nodeToImport.id
                         result.importedNodes += 1
                     }
 
                 case .keepBoth:
                     if existingNode != nil {
-                        var newNode = importNode
+                        var newNode = nodeToImport
                         newNode.id = UUID()
                         newNode.title = "\(importNode.title) (importiert)"
                         try dao.insertNode(newNode)
                         idMapping[importNode.id] = newNode.id
                         result.importedNodes += 1
                     } else {
-                        try dao.insertNode(importNode)
-                        idMapping[importNode.id] = importNode.id
+                        try dao.insertNode(nodeToImport)
+                        idMapping[importNode.id] = nodeToImport.id
                         result.importedNodes += 1
                     }
                 }
@@ -194,6 +203,58 @@ public final class JourneyImportService: @unchecked Sendable {
         }
 
         return result
+    }
+
+    // MARK: - Private Helpers
+
+    /// Sorts nodes so that parent nodes come before their children
+    private func sortNodesByHierarchy(_ nodes: [JourneyNode]) -> [JourneyNode] {
+        var sorted: [JourneyNode] = []
+        var remaining = nodes
+        var nodeIds = Set(nodes.map { $0.id })
+
+        // First pass: add all root nodes (no parent or parent not in import)
+        var i = 0
+        while i < remaining.count {
+            let node = remaining[i]
+            if node.parentId == nil || !nodeIds.contains(node.parentId!) {
+                sorted.append(node)
+                remaining.remove(at: i)
+            } else {
+                i += 1
+            }
+        }
+
+        // Subsequent passes: add nodes whose parents are already in sorted
+        var sortedIds = Set(sorted.map { $0.id })
+        var maxIterations = remaining.count + 1 // Prevent infinite loop
+
+        while !remaining.isEmpty && maxIterations > 0 {
+            maxIterations -= 1
+            var addedAny = false
+
+            i = 0
+            while i < remaining.count {
+                let node = remaining[i]
+                if let parentId = node.parentId, sortedIds.contains(parentId) {
+                    sorted.append(node)
+                    sortedIds.insert(node.id)
+                    remaining.remove(at: i)
+                    addedAny = true
+                } else {
+                    i += 1
+                }
+            }
+
+            // If no progress, break to avoid infinite loop
+            if !addedAny {
+                // Add remaining nodes anyway (orphans)
+                sorted.append(contentsOf: remaining)
+                break
+            }
+        }
+
+        return sorted
     }
 
     // MARK: - Errors
