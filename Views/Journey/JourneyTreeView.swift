@@ -320,40 +320,27 @@ struct JourneyTreeNodeView: View {
 
     @ViewBuilder
     private var contextMenuItems: some View {
+        // Für Ordner: Kinder erstellen, für andere: Geschwister erstellen
+        let targetParentId = node.nodeType == .folder ? node.id : node.parentId
+
         Button {
-            presentationState.presentSheet(.edit(node))
+            presentationState.presentSheet(.newNode(parentId: targetParentId, section: section, nodeType: .entry))
         } label: {
-            Label(String(localized: "journey.context.edit"), systemImage: "pencil")
+            Label(String(localized: "journey.context.newEntry"), systemImage: "doc.badge.plus")
         }
 
         Button {
-            presentationState.presentSheet(.move(node))
+            presentationState.presentSheet(.newNode(parentId: targetParentId, section: section, nodeType: .task))
         } label: {
-            Label(String(localized: "journey.context.move"), systemImage: "folder")
-        }
-
-        if node.nodeType == .folder {
-            Divider()
-
-            Button {
-                presentationState.presentSheet(.newNode(parentId: node.id, section: section, nodeType: .entry))
-            } label: {
-                Label(String(localized: "journey.context.newEntry"), systemImage: "doc.badge.plus")
-            }
-
-            Button {
-                presentationState.presentSheet(.newNode(parentId: node.id, section: section, nodeType: .folder))
-            } label: {
-                Label(String(localized: "journey.context.newFolder"), systemImage: "folder.badge.plus")
-            }
+            Label(String(localized: "journey.context.newTask"), systemImage: "checkmark.circle.badge.plus")
         }
 
         Divider()
 
-        Button(role: .destructive) {
-            presentationState.presentAlert(.delete(node))
+        Button {
+            presentationState.presentSheet(.newNode(parentId: targetParentId, section: section, nodeType: .folder))
         } label: {
-            Label(String(localized: "journey.context.delete"), systemImage: "trash")
+            Label(String(localized: "journey.context.newFolder"), systemImage: "folder.badge.plus")
         }
     }
 
