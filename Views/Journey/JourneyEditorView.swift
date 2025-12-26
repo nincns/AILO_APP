@@ -1,6 +1,7 @@
 // Views/Journey/JourneyEditorView.swift
 import SwiftUI
 import PhotosUI
+import EventKit
 
 struct JourneyEditorView: View {
     let node: JourneyNode?
