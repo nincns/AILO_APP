@@ -28,11 +28,16 @@ struct JourneyDetailView: View {
     @State private var showExportSheet: Bool = false
 
     // Send Status State
-    @State private var showSendStatusSheet: Bool = false
-    @State private var statusMailRecipients: String = ""
-    @State private var statusMailSubject: String = ""
-    @State private var statusMailBody: String = ""
-    @State private var statusMailAttachments: [ComposeMailView.Attachment] = []
+    @State private var statusMailData: StatusMailData?
+
+    /// Datenstruktur für Status-Mail (Identifiable für sheet(item:))
+    struct StatusMailData: Identifiable {
+        let id = UUID()
+        let recipients: String
+        let subject: String
+        let body: String
+        let attachments: [ComposeMailView.Attachment]
+    }
 
     /// Kontakte mit gültiger E-Mail-Adresse
     private var contactsWithEmail: [JourneyContactRef] {
@@ -207,13 +212,13 @@ struct JourneyDetailView: View {
             JourneyExportSheet(nodes: [node])
                 .environmentObject(store)
         }
-        .sheet(isPresented: $showSendStatusSheet) {
+        .sheet(item: $statusMailData) { mailData in
             NavigationStack {
                 ComposeMailView(
-                    initialSubject: statusMailSubject,
-                    initialBody: statusMailBody,
-                    initialTo: statusMailRecipients,
-                    initialAttachments: statusMailAttachments
+                    initialSubject: mailData.subject,
+                    initialBody: mailData.body,
+                    initialTo: mailData.recipients,
+                    initialAttachments: mailData.attachments
                 )
             }
         }
@@ -387,11 +392,12 @@ struct JourneyDetailView: View {
                 )
 
                 await MainActor.run {
-                    statusMailRecipients = recipients
-                    statusMailSubject = subject
-                    statusMailBody = body
-                    statusMailAttachments = [attachment]
-                    showSendStatusSheet = true
+                    statusMailData = StatusMailData(
+                        recipients: recipients,
+                        subject: subject,
+                        body: body,
+                        attachments: [attachment]
+                    )
                 }
             } catch {
                 print("❌ Failed to create export for status mail: \(error)")
