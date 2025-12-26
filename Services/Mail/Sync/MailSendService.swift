@@ -359,19 +359,26 @@ public final class MailSendService {
 
         do {
             // IMAP Verbindung öffnen
-            let conn = try await IMAPConnection.open(
-                host: account.imapHost,
-                port: account.imapPort,
-                useTLS: account.imapEncryption == .ssl
+            let conn = IMAPConnection(label: "send.append.\(accountId.uuidString.prefix(6))")
+            let imapConfig = IMAPConnectionConfig(
+                host: account.recvHost,
+                port: account.recvPort,
+                tls: account.recvEncryption == .sslTLS,
+                sniHost: account.recvHost,
+                connectionTimeoutSec: account.connectionTimeoutSec,
+                readTimeoutSec: 30
             )
+            try await conn.open(imapConfig)
             defer { conn.close() }
 
             // Login
-            try await conn.login(user: account.username, password: account.password)
+            try await conn.login(user: account.recvUsername, password: account.recvPassword ?? "")
 
             // STARTTLS falls nötig
-            if account.imapEncryption == .startTLS {
-                try await conn.upgradeToTLS(host: account.imapHost)
+            if account.recvEncryption == .startTLS {
+                try await conn.upgradeToTLS(host: account.recvHost)
+                // Nach STARTTLS nochmal login
+                try await conn.login(user: account.recvUsername, password: account.recvPassword ?? "")
             }
 
             // APPEND ausführen
@@ -390,7 +397,7 @@ public final class MailSendService {
         var lines: [String] = []
         let boundary = "----=_Part_\(UUID().uuidString.replacingOccurrences(of: "-", with: ""))"
         let date = formatRFC2822Date(Date())
-        let messageId = "<\(UUID().uuidString)@\(account.imapHost)>"
+        let messageId = "<\(UUID().uuidString)@\(account.recvHost)>"
 
         // Headers
         lines.append("From: \(formatAddress(draft.from))")
