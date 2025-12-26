@@ -45,43 +45,58 @@ enum JourneyAlertType: Identifiable, Equatable {
 class JourneyPresentationState: ObservableObject {
     @Published var activeSheet: JourneySheetType?
     @Published var activeAlert: JourneyAlertType?
-    private var isTransitioning: Bool = false
+
+    /// Lock verhindert neue Präsentationen bis zur Nutzerinteraktion
+    private var isLocked: Bool = false
 
     func presentSheet(_ sheet: JourneySheetType) {
-        guard !isTransitioning, activeSheet == nil, activeAlert == nil else {
-            print("⚠️ Sheet blocked - presentation in progress")
+        // Blockieren wenn locked oder bereits ein Sheet/Alert aktiv
+        guard !isLocked else {
+            print("⚠️ Sheet blocked - presentation locked")
             return
         }
-        isTransitioning = true
-        // Längere Verzögerung für Sheets (Kontextmenü braucht ~350ms zum Schließen)
+        guard activeSheet == nil, activeAlert == nil else {
+            print("⚠️ Sheet blocked - presentation already active")
+            return
+        }
+
+        // Sofort locken um weitere Anfragen zu blockieren
+        isLocked = true
+
+        // Verzögerung für Kontextmenü-Animation (~350ms)
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) { [weak self] in
             self?.activeSheet = sheet
-            self?.isTransitioning = false
         }
     }
 
     func presentAlert(_ alert: JourneyAlertType) {
-        // Alert immer erlauben, aber vorherige dismissieren
-        if activeSheet != nil {
-            activeSheet = nil
+        guard !isLocked else {
+            print("⚠️ Alert blocked - presentation locked")
+            return
+        }
+        guard activeAlert == nil else {
+            print("⚠️ Alert blocked - alert already active")
+            return
         }
 
-        // Direkt setzen wenn kein Alert aktiv, sonst mit kurzer Verzögerung
-        if activeAlert == nil && !isTransitioning {
-            activeAlert = alert
-        } else {
-            isTransitioning = true
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) { [weak self] in
-                self?.activeAlert = alert
-                self?.isTransitioning = false
-            }
+        isLocked = true
+        activeAlert = alert
+    }
+
+    /// Wird aufgerufen wenn Sheet/Alert geschlossen wird (via onDismiss)
+    func unlock() {
+        activeSheet = nil
+        activeAlert = nil
+        // Kurze Verzögerung vor Unlock um Animation abzuschließen
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { [weak self] in
+            self?.isLocked = false
         }
     }
 
     func dismissAll() {
         activeSheet = nil
         activeAlert = nil
-        isTransitioning = false
+        isLocked = false
     }
 }
 
@@ -118,7 +133,10 @@ struct JourneyTreeView: View {
             handleReorder(indices: indices, destination: destination)
         }
         // EINZIGER Sheet-Modifier für den ganzen Tree
-        .sheet(item: $presentationState.activeSheet) { sheetType in
+        .sheet(item: $presentationState.activeSheet, onDismiss: {
+            // Unlock wenn Sheet geschlossen wird (Speichern oder Abbrechen)
+            presentationState.unlock()
+        }) { sheetType in
             sheetContent(for: sheetType)
         }
         // EINZIGER Alert-Modifier für den ganzen Tree
@@ -129,7 +147,7 @@ struct JourneyTreeView: View {
                 set: { newValue in
                     if !newValue {
                         Task { @MainActor in
-                            presentationState.activeAlert = nil
+                            presentationState.unlock()
                         }
                     }
                 }
