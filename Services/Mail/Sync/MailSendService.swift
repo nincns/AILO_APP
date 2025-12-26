@@ -373,6 +373,9 @@ public final class MailSendService {
 
             let commands = IMAPCommands()
 
+            // Server-Greeting empfangen (wichtig vor allen anderen Kommandos!)
+            _ = try await commands.greeting(conn)
+
             // STARTTLS falls nötig (vor Login)
             if account.recvEncryption == .startTLS {
                 try await commands.startTLS(conn)
