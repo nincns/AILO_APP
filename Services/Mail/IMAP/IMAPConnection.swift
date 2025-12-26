@@ -271,7 +271,15 @@ public final class IMAPConnection {
             } else {
                 print("📡 [receiveLines] Received \(data!.count) bytes")
             }
-            guard let data, !data.isEmpty else { break }
+            guard let data, !data.isEmpty else {
+                // Bei leerem Receive: Prüfe ob noch Zeit übrig ist
+                if Date() < idleDeadline {
+                    print("📡 [receiveLines] No data received, retrying (time remaining until deadline)...")
+                    continue  // Weiter warten statt abbrechen
+                }
+                print("📡 [receiveLines] Timeout reached with no data - breaking loop")
+                break
+            }
             let chunkSize = data.count
             if maxBytes > 0 && (totalBytes + chunkSize) > maxBytes {
                 let remaining = maxBytes - totalBytes
