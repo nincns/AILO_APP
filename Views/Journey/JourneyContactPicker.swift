@@ -139,16 +139,16 @@ struct JourneyContactPickerSheet: View {
                     isPresented: $showPicker,
                     onSelect: { contact in
                         selectedContact = contact
-                        // Prüfe ob Auswahl nötig ist
-                        if contact.emailAddresses.count > 1 || contact.phoneNumbers.count > 1 {
-                            // Mehrere E-Mails oder Telefonnummern - zeige Auswahl
+                        // Zeige immer die Auswahl wenn E-Mails oder Telefonnummern vorhanden sind
+                        // So kann der Benutzer sehen was importiert wird und es bestätigen
+                        if !contact.emailAddresses.isEmpty || !contact.phoneNumbers.isEmpty {
                             showContactDetails = true
                         } else {
-                            // Nur eine oder keine - direkt übernehmen
+                            // Keine E-Mails oder Telefonnummern - direkt übernehmen
                             finalizeContact(
                                 contact: contact,
-                                selectedEmail: contact.emailAddresses.first?.value as String?,
-                                selectedPhone: contact.phoneNumbers.first?.value.stringValue
+                                selectedEmail: nil,
+                                selectedPhone: nil
                             )
                         }
                     }
