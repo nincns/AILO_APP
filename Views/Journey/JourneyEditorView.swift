@@ -25,7 +25,8 @@ struct JourneyEditorView: View {
     @State private var dueDate: Date = Date()
     @State private var hasDueDate: Bool = false
     @State private var isAllDay: Bool = false
-    @State private var durationMinutes: Int = 60
+    @State private var durationHours: Int = 1
+    @State private var durationMins: Int = 0
     @State private var progress: Double = 0
 
     // Attachments
@@ -64,6 +65,11 @@ struct JourneyEditorView: View {
         }
     }
 
+    /// Gesamtdauer in Minuten
+    private var totalDurationMinutes: Int {
+        durationHours * 60 + durationMins
+    }
+
     /// Berechnet das Enddatum aus Startzeit + Dauer (oder ganztägig)
     private var computedEndDate: Date {
         if isAllDay {
@@ -71,7 +77,7 @@ struct JourneyEditorView: View {
             return Calendar.current.date(bySettingHour: 23, minute: 59, second: 59, of: dueDate) ?? dueDate
         } else {
             // Startzeit + Dauer in Minuten
-            return Calendar.current.date(byAdding: .minute, value: durationMinutes, to: dueDate) ?? dueDate
+            return Calendar.current.date(byAdding: .minute, value: totalDurationMinutes, to: dueDate) ?? dueDate
         }
     }
 
@@ -176,13 +182,24 @@ struct JourneyEditorView: View {
                         )
 
                         if !isAllDay {
-                            Picker(String(localized: "journey.task.duration"), selection: $durationMinutes) {
-                                Text(String(localized: "journey.task.duration.15min")).tag(15)
-                                Text(String(localized: "journey.task.duration.30min")).tag(30)
-                                Text(String(localized: "journey.task.duration.1h")).tag(60)
-                                Text(String(localized: "journey.task.duration.2h")).tag(120)
-                                Text(String(localized: "journey.task.duration.4h")).tag(240)
-                                Text(String(localized: "journey.task.duration.8h")).tag(480)
+                            HStack {
+                                Text(String(localized: "journey.task.duration"))
+                                Spacer()
+                                Picker("", selection: $durationHours) {
+                                    ForEach(0..<24, id: \.self) { h in
+                                        Text("\(h) h").tag(h)
+                                    }
+                                }
+                                .pickerStyle(.menu)
+                                .labelsHidden()
+
+                                Picker("", selection: $durationMins) {
+                                    ForEach([0, 5, 10, 15, 20, 30, 45], id: \.self) { m in
+                                        Text("\(m) min").tag(m)
+                                    }
+                                }
+                                .pickerStyle(.menu)
+                                .labelsHidden()
                             }
                         }
 
@@ -290,14 +307,20 @@ struct JourneyEditorView: View {
                         // Prüfe ob ganztägig (>= 23h = 1380min)
                         if minutes >= 1380 {
                             isAllDay = true
-                            durationMinutes = 60
+                            durationHours = 1
+                            durationMins = 0
                         } else {
                             isAllDay = false
-                            // Finde passende Dauer-Option
-                            durationMinutes = [15, 30, 60, 120, 240, 480].min(by: { abs($0 - minutes) < abs($1 - minutes) }) ?? 60
+                            // Setze Stunden und Minuten
+                            durationHours = minutes / 60
+                            durationMins = minutes % 60
+                            // Runde Minuten auf verfügbare Werte
+                            let availableMins = [0, 5, 10, 15, 20, 30, 45]
+                            durationMins = availableMins.min(by: { abs($0 - durationMins) < abs($1 - durationMins) }) ?? 0
                         }
                     } else {
-                        durationMinutes = 60
+                        durationHours = 1
+                        durationMins = 0
                     }
                 }
                 if let p = node.progress { progress = Double(p) }
