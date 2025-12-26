@@ -675,17 +675,35 @@ import Foundation
     }
     
     func deleteMail(_ mail: MessageHeaderEntity) async {
+        var deleteSucceeded = false
+
         await withIMAP(accountId: mail.accountId, folder: mail.folder, readOnly: false) { _, conn in
             // Mark \Deleted via UID STORE and attempt UID EXPUNGE; fallback to EXPUNGE
             let client = IMAPClient(connection: conn)
             try await client.store(uids: [mail.uid], flags: ["\\Deleted"], mode: .add)
             // Try UID EXPUNGE for this UID; if unsupported, fall back to EXPUNGE
             try await self.sendTagged(conn: conn, command: "UID EXPUNGE \(mail.uid)")
+            deleteSucceeded = true
         }
-        // If UID EXPUNGE failed and threw, we attempt a generic EXPUNGE in the helper; UI should still update.
-        // Update local list optimistically
-        self.filteredMails.removeAll { $0.accountId == mail.accountId && $0.folder == mail.folder && $0.uid == mail.uid }
-        self.updateBadgeCounts(accountId: mail.accountId)
+
+        // Only update local state if IMAP deletion succeeded
+        if deleteSucceeded {
+            // Delete from local database (sync with server state)
+            do {
+                try MailRepository.shared.writeDAO?.deleteMessage(
+                    accountId: mail.accountId,
+                    folder: mail.folder,
+                    uid: mail.uid
+                )
+                print("✅ [MailViewModel] Deleted mail from local database: \(mail.uid)")
+            } catch {
+                print("❌ [MailViewModel] Failed to delete mail from database: \(error)")
+            }
+
+            // Remove from in-memory caches
+            removeFromCaches(uids: [mail.uid], folder: mail.folder)
+            self.updateBadgeCounts(accountId: mail.accountId)
+        }
     }
     
     func toggleFlag(_ mail: MessageHeaderEntity, flag: String) async {
