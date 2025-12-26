@@ -10,9 +10,22 @@ public class JourneyDAO: BaseDAO {
     // MARK: - Schema Initialization
 
     public func initializeSchema() throws {
-        let statements = JourneySchema.createStatements()
-        for sql in statements {
+        // First create base tables (safe with IF NOT EXISTS)
+        for sql in JourneySchema.ddl_v1 {
             try exec(sql)
+        }
+
+        // Then apply migrations safely (ignore errors for existing columns)
+        for sql in JourneySchema.ddl_v2 {
+            do {
+                try exec(sql)
+            } catch {
+                // Ignore "duplicate column" errors - column already exists
+                let errorMsg = String(describing: error)
+                if !errorMsg.contains("duplicate column") {
+                    print("⚠️ Migration warning: \(error)")
+                }
+            }
         }
     }
 
