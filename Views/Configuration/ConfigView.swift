@@ -104,6 +104,11 @@ struct ConfigView: View {
                     NavigationLink("config.nav.aiManager", destination: AIManagerView())
                     NavigationLink("config.nav.prePrompts", destination: PrePromptManager())
                 }
+
+                // MARK: Journey
+                Section(header: Text("config.section.journey").textCase(.uppercase)) {
+                    NavigationLink("config.nav.journeyCalendar", destination: JourneyCalendarSettingsView())
+                }
             }
             .navigationTitle(Text("config.nav.title"))
             .onAppear(perform: loadFromDefaults)

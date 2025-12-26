@@ -54,7 +54,26 @@ public final class JourneyCalendarService {
         }
     }
 
-    // MARK: - Default Calendar
+    // MARK: - Calendars
+
+    /// Der in den Einstellungen konfigurierte Journey-Kalender
+    public var configuredCalendar: EKCalendar? {
+        guard let calendarId = UserDefaults.standard.string(forKey: kJourneyCalendarId),
+              !calendarId.isEmpty else {
+            return nil
+        }
+        return store.calendars(for: .event).first { $0.calendarIdentifier == calendarId }
+    }
+
+    /// Gibt den konfigurierten Kalender zurück, oder den System-Default
+    public var journeyCalendar: EKCalendar? {
+        configuredCalendar ?? store.defaultCalendarForNewEvents
+    }
+
+    /// Ob ein Journey-Kalender konfiguriert ist
+    public var hasConfiguredCalendar: Bool {
+        configuredCalendar != nil
+    }
 
     public var defaultCalendar: EKCalendar? {
         store.defaultCalendarForNewEvents
@@ -66,7 +85,7 @@ public final class JourneyCalendarService {
 
     // MARK: - Create Event
 
-    /// Erstellt Kalender-Event für Task
+    /// Erstellt Kalender-Event für Task (verwendet konfigurierten Journey-Kalender)
     public func createEvent(
         title: String,
         dueDate: Date,
@@ -79,7 +98,8 @@ public final class JourneyCalendarService {
         event.startDate = dueDate
         event.endDate = Calendar.current.date(byAdding: .hour, value: 1, to: dueDate) ?? dueDate
         event.notes = notes
-        event.calendar = calendar ?? defaultCalendar
+        // Verwendet übergebenen Kalender, oder konfigurierten Journey-Kalender
+        event.calendar = calendar ?? journeyCalendar
 
         // Alarm hinzufügen
         if let alarmOffset = alarm {

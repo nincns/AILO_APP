@@ -228,6 +228,7 @@
 "config.section.privacy" = "Datenschutz";
 "config.section.mail" = "E-Mail";
 "config.section.mailAccounts" = "E-Mail-Konten";
+"config.section.journey" = "Journey";
 
 /* MARK: - Rows / Controls */
 "config.categories.manage" = "Kategorien verwalten";
@@ -238,6 +239,7 @@
 "config.nav.aiManager" = "KI-Provider verwalten";
 "config.nav.prePrompts" = "Pre-Prompts";
 "config.nav.mailManager" = "E-Mail-Konten";
+"config.nav.journeyCalendar" = "Kalender";
 "config.mail.settingsName" = "E-Mail-Konfiguration";
 "config.mail.settingsName.placeholder" = "Name der Konfiguration";
 "config.mail.add" = "Konto hinzufügen";
@@ -246,6 +248,31 @@
 "config.action.save" = "Einstellungen speichern";
 "config.action.resetDefaults" = "Auf Standard zurücksetzen";
 "config.toast.saved" = "Einstellungen gespeichert";
+
+/* Configuration - Journey Calendar Settings */
+"config.journey.calendar.title" = "Journey Kalender";
+"config.journey.calendar.permission" = "Berechtigung";
+"config.journey.calendar.accessGranted" = "Kalenderzugriff erlaubt";
+"config.journey.calendar.accessDenied" = "Kalenderzugriff verweigert";
+"config.journey.calendar.openSettings" = "Bitte erlaube den Kalenderzugriff in den Systemeinstellungen.";
+"config.journey.calendar.openSettingsButton" = "Einstellungen öffnen";
+"config.journey.calendar.requestAccess" = "Kalenderzugriff anfragen";
+"config.journey.calendar.writeOnly" = "Nur Schreibzugriff";
+"config.journey.calendar.writeOnlyHint" = "Voller Zugriff wird für alle Funktionen benötigt.";
+"config.journey.calendar.current" = "Ausgewählter Kalender";
+"config.journey.calendar.currentHint" = "Alle Journey-Aufgaben werden in diesem Kalender eingetragen.";
+"config.journey.calendar.notSelected" = "Kein Kalender ausgewählt";
+"config.journey.calendar.createNew" = "Neuen Kalender erstellen";
+"config.journey.calendar.createHint" = "Erstelle einen dedizierten AILO-Kalender in einem deiner Konten.";
+"config.journey.calendar.available" = "Verfügbare Kalender";
+"config.journey.calendar.noCalendars" = "Keine Kalender verfügbar";
+"config.journey.calendar.name" = "Kalendername";
+"config.journey.calendar.nameHeader" = "Name";
+"config.journey.calendar.account" = "Konto";
+"config.journey.calendar.accountHeader" = "In welchem Konto?";
+"config.journey.calendar.accountHint" = "Der Kalender wird im ausgewählten Konto erstellt und mit diesem synchronisiert.";
+"config.journey.calendar.createTitle" = "Kalender erstellen";
+"config.journey.calendar.noAccounts" = "Keine Konten mit Schreibzugriff verfügbar";
 
 /* Configuration - AI Manager & Editor */
 /* Files: Configuration/AIManager.swift, AIEditor.swift, Services/AIClient.swift */
