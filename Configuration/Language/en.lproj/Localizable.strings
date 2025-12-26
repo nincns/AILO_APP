@@ -806,6 +806,7 @@
 "journey.move.root" = "Root Level";
 "journey.move.confirm" = "Move";
 "journey.move.error" = "Move failed";
+"journey.move.noFolders" = "No folders available";
 "journey.delete.confirm.title" = "Confirm Delete";
 "journey.delete.confirm.message %@" = "Do you really want to delete \"%@\"? All sub-entries will also be deleted.";
 "journey.context.edit" = "Edit";
