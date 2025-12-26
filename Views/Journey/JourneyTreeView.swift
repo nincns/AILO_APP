@@ -265,6 +265,13 @@ struct JourneyTreeNodeView: View {
             }
             .swipeActions(edge: .leading, allowsFullSwipe: false) {
                 Button {
+                    presentationState.presentSheet(.exportNodes([node]))
+                } label: {
+                    Label(String(localized: "journey.action.export"), systemImage: "square.and.arrow.up")
+                }
+                .tint(.green)
+
+                Button {
                     presentationState.presentSheet(.move(node))
                 } label: {
                     Label(String(localized: "journey.context.move"), systemImage: "folder")
