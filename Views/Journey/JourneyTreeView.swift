@@ -108,7 +108,7 @@ struct JourneyTreeView: View {
     let level: Int
 
     @EnvironmentObject private var store: JourneyStore
-    @StateObject private var presentationState = JourneyPresentationState()
+    @EnvironmentObject private var presentationState: JourneyPresentationState
     @State private var draggedNode: JourneyNode?
     @State private var dropTargetId: UUID?
 
@@ -125,71 +125,13 @@ struct JourneyTreeView: View {
                 section: section,
                 level: level,
                 draggedNode: $draggedNode,
-                dropTargetId: $dropTargetId,
-                presentationState: presentationState
+                dropTargetId: $dropTargetId
             )
         }
         .onMove { indices, destination in
             handleReorder(indices: indices, destination: destination)
         }
-        // EINZIGER Sheet-Modifier für den ganzen Tree
-        .sheet(item: $presentationState.activeSheet, onDismiss: {
-            // Unlock wenn Sheet geschlossen wird (Speichern oder Abbrechen)
-            presentationState.unlock()
-        }) { sheetType in
-            sheetContent(for: sheetType)
-        }
-        // EINZIGER Alert-Modifier für den ganzen Tree
-        .alert(
-            String(localized: "journey.delete.confirm.title"),
-            isPresented: Binding(
-                get: { presentationState.activeAlert != nil },
-                set: { newValue in
-                    if !newValue {
-                        Task { @MainActor in
-                            presentationState.unlock()
-                        }
-                    }
-                }
-            ),
-            presenting: presentationState.activeAlert
-        ) { alertType in
-            Button(String(localized: "common.cancel"), role: .cancel) { }
-            Button(String(localized: "common.delete"), role: .destructive) {
-                if case .delete(let nodeToDelete) = alertType {
-                    deleteNode(nodeToDelete)
-                }
-            }
-        } message: { alertType in
-            if case .delete(let nodeToDelete) = alertType {
-                Text("journey.delete.confirm.message \(nodeToDelete.title)")
-            }
-        }
-    }
-
-    @ViewBuilder
-    private func sheetContent(for type: JourneySheetType) -> some View {
-        switch type {
-        case .edit(let nodeToEdit):
-            NavigationStack {
-                JourneyEditorView(node: nodeToEdit)
-                    .environmentObject(store)
-            }
-
-        case .move(let nodeToMove):
-            JourneyMoveSheet(node: nodeToMove)
-                .environmentObject(store)
-
-        case .newNode(let parentId, let section, let nodeType):
-            NavigationStack {
-                JourneyEditorView(
-                    parentId: parentId,
-                    preselectedSection: section,
-                    preselectedType: nodeType
-                )
-                .environmentObject(store)
-            }
-        }
+        // Sheet & Alert sind jetzt in JourneyView (oberste Ebene)
     }
 
     private func handleReorder(indices: IndexSet, destination: Int) {
@@ -204,16 +146,6 @@ struct JourneyTreeView: View {
             }
         }
     }
-
-    private func deleteNode(_ nodeToDelete: JourneyNode) {
-        Task {
-            do {
-                try await store.deleteNode(nodeToDelete)
-            } catch {
-                print("❌ Delete failed: \(error)")
-            }
-        }
-    }
 }
 
 // MARK: - Single Tree Node View
@@ -225,9 +157,9 @@ struct JourneyTreeNodeView: View {
 
     @Binding var draggedNode: JourneyNode?
     @Binding var dropTargetId: UUID?
-    @ObservedObject var presentationState: JourneyPresentationState
 
     @EnvironmentObject private var store: JourneyStore
+    @EnvironmentObject private var presentationState: JourneyPresentationState
     @State private var isExpanded: Bool = true
 
     private var isDropTarget: Bool {
@@ -245,15 +177,14 @@ struct JourneyTreeNodeView: View {
         Group {
             if let children = node.children, !children.isEmpty {
                 DisclosureGroup(isExpanded: $isExpanded) {
-                    // Rekursive Kinder teilen denselben presentationState
+                    // Rekursive Kinder - presentationState kommt aus Environment
                     ForEach(children) { child in
                         JourneyTreeNodeView(
                             node: child,
                             section: section,
                             level: level + 1,
                             draggedNode: $draggedNode,
-                            dropTargetId: $dropTargetId,
-                            presentationState: presentationState
+                            dropTargetId: $dropTargetId
                         )
                     }
                 } label: {
@@ -400,5 +331,6 @@ struct JourneyTreeNodeView: View {
         }
         .listStyle(.sidebar)
         .environmentObject(JourneyStore.shared)
+        .environmentObject(JourneyPresentationState())
     }
 }
