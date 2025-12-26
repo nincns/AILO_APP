@@ -55,6 +55,15 @@ struct JourneyEditorView: View {
         title != originalTitle || !content.isEmpty || !tagsText.isEmpty || !pendingAttachments.isEmpty
     }
 
+    /// Berechnet das Startdatum (bei ganztägig: 00:00)
+    private var computedStartDate: Date {
+        if isAllDay {
+            return Calendar.current.startOfDay(for: dueDate)
+        } else {
+            return dueDate
+        }
+    }
+
     /// Berechnet das Enddatum aus Startzeit + Dauer (oder ganztägig)
     private var computedEndDate: Date {
         if isAllDay {
@@ -529,7 +538,7 @@ struct JourneyEditorView: View {
 
                     if updated.nodeType == .task {
                         updated.status = status
-                        updated.dueDate = hasDueDate ? dueDate : nil
+                        updated.dueDate = hasDueDate ? computedStartDate : nil
                         updated.dueEndDate = hasDueDate ? computedEndDate : nil
                         updated.progress = Int(progress)
                     }
@@ -551,7 +560,7 @@ struct JourneyEditorView: View {
                     // Für neue Tasks: Task-spezifische Felder setzen
                     if selectedType == .task {
                         newNode.status = status
-                        newNode.dueDate = hasDueDate ? dueDate : nil
+                        newNode.dueDate = hasDueDate ? computedStartDate : nil
                         newNode.dueEndDate = hasDueDate ? computedEndDate : nil
                         newNode.progress = Int(progress)
                         try await store.updateNode(newNode)
@@ -591,7 +600,7 @@ struct JourneyEditorView: View {
                     // Erstelle/aktualisiere Kalender-Event im konfigurierten Kalender
                     var nodeForCalendar = node ?? JourneyNode(section: selectedSection, nodeType: selectedType, title: title)
                     nodeForCalendar.title = title
-                    nodeForCalendar.dueDate = dueDate
+                    nodeForCalendar.dueDate = computedStartDate
                     nodeForCalendar.dueEndDate = computedEndDate
                     nodeForCalendar.status = status
 
