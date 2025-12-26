@@ -490,6 +490,7 @@ public final class IMAPClient {
     
     /// APPEND command for adding messages to folders (Phase 5)
     /// Used for adding sent messages to Sent folder
+    /// Uses LITERAL+ (RFC 7888) for non-synchronizing literal upload
     public func append(folder: String, message: String, flags: [String] = [], idleTimeout: TimeInterval = 15.0) async throws {
         print("📧 [APPEND] Starting append to folder: \(folder)")
         let tag = tagger.next()
@@ -502,25 +503,19 @@ public final class IMAPClient {
         }
 
         // Build the literal data: message MIT terminierendem CRLF als EIN Block
-        // Alles zusammen senden um TCP-Fragmentierung zu vermeiden
         let fullLiteral = message + "\r\n"
         let literalData = fullLiteral.data(using: .utf8) ?? Data()
-        cmd += " {\(literalData.count)}"
-        print("📧 [APPEND] Command built: \(cmd.prefix(100))... literalSize=\(literalData.count)")
 
-        print("📧 [APPEND] Sending APPEND command...")
+        // Verwende LITERAL+ (RFC 7888): {n+} statt {n}
+        // Mit dem + wartet der Server NICHT auf Continuation, sondern akzeptiert das Literal sofort
+        cmd += " {\(literalData.count)+}"
+        print("📧 [APPEND] Command built (LITERAL+): \(cmd.prefix(100))... literalSize=\(literalData.count)")
+
+        // Sende Command und Literal direkt hintereinander (kein Warten auf Continuation nötig!)
+        print("📧 [APPEND] Sending APPEND command with LITERAL+...")
         try await conn.send(line: cmd)
-        print("📧 [APPEND] Command sent, waiting for continuation (+)...")
 
-        // Server should respond with continuation (+)
-        let continuation = try await conn.receiveLines(untilTag: nil, idleTimeout: 5.0)
-        print("📧 [APPEND] Received continuation: \(continuation)")
-        guard continuation.first?.hasPrefix("+") == true else {
-            throw IMAPError.protocolError("Expected continuation response for APPEND, got: \(continuation.first ?? "nothing")")
-        }
-
-        // Send ALLES in einem einzigen sendRaw() - Message + CRLF zusammen
-        print("📧 [APPEND] Sending literal data (\(literalData.count) bytes) in single sendRaw...")
+        print("📧 [APPEND] Sending literal data (\(literalData.count) bytes) immediately...")
         try await conn.sendRaw(literalData)
         print("📧 [APPEND] Literal sent completely")
 
