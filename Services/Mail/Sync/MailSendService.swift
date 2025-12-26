@@ -366,20 +366,20 @@ public final class MailSendService {
                 tls: account.recvEncryption == .sslTLS,
                 sniHost: account.recvHost,
                 connectionTimeoutSec: account.connectionTimeoutSec,
-                readTimeoutSec: 30
+                idleTimeoutSec: 30
             )
             try await conn.open(imapConfig)
             defer { conn.close() }
 
-            // Login
-            try await conn.login(user: account.recvUsername, password: account.recvPassword ?? "")
+            let commands = IMAPCommands()
 
-            // STARTTLS falls nötig
+            // STARTTLS falls nötig (vor Login)
             if account.recvEncryption == .startTLS {
-                try await conn.upgradeToTLS(host: account.recvHost)
-                // Nach STARTTLS nochmal login
-                try await conn.login(user: account.recvUsername, password: account.recvPassword ?? "")
+                try await commands.startTLS(conn)
             }
+
+            // Login
+            try await commands.login(conn, user: account.recvUsername, pass: account.recvPassword ?? "")
 
             // APPEND ausführen
             let client = IMAPClient(connection: conn)
