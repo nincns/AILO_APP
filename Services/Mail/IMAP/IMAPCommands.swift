@@ -501,11 +501,12 @@ public final class IMAPClient {
             cmd += " (\(flagList))"
         }
 
-        // Build the literal data: message + terminating CRLF
-        // IMAP literal size must exactly match the bytes that follow
-        let literalData = (message + "\r\n").data(using: .utf8) ?? Data()
-        cmd += " {\(literalData.count)}"
-        print("📧 [APPEND] Command built: \(cmd.prefix(100))... literalSize=\(literalData.count)")
+        // Build the literal data: message OHNE terminierendes CRLF
+        // Das CRLF wird separat gesendet um TCP flush zu erzwingen
+        let literalData = message.data(using: .utf8) ?? Data()
+        // Literal size = message bytes + 2 (für das separate CRLF das wir nachher senden)
+        cmd += " {\(literalData.count + 2)}"
+        print("📧 [APPEND] Command built: \(cmd.prefix(100))... literalSize=\(literalData.count + 2) (msg:\(literalData.count) + CRLF:2)")
 
         print("📧 [APPEND] Sending APPEND command...")
         try await conn.send(line: cmd)
@@ -518,10 +519,16 @@ public final class IMAPClient {
             throw IMAPError.protocolError("Expected continuation response for APPEND, got: \(continuation.first ?? "nothing")")
         }
 
-        // Send raw literal data (message + CRLF) - don't use send(line:) as it adds extra CRLF
+        // Send raw literal data (message OHNE CRLF)
         print("📧 [APPEND] Sending literal data (\(literalData.count) bytes)...")
         try await conn.sendRaw(literalData)
         print("📧 [APPEND] Literal data sent")
+
+        // Sende terminierendes CRLF separat über send(line:) um TCP flush zu erzwingen
+        // send(line: "") sendet nur \r\n
+        print("📧 [APPEND] Sending terminating CRLF via send(line:)...")
+        try await conn.send(line: "")
+        print("📧 [APPEND] Terminating CRLF sent")
 
         // Extra wait to ensure TCP stack has flushed all data to server
         print("📧 [APPEND] Waiting 200ms for TCP flush before reading response...")

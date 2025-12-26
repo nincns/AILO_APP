@@ -369,9 +369,10 @@ public final class MailSendService {
         print("📤 [APPEND] RFC822 escaped (first 1000 chars):\n\(escapedPreview.prefix(1000))")
 
         // Debug: Hex-Dump der letzten Bytes um Terminierung zu prüfen
-        let msgData = (rfc822Message + "\r\n").data(using: .utf8) ?? Data()
+        // Hinweis: Das CRLF wird jetzt separat gesendet, daher nur message ohne CRLF hier
+        let msgData = rfc822Message.data(using: .utf8) ?? Data()
         let lastBytes = msgData.suffix(20)
-        print("📤 [APPEND] Message total bytes: \(msgData.count)")
+        print("📤 [APPEND] Message bytes: \(msgData.count) + 2 (CRLF separat) = \(msgData.count + 2) total")
         print("📤 [APPEND] Last 20 bytes (hex): \(lastBytes.map { String(format: "%02X", $0) }.joined(separator: " "))")
         print("📤 [APPEND] Last 20 bytes (ascii): \(String(data: lastBytes, encoding: .ascii)?.replacingOccurrences(of: "\r", with: "\\r").replacingOccurrences(of: "\n", with: "\\n") ?? "?")")
 
