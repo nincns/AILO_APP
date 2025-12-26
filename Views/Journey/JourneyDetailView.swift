@@ -27,6 +27,18 @@ struct JourneyDetailView: View {
     // Export State
     @State private var showExportSheet: Bool = false
 
+    // Send Status State
+    @State private var showSendStatusSheet: Bool = false
+    @State private var statusMailRecipients: String = ""
+    @State private var statusMailSubject: String = ""
+    @State private var statusMailBody: String = ""
+    @State private var statusMailAttachments: [ComposeMailView.Attachment] = []
+
+    /// Kontakte mit gültiger E-Mail-Adresse
+    private var contactsWithEmail: [JourneyContactRef] {
+        contacts.filter { $0.email != nil && !$0.email!.isEmpty }
+    }
+
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
@@ -133,6 +145,13 @@ struct JourneyDetailView: View {
                         Label(String(localized: "journey.action.export"), systemImage: "square.and.arrow.up")
                     }
 
+                    // Status per E-Mail senden (nur wenn Kontakte mit E-Mail vorhanden)
+                    if !contactsWithEmail.isEmpty {
+                        Button(action: { prepareSendStatus() }) {
+                            Label(String(localized: "journey.action.sendStatus"), systemImage: "envelope.badge.person.crop")
+                        }
+                    }
+
                     Divider()
 
                     Button(role: .destructive, action: { deleteNode() }) {
@@ -187,6 +206,16 @@ struct JourneyDetailView: View {
         .sheet(isPresented: $showExportSheet) {
             JourneyExportSheet(nodes: [node])
                 .environmentObject(store)
+        }
+        .sheet(isPresented: $showSendStatusSheet) {
+            NavigationStack {
+                ComposeMailView(
+                    initialSubject: statusMailSubject,
+                    initialBody: statusMailBody,
+                    initialTo: statusMailRecipients,
+                    initialAttachments: statusMailAttachments
+                )
+            }
         }
         .task {
             loadAttachments()
@@ -272,6 +301,101 @@ struct JourneyDetailView: View {
         // Deep-Link in Kalender-App
         if let url = URL(string: "calshow://") {
             UIApplication.shared.open(url)
+        }
+    }
+
+    // MARK: - Send Status
+
+    private func prepareSendStatus() {
+        guard let dao = store.dao else { return }
+
+        // 1. Empfänger-E-Mails extrahieren
+        let recipients = contactsWithEmail.compactMap { $0.email }.joined(separator: ", ")
+
+        // 2. Betreff vorbereiten
+        let typeLabel: String
+        switch node.nodeType {
+        case .task:
+            typeLabel = String(localized: "journey.status.task")
+        case .entry:
+            typeLabel = String(localized: "journey.status.entry")
+        case .folder:
+            typeLabel = String(localized: "journey.status.folder")
+        }
+        let subject = String(localized: "journey.status.subject \(typeLabel): \(node.title)")
+
+        // 3. Mail-Body vorbereiten
+        var body = String(localized: "journey.status.greeting")
+        body += "\n\n"
+        body += String(localized: "journey.status.intro \(typeLabel) \"\(node.title)\"")
+        body += "\n\n"
+
+        // Status-Details für Tasks
+        if node.nodeType == .task {
+            if let status = node.status {
+                body += String(localized: "journey.status.currentStatus \(status.title)")
+                body += "\n"
+            }
+            if let progress = node.progress {
+                body += String(localized: "journey.status.progress \(progress)")
+                body += "\n"
+            }
+            if let dueDate = node.dueDate {
+                let formatter = DateFormatter()
+                formatter.dateStyle = .medium
+                formatter.timeStyle = .short
+                body += String(localized: "journey.status.dueDate \(formatter.string(from: dueDate))")
+                body += "\n"
+            }
+            body += "\n"
+        }
+
+        // Inhalt hinzufügen wenn vorhanden
+        if let content = node.content, !content.isEmpty {
+            body += String(localized: "journey.status.details")
+            body += "\n"
+            body += content
+            body += "\n\n"
+        }
+
+        body += String(localized: "journey.status.attachmentNote")
+        body += "\n\n"
+        body += String(localized: "journey.status.signature")
+
+        // 4. Export als Attachment erstellen
+        Task {
+            do {
+                let exportService = JourneyExportService(dao: dao)
+                let options = JourneyExportOptions(
+                    includeAttachments: true,
+                    includeContacts: true,
+                    includeSubnodes: true
+                )
+                let exportData = try exportService.exportNode(node, options: options)
+
+                // Dateiname generieren
+                let dateFormatter = DateFormatter()
+                dateFormatter.dateFormat = "yyyy-MM-dd"
+                let dateString = dateFormatter.string(from: Date())
+                let filename = "\(node.title)_\(dateString).ailo"
+
+                // Attachment erstellen
+                let attachment = ComposeMailView.Attachment(
+                    data: exportData,
+                    mimeType: "application/zip",
+                    filename: filename
+                )
+
+                await MainActor.run {
+                    statusMailRecipients = recipients
+                    statusMailSubject = subject
+                    statusMailBody = body
+                    statusMailAttachments = [attachment]
+                    showSendStatusSheet = true
+                }
+            } catch {
+                print("❌ Failed to create export for status mail: \(error)")
+            }
         }
     }
 

@@ -949,6 +949,21 @@
 "journey.import.error.invalidArchive" = "Invalid archive format";
 "journey.import.error.unsupportedVersion %lld" = "Unsupported version: %lld";
 
+/* Journey Send Status (Phase 6) */
+"journey.action.sendStatus" = "Send Status";
+"journey.status.task" = "Task";
+"journey.status.entry" = "Entry";
+"journey.status.folder" = "Folder";
+"journey.status.subject %@ %@" = "Status Update: %1$@: %2$@";
+"journey.status.greeting" = "Hello,";
+"journey.status.intro %@ %@" = "here is a status update for %1$@ \"%2$@\":";
+"journey.status.currentStatus %@" = "Current Status: %@";
+"journey.status.progress %lld" = "Progress: %lld%%";
+"journey.status.dueDate %@" = "Due Date: %@";
+"journey.status.details" = "Details:";
+"journey.status.attachmentNote" = "Please find the complete details attached as .ailo export file.";
+"journey.status.signature" = "Best regards";
+
 /* Journey AI Rewrite */
 "journey.ai.rewrite" = "Rewrite with AI";
 "journey.ai.rewriting" = "Rewriting...";

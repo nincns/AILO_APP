@@ -23,6 +23,7 @@ struct ComposeMailView: View {
     var initialBody: String = ""
     var initialIsHTML: Bool = false
     var initialTo: String = ""
+    var initialAttachments: [Attachment] = []  // Attachments für neue E-Mails (z.B. Status-Export)
 
     // MARK: - Addressing
     @State private var accounts: [MailAccountConfig] = []
@@ -371,6 +372,9 @@ struct ComposeMailView: View {
                     }
                     if !initialTo.isEmpty {
                         to = initialTo
+                    }
+                    if !initialAttachments.isEmpty {
+                        attachments = initialAttachments
                     }
                 }
                 // Neue Mail: Felder bleiben leer (kein Autosave laden)
