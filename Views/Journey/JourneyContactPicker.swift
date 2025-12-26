@@ -42,9 +42,8 @@ struct JourneyContactPicker: UIViewControllerRepresentable {
         }
 
         func contactPicker(_ picker: CNContactPickerViewController, didSelect contact: CNContact) {
-            // Lade den vollständigen Kontakt
-            let fullContact = JourneyContactService.shared.fetchContact(identifier: contact.identifier) ?? contact
-            parent.onSelect(fullContact)
+            // Übergebe den partiellen Kontakt direkt - der vollständige wird später async geladen
+            parent.onSelect(contact)
             parent.isPresented = false
         }
 
@@ -68,6 +67,7 @@ struct JourneyContactPickerSheet: View {
     // Ausgewählter Kontakt für E-Mail/Telefon-Auswahl
     @State private var selectedContact: CNContact?
     @State private var showContactDetails: Bool = false
+    @State private var isLoadingContact: Bool = false
 
     var body: some View {
         NavigationStack {
@@ -137,22 +137,22 @@ struct JourneyContactPickerSheet: View {
             .sheet(isPresented: $showPicker) {
                 JourneyContactPicker(
                     isPresented: $showPicker,
-                    onSelect: { contact in
-                        selectedContact = contact
-                        // Zeige immer die Auswahl wenn E-Mails oder Telefonnummern vorhanden sind
-                        // So kann der Benutzer sehen was importiert wird und es bestätigen
-                        if !contact.emailAddresses.isEmpty || !contact.phoneNumbers.isEmpty {
-                            showContactDetails = true
-                        } else {
-                            // Keine E-Mails oder Telefonnummern - direkt übernehmen
-                            finalizeContact(
-                                contact: contact,
-                                selectedEmail: nil,
-                                selectedPhone: nil
-                            )
-                        }
+                    onSelect: { partialContact in
+                        // Lade vollständigen Kontakt asynchron
+                        loadFullContact(partialContact)
                     }
                 )
+            }
+            .overlay {
+                if isLoadingContact {
+                    ZStack {
+                        Color.black.opacity(0.3)
+                        ProgressView(String(localized: "common.loading"))
+                            .padding()
+                            .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 12))
+                    }
+                    .ignoresSafeArea()
+                }
             }
             .sheet(isPresented: $showContactDetails) {
                 if let contact = selectedContact {
@@ -183,6 +183,34 @@ struct JourneyContactPickerSheet: View {
             permissionDenied = !granted
         default:
             permissionDenied = true
+        }
+    }
+
+    private func loadFullContact(_ partialContact: CNContact) {
+        isLoadingContact = true
+
+        Task {
+            // Lade vollständigen Kontakt im Hintergrund
+            let fullContact = await Task.detached {
+                JourneyContactService.shared.fetchContact(identifier: partialContact.identifier) ?? partialContact
+            }.value
+
+            await MainActor.run {
+                isLoadingContact = false
+                selectedContact = fullContact
+
+                // Zeige immer die Auswahl wenn E-Mails oder Telefonnummern vorhanden sind
+                if !fullContact.emailAddresses.isEmpty || !fullContact.phoneNumbers.isEmpty {
+                    showContactDetails = true
+                } else {
+                    // Keine E-Mails oder Telefonnummern - direkt übernehmen
+                    finalizeContact(
+                        contact: fullContact,
+                        selectedEmail: nil,
+                        selectedPhone: nil
+                    )
+                }
+            }
         }
     }
 
