@@ -865,6 +865,9 @@
 "journey.contacts.noAccess" = "No access to contacts";
 "journey.contacts.noAccess.message" = "Please allow AILO access to your contacts in Settings.";
 "journey.contacts.other" = "Other";
+"journey.contact.details" = "Select Contact Details";
+"journey.contact.selectEmail" = "Email Address";
+"journey.contact.selectPhone" = "Phone Number";
 "journey.role" = "Role";
 
 /* Journey Task */

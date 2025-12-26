@@ -1,12 +1,13 @@
 // Views/Journey/JourneyContactPicker.swift
 import SwiftUI
 import ContactsUI
+import Contacts
+
+// MARK: - Raw Contact Picker (returns CNContact)
 
 struct JourneyContactPicker: UIViewControllerRepresentable {
     @Binding var isPresented: Bool
-    let nodeId: UUID
-    let defaultRole: ContactRole?
-    let onSelect: (JourneyContactRef) -> Void
+    let onSelect: (CNContact) -> Void
 
     func makeUIViewController(context: Context) -> UINavigationController {
         let picker = CNContactPickerViewController()
@@ -41,13 +42,9 @@ struct JourneyContactPicker: UIViewControllerRepresentable {
         }
 
         func contactPicker(_ picker: CNContactPickerViewController, didSelect contact: CNContact) {
-            let contactRef = JourneyContactService.shared.createContactRef(
-                from: contact,
-                nodeId: parent.nodeId,
-                role: parent.defaultRole
-            )
-
-            parent.onSelect(contactRef)
+            // Lade den vollständigen Kontakt
+            let fullContact = JourneyContactService.shared.fetchContact(identifier: contact.identifier) ?? contact
+            parent.onSelect(fullContact)
             parent.isPresented = false
         }
 
@@ -57,7 +54,7 @@ struct JourneyContactPicker: UIViewControllerRepresentable {
     }
 }
 
-// MARK: - Sheet Wrapper
+// MARK: - Sheet Wrapper with Email/Phone Selection
 
 struct JourneyContactPickerSheet: View {
     @Binding var isPresented: Bool
@@ -67,6 +64,10 @@ struct JourneyContactPickerSheet: View {
     @State private var selectedRole: ContactRole = .contact
     @State private var showPicker: Bool = false
     @State private var permissionDenied: Bool = false
+
+    // Ausgewählter Kontakt für E-Mail/Telefon-Auswahl
+    @State private var selectedContact: CNContact?
+    @State private var showContactDetails: Bool = false
 
     var body: some View {
         NavigationStack {
@@ -136,15 +137,37 @@ struct JourneyContactPickerSheet: View {
             .sheet(isPresented: $showPicker) {
                 JourneyContactPicker(
                     isPresented: $showPicker,
-                    nodeId: nodeId,
-                    defaultRole: selectedRole,
-                    onSelect: { contactRef in
-                        var ref = contactRef
-                        ref.role = selectedRole
-                        onSelect(ref)
-                        isPresented = false
+                    onSelect: { contact in
+                        selectedContact = contact
+                        // Prüfe ob Auswahl nötig ist
+                        if contact.emailAddresses.count > 1 || contact.phoneNumbers.count > 1 {
+                            // Mehrere E-Mails oder Telefonnummern - zeige Auswahl
+                            showContactDetails = true
+                        } else {
+                            // Nur eine oder keine - direkt übernehmen
+                            finalizeContact(
+                                contact: contact,
+                                selectedEmail: contact.emailAddresses.first?.value as String?,
+                                selectedPhone: contact.phoneNumbers.first?.value.stringValue
+                            )
+                        }
                     }
                 )
+            }
+            .sheet(isPresented: $showContactDetails) {
+                if let contact = selectedContact {
+                    ContactDetailsSelectionSheet(
+                        contact: contact,
+                        role: selectedRole,
+                        onConfirm: { email, phone in
+                            finalizeContact(contact: contact, selectedEmail: email, selectedPhone: phone)
+                        },
+                        onCancel: {
+                            showContactDetails = false
+                            selectedContact = nil
+                        }
+                    )
+                }
             }
         }
     }
@@ -161,6 +184,165 @@ struct JourneyContactPickerSheet: View {
         default:
             permissionDenied = true
         }
+    }
+
+    private func finalizeContact(contact: CNContact, selectedEmail: String?, selectedPhone: String?) {
+        let displayName = [contact.givenName, contact.familyName]
+            .filter { !$0.isEmpty }
+            .joined(separator: " ")
+            .ifEmpty(contact.organizationName)
+
+        let contactRef = JourneyContactRef(
+            nodeId: nodeId,
+            contactId: contact.identifier,
+            displayName: displayName,
+            email: selectedEmail,
+            phone: selectedPhone,
+            role: selectedRole,
+            note: nil
+        )
+
+        onSelect(contactRef)
+        isPresented = false
+    }
+}
+
+// MARK: - Contact Details Selection Sheet
+
+struct ContactDetailsSelectionSheet: View {
+    let contact: CNContact
+    let role: ContactRole
+    let onConfirm: (String?, String?) -> Void
+    let onCancel: () -> Void
+
+    @State private var selectedEmailIndex: Int = 0
+    @State private var selectedPhoneIndex: Int = 0
+
+    private var emails: [String] {
+        contact.emailAddresses.map { $0.value as String }
+    }
+
+    private var phones: [String] {
+        contact.phoneNumbers.map { $0.value.stringValue }
+    }
+
+    private var displayName: String {
+        [contact.givenName, contact.familyName]
+            .filter { !$0.isEmpty }
+            .joined(separator: " ")
+    }
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                // Kontakt-Info
+                Section {
+                    HStack(spacing: 12) {
+                        contactAvatar
+                        VStack(alignment: .leading) {
+                            Text(displayName)
+                                .font(.headline)
+                            Text(role.title)
+                                .font(.subheadline)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                }
+
+                // E-Mail Auswahl
+                if !emails.isEmpty {
+                    Section(header: Text(String(localized: "journey.contact.selectEmail"))) {
+                        ForEach(emails.indices, id: \.self) { index in
+                            Button {
+                                selectedEmailIndex = index
+                            } label: {
+                                HStack {
+                                    Image(systemName: "envelope")
+                                        .foregroundStyle(.blue)
+                                    Text(emails[index])
+                                        .foregroundStyle(.primary)
+                                    Spacer()
+                                    if selectedEmailIndex == index {
+                                        Image(systemName: "checkmark.circle.fill")
+                                            .foregroundStyle(.green)
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // Telefon Auswahl
+                if !phones.isEmpty {
+                    Section(header: Text(String(localized: "journey.contact.selectPhone"))) {
+                        ForEach(phones.indices, id: \.self) { index in
+                            Button {
+                                selectedPhoneIndex = index
+                            } label: {
+                                HStack {
+                                    Image(systemName: "phone")
+                                        .foregroundStyle(.green)
+                                    Text(phones[index])
+                                        .foregroundStyle(.primary)
+                                    Spacer()
+                                    if selectedPhoneIndex == index {
+                                        Image(systemName: "checkmark.circle.fill")
+                                            .foregroundStyle(.green)
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            .navigationTitle(String(localized: "journey.contact.details"))
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button(String(localized: "common.cancel")) {
+                        onCancel()
+                    }
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button(String(localized: "common.done")) {
+                        let email = emails.isEmpty ? nil : emails[selectedEmailIndex]
+                        let phone = phones.isEmpty ? nil : phones[selectedPhoneIndex]
+                        onConfirm(email, phone)
+                    }
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var contactAvatar: some View {
+        if let imageData = contact.thumbnailImageData,
+           let uiImage = UIImage(data: imageData) {
+            Image(uiImage: uiImage)
+                .resizable()
+                .scaledToFill()
+                .frame(width: 50, height: 50)
+                .clipShape(Circle())
+        } else {
+            // Initialen
+            let initials = String(contact.givenName.prefix(1)) + String(contact.familyName.prefix(1))
+            Circle()
+                .fill(Color.blue.opacity(0.2))
+                .frame(width: 50, height: 50)
+                .overlay(
+                    Text(initials.uppercased())
+                        .font(.headline)
+                        .foregroundStyle(.blue)
+                )
+        }
+    }
+}
+
+// MARK: - String Extension
+
+private extension String {
+    func ifEmpty(_ fallback: String) -> String {
+        isEmpty ? fallback : self
     }
 }
 

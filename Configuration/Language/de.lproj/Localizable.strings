@@ -819,6 +819,9 @@
 "journey.contacts.noAccess" = "Kein Zugriff auf Kontakte";
 "journey.contacts.noAccess.message" = "Bitte erlaube AILO den Zugriff auf deine Kontakte in den Einstellungen.";
 "journey.contacts.other" = "Sonstige";
+"journey.contact.details" = "Kontaktdaten wählen";
+"journey.contact.selectEmail" = "E-Mail-Adresse";
+"journey.contact.selectPhone" = "Telefonnummer";
 "journey.role" = "Rolle";
 "journey.role.assignee" = "Zugewiesen an";
 "journey.role.owner" = "Inhaber";
