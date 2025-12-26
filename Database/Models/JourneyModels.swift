@@ -135,6 +135,7 @@ public struct JourneyNode: Identifiable, Codable, Equatable, Sendable {
     // Task-spezifisch
     public var status: JourneyTaskStatus?
     public var dueDate: Date?
+    public var dueEndDate: Date?
     public var progress: Int?
     public var calendarEventId: String?
 
@@ -163,6 +164,7 @@ public struct JourneyNode: Identifiable, Codable, Equatable, Sendable {
         doingAt: Date? = nil,
         status: JourneyTaskStatus? = nil,
         dueDate: Date? = nil,
+        dueEndDate: Date? = nil,
         progress: Int? = nil,
         calendarEventId: String? = nil,
         assignedTo: UUID? = nil,
@@ -186,6 +188,7 @@ public struct JourneyNode: Identifiable, Codable, Equatable, Sendable {
         self.doingAt = doingAt
         self.status = status
         self.dueDate = dueDate
+        self.dueEndDate = dueEndDate
         self.progress = progress
         self.calendarEventId = calendarEventId
         self.assignedTo = assignedTo
@@ -199,7 +202,7 @@ public struct JourneyNode: Identifiable, Codable, Equatable, Sendable {
     private enum CodingKeys: String, CodingKey {
         case id, originId, revision, parentId, section, nodeType, title, content
         case sortOrder, tags, createdAt, modifiedAt, doingAt
-        case status, dueDate, progress, calendarEventId
+        case status, dueDate, dueEndDate, progress, calendarEventId
         case assignedTo, createdBy, completedAt, completedBy
     }
 }

@@ -827,7 +827,9 @@
 "journey.role.contact" = "Kontakt";
 
 /* Journey Task */
-"journey.task.hasDueDate" = "Fälligkeitsdatum";
+"journey.task.hasDueDate" = "Termin erstellen";
+"journey.task.startTime" = "Von";
+"journey.task.endTime" = "Bis";
 
 /* Journey Calendar (Phase 5) */
 "journey.calendar" = "Kalender";

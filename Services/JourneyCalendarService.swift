@@ -88,15 +88,17 @@ public final class JourneyCalendarService {
     /// Erstellt Kalender-Event für Task (verwendet konfigurierten Journey-Kalender)
     public func createEvent(
         title: String,
-        dueDate: Date,
+        startDate: Date,
+        endDate: Date? = nil,
         notes: String? = nil,
         calendar: EKCalendar? = nil,
         alarm: TimeInterval? = -3600 // 1 Stunde vorher
     ) throws -> String {
         let event = EKEvent(eventStore: store)
         event.title = title
-        event.startDate = dueDate
-        event.endDate = Calendar.current.date(byAdding: .hour, value: 1, to: dueDate) ?? dueDate
+        event.startDate = startDate
+        // Verwende übergebenes endDate oder +1 Stunde als Fallback
+        event.endDate = endDate ?? Calendar.current.date(byAdding: .hour, value: 1, to: startDate) ?? startDate
         event.notes = notes
         // Verwendet übergebenen Kalender, oder konfigurierten Journey-Kalender
         event.calendar = calendar ?? journeyCalendar
@@ -118,7 +120,8 @@ public final class JourneyCalendarService {
     public func updateEvent(
         identifier: String,
         title: String? = nil,
-        dueDate: Date? = nil,
+        startDate: Date? = nil,
+        endDate: Date? = nil,
         notes: String? = nil
     ) throws {
         guard let event = store.event(withIdentifier: identifier) else {
@@ -129,9 +132,13 @@ public final class JourneyCalendarService {
             event.title = title
         }
 
-        if let dueDate = dueDate {
-            event.startDate = dueDate
-            event.endDate = Calendar.current.date(byAdding: .hour, value: 1, to: dueDate) ?? dueDate
+        if let startDate = startDate {
+            event.startDate = startDate
+            // Verwende übergebenes endDate oder +1 Stunde als Fallback
+            event.endDate = endDate ?? Calendar.current.date(byAdding: .hour, value: 1, to: startDate) ?? startDate
+        } else if let endDate = endDate {
+            // Nur endDate aktualisieren
+            event.endDate = endDate
         }
 
         if let notes = notes {
@@ -166,7 +173,7 @@ public final class JourneyCalendarService {
 
     /// Synchronisiert Task mit Kalender (erstellt oder aktualisiert)
     public func syncTask(_ node: JourneyNode) throws -> String? {
-        guard node.nodeType == .task, let dueDate = node.dueDate else {
+        guard node.nodeType == .task, let startDate = node.dueDate else {
             return nil
         }
 
@@ -177,7 +184,8 @@ public final class JourneyCalendarService {
             try updateEvent(
                 identifier: existingId,
                 title: node.title,
-                dueDate: dueDate,
+                startDate: startDate,
+                endDate: node.dueEndDate,
                 notes: notes
             )
             return existingId
@@ -185,7 +193,8 @@ public final class JourneyCalendarService {
             // Create
             return try createEvent(
                 title: node.title,
-                dueDate: dueDate,
+                startDate: startDate,
+                endDate: node.dueEndDate,
                 notes: notes
             )
         }

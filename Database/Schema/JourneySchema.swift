@@ -7,7 +7,7 @@ public enum JourneySchema {
 
     /// Schema-Version für Journey-Tabellen
     /// Separat von MailSchema verwaltet
-    public static let currentVersion: Int = 1
+    public static let currentVersion: Int = 2
 
     // MARK: - Table Names
 
@@ -123,12 +123,21 @@ public enum JourneySchema {
         """
     ]
 
+    // MARK: - DDL v2: Add due_end_date for time slots
+
+    public static let ddl_v2: [String] = [
+        """
+        ALTER TABLE \(tNodes) ADD COLUMN due_end_date REAL;
+        """
+    ]
+
     // MARK: - Migration API
 
     public static func createStatements(for version: Int = currentVersion) -> [String] {
         switch version {
         case 1: return ddl_v1
-        default: return ddl_v1
+        case 2: return ddl_v1 + ddl_v2
+        default: return ddl_v1 + ddl_v2
         }
     }
 
@@ -140,7 +149,8 @@ public enum JourneySchema {
             switch v {
             case 0:
                 steps.append(ddl_v1)
-            // Zukünftige Migrationen hier
+            case 1:
+                steps.append(ddl_v2)
             default:
                 steps.append([])
             }
