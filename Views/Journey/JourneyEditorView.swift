@@ -41,8 +41,7 @@ struct JourneyEditorView: View {
     @State private var contactsToDelete: [JourneyContactRef] = []
     @State private var showContactPicker: Bool = false
 
-    // Calendar
-    @State private var syncToCalendar: Bool = false
+    // Calendar wird jetzt automatisch gesynct wenn konfiguriert
 
     // Original values to detect changes
     @State private var originalTitle: String = ""
@@ -142,14 +141,40 @@ struct JourneyEditorView: View {
                         }
                     }
 
-                    Toggle("Fälligkeitsdatum", isOn: $hasDueDate)
+                    Toggle(String(localized: "journey.task.hasDueDate"), isOn: $hasDueDate)
 
                     if hasDueDate {
                         DatePicker(
                             String(localized: "journey.detail.dueDate"),
                             selection: $dueDate,
-                            displayedComponents: [.date]
+                            displayedComponents: [.date, .hourAndMinute]
                         )
+
+                        // Kalender-Info wenn konfiguriert
+                        if let calendar = JourneyCalendarService.shared.configuredCalendar {
+                            HStack {
+                                Image(systemName: "calendar")
+                                    .foregroundStyle(Color(cgColor: calendar.cgColor))
+                                Text(calendar.title)
+                                    .foregroundStyle(.secondary)
+                                Spacer()
+                                Image(systemName: "checkmark.circle.fill")
+                                    .foregroundStyle(.green)
+                            }
+                            .font(.subheadline)
+                        } else if JourneyCalendarService.shared.permissionStatus == .authorized {
+                            NavigationLink {
+                                JourneyCalendarSettingsView()
+                            } label: {
+                                HStack {
+                                    Image(systemName: "calendar.badge.plus")
+                                        .foregroundStyle(.orange)
+                                    Text(String(localized: "journey.calendar.configure"))
+                                        .foregroundStyle(.secondary)
+                                }
+                                .font(.subheadline)
+                            }
+                        }
                     }
 
                     VStack(alignment: .leading) {
@@ -160,19 +185,6 @@ struct JourneyEditorView: View {
                                 .foregroundStyle(.secondary)
                         }
                         Slider(value: $progress, in: 0...100, step: 5)
-                    }
-                }
-
-                // Kalender-Sync Section
-                if hasDueDate {
-                    Section(String(localized: "journey.calendar")) {
-                        Toggle(String(localized: "journey.calendar.sync"), isOn: $syncToCalendar)
-
-                        if syncToCalendar {
-                            Text(String(localized: "journey.calendar.willCreate"))
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        }
                     }
                 }
             }
@@ -244,9 +256,6 @@ struct JourneyEditorView: View {
 
                 // Load contacts
                 loadContacts()
-
-                // Kalender-Sync Status
-                syncToCalendar = node.calendarEventId != nil && !node.calendarEventId!.isEmpty
             } else {
                 // Für neue Nodes: preselected values setzen
                 if let section = preselectedSection {
@@ -522,9 +531,12 @@ struct JourneyEditorView: View {
                     try? await store.addContact(contact)
                 }
 
-                // Kalender-Sync
-                if syncToCalendar && (selectedType == .task || node?.nodeType == .task) && hasDueDate {
-                    // Erstelle/aktualisiere Kalender-Event
+                // Automatischer Kalender-Sync wenn konfiguriert
+                let isTask = selectedType == .task || node?.nodeType == .task
+                let hasCalendar = JourneyCalendarService.shared.hasConfiguredCalendar
+
+                if isTask && hasDueDate && hasCalendar {
+                    // Erstelle/aktualisiere Kalender-Event im konfigurierten Kalender
                     var nodeForCalendar = node ?? JourneyNode(section: selectedSection, nodeType: selectedType, title: title)
                     nodeForCalendar.title = title
                     nodeForCalendar.dueDate = dueDate
@@ -535,6 +547,16 @@ struct JourneyEditorView: View {
                         updated.id = nodeId
                         updated.calendarEventId = eventId
                         try? await store.updateNode(updated)
+                        print("✅ Task synced to calendar: \(eventId)")
+                    }
+                } else if isTask && !hasDueDate {
+                    // Due Date entfernt - Kalender-Event löschen wenn vorhanden
+                    if let existingEventId = node?.calendarEventId, !existingEventId.isEmpty {
+                        try? JourneyCalendarService.shared.deleteEvent(identifier: existingEventId)
+                        var updated = node!
+                        updated.calendarEventId = nil
+                        try? await store.updateNode(updated)
+                        print("🗑️ Calendar event removed")
                     }
                 }
 

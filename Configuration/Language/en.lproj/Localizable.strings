@@ -867,8 +867,12 @@
 "journey.contacts.other" = "Other";
 "journey.role" = "Role";
 
+/* Journey Task */
+"journey.task.hasDueDate" = "Due Date";
+
 /* Journey Calendar (Phase 5) */
 "journey.calendar" = "Calendar";
+"journey.calendar.configure" = "Configure calendar";
 "journey.calendar.add" = "Add to calendar";
 "journey.calendar.sync" = "Add to calendar";
 "journey.calendar.synced" = "In calendar";
