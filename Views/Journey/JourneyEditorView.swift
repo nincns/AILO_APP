@@ -287,8 +287,8 @@ struct JourneyEditorView: View {
                     // Berechne Dauer aus Start/Ende oder nutze Fallback
                     if let end = node.dueEndDate {
                         let minutes = Int(end.timeIntervalSince(d) / 60)
-                        // Prüfe ob ganztägig (24h = 1440min)
-                        if minutes >= 1440 {
+                        // Prüfe ob ganztägig (>= 23h = 1380min)
+                        if minutes >= 1380 {
                             isAllDay = true
                             durationMinutes = 60
                         } else {
