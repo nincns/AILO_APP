@@ -362,6 +362,8 @@ public final class MailSendService {
         // RFC822 Message bauen
         let rfc822Message = buildRFC822Message(draft: draft, account: account)
         logger.info(.SEND, accountId: accountId, "📤 RFC822 message built: \(rfc822Message.count) chars")
+        // Debug: Erste 500 Zeichen der Message loggen für Troubleshooting
+        print("📤 [APPEND] RFC822 preview:\n\(rfc822Message.prefix(500))")
 
         do {
             // IMAP Verbindung öffnen
@@ -398,10 +400,15 @@ public final class MailSendService {
             try await commands.login(conn, user: account.recvUsername, pass: account.recvPassword ?? "")
             logger.info(.SEND, accountId: accountId, "📤 Login successful")
 
-            // APPEND ausführen
+            // SELECT Sent-Ordner (manche Server wie Dovecot erfordern das vor APPEND)
+            logger.info(.SEND, accountId: accountId, "📤 Selecting folder: \(sentFolder)")
+            _ = try await commands.select(conn, folder: sentFolder, readOnly: false)
+            logger.info(.SEND, accountId: accountId, "📤 Folder selected")
+
+            // APPEND ausführen mit erhöhtem Timeout (30s statt 15s)
             logger.info(.SEND, accountId: accountId, "📤 Executing APPEND to \(sentFolder)...")
             let client = IMAPClient(connection: conn)
-            try await client.append(folder: sentFolder, message: rfc822Message, flags: ["Seen"])
+            try await client.append(folder: sentFolder, message: rfc822Message, flags: ["Seen"], idleTimeout: 30.0)
 
             logger.info(.SEND, accountId: accountId, "📁 Appended to Sent folder: \(sentFolder)")
         } catch {
