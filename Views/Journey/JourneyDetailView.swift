@@ -282,6 +282,27 @@ struct JourneyDetailView: View {
     }
 
     private func addContact(_ contactRef: JourneyContactRef) {
+        // Prüfe auf Duplikate (gleiche E-Mail oder gleiche contactId)
+        let isDuplicate = contacts.contains { existing in
+            // Gleiche Kontakt-ID
+            if existing.contactId == contactRef.contactId {
+                return true
+            }
+            // Gleiche E-Mail (wenn vorhanden)
+            if let existingEmail = existing.email,
+               let newEmail = contactRef.email,
+               !existingEmail.isEmpty && !newEmail.isEmpty,
+               existingEmail.lowercased() == newEmail.lowercased() {
+                return true
+            }
+            return false
+        }
+
+        guard !isDuplicate else {
+            print("⚠️ Contact already exists, skipping duplicate")
+            return
+        }
+
         Task {
             do {
                 try await store.addContact(contactRef)
@@ -314,8 +335,9 @@ struct JourneyDetailView: View {
     private func prepareSendStatus() {
         guard let dao = store.dao else { return }
 
-        // 1. Empfänger-E-Mails extrahieren
-        let recipients = contactsWithEmail.compactMap { $0.email }.joined(separator: ", ")
+        // 1. Empfänger-E-Mails extrahieren (ohne Duplikate)
+        let uniqueEmails = Set(contactsWithEmail.compactMap { $0.email?.lowercased() })
+        let recipients = uniqueEmails.sorted().joined(separator: ", ")
 
         // 2. Betreff vorbereiten
         let typeLabel: String
