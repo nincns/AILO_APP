@@ -218,15 +218,38 @@ public final class IMAPConnection {
             return appended
         }
 
+        print("📡 [receiveLines] Starting loop, timeout=\(timeout)s, tag=\(untilTag ?? "nil")")
         while Date() < idleDeadline && (hardDeadline == nil || Date() < hardDeadline!) {
-            let data: Data? = try await withCheckedThrowingContinuation { (cont: CheckedContinuation<Data?, Error>) in
-                c.receive(minimumIncompleteLength: 1, maximumLength: 16 * 1024) { data, _, _, error in
-                    if let error {
-                        cont.resume(throwing: self.mapNWError(error, context: "receive"))
-                        return
+            // Use a timeout for receive to prevent blocking forever
+            let receiveTimeout = min(timeout, 10.0) // Max 10 seconds per receive
+            print("📡 [receiveLines] Waiting for data (max \(receiveTimeout)s)...")
+            let data: Data? = try await withThrowingTaskGroup(of: Data?.self) { group in
+                group.addTask {
+                    try await withCheckedThrowingContinuation { (cont: CheckedContinuation<Data?, Error>) in
+                        c.receive(minimumIncompleteLength: 1, maximumLength: 16 * 1024) { data, _, _, error in
+                            if let error {
+                                cont.resume(throwing: self.mapNWError(error, context: "receive"))
+                                return
+                            }
+                            cont.resume(returning: data)
+                        }
                     }
-                    cont.resume(returning: data)
                 }
+                group.addTask {
+                    try await Task.sleep(nanoseconds: UInt64(receiveTimeout * 1_000_000_000))
+                    return nil // Timeout - return nil to signal no data
+                }
+                // Return the first result (either data or timeout)
+                if let result = try await group.next() {
+                    group.cancelAll()
+                    return result
+                }
+                return nil
+            }
+            if data == nil {
+                print("📡 [receiveLines] Receive returned nil (timeout or no data)")
+            } else {
+                print("📡 [receiveLines] Received \(data!.count) bytes")
             }
             guard let data, !data.isEmpty else { break }
             let chunkSize = data.count
@@ -318,12 +341,20 @@ public final class IMAPConnection {
 
             idleDeadline = Date().addingTimeInterval(timeout)
             let appended = drainBufferToLines()
+            if appended > 0 {
+                print("📡 [receiveLines] Drained \(appended) lines, total: \(lines.count)")
+                for (i, line) in lines.suffix(appended).enumerated() {
+                    print("📡 [receiveLines] Line[\(lines.count - appended + i)]: \(line.prefix(100))")
+                }
+            }
             if maxLines > 0 && totalLines >= maxLines {
+                print("📡 [receiveLines] Breaking: maxLines reached")
                 break
             }
 
             if let tag = untilTag {
                 if lines.contains(where: { $0.hasPrefix(tag + " OK") || $0.hasPrefix(tag + " NO") || $0.hasPrefix(tag + " BAD") }) {
+                    print("📡 [receiveLines] Breaking: found tagged response for \(tag)")
                     break
                 }
             }
@@ -331,10 +362,12 @@ public final class IMAPConnection {
             // If no tag and we received a continuation response (+), return immediately
             // This prevents deadlock when server waits for literal data
             if untilTag == nil && lines.contains(where: { $0.hasPrefix("+") }) {
+                print("📡 [receiveLines] Breaking: found continuation (+)")
                 break
             }
         }
 
+        print("📡 [receiveLines] Loop ended, returning \(lines.count) lines")
         // Drain any remaining complete lines
         let _ = drainBufferToLines()
         if maxLines > 0 && lines.count > maxLines {
