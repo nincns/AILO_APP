@@ -340,11 +340,14 @@ public final class MailSendService {
 
     /// Kopiert die gesendete Mail in den Sent-Ordner via IMAP APPEND
     private func appendToSentFolder(draft: MailDraft, accountId: UUID) async {
+        logger.debug(.SEND, accountId: accountId, "📤 appendToSentFolder() started")
+
         let sentFolder = sentFolderName(accountId: accountId)
         guard !sentFolder.isEmpty else {
             logger.debug(.SEND, accountId: accountId, "No Sent folder configured, skipping APPEND")
             return
         }
+        logger.debug(.SEND, accountId: accountId, "📤 Sent folder: \(sentFolder)")
 
         // Account-Konfiguration laden
         guard let data = UserDefaults.standard.data(forKey: "mail.accounts"),
@@ -353,12 +356,15 @@ public final class MailSendService {
             logger.warn(.SEND, accountId: accountId, "Cannot load account config for APPEND")
             return
         }
+        logger.debug(.SEND, accountId: accountId, "📤 Account loaded: \(account.recvHost):\(account.recvPort)")
 
         // RFC822 Message bauen
         let rfc822Message = buildRFC822Message(draft: draft, account: account)
+        logger.debug(.SEND, accountId: accountId, "📤 RFC822 message built: \(rfc822Message.count) chars")
 
         do {
             // IMAP Verbindung öffnen
+            logger.debug(.SEND, accountId: accountId, "📤 Opening IMAP connection...")
             let conn = IMAPConnection(label: "send.append.\(accountId.uuidString.prefix(6))")
             let imapConfig = IMAPConnectionConfig(
                 host: account.recvHost,
@@ -370,21 +376,29 @@ public final class MailSendService {
             )
             try await conn.open(imapConfig)
             defer { conn.close() }
+            logger.debug(.SEND, accountId: accountId, "📤 Connection opened")
 
             let commands = IMAPCommands()
 
             // Server-Greeting empfangen (wichtig vor allen anderen Kommandos!)
+            logger.debug(.SEND, accountId: accountId, "📤 Waiting for greeting...")
             _ = try await commands.greeting(conn)
+            logger.debug(.SEND, accountId: accountId, "📤 Greeting received")
 
             // STARTTLS falls nötig (vor Login)
             if account.recvEncryption == .startTLS {
+                logger.debug(.SEND, accountId: accountId, "📤 Starting TLS...")
                 try await commands.startTLS(conn)
+                logger.debug(.SEND, accountId: accountId, "📤 TLS started")
             }
 
             // Login
+            logger.debug(.SEND, accountId: accountId, "📤 Logging in as \(account.recvUsername)...")
             try await commands.login(conn, user: account.recvUsername, pass: account.recvPassword ?? "")
+            logger.debug(.SEND, accountId: accountId, "📤 Login successful")
 
             // APPEND ausführen
+            logger.debug(.SEND, accountId: accountId, "📤 Executing APPEND to \(sentFolder)...")
             let client = IMAPClient(connection: conn)
             try await client.append(folder: sentFolder, message: rfc822Message, flags: ["Seen"])
 
