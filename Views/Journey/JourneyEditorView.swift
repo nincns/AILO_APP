@@ -23,8 +23,9 @@ struct JourneyEditorView: View {
     // Task-spezifisch
     @State private var status: JourneyTaskStatus = .open
     @State private var dueDate: Date = Date()
-    @State private var dueEndDate: Date = Date()
     @State private var hasDueDate: Bool = false
+    @State private var isAllDay: Bool = false
+    @State private var durationMinutes: Int = 60
     @State private var progress: Double = 0
 
     // Attachments
@@ -52,6 +53,17 @@ struct JourneyEditorView: View {
 
     private var hasUnsavedChanges: Bool {
         title != originalTitle || !content.isEmpty || !tagsText.isEmpty || !pendingAttachments.isEmpty
+    }
+
+    /// Berechnet das Enddatum aus Startzeit + Dauer (oder ganztägig)
+    private var computedEndDate: Date {
+        if isAllDay {
+            // Ganztägig: Ende des Tages (23:59)
+            return Calendar.current.date(bySettingHour: 23, minute: 59, second: 59, of: dueDate) ?? dueDate
+        } else {
+            // Startzeit + Dauer in Minuten
+            return Calendar.current.date(byAdding: .minute, value: durationMinutes, to: dueDate) ?? dueDate
+        }
     }
 
     /// Alle sichtbaren Attachments (bestehende + pending, ohne gelöschte)
@@ -144,34 +156,26 @@ struct JourneyEditorView: View {
                     }
 
                     Toggle(String(localized: "journey.task.hasDueDate"), isOn: $hasDueDate)
-                        .onChange(of: hasDueDate) { _, newValue in
-                            if newValue {
-                                // Standard: 1 Stunde Zeitfenster
-                                let now = Date()
-                                dueDate = now
-                                dueEndDate = Calendar.current.date(byAdding: .hour, value: 1, to: now) ?? now
-                            }
-                        }
 
                     if hasDueDate {
-                        DatePicker(
-                            String(localized: "journey.task.startTime"),
-                            selection: $dueDate,
-                            displayedComponents: [.date, .hourAndMinute]
-                        )
-                        .onChange(of: dueDate) { _, newStart in
-                            // Wenn Startzeit nach Endzeit, Endzeit anpassen
-                            if newStart >= dueEndDate {
-                                dueEndDate = Calendar.current.date(byAdding: .hour, value: 1, to: newStart) ?? newStart
-                            }
-                        }
+                        Toggle(String(localized: "journey.task.allDay"), isOn: $isAllDay)
 
                         DatePicker(
-                            String(localized: "journey.task.endTime"),
-                            selection: $dueEndDate,
-                            in: dueDate...,
-                            displayedComponents: [.date, .hourAndMinute]
+                            String(localized: "journey.task.datetime"),
+                            selection: $dueDate,
+                            displayedComponents: isAllDay ? [.date] : [.date, .hourAndMinute]
                         )
+
+                        if !isAllDay {
+                            Picker(String(localized: "journey.task.duration"), selection: $durationMinutes) {
+                                Text(String(localized: "journey.task.duration.15min")).tag(15)
+                                Text(String(localized: "journey.task.duration.30min")).tag(30)
+                                Text(String(localized: "journey.task.duration.1h")).tag(60)
+                                Text(String(localized: "journey.task.duration.2h")).tag(120)
+                                Text(String(localized: "journey.task.duration.4h")).tag(240)
+                                Text(String(localized: "journey.task.duration.8h")).tag(480)
+                            }
+                        }
 
                         // Kalender-Info wenn konfiguriert
                         if let calendar = JourneyCalendarService.shared.configuredCalendar {
@@ -271,11 +275,20 @@ struct JourneyEditorView: View {
                 if let d = node.dueDate {
                     dueDate = d
                     hasDueDate = true
-                    // Lade Endzeit oder setze Fallback +1 Stunde
+                    // Berechne Dauer aus Start/Ende oder nutze Fallback
                     if let end = node.dueEndDate {
-                        dueEndDate = end
+                        let minutes = Int(end.timeIntervalSince(d) / 60)
+                        // Prüfe ob ganztägig (24h = 1440min)
+                        if minutes >= 1440 {
+                            isAllDay = true
+                            durationMinutes = 60
+                        } else {
+                            isAllDay = false
+                            // Finde passende Dauer-Option
+                            durationMinutes = [15, 30, 60, 120, 240, 480].min(by: { abs($0 - minutes) < abs($1 - minutes) }) ?? 60
+                        }
                     } else {
-                        dueEndDate = Calendar.current.date(byAdding: .hour, value: 1, to: d) ?? d
+                        durationMinutes = 60
                     }
                 }
                 if let p = node.progress { progress = Double(p) }
@@ -517,7 +530,7 @@ struct JourneyEditorView: View {
                     if updated.nodeType == .task {
                         updated.status = status
                         updated.dueDate = hasDueDate ? dueDate : nil
-                        updated.dueEndDate = hasDueDate ? dueEndDate : nil
+                        updated.dueEndDate = hasDueDate ? computedEndDate : nil
                         updated.progress = Int(progress)
                     }
 
@@ -539,7 +552,7 @@ struct JourneyEditorView: View {
                     if selectedType == .task {
                         newNode.status = status
                         newNode.dueDate = hasDueDate ? dueDate : nil
-                        newNode.dueEndDate = hasDueDate ? dueEndDate : nil
+                        newNode.dueEndDate = hasDueDate ? computedEndDate : nil
                         newNode.progress = Int(progress)
                         try await store.updateNode(newNode)
                     }
@@ -579,7 +592,7 @@ struct JourneyEditorView: View {
                     var nodeForCalendar = node ?? JourneyNode(section: selectedSection, nodeType: selectedType, title: title)
                     nodeForCalendar.title = title
                     nodeForCalendar.dueDate = dueDate
-                    nodeForCalendar.dueEndDate = dueEndDate
+                    nodeForCalendar.dueEndDate = computedEndDate
                     nodeForCalendar.status = status
 
                     if let eventId = try? JourneyCalendarService.shared.syncTask(nodeForCalendar) {
