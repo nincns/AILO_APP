@@ -340,6 +340,7 @@ public final class MailSendService {
 
     /// Kopiert die gesendete Mail in den Sent-Ordner via IMAP APPEND
     private func appendToSentFolder(draft: MailDraft, accountId: UUID) async {
+        print("📤 [APPEND] appendToSentFolder() called for account: \(accountId.uuidString.prefix(8))")
         logger.info(.SEND, accountId: accountId, "📤 appendToSentFolder() started")
 
         let sentFolder = sentFolderName(accountId: accountId)
@@ -405,8 +406,10 @@ public final class MailSendService {
             logger.info(.SEND, accountId: accountId, "📁 Appended to Sent folder: \(sentFolder)")
         } catch {
             // Fehler beim APPEND sind nicht kritisch - Mail wurde trotzdem gesendet
+            print("📤 [APPEND] ERROR: \(error)")
             logger.warn(.SEND, accountId: accountId, "Failed to append to Sent folder: \(error)")
         }
+        print("📤 [APPEND] appendToSentFolder() finished")
     }
 
     /// Baut eine RFC822 Message aus dem Draft
