@@ -493,28 +493,35 @@ public final class IMAPClient {
     public func append(folder: String, message: String, flags: [String] = [], idleTimeout: TimeInterval = 15.0) async throws {
         let tag = tagger.next()
         var cmd = "\(tag) APPEND \(commands.quote(folder))"
-        
-        // Add flags if provided
+
+        // Add flags if provided (format: (\Seen \Flagged))
         if !flags.isEmpty {
-            let flagList = flags.map { "\\\\?\($0)" }.joined(separator: " ")
+            let flagList = flags.map { "\\\($0)" }.joined(separator: " ")
             cmd += " (\(flagList))"
         }
-        
-        // Add message size
+
+        // Add message size (literal format)
         let messageData = message.data(using: .utf8) ?? Data()
         cmd += " {\(messageData.count)}"
-        
+
         try await conn.send(line: cmd)
-        
-        // Server should respond with continuation
+
+        // Server should respond with continuation (+)
         let continuation = try await conn.receiveLines(untilTag: nil, idleTimeout: 5.0)
-        guard continuation.first?.hasPrefix("+ ") == true else {
-            throw IMAPError.protocolError("Expected continuation response for APPEND")
+        guard continuation.first?.hasPrefix("+") == true else {
+            throw IMAPError.protocolError("Expected continuation response for APPEND, got: \(continuation.first ?? "nothing")")
         }
-        
-        // Send message data
+
+        // Send message data followed by empty line
         try await conn.send(line: message)
-        _ = try await conn.receiveLines(untilTag: tag, idleTimeout: idleTimeout)
+
+        // Wait for OK response
+        let response = try await conn.receiveLines(untilTag: tag, idleTimeout: idleTimeout)
+
+        // Check for success
+        if let lastLine = response.last, lastLine.contains("NO") || lastLine.contains("BAD") {
+            throw IMAPError.protocolError("APPEND failed: \(lastLine)")
+        }
     }
 
     // MARK: - Helpers

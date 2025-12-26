@@ -338,6 +338,209 @@ public final class MailSendService {
         return name.isEmpty ? "Sent" : name
     }
 
+    /// Kopiert die gesendete Mail in den Sent-Ordner via IMAP APPEND
+    private func appendToSentFolder(draft: MailDraft, accountId: UUID) async {
+        let sentFolder = sentFolderName(accountId: accountId)
+        guard !sentFolder.isEmpty else {
+            logger.debug(.SEND, accountId: accountId, "No Sent folder configured, skipping APPEND")
+            return
+        }
+
+        // Account-Konfiguration laden
+        guard let data = UserDefaults.standard.data(forKey: "mail.accounts"),
+              let list = try? JSONDecoder().decode([MailAccountConfig].self, from: data),
+              let account = list.first(where: { $0.id == accountId }) else {
+            logger.warn(.SEND, accountId: accountId, "Cannot load account config for APPEND")
+            return
+        }
+
+        // RFC822 Message bauen
+        let rfc822Message = buildRFC822Message(draft: draft, account: account)
+
+        do {
+            // IMAP Verbindung öffnen
+            let conn = try await IMAPConnection.open(
+                host: account.imapHost,
+                port: account.imapPort,
+                useTLS: account.imapEncryption == .ssl
+            )
+            defer { conn.close() }
+
+            // Login
+            try await conn.login(user: account.username, password: account.password)
+
+            // STARTTLS falls nötig
+            if account.imapEncryption == .startTLS {
+                try await conn.upgradeToTLS(host: account.imapHost)
+            }
+
+            // APPEND ausführen
+            let client = IMAPClient(connection: conn)
+            try await client.append(folder: sentFolder, message: rfc822Message, flags: ["Seen"])
+
+            logger.info(.SEND, accountId: accountId, "📁 Appended to Sent folder: \(sentFolder)")
+        } catch {
+            // Fehler beim APPEND sind nicht kritisch - Mail wurde trotzdem gesendet
+            logger.warn(.SEND, accountId: accountId, "Failed to append to Sent folder: \(error)")
+        }
+    }
+
+    /// Baut eine RFC822 Message aus dem Draft
+    private func buildRFC822Message(draft: MailDraft, account: MailAccountConfig) -> String {
+        var lines: [String] = []
+        let boundary = "----=_Part_\(UUID().uuidString.replacingOccurrences(of: "-", with: ""))"
+        let date = formatRFC2822Date(Date())
+        let messageId = "<\(UUID().uuidString)@\(account.imapHost)>"
+
+        // Headers
+        lines.append("From: \(formatAddress(draft.from))")
+        if !draft.to.isEmpty {
+            lines.append("To: \(draft.to.map { formatAddress($0) }.joined(separator: ", "))")
+        }
+        if !draft.cc.isEmpty {
+            lines.append("Cc: \(draft.cc.map { formatAddress($0) }.joined(separator: ", "))")
+        }
+        lines.append("Subject: \(encodeHeader(draft.subject))")
+        lines.append("Date: \(date)")
+        lines.append("Message-ID: \(messageId)")
+        lines.append("MIME-Version: 1.0")
+        lines.append("X-Mailer: AILO Mail/1.0")
+
+        // Body
+        let hasAttachments = !draft.attachments.isEmpty
+        let hasHTML = draft.htmlBody != nil && !draft.htmlBody!.isEmpty
+        let hasText = draft.textBody != nil && !draft.textBody!.isEmpty
+
+        if hasAttachments {
+            lines.append("Content-Type: multipart/mixed; boundary=\"\(boundary)\"")
+            lines.append("")
+            lines.append("--\(boundary)")
+
+            if hasHTML && hasText {
+                let altBoundary = "----=_Alt_\(UUID().uuidString.replacingOccurrences(of: "-", with: ""))"
+                lines.append("Content-Type: multipart/alternative; boundary=\"\(altBoundary)\"")
+                lines.append("")
+                lines.append("--\(altBoundary)")
+                lines.append("Content-Type: text/plain; charset=\"UTF-8\"")
+                lines.append("Content-Transfer-Encoding: quoted-printable")
+                lines.append("")
+                lines.append(quotedPrintableEncode(draft.textBody ?? ""))
+                lines.append("")
+                lines.append("--\(altBoundary)")
+                lines.append("Content-Type: text/html; charset=\"UTF-8\"")
+                lines.append("Content-Transfer-Encoding: quoted-printable")
+                lines.append("")
+                lines.append(quotedPrintableEncode(draft.htmlBody ?? ""))
+                lines.append("")
+                lines.append("--\(altBoundary)--")
+            } else if hasHTML {
+                lines.append("Content-Type: text/html; charset=\"UTF-8\"")
+                lines.append("Content-Transfer-Encoding: quoted-printable")
+                lines.append("")
+                lines.append(quotedPrintableEncode(draft.htmlBody ?? ""))
+            } else {
+                lines.append("Content-Type: text/plain; charset=\"UTF-8\"")
+                lines.append("Content-Transfer-Encoding: quoted-printable")
+                lines.append("")
+                lines.append(quotedPrintableEncode(draft.textBody ?? ""))
+            }
+
+            // Attachments
+            for attachment in draft.attachments {
+                lines.append("")
+                lines.append("--\(boundary)")
+                lines.append("Content-Type: \(attachment.mimeType); name=\"\(attachment.filename)\"")
+                lines.append("Content-Disposition: attachment; filename=\"\(attachment.filename)\"")
+                lines.append("Content-Transfer-Encoding: base64")
+                lines.append("")
+                lines.append(attachment.data.base64EncodedString(options: .lineLength76Characters))
+            }
+            lines.append("")
+            lines.append("--\(boundary)--")
+        } else if hasHTML && hasText {
+            let altBoundary = "----=_Alt_\(UUID().uuidString.replacingOccurrences(of: "-", with: ""))"
+            lines.append("Content-Type: multipart/alternative; boundary=\"\(altBoundary)\"")
+            lines.append("")
+            lines.append("--\(altBoundary)")
+            lines.append("Content-Type: text/plain; charset=\"UTF-8\"")
+            lines.append("Content-Transfer-Encoding: quoted-printable")
+            lines.append("")
+            lines.append(quotedPrintableEncode(draft.textBody ?? ""))
+            lines.append("")
+            lines.append("--\(altBoundary)")
+            lines.append("Content-Type: text/html; charset=\"UTF-8\"")
+            lines.append("Content-Transfer-Encoding: quoted-printable")
+            lines.append("")
+            lines.append(quotedPrintableEncode(draft.htmlBody ?? ""))
+            lines.append("")
+            lines.append("--\(altBoundary)--")
+        } else if hasHTML {
+            lines.append("Content-Type: text/html; charset=\"UTF-8\"")
+            lines.append("Content-Transfer-Encoding: quoted-printable")
+            lines.append("")
+            lines.append(quotedPrintableEncode(draft.htmlBody ?? ""))
+        } else {
+            lines.append("Content-Type: text/plain; charset=\"UTF-8\"")
+            lines.append("Content-Transfer-Encoding: quoted-printable")
+            lines.append("")
+            lines.append(quotedPrintableEncode(draft.textBody ?? ""))
+        }
+
+        return lines.joined(separator: "\r\n")
+    }
+
+    private func formatAddress(_ addr: MailSendAddress) -> String {
+        if let name = addr.name, !name.isEmpty {
+            return "\"\(name)\" <\(addr.email)>"
+        }
+        return addr.email
+    }
+
+    private func encodeHeader(_ text: String) -> String {
+        // Einfache Implementierung - bei Bedarf RFC2047 encoding
+        if text.allSatisfy({ $0.isASCII }) {
+            return text
+        }
+        let encoded = text.data(using: .utf8)?.base64EncodedString() ?? text
+        return "=?UTF-8?B?\(encoded)?="
+    }
+
+    private func formatRFC2822Date(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "EEE, dd MMM yyyy HH:mm:ss Z"
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        return formatter.string(from: date)
+    }
+
+    private func quotedPrintableEncode(_ text: String) -> String {
+        var result = ""
+        var lineLength = 0
+        for char in text {
+            let scalar = char.unicodeScalars.first!
+            if char == "\r" || char == "\n" {
+                result.append(char)
+                lineLength = 0
+            } else if scalar.value >= 33 && scalar.value <= 126 && char != "=" {
+                if lineLength >= 73 {
+                    result.append("=\r\n")
+                    lineLength = 0
+                }
+                result.append(char)
+                lineLength += 1
+            } else {
+                for byte in String(char).utf8 {
+                    if lineLength >= 71 {
+                        result.append("=\r\n")
+                        lineLength = 0
+                    }
+                    result.append(String(format: "=%02X", byte))
+                    lineLength += 3
+                }
+            }
+        }
+        return result
+    }
+
     // MARK: Worker orchestration
 
     private func ensureWorker(_ accountId: UUID, oneShot: Bool = false) {
@@ -401,6 +604,10 @@ public final class MailSendService {
                 retryPolicy.recordSuccess(RetryPolicy.Key(accountId: accountId, host: cfg.host))
                 metrics.markSuccess(step: .send, accountId: accountId, host: cfg.host)
                 logger.info(.SEND, accountId: accountId, "Sent \(item.id.uuidString.prefix(8)) ✅")
+
+                // Kopiere gesendete Mail in den Sent-Ordner via IMAP APPEND
+                await appendToSentFolder(draft: item.draft, accountId: accountId)
+
                 publish(accountId)
                 attempt = 1
                 if oneShot { break }
