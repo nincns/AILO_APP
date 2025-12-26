@@ -327,12 +327,12 @@ struct JourneyDetailView: View {
         case .folder:
             typeLabel = String(localized: "journey.status.folder")
         }
-        let subject = String(localized: "journey.status.subject \(typeLabel): \(node.title)")
+        let subject = String(localized: "journey.status.subject \(typeLabel) \(node.title)")
 
         // 3. Mail-Body vorbereiten
         var body = String(localized: "journey.status.greeting")
         body += "\n\n"
-        body += String(localized: "journey.status.intro \(typeLabel) \"\(node.title)\"")
+        body += String(localized: "journey.status.intro \(typeLabel) \(node.title)")
         body += "\n\n"
 
         // Status-Details für Tasks
