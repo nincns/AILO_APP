@@ -273,6 +273,7 @@
 "config.journey.calendar.accountHint" = "Der Kalender wird im ausgewählten Konto erstellt und mit diesem synchronisiert.";
 "config.journey.calendar.createTitle" = "Kalender erstellen";
 "config.journey.calendar.noAccounts" = "Keine Konten mit Schreibzugriff verfügbar";
+"config.journey.calendar.createErrorHint" = "Wähle ein anderes Konto. Manche Konten erlauben keine neuen Kalender.";
 
 /* Configuration - AI Manager & Editor */
 /* Files: Configuration/AIManager.swift, AIEditor.swift, Services/AIClient.swift */

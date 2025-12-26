@@ -12,6 +12,7 @@ struct JourneyCalendarSettingsView: View {
     @State private var showCreateSheet: Bool = false
     @State private var newCalendarName: String = "AILO Journey"
     @State private var selectedSourceIndex: Int = 0
+    @State private var createError: String?
 
     private let calendarService = JourneyCalendarService.shared
 
@@ -200,6 +201,9 @@ struct JourneyCalendarSettingsView: View {
             Form {
                 Section {
                     TextField(String(localized: "config.journey.calendar.name"), text: $newCalendarName)
+                        .onChange(of: newCalendarName) { _, _ in
+                            createError = nil
+                        }
                 } header: {
                     Text(String(localized: "config.journey.calendar.nameHeader"))
                 }
@@ -208,8 +212,12 @@ struct JourneyCalendarSettingsView: View {
                     if !writableSources.isEmpty {
                         Picker(String(localized: "config.journey.calendar.account"), selection: $selectedSourceIndex) {
                             ForEach(writableSources.indices, id: \.self) { index in
-                                Text(writableSources[index].title).tag(index)
+                                Label(writableSources[index].title, systemImage: sourceIcon(for: writableSources[index]))
+                                    .tag(index)
                             }
+                        }
+                        .onChange(of: selectedSourceIndex) { _, _ in
+                            createError = nil
                         }
                     } else {
                         Text(String(localized: "config.journey.calendar.noAccounts"))
@@ -220,6 +228,16 @@ struct JourneyCalendarSettingsView: View {
                 } footer: {
                     Text(String(localized: "config.journey.calendar.accountHint"))
                 }
+
+                // Fehleranzeige
+                if let error = createError {
+                    Section {
+                        Label(error, systemImage: "exclamationmark.triangle.fill")
+                            .foregroundStyle(.red)
+                    } footer: {
+                        Text(String(localized: "config.journey.calendar.createErrorHint"))
+                    }
+                }
             }
             .navigationTitle(String(localized: "config.journey.calendar.createTitle"))
             .navigationBarTitleDisplayMode(.inline)
@@ -227,6 +245,7 @@ struct JourneyCalendarSettingsView: View {
                 ToolbarItem(placement: .cancellationAction) {
                     Button(String(localized: "common.cancel")) {
                         showCreateSheet = false
+                        createError = nil
                     }
                 }
                 ToolbarItem(placement: .confirmationAction) {
@@ -237,17 +256,30 @@ struct JourneyCalendarSettingsView: View {
                 }
             }
         }
-        .presentationDetents([.medium])
+        .presentationDetents([.medium, .large])
     }
 
     // MARK: - Helpers
 
+    /// Quellen die das Erstellen von Kalendern erlauben
     private var writableSources: [EKSource] {
         calendarSources.filter { source in
-            source.sourceType == .calDAV ||
-            source.sourceType == .exchange ||
-            source.sourceType == .local ||
-            source.sourceType == .subscribed
+            // Nur Quellen die Kalender erstellen können
+            switch source.sourceType {
+            case .local:
+                return true
+            case .calDAV:
+                // iCloud, Google etc. - meistens erlaubt
+                return true
+            case .exchange:
+                // Exchange - kann eingeschränkt sein, aber versuchen
+                return true
+            case .subscribed, .birthdays:
+                // Diese erlauben keine neuen Kalender
+                return false
+            @unknown default:
+                return false
+            }
         }
     }
 
@@ -322,6 +354,8 @@ struct JourneyCalendarSettingsView: View {
         guard !newCalendarName.isEmpty,
               selectedSourceIndex < writableSources.count else { return }
 
+        createError = nil
+
         let store = EKEventStore()
         let newCalendar = EKCalendar(for: .event, eventStore: store)
         newCalendar.title = newCalendarName
@@ -341,9 +375,12 @@ struct JourneyCalendarSettingsView: View {
             loadCalendars()
 
             showCreateSheet = false
+            createError = nil
             newCalendarName = "AILO Journey"
         } catch {
             print("❌ Failed to create calendar: \(error)")
+            // Benutzerfreundliche Fehlermeldung
+            createError = error.localizedDescription
         }
     }
 }

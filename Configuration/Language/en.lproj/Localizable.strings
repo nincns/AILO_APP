@@ -352,6 +352,7 @@
 "config.journey.calendar.accountHint" = "The calendar will be created in the selected account and synced with it.";
 "config.journey.calendar.createTitle" = "Create Calendar";
 "config.journey.calendar.noAccounts" = "No accounts with write access available";
+"config.journey.calendar.createErrorHint" = "Choose a different account. Some accounts don't allow creating calendars.";
 
 /* ============================================================================
    Configuration – AI Manager & Editor
