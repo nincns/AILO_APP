@@ -45,7 +45,7 @@ enum JourneyAlertType: Identifiable, Equatable {
 class JourneyPresentationState: ObservableObject {
     @Published var activeSheet: JourneySheetType?
     @Published var activeAlert: JourneyAlertType?
-    @Published var isTransitioning: Bool = false
+    private var isTransitioning: Bool = false
 
     func presentSheet(_ sheet: JourneySheetType) {
         guard !isTransitioning, activeSheet == nil, activeAlert == nil else {
@@ -61,15 +61,20 @@ class JourneyPresentationState: ObservableObject {
     }
 
     func presentAlert(_ alert: JourneyAlertType) {
-        guard !isTransitioning, activeSheet == nil, activeAlert == nil else {
-            print("⚠️ Alert blocked - presentation in progress")
-            return
+        // Alert immer erlauben, aber vorherige dismissieren
+        if activeSheet != nil {
+            activeSheet = nil
         }
-        isTransitioning = true
-        // Kürzere Verzögerung für Alerts (Swipe ist schneller)
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) { [weak self] in
-            self?.activeAlert = alert
-            self?.isTransitioning = false
+
+        // Direkt setzen wenn kein Alert aktiv, sonst mit kurzer Verzögerung
+        if activeAlert == nil && !isTransitioning {
+            activeAlert = alert
+        } else {
+            isTransitioning = true
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) { [weak self] in
+                self?.activeAlert = alert
+                self?.isTransitioning = false
+            }
         }
     }
 
