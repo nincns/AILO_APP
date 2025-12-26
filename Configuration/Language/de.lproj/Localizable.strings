@@ -769,7 +769,8 @@
 "journey.context.move" = "Verschieben";
 "journey.context.delete" = "Löschen";
 "journey.context.newEntry" = "Neuer Eintrag";
-"journey.context.newFolder" = "Neuer Unterordner";
+"journey.context.newTask" = "Neue Aufgabe";
+"journey.context.newFolder" = "Neuer Ordner";
 
 /* Journey Attachments (Phase 4) */
 "journey.attachments" = "Anhänge";
