@@ -96,20 +96,37 @@ public final class JourneyCalendarService {
     ) throws -> String {
         let event = EKEvent(eventStore: store)
         event.title = title
-        event.startDate = startDate
-        // Verwende übergebenes endDate oder +1 Stunde als Fallback
-        event.endDate = endDate ?? Calendar.current.date(byAdding: .hour, value: 1, to: startDate) ?? startDate
+
+        let actualEndDate = endDate ?? Calendar.current.date(byAdding: .hour, value: 1, to: startDate) ?? startDate
+
+        // Prüfe ob ganztägig (Start 00:00 und Ende >= 23:00 am selben Tag)
+        let cal = Calendar.current
+        let startHour = cal.component(.hour, from: startDate)
+        let startMinute = cal.component(.minute, from: startDate)
+        let endHour = cal.component(.hour, from: actualEndDate)
+        let isAllDay = startHour == 0 && startMinute == 0 && endHour >= 23
+
+        if isAllDay {
+            event.isAllDay = true
+            event.startDate = cal.startOfDay(for: startDate)
+            event.endDate = cal.startOfDay(for: startDate)  // Für ganztägig: gleiches Datum
+        } else {
+            event.isAllDay = false
+            event.startDate = startDate
+            event.endDate = actualEndDate
+        }
+
         event.notes = notes
         // Verwendet übergebenen Kalender, oder konfigurierten Journey-Kalender
         event.calendar = calendar ?? journeyCalendar
 
-        // Alarm hinzufügen
-        if let alarmOffset = alarm {
+        // Alarm hinzufügen (nur bei nicht-ganztägigen Events)
+        if !isAllDay, let alarmOffset = alarm {
             event.addAlarm(EKAlarm(relativeOffset: alarmOffset))
         }
 
         try store.save(event, span: .thisEvent)
-        print("✅ Calendar event created: \(event.eventIdentifier ?? "unknown")")
+        print("✅ Calendar event created: \(event.eventIdentifier ?? "unknown") - allDay: \(isAllDay)")
 
         return event.eventIdentifier ?? ""
     }
@@ -133,11 +150,25 @@ public final class JourneyCalendarService {
         }
 
         if let startDate = startDate {
-            event.startDate = startDate
-            // Verwende übergebenes endDate oder +1 Stunde als Fallback
-            event.endDate = endDate ?? Calendar.current.date(byAdding: .hour, value: 1, to: startDate) ?? startDate
+            let actualEndDate = endDate ?? Calendar.current.date(byAdding: .hour, value: 1, to: startDate) ?? startDate
+
+            // Prüfe ob ganztägig (Start 00:00 und Ende >= 23:00)
+            let cal = Calendar.current
+            let startHour = cal.component(.hour, from: startDate)
+            let startMinute = cal.component(.minute, from: startDate)
+            let endHour = cal.component(.hour, from: actualEndDate)
+            let isAllDay = startHour == 0 && startMinute == 0 && endHour >= 23
+
+            if isAllDay {
+                event.isAllDay = true
+                event.startDate = cal.startOfDay(for: startDate)
+                event.endDate = cal.startOfDay(for: startDate)
+            } else {
+                event.isAllDay = false
+                event.startDate = startDate
+                event.endDate = actualEndDate
+            }
         } else if let endDate = endDate {
-            // Nur endDate aktualisieren
             event.endDate = endDate
         }
 
