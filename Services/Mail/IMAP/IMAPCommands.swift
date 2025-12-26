@@ -521,7 +521,12 @@ public final class IMAPClient {
         // Send raw literal data (message + CRLF) - don't use send(line:) as it adds extra CRLF
         print("📧 [APPEND] Sending literal data (\(literalData.count) bytes)...")
         try await conn.sendRaw(literalData)
-        print("📧 [APPEND] Literal data sent, waiting for OK response...")
+        print("📧 [APPEND] Literal data sent")
+
+        // Extra wait to ensure TCP stack has flushed all data to server
+        print("📧 [APPEND] Waiting 200ms for TCP flush before reading response...")
+        try await Task.sleep(nanoseconds: 200_000_000) // 200ms
+        print("📧 [APPEND] Now waiting for server response (timeout: \(idleTimeout)s)...")
 
         // Wait for OK response
         let response = try await conn.receiveLines(untilTag: tag, idleTimeout: idleTimeout)

@@ -182,6 +182,9 @@ public final class IMAPConnection {
                 }
             })
         }
+        // WICHTIG: Kleine Pause um sicherzustellen dass Daten durch den TCP-Stack gehen
+        try await Task.sleep(nanoseconds: 100_000_000) // 100ms
+        print("📤 [sendRaw] TCP flush wait complete")
     }
 
     /// Receive lines until a final tagged response for `untilTag` arrives (OK/NO/BAD) or until idle timeout.
