@@ -92,6 +92,7 @@
 		C9B7A3332EFE8DAC00D0D81D /* JourneyCalendarSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9B7A3322EFE8DAC00D0D81D /* JourneyCalendarSettingsView.swift */; };
 		C9B7A37A2EFEE78400D0D81D /* JourneyExportSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9B7A3782EFEE78400D0D81D /* JourneyExportSheet.swift */; };
 		C9B7A37B2EFEE78400D0D81D /* JourneyImportSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9B7A3792EFEE78400D0D81D /* JourneyImportSheet.swift */; };
+		C9B7A38F2EFEFB8900D0D81D /* PrePromptCatalogPickerSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9B7A38E2EFEFB8900D0D81D /* PrePromptCatalogPickerSheet.swift */; };
 		C9C33C352EB2C0E4006390C7 /* ContentAnalyzer.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9C33C342EB2C0E4006390C7 /* ContentAnalyzer.swift */; };
 		C9C33C372EB2C341006390C7 /* TransferEncodingDecoder.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9C33C362EB2C341006390C7 /* TransferEncodingDecoder.swift */; };
 		C9C33C392EB2C35A006390C7 /* HeaderCharsetDetector.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9C33C382EB2C35A006390C7 /* HeaderCharsetDetector.swift */; };
@@ -263,6 +264,7 @@
 		C9B7A3322EFE8DAC00D0D81D /* JourneyCalendarSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JourneyCalendarSettingsView.swift; sourceTree = "<group>"; };
 		C9B7A3782EFEE78400D0D81D /* JourneyExportSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JourneyExportSheet.swift; sourceTree = "<group>"; };
 		C9B7A3792EFEE78400D0D81D /* JourneyImportSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JourneyImportSheet.swift; sourceTree = "<group>"; };
+		C9B7A38E2EFEFB8900D0D81D /* PrePromptCatalogPickerSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PrePromptCatalogPickerSheet.swift; sourceTree = "<group>"; };
 		C9C33C342EB2C0E4006390C7 /* ContentAnalyzer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentAnalyzer.swift; sourceTree = "<group>"; };
 		C9C33C362EB2C341006390C7 /* TransferEncodingDecoder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TransferEncodingDecoder.swift; sourceTree = "<group>"; };
 		C9C33C382EB2C35A006390C7 /* HeaderCharsetDetector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HeaderCharsetDetector.swift; sourceTree = "<group>"; };
@@ -758,6 +760,7 @@
 		C9DEDFEB2EAECC4D00C40B92 /* Shared */ = {
 			isa = PBXGroup;
 			children = (
+				C9B7A38E2EFEFB8900D0D81D /* PrePromptCatalogPickerSheet.swift */,
 				C9DEDFEA2EAECC4D00C40B92 /* MailComposer.swift */,
 			);
 			path = Shared;
@@ -1010,6 +1013,7 @@
 				C93D2CB32EB16D7700AA4072 /* MailViewComponents.swift in Sources */,
 				C9B7A26F2EFD8A7D00D0D81D /* JourneySchema.swift in Sources */,
 				C9DEE0282EAECC4D00C40B92 /* FolderDiscoveryService.swift in Sources */,
+				C9B7A38F2EFEFB8900D0D81D /* PrePromptCatalogPickerSheet.swift in Sources */,
 				C96E33B92EB1597D0058CB0A /* RFC2047EncodedWordsParser.swift in Sources */,
 				C9DEE0292EAECC4D00C40B92 /* AudioPlayer.swift in Sources */,
 				C96E33C72EB15DDE0058CB0A /* TextEnrichedDecoder.swift in Sources */,
