@@ -45,8 +45,11 @@ struct JourneyEditorView: View {
     @State private var contactsToDelete: [JourneyContactRef] = []
     @State private var showContactPicker: Bool = false
 
-    // AI Rewrite (für Wiki)
-    @State private var showPrePromptPicker: Bool = false
+    // AI Rewrite (Recipe picker like Mail/Logs)
+    @ObservedObject private var catalogManager = PrePromptCatalogManager.shared
+    @State private var showRecipePicker: Bool = false
+    @State private var recipePickerPath: [UUID] = []
+    @State private var selectedRecipeID: UUID? = nil
     @State private var isRewriting: Bool = false
     @State private var rewriteError: String?
 
@@ -109,176 +112,11 @@ struct JourneyEditorView: View {
 
     var body: some View {
         Form {
-            // Basis-Infos
-            Section {
-                TextField(String(localized: "journey.detail.title"), text: $title)
-
-                if isNewNode {
-                    Picker("Section", selection: $selectedSection) {
-                        ForEach(JourneySection.allCases) { section in
-                            Label(section.title, systemImage: section.icon)
-                                .tag(section)
-                        }
-                    }
-
-                    Picker("Typ", selection: $selectedType) {
-                        Label(String(localized: "journey.node.folder"), systemImage: "folder")
-                            .tag(JourneyNodeType.folder)
-                        Label(String(localized: "journey.node.entry"), systemImage: "doc.text")
-                            .tag(JourneyNodeType.entry)
-                        if selectedSection == .projects {
-                            Label(String(localized: "journey.node.task"), systemImage: "checkmark.circle")
-                                .tag(JourneyNodeType.task)
-                        }
-                    }
-                }
-            }
-
-            // Inhalt
-            if selectedType != .folder {
-                Section(String(localized: "journey.detail.content")) {
-                    TextEditor(text: $content)
-                        .frame(minHeight: 150)
-
-                    // AI Rewrite Button (für alle Einträge außer Ordner)
-                    if selectedType != .folder && !content.isEmpty {
-                        HStack {
-                            if isRewriting {
-                                ProgressView()
-                                    .scaleEffect(0.8)
-                                Text(String(localized: "journey.ai.rewriting"))
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                            } else {
-                                Button {
-                                    showPrePromptPicker = true
-                                } label: {
-                                    Label(String(localized: "journey.ai.rewrite"), systemImage: "wand.and.stars")
-                                }
-                                .buttonStyle(.bordered)
-                                .tint(.purple)
-                            }
-                            Spacer()
-                        }
-
-                        if let error = rewriteError {
-                            Text(error)
-                                .font(.caption)
-                                .foregroundStyle(.red)
-                        }
-                    }
-                }
-
-                // Attachments Section
-                attachmentsSection
-            }
-
-            // Tags
-            Section(String(localized: "journey.detail.tags")) {
-                TextField("Tag1, Tag2, Kategorie:Wert", text: $tagsText)
-                    .textInputAutocapitalization(.never)
-
-                if !tagsText.isEmpty {
-                    FlowLayout(spacing: 8) {
-                        ForEach(parseTags(), id: \.self) { tag in
-                            Text("#\(tag)")
-                                .font(.caption)
-                                .padding(.horizontal, 8)
-                                .padding(.vertical, 4)
-                                .background(Color.blue.opacity(0.15))
-                                .foregroundStyle(.blue)
-                                .clipShape(Capsule())
-                        }
-                    }
-                }
-            }
-
-            // Task-spezifisch
-            if selectedType == .task || node?.nodeType == .task {
-                Section("Aufgabe") {
-                    Picker(String(localized: "journey.detail.status"), selection: $status) {
-                        ForEach(JourneyTaskStatus.allCases, id: \.self) { s in
-                            Label(s.title, systemImage: s.icon)
-                                .tag(s)
-                        }
-                    }
-
-                    Toggle(String(localized: "journey.task.hasDueDate"), isOn: $hasDueDate)
-
-                    if hasDueDate {
-                        Toggle(String(localized: "journey.task.allDay"), isOn: $isAllDay)
-
-                        DatePicker(
-                            String(localized: "journey.task.datetime"),
-                            selection: $dueDate,
-                            displayedComponents: isAllDay ? [.date] : [.date, .hourAndMinute]
-                        )
-
-                        if !isAllDay {
-                            HStack {
-                                Text(String(localized: "journey.task.duration"))
-                                Spacer()
-                                Picker("", selection: $durationHours) {
-                                    ForEach(0..<24, id: \.self) { h in
-                                        Text("\(h) h").tag(h)
-                                    }
-                                }
-                                .pickerStyle(.menu)
-                                .labelsHidden()
-
-                                Picker("", selection: $durationMins) {
-                                    ForEach([0, 5, 10, 15, 20, 30, 45], id: \.self) { m in
-                                        Text("\(m) min").tag(m)
-                                    }
-                                }
-                                .pickerStyle(.menu)
-                                .labelsHidden()
-                            }
-                        }
-
-                        // Kalender-Info wenn konfiguriert
-                        if let calendar = JourneyCalendarService.shared.configuredCalendar {
-                            HStack {
-                                Image(systemName: "calendar")
-                                    .foregroundStyle(Color(cgColor: calendar.cgColor))
-                                Text(calendar.title)
-                                    .foregroundStyle(.secondary)
-                                Spacer()
-                                Image(systemName: "checkmark.circle.fill")
-                                    .foregroundStyle(.green)
-                            }
-                            .font(.subheadline)
-                        } else if JourneyCalendarService.shared.permissionStatus == .authorized {
-                            NavigationLink {
-                                JourneyCalendarSettingsView()
-                            } label: {
-                                HStack {
-                                    Image(systemName: "calendar.badge.plus")
-                                        .foregroundStyle(.orange)
-                                    Text(String(localized: "journey.calendar.configure"))
-                                        .foregroundStyle(.secondary)
-                                }
-                                .font(.subheadline)
-                            }
-                        }
-                    }
-
-                    VStack(alignment: .leading) {
-                        HStack {
-                            Text(String(localized: "journey.detail.progress"))
-                            Spacer()
-                            Text("\(Int(progress))%")
-                                .foregroundStyle(.secondary)
-                        }
-                        Slider(value: $progress, in: 0...100, step: 5)
-                    }
-                }
-            }
-
-            // Kontakte Section
-            if selectedType != .folder {
-                contactsSection
-            }
+            basicInfoSection
+            contentSection
+            tagsSection
+            taskSection
+            contactsSectionView
         }
         .navigationTitle(isNewNode ? "Neu" : "Bearbeiten")
         .navigationBarTitleDisplayMode(.inline)
@@ -316,10 +154,14 @@ struct JourneyEditorView: View {
                 }
             )
         }
-        .sheet(isPresented: $showPrePromptPicker) {
-            CookbookPicker { cookbook, prompt in
-                rewriteContent(with: prompt)
-            }
+        .sheet(isPresented: $showRecipePicker) {
+            PrePromptCatalogPickerSheet(
+                navigationPath: $recipePickerPath,
+                onSelectRecipe: { recipe in
+                    selectedRecipeID = recipe.id
+                    requestAIRewrite(with: recipe)
+                }
+            )
         }
         .onChange(of: selectedPhotoItems) { _, newItems in
             if !newItems.isEmpty {
@@ -377,6 +219,214 @@ struct JourneyEditorView: View {
                     selectedType = nodeType
                 }
             }
+        }
+    }
+
+    // MARK: - Form Sections (extracted to reduce type-checking complexity)
+
+    @ViewBuilder
+    private var basicInfoSection: some View {
+        Section {
+            TextField(String(localized: "journey.detail.title"), text: $title)
+
+            if isNewNode {
+                Picker("Section", selection: $selectedSection) {
+                    ForEach(JourneySection.allCases) { section in
+                        Label(section.title, systemImage: section.icon)
+                            .tag(section)
+                    }
+                }
+
+                Picker("Typ", selection: $selectedType) {
+                    Label(String(localized: "journey.node.folder"), systemImage: "folder")
+                        .tag(JourneyNodeType.folder)
+                    Label(String(localized: "journey.node.entry"), systemImage: "doc.text")
+                        .tag(JourneyNodeType.entry)
+                    if selectedSection == .projects {
+                        Label(String(localized: "journey.node.task"), systemImage: "checkmark.circle")
+                            .tag(JourneyNodeType.task)
+                    }
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var contentSection: some View {
+        if selectedType != .folder {
+            Section(String(localized: "journey.detail.content")) {
+                TextEditor(text: $content)
+                    .frame(minHeight: 150)
+
+                aiRewriteButton
+            }
+
+            attachmentsSection
+        }
+    }
+
+    @ViewBuilder
+    private var aiRewriteButton: some View {
+        if !content.isEmpty {
+            HStack {
+                if isRewriting {
+                    ProgressView()
+                        .scaleEffect(0.8)
+                    Text(String(localized: "journey.ai.rewriting"))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                } else {
+                    Button {
+                        showRecipePicker = true
+                    } label: {
+                        Label(String(localized: "journey.ai.rewrite"), systemImage: "wand.and.stars")
+                    }
+                    .buttonStyle(.bordered)
+                    .tint(.purple)
+                }
+                Spacer()
+            }
+
+            if let error = rewriteError {
+                Text(error)
+                    .font(.caption)
+                    .foregroundStyle(.red)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var tagsSection: some View {
+        Section(String(localized: "journey.detail.tags")) {
+            TextField("Tag1, Tag2, Kategorie:Wert", text: $tagsText)
+                .textInputAutocapitalization(.never)
+
+            if !tagsText.isEmpty {
+                FlowLayout(spacing: 8) {
+                    ForEach(parseTags(), id: \.self) { tag in
+                        Text("#\(tag)")
+                            .font(.caption)
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 4)
+                            .background(Color.blue.opacity(0.15))
+                            .foregroundStyle(.blue)
+                            .clipShape(Capsule())
+                    }
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var taskSection: some View {
+        if selectedType == .task || node?.nodeType == .task {
+            Section("Aufgabe") {
+                taskStatusPicker
+                taskDueDateSettings
+                taskProgressSlider
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var taskStatusPicker: some View {
+        Picker(String(localized: "journey.detail.status"), selection: $status) {
+            ForEach(JourneyTaskStatus.allCases, id: \.self) { s in
+                Label(s.title, systemImage: s.icon)
+                    .tag(s)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var taskDueDateSettings: some View {
+        Toggle(String(localized: "journey.task.hasDueDate"), isOn: $hasDueDate)
+
+        if hasDueDate {
+            Toggle(String(localized: "journey.task.allDay"), isOn: $isAllDay)
+
+            DatePicker(
+                String(localized: "journey.task.datetime"),
+                selection: $dueDate,
+                displayedComponents: isAllDay ? [.date] : [.date, .hourAndMinute]
+            )
+
+            if !isAllDay {
+                taskDurationPicker
+            }
+
+            calendarInfoView
+        }
+    }
+
+    @ViewBuilder
+    private var taskDurationPicker: some View {
+        HStack {
+            Text(String(localized: "journey.task.duration"))
+            Spacer()
+            Picker("", selection: $durationHours) {
+                ForEach(0..<24, id: \.self) { h in
+                    Text("\(h) h").tag(h)
+                }
+            }
+            .pickerStyle(.menu)
+            .labelsHidden()
+
+            Picker("", selection: $durationMins) {
+                ForEach([0, 5, 10, 15, 20, 30, 45], id: \.self) { m in
+                    Text("\(m) min").tag(m)
+                }
+            }
+            .pickerStyle(.menu)
+            .labelsHidden()
+        }
+    }
+
+    @ViewBuilder
+    private var calendarInfoView: some View {
+        if let calendar = JourneyCalendarService.shared.configuredCalendar {
+            HStack {
+                Image(systemName: "calendar")
+                    .foregroundStyle(Color(cgColor: calendar.cgColor))
+                Text(calendar.title)
+                    .foregroundStyle(.secondary)
+                Spacer()
+                Image(systemName: "checkmark.circle.fill")
+                    .foregroundStyle(.green)
+            }
+            .font(.subheadline)
+        } else if JourneyCalendarService.shared.permissionStatus == .authorized {
+            NavigationLink {
+                JourneyCalendarSettingsView()
+            } label: {
+                HStack {
+                    Image(systemName: "calendar.badge.plus")
+                        .foregroundStyle(.orange)
+                    Text(String(localized: "journey.calendar.configure"))
+                        .foregroundStyle(.secondary)
+                }
+                .font(.subheadline)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var taskProgressSlider: some View {
+        VStack(alignment: .leading) {
+            HStack {
+                Text(String(localized: "journey.detail.progress"))
+                Spacer()
+                Text("\(Int(progress))%")
+                    .foregroundStyle(.secondary)
+            }
+            Slider(value: $progress, in: 0...100, step: 5)
+        }
+    }
+
+    @ViewBuilder
+    private var contactsSectionView: some View {
+        if selectedType != .folder {
+            contactsSection
         }
     }
 
@@ -585,9 +635,15 @@ struct JourneyEditorView: View {
         dismiss()
     }
 
-    private func rewriteContent(with prompt: String) {
+    private func requestAIRewrite(with recipe: PrePromptRecipe) {
+        guard !isRewriting else { return }
+        guard !content.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
+
         isRewriting = true
         rewriteError = nil
+
+        // Generate prompt from recipe (like TextLogDetailView)
+        let prompt = catalogManager.generatePrompt(from: recipe)
 
         AIClient.rewrite(
             baseURL: "",  // Uses fallback from UserDefaults
