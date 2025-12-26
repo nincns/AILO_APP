@@ -256,7 +256,9 @@ struct JourneyImportSheet: View {
             }
 
             Button(String(localized: "common.done")) {
-                store.refresh()
+                Task {
+                    await store.loadAllSections()
+                }
                 dismiss()
             }
             .buttonStyle(.borderedProminent)

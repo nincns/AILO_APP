@@ -28,7 +28,10 @@ public final class JourneyStore: ObservableObject {
 
     // MARK: - DAO Reference
 
-    private var dao: JourneyDAO?
+    private var _dao: JourneyDAO?
+
+    /// Public read-only access to DAO for export/import services
+    public var dao: JourneyDAO? { _dao }
 
     // MARK: - Singleton
 
@@ -40,7 +43,7 @@ public final class JourneyStore: ObservableObject {
 
     /// Wird von DAOFactory aufgerufen
     public func setDAO(_ dao: JourneyDAO) {
-        self.dao = dao
+        self._dao = dao
         Task {
             await loadAllSections()
         }
@@ -74,7 +77,7 @@ public final class JourneyStore: ObservableObject {
 
     /// Lädt eine einzelne Section
     public func loadSection(_ section: JourneySection) async -> [JourneyNode] {
-        guard let dao = dao else {
+        guard let dao = _dao else {
             print("⚠️ JourneyStore: DAO not initialized")
             return []
         }
@@ -121,7 +124,7 @@ public final class JourneyStore: ObservableObject {
         parentId: UUID? = nil,
         tags: [String] = []
     ) async throws -> JourneyNode {
-        guard let dao = dao else {
+        guard let dao = _dao else {
             throw JourneyStoreError.daoNotInitialized
         }
 
@@ -142,7 +145,7 @@ public final class JourneyStore: ObservableObject {
 
     /// Aktualisiert einen Node
     public func updateNode(_ node: JourneyNode) async throws {
-        guard let dao = dao else {
+        guard let dao = _dao else {
             throw JourneyStoreError.daoNotInitialized
         }
 
@@ -157,7 +160,7 @@ public final class JourneyStore: ObservableObject {
 
     /// Löscht einen Node (CASCADE löscht Kinder, Attachments, Contacts)
     public func deleteNode(_ node: JourneyNode) async throws {
-        guard let dao = dao else {
+        guard let dao = _dao else {
             throw JourneyStoreError.daoNotInitialized
         }
 
@@ -171,7 +174,7 @@ public final class JourneyStore: ObservableObject {
 
     /// Verschiebt einen Node zu neuem Parent
     public func moveNode(_ node: JourneyNode, toParent newParentId: UUID?, sortOrder: Int? = nil) async throws {
-        guard let dao = dao else {
+        guard let dao = _dao else {
             throw JourneyStoreError.daoNotInitialized
         }
 
@@ -183,7 +186,7 @@ public final class JourneyStore: ObservableObject {
 
     /// Sucht in allen Sections oder einer bestimmten
     public func search(query: String, section: JourneySection? = nil) async {
-        guard let dao = dao, !query.isEmpty else {
+        guard let dao = _dao, !query.isEmpty else {
             searchResults = []
             return
         }
@@ -205,7 +208,7 @@ public final class JourneyStore: ObservableObject {
 
     /// Lädt Attachments für einen Node
     public func getAttachments(for nodeId: UUID) async throws -> [JourneyAttachment] {
-        guard let dao = dao else {
+        guard let dao = _dao else {
             throw JourneyStoreError.daoNotInitialized
         }
 
@@ -214,7 +217,7 @@ public final class JourneyStore: ObservableObject {
 
     /// Fügt Attachment hinzu
     public func addAttachment(_ attachment: JourneyAttachment, withData data: Data) async throws {
-        guard let dao = dao else {
+        guard let dao = _dao else {
             throw JourneyStoreError.daoNotInitialized
         }
 
@@ -228,7 +231,7 @@ public final class JourneyStore: ObservableObject {
 
     /// Löscht Attachment
     public func deleteAttachment(_ attachment: JourneyAttachment) async throws {
-        guard let dao = dao else {
+        guard let dao = _dao else {
             throw JourneyStoreError.daoNotInitialized
         }
 
@@ -241,7 +244,7 @@ public final class JourneyStore: ObservableObject {
 
     /// Lädt Blob-Daten für ein Attachment
     public func getBlobData(hash: String) async throws -> Data? {
-        guard let dao = dao else {
+        guard let dao = _dao else {
             throw JourneyStoreError.daoNotInitialized
         }
 
@@ -252,7 +255,7 @@ public final class JourneyStore: ObservableObject {
 
     /// Lädt Kontakt-Referenzen für einen Node
     public func getContacts(for nodeId: UUID) async throws -> [JourneyContactRef] {
-        guard let dao = dao else {
+        guard let dao = _dao else {
             throw JourneyStoreError.daoNotInitialized
         }
 
@@ -261,7 +264,7 @@ public final class JourneyStore: ObservableObject {
 
     /// Fügt Kontakt-Referenz hinzu
     public func addContact(_ contact: JourneyContactRef) async throws {
-        guard let dao = dao else {
+        guard let dao = _dao else {
             throw JourneyStoreError.daoNotInitialized
         }
 
@@ -270,7 +273,7 @@ public final class JourneyStore: ObservableObject {
 
     /// Löscht Kontakt-Referenz
     public func deleteContact(_ contact: JourneyContactRef) async throws {
-        guard let dao = dao else {
+        guard let dao = _dao else {
             throw JourneyStoreError.daoNotInitialized
         }
 
@@ -323,7 +326,7 @@ public final class JourneyStore: ObservableObject {
 
     /// Sortiert Nodes innerhalb eines Parents neu
     public func reorderNodes(_ nodes: [JourneyNode], in section: JourneySection) async throws {
-        guard let dao = dao else {
+        guard let dao = _dao else {
             throw JourneyStoreError.daoNotInitialized
         }
 
@@ -337,7 +340,7 @@ public final class JourneyStore: ObservableObject {
 
     /// Fügt Node am Ende eines Parents ein
     public func appendNode(_ node: JourneyNode, toParent parentId: UUID?) async throws {
-        guard let dao = dao else {
+        guard let dao = _dao else {
             throw JourneyStoreError.daoNotInitialized
         }
 
