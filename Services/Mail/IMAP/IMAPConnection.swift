@@ -167,6 +167,20 @@ public final class IMAPConnection {
         }
     }
 
+    /// Send raw data without appending CRLF (used for IMAP literals like APPEND).
+    public func sendRaw(_ data: Data) async throws {
+        guard let c = conn else { throw IMAPError.invalidState("sendRaw on nil connection") }
+        try await withCheckedThrowingContinuation { (cont: CheckedContinuation<Void, Error>) in
+            c.send(content: data, completion: .contentProcessed { error in
+                if let error {
+                    cont.resume(throwing: self.mapNWError(error, context: "sendRaw \(data.count) bytes"))
+                } else {
+                    cont.resume()
+                }
+            })
+        }
+    }
+
     /// Receive lines until a final tagged response for `untilTag` arrives (OK/NO/BAD) or until idle timeout.
     /// If `untilTag` is nil, returns lines accumulated until idle timeout.
     public func receiveLines(
@@ -312,6 +326,12 @@ public final class IMAPConnection {
                 if lines.contains(where: { $0.hasPrefix(tag + " OK") || $0.hasPrefix(tag + " NO") || $0.hasPrefix(tag + " BAD") }) {
                     break
                 }
+            }
+
+            // If no tag and we received a continuation response (+), return immediately
+            // This prevents deadlock when server waits for literal data
+            if untilTag == nil && lines.contains(where: { $0.hasPrefix("+") }) {
+                break
             }
         }
 
