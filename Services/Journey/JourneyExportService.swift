@@ -3,6 +3,9 @@
 
 import Foundation
 import Compression
+#if canImport(UIKit)
+import UIKit
+#endif
 
 public final class JourneyExportService: @unchecked Sendable {
 
