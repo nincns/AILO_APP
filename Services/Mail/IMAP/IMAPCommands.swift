@@ -502,22 +502,43 @@ public final class IMAPClient {
             cmd += " (\(flagList))"
         }
 
-        // Build the literal data: message MIT terminierendem CRLF als EIN Block
+        // WICHTIG: Zuerst Literal als Data bauen, dann Byte-Größe verwenden
+        // String.count ≠ Data.count bei UTF-8 Zeichen!
         let fullLiteral = message + "\r\n"
-        let literalData = fullLiteral.data(using: .utf8) ?? Data()
+        guard let literalData = fullLiteral.data(using: .utf8) else {
+            throw IMAPError.protocolError("Failed to encode message as UTF-8")
+        }
+
+        // Die EXAKTE Byte-Größe aus dem Data-Objekt
+        let exactByteCount = literalData.count
+
+        // Debug: Validiere dass chars und bytes übereinstimmen könnten oder nicht
+        print("📧 [APPEND] String length: \(fullLiteral.count) chars")
+        print("📧 [APPEND] Data size: \(exactByteCount) bytes")
+        if fullLiteral.count != exactByteCount {
+            print("📧 [APPEND] ⚠️ MISMATCH! String chars ≠ Data bytes (UTF-8 multi-byte chars present)")
+        }
 
         // Verwende LITERAL+ (RFC 7888): {n+} statt {n}
-        // Mit dem + wartet der Server NICHT auf Continuation, sondern akzeptiert das Literal sofort
-        cmd += " {\(literalData.count)+}"
-        print("📧 [APPEND] Command built (LITERAL+): \(cmd.prefix(100))... literalSize=\(literalData.count)")
+        // WICHTIG: Exakte Byte-Größe ankündigen!
+        cmd += " {\(exactByteCount)+}"
+        print("📧 [APPEND] Command built (LITERAL+): \(cmd.prefix(120))...")
+        print("📧 [APPEND] Announcing EXACTLY \(exactByteCount) bytes")
 
-        // Sende Command und Literal direkt hintereinander (kein Warten auf Continuation nötig!)
+        // Sende Command
         print("📧 [APPEND] Sending APPEND command with LITERAL+...")
         try await conn.send(line: cmd)
 
-        print("📧 [APPEND] Sending literal data (\(literalData.count) bytes) immediately...")
+        // Sende EXAKT die angekündigte Anzahl Bytes
+        print("📧 [APPEND] Sending literal data (exactly \(literalData.count) bytes)...")
         try await conn.sendRaw(literalData)
-        print("📧 [APPEND] Literal sent completely")
+
+        // Validierung: Stimmt die gesendete Größe?
+        if literalData.count != exactByteCount {
+            print("📧 [APPEND] ❌ CRITICAL: Sent \(literalData.count) but announced \(exactByteCount)!")
+        } else {
+            print("📧 [APPEND] ✅ Byte count matches: sent \(literalData.count) = announced \(exactByteCount)")
+        }
 
         // Warte kurz um sicherzustellen dass TCP-Stack geflusht hat
         print("📧 [APPEND] Waiting 100ms for TCP flush...")
