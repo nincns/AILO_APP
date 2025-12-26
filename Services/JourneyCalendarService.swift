@@ -99,12 +99,14 @@ public final class JourneyCalendarService {
 
         let actualEndDate = endDate ?? Calendar.current.date(byAdding: .hour, value: 1, to: startDate) ?? startDate
 
-        // Prüfe ob ganztägig (Start 00:00 und Ende >= 23:00 am selben Tag)
+        // Prüfe ob ganztägig: Start 00:00 und Dauer >= 23 Stunden
         let cal = Calendar.current
         let startHour = cal.component(.hour, from: startDate)
         let startMinute = cal.component(.minute, from: startDate)
-        let endHour = cal.component(.hour, from: actualEndDate)
-        let isAllDay = startHour == 0 && startMinute == 0 && endHour >= 23
+        let durationHours = actualEndDate.timeIntervalSince(startDate) / 3600
+        let isAllDay = startHour == 0 && startMinute == 0 && durationHours >= 23
+
+        print("📅 Creating event - start: \(startDate), end: \(actualEndDate), duration: \(durationHours)h, isAllDay: \(isAllDay)")
 
         if isAllDay {
             event.isAllDay = true
@@ -152,12 +154,14 @@ public final class JourneyCalendarService {
         if let startDate = startDate {
             let actualEndDate = endDate ?? Calendar.current.date(byAdding: .hour, value: 1, to: startDate) ?? startDate
 
-            // Prüfe ob ganztägig (Start 00:00 und Ende >= 23:00)
+            // Prüfe ob ganztägig: Start 00:00 und Dauer >= 23 Stunden
             let cal = Calendar.current
             let startHour = cal.component(.hour, from: startDate)
             let startMinute = cal.component(.minute, from: startDate)
-            let endHour = cal.component(.hour, from: actualEndDate)
-            let isAllDay = startHour == 0 && startMinute == 0 && endHour >= 23
+            let durationHours = actualEndDate.timeIntervalSince(startDate) / 3600
+            let isAllDay = startHour == 0 && startMinute == 0 && durationHours >= 23
+
+            print("📅 Updating event - start: \(startDate), end: \(actualEndDate), duration: \(durationHours)h, isAllDay: \(isAllDay)")
 
             if isAllDay {
                 event.isAllDay = true
