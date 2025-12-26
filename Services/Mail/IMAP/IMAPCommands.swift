@@ -491,6 +491,7 @@ public final class IMAPClient {
     /// APPEND command for adding messages to folders (Phase 5)
     /// Used for adding sent messages to Sent folder
     public func append(folder: String, message: String, flags: [String] = [], idleTimeout: TimeInterval = 15.0) async throws {
+        print("📧 [APPEND] Starting append to folder: \(folder)")
         let tag = tagger.next()
         var cmd = "\(tag) APPEND \(commands.quote(folder))"
 
@@ -504,25 +505,33 @@ public final class IMAPClient {
         // IMAP literal size must exactly match the bytes that follow
         let literalData = (message + "\r\n").data(using: .utf8) ?? Data()
         cmd += " {\(literalData.count)}"
+        print("📧 [APPEND] Command built: \(cmd.prefix(100))... literalSize=\(literalData.count)")
 
+        print("📧 [APPEND] Sending APPEND command...")
         try await conn.send(line: cmd)
+        print("📧 [APPEND] Command sent, waiting for continuation (+)...")
 
         // Server should respond with continuation (+)
         let continuation = try await conn.receiveLines(untilTag: nil, idleTimeout: 5.0)
+        print("📧 [APPEND] Received continuation: \(continuation)")
         guard continuation.first?.hasPrefix("+") == true else {
             throw IMAPError.protocolError("Expected continuation response for APPEND, got: \(continuation.first ?? "nothing")")
         }
 
         // Send raw literal data (message + CRLF) - don't use send(line:) as it adds extra CRLF
+        print("📧 [APPEND] Sending literal data (\(literalData.count) bytes)...")
         try await conn.sendRaw(literalData)
+        print("📧 [APPEND] Literal data sent, waiting for OK response...")
 
         // Wait for OK response
         let response = try await conn.receiveLines(untilTag: tag, idleTimeout: idleTimeout)
+        print("📧 [APPEND] Response received: \(response)")
 
         // Check for success
         if let lastLine = response.last, lastLine.contains("NO") || lastLine.contains("BAD") {
             throw IMAPError.protocolError("APPEND failed: \(lastLine)")
         }
+        print("📧 [APPEND] APPEND completed successfully!")
     }
 
     // MARK: - Helpers
