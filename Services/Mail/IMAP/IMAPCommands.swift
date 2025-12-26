@@ -522,23 +522,26 @@ public final class IMAPClient {
         // Verwende LITERAL+ (RFC 7888): {n+} statt {n}
         // WICHTIG: Exakte Byte-Größe ankündigen!
         cmd += " {\(exactByteCount)+}"
-        print("📧 [APPEND] Command built (LITERAL+): \(cmd.prefix(120))...")
-        print("📧 [APPEND] Announcing EXACTLY \(exactByteCount) bytes")
 
-        // Sende Command
-        print("📧 [APPEND] Sending APPEND command with LITERAL+...")
-        try await conn.send(line: cmd)
-
-        // Sende EXAKT die angekündigte Anzahl Bytes
-        print("📧 [APPEND] Sending literal data (exactly \(literalData.count) bytes)...")
-        try await conn.sendRaw(literalData)
-
-        // Validierung: Stimmt die gesendete Größe?
-        if literalData.count != exactByteCount {
-            print("📧 [APPEND] ❌ CRITICAL: Sent \(literalData.count) but announced \(exactByteCount)!")
-        } else {
-            print("📧 [APPEND] ✅ Byte count matches: sent \(literalData.count) = announced \(exactByteCount)")
+        // FINALE LÖSUNG: Command + Literal in EINEM sendRaw() kombinieren
+        // Das verhindert TCP-Fragmentierung bei TLS/NWConnection
+        let cmdLine = cmd + "\r\n"  // Command MIT CRLF am Ende
+        guard let cmdData = cmdLine.data(using: .utf8) else {
+            throw IMAPError.protocolError("Failed to encode command as UTF-8")
         }
+
+        // Kombiniere Command + Literal zu einem Payload
+        var fullPayload = Data()
+        fullPayload.append(cmdData)
+        fullPayload.append(literalData)
+
+        print("📧 [APPEND] Combined payload: cmd=\(cmdData.count) + literal=\(literalData.count) = \(fullPayload.count) bytes")
+        print("📧 [APPEND] Command: \(cmd.prefix(100))...")
+
+        // EIN einziger sendRaw() für alles!
+        print("📧 [APPEND] Sending combined payload in single sendRaw()...")
+        try await conn.sendRaw(fullPayload)
+        print("📧 [APPEND] ✅ Combined payload sent (\(fullPayload.count) bytes)")
 
         // Warte kurz um sicherzustellen dass TCP-Stack geflusht hat
         print("📧 [APPEND] Waiting 100ms for TCP flush...")
