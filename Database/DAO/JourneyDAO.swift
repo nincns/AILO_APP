@@ -23,9 +23,9 @@ public class JourneyDAO: BaseDAO {
             INSERT INTO \(JourneySchema.tNodes) (
                 id, origin_id, revision, parent_id, section, node_type, title, content,
                 sort_order, tags, created_at, modified_at, doing_at,
-                status, due_date, progress, calendar_event_id,
+                status, due_date, due_end_date, progress, calendar_event_id,
                 assigned_to, created_by, completed_at, completed_by
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """
 
         try dbQueue.sync {
@@ -48,12 +48,13 @@ public class JourneyDAO: BaseDAO {
             bindDate(stmt, 13, node.doingAt)
             bindText(stmt, 14, node.status?.rawValue)
             bindDate(stmt, 15, node.dueDate)
-            bindInt(stmt, 16, node.progress)
-            bindText(stmt, 17, node.calendarEventId)
-            bindUUID(stmt, 18, node.assignedTo)
-            bindUUID(stmt, 19, node.createdBy)
-            bindDate(stmt, 20, node.completedAt)
-            bindUUID(stmt, 21, node.completedBy)
+            bindDate(stmt, 16, node.dueEndDate)
+            bindInt(stmt, 17, node.progress)
+            bindText(stmt, 18, node.calendarEventId)
+            bindUUID(stmt, 19, node.assignedTo)
+            bindUUID(stmt, 20, node.createdBy)
+            bindDate(stmt, 21, node.completedAt)
+            bindUUID(stmt, 22, node.completedBy)
 
             guard sqlite3_step(stmt) == SQLITE_DONE else {
                 throw dbError(context: "insertNode")
@@ -66,7 +67,7 @@ public class JourneyDAO: BaseDAO {
             UPDATE \(JourneySchema.tNodes) SET
                 origin_id = ?, revision = ?, parent_id = ?, section = ?, node_type = ?,
                 title = ?, content = ?, sort_order = ?, tags = ?, modified_at = ?,
-                doing_at = ?, status = ?, due_date = ?, progress = ?, calendar_event_id = ?,
+                doing_at = ?, status = ?, due_date = ?, due_end_date = ?, progress = ?, calendar_event_id = ?,
                 assigned_to = ?, created_by = ?, completed_at = ?, completed_by = ?
             WHERE id = ?
             """
@@ -89,13 +90,14 @@ public class JourneyDAO: BaseDAO {
             bindDate(stmt, 11, node.doingAt)
             bindText(stmt, 12, node.status?.rawValue)
             bindDate(stmt, 13, node.dueDate)
-            bindInt(stmt, 14, node.progress)
-            bindText(stmt, 15, node.calendarEventId)
-            bindUUID(stmt, 16, node.assignedTo)
-            bindUUID(stmt, 17, node.createdBy)
-            bindDate(stmt, 18, node.completedAt)
-            bindUUID(stmt, 19, node.completedBy)
-            bindUUID(stmt, 20, node.id)
+            bindDate(stmt, 14, node.dueEndDate)
+            bindInt(stmt, 15, node.progress)
+            bindText(stmt, 16, node.calendarEventId)
+            bindUUID(stmt, 17, node.assignedTo)
+            bindUUID(stmt, 18, node.createdBy)
+            bindDate(stmt, 19, node.completedAt)
+            bindUUID(stmt, 20, node.completedBy)
+            bindUUID(stmt, 21, node.id)
 
             guard sqlite3_step(stmt) == SQLITE_DONE else {
                 throw dbError(context: "updateNode")
@@ -587,10 +589,12 @@ public class JourneyDAO: BaseDAO {
     }
 
     private func parseNode(_ stmt: OpaquePointer) -> JourneyNode {
-        // Column order: id, origin_id, revision, parent_id, section, node_type, title, content,
-        //               sort_order, tags, created_at, modified_at, doing_at,
-        //               status, due_date, progress, calendar_event_id,
-        //               assigned_to, created_by, completed_at, completed_by
+        // Column order (after ALTER TABLE, due_end_date is appended at end):
+        // 0-7:   id, origin_id, revision, parent_id, section, node_type, title, content
+        // 8-12:  sort_order, tags, created_at, modified_at, doing_at
+        // 13-16: status, due_date, progress, calendar_event_id
+        // 17-20: assigned_to, created_by, completed_at, completed_by
+        // 21:    due_end_date (added via ALTER TABLE)
         JourneyNode(
             id: stmt.columnUUID(0) ?? UUID(),
             originId: stmt.columnUUID(1),
@@ -607,6 +611,7 @@ public class JourneyDAO: BaseDAO {
             doingAt: stmt.columnDate(12),
             status: stmt.columnText(13).flatMap { JourneyTaskStatus(rawValue: $0) },
             dueDate: stmt.columnDate(14),
+            dueEndDate: stmt.columnDate(21),  // Added at end via ALTER TABLE
             progress: stmt.columnIsNull(15) ? nil : stmt.columnInt(15),
             calendarEventId: stmt.columnText(16),
             assignedTo: stmt.columnUUID(17),

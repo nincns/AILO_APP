@@ -23,6 +23,7 @@ struct JourneyEditorView: View {
     // Task-spezifisch
     @State private var status: JourneyTaskStatus = .open
     @State private var dueDate: Date = Date()
+    @State private var dueEndDate: Date = Date()
     @State private var hasDueDate: Bool = false
     @State private var progress: Double = 0
 
@@ -143,11 +144,32 @@ struct JourneyEditorView: View {
                     }
 
                     Toggle(String(localized: "journey.task.hasDueDate"), isOn: $hasDueDate)
+                        .onChange(of: hasDueDate) { _, newValue in
+                            if newValue {
+                                // Standard: 1 Stunde Zeitfenster
+                                let now = Date()
+                                dueDate = now
+                                dueEndDate = Calendar.current.date(byAdding: .hour, value: 1, to: now) ?? now
+                            }
+                        }
 
                     if hasDueDate {
                         DatePicker(
-                            String(localized: "journey.detail.dueDate"),
+                            String(localized: "journey.task.startTime"),
                             selection: $dueDate,
+                            displayedComponents: [.date, .hourAndMinute]
+                        )
+                        .onChange(of: dueDate) { _, newStart in
+                            // Wenn Startzeit nach Endzeit, Endzeit anpassen
+                            if newStart >= dueEndDate {
+                                dueEndDate = Calendar.current.date(byAdding: .hour, value: 1, to: newStart) ?? newStart
+                            }
+                        }
+
+                        DatePicker(
+                            String(localized: "journey.task.endTime"),
+                            selection: $dueEndDate,
+                            in: dueDate...,
                             displayedComponents: [.date, .hourAndMinute]
                         )
 
@@ -249,6 +271,12 @@ struct JourneyEditorView: View {
                 if let d = node.dueDate {
                     dueDate = d
                     hasDueDate = true
+                    // Lade Endzeit oder setze Fallback +1 Stunde
+                    if let end = node.dueEndDate {
+                        dueEndDate = end
+                    } else {
+                        dueEndDate = Calendar.current.date(byAdding: .hour, value: 1, to: d) ?? d
+                    }
                 }
                 if let p = node.progress { progress = Double(p) }
 
@@ -489,6 +517,7 @@ struct JourneyEditorView: View {
                     if updated.nodeType == .task {
                         updated.status = status
                         updated.dueDate = hasDueDate ? dueDate : nil
+                        updated.dueEndDate = hasDueDate ? dueEndDate : nil
                         updated.progress = Int(progress)
                     }
 
@@ -496,7 +525,7 @@ struct JourneyEditorView: View {
                     nodeId = existingNode.id
                 } else {
                     // Create new node
-                    let newNode = try await store.createNode(
+                    var newNode = try await store.createNode(
                         section: selectedSection,
                         nodeType: selectedType,
                         title: title,
@@ -505,6 +534,15 @@ struct JourneyEditorView: View {
                         tags: parseTags()
                     )
                     nodeId = newNode.id
+
+                    // Für neue Tasks: Task-spezifische Felder setzen
+                    if selectedType == .task {
+                        newNode.status = status
+                        newNode.dueDate = hasDueDate ? dueDate : nil
+                        newNode.dueEndDate = hasDueDate ? dueEndDate : nil
+                        newNode.progress = Int(progress)
+                        try await store.updateNode(newNode)
+                    }
                 }
 
                 // Delete marked attachments
@@ -541,6 +579,7 @@ struct JourneyEditorView: View {
                     var nodeForCalendar = node ?? JourneyNode(section: selectedSection, nodeType: selectedType, title: title)
                     nodeForCalendar.title = title
                     nodeForCalendar.dueDate = dueDate
+                    nodeForCalendar.dueEndDate = dueEndDate
                     nodeForCalendar.status = status
 
                     if let eventId = try? JourneyCalendarService.shared.syncTask(nodeForCalendar) {

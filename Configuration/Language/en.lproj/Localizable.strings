@@ -868,7 +868,9 @@
 "journey.role" = "Role";
 
 /* Journey Task */
-"journey.task.hasDueDate" = "Due Date";
+"journey.task.hasDueDate" = "Create Appointment";
+"journey.task.startTime" = "From";
+"journey.task.endTime" = "To";
 
 /* Journey Calendar (Phase 5) */
 "journey.calendar" = "Calendar";
