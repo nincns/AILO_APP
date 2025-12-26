@@ -304,9 +304,12 @@
 "config.section.language" = "Language";
 "config.section.ai" = "AI";
 "config.section.privacy" = "Privacy";
+"config.section.mail" = "Mail";
+"config.section.mailAccounts" = "Mail Accounts";
+"config.section.journey" = "Journey";
 
 /* Additional config section keys (missing in EN, present only in DE) */
-"config.section.about" = "Über";
+"config.section.about" = "About";
 
 /* MARK: - Rows / Controls */
 "config.categories.manage" = "Manage categories";
@@ -317,11 +320,38 @@
 "config.section.mail" = "Mail Configuration";
 "config.nav.aiManager" = "Manage AI providers";
 "config.nav.prePrompts" = "Pre-prompts";
+"config.nav.mailManager" = "Mail Accounts";
+"config.nav.journeyCalendar" = "Calendar";
 
 /* MARK: - Actions & Feedback */
 "config.action.save" = "Save settings";
 "config.action.resetDefaults" = "Reset to defaults";
 "config.toast.saved" = "Settings saved";
+
+/* Configuration - Journey Calendar Settings */
+"config.journey.calendar.title" = "Journey Calendar";
+"config.journey.calendar.permission" = "Permission";
+"config.journey.calendar.accessGranted" = "Calendar access granted";
+"config.journey.calendar.accessDenied" = "Calendar access denied";
+"config.journey.calendar.openSettings" = "Please allow calendar access in system settings.";
+"config.journey.calendar.openSettingsButton" = "Open Settings";
+"config.journey.calendar.requestAccess" = "Request calendar access";
+"config.journey.calendar.writeOnly" = "Write-only access";
+"config.journey.calendar.writeOnlyHint" = "Full access is required for all features.";
+"config.journey.calendar.current" = "Selected Calendar";
+"config.journey.calendar.currentHint" = "All Journey tasks will be added to this calendar.";
+"config.journey.calendar.notSelected" = "No calendar selected";
+"config.journey.calendar.createNew" = "Create new calendar";
+"config.journey.calendar.createHint" = "Create a dedicated AILO calendar in one of your accounts.";
+"config.journey.calendar.available" = "Available Calendars";
+"config.journey.calendar.noCalendars" = "No calendars available";
+"config.journey.calendar.name" = "Calendar name";
+"config.journey.calendar.nameHeader" = "Name";
+"config.journey.calendar.account" = "Account";
+"config.journey.calendar.accountHeader" = "Which account?";
+"config.journey.calendar.accountHint" = "The calendar will be created in the selected account and synced with it.";
+"config.journey.calendar.createTitle" = "Create Calendar";
+"config.journey.calendar.noAccounts" = "No accounts with write access available";
 
 /* ============================================================================
    Configuration – AI Manager & Editor

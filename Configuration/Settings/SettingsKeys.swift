@@ -25,3 +25,7 @@ let kMicSensitivity       = "config.mic.sensitivity"    // Double 0...1
 let kSilenceThreshold     = "config.mic.silenceDB"      // Double -60...0 dB
 let kChunkSeconds         = "config.mic.chunkSeconds"   // Double 1...10
 let kSpeechLang           = "config.speech.lang"        // z.B. "de-DE"
+
+// Journey
+let kJourneyCalendarId    = "config.journey.calendarId"     // String - EKCalendar identifier
+let kJourneyCalendarTitle = "config.journey.calendarTitle"  // String - Kalender-Name (für Anzeige)
