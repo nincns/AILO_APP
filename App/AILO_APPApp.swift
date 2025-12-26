@@ -7,10 +7,11 @@ import UIKit
 struct AILO_APPApp: App {
     @StateObject private var store = DataStore()
     @State private var didRunWarmups: Bool = false
+    @State private var pendingImportFileURL: URL?
 
     var body: some Scene {
         WindowGroup {
-            MainView()
+            MainView(pendingImportFileURL: $pendingImportFileURL)
                 .environmentObject(store)
                 .onAppear {
                     guard !didRunWarmups else { return }
@@ -18,6 +19,13 @@ struct AILO_APPApp: App {
                     StartupWarmups.run()
                 }
                 .onOpenURL { url in
+                    // Handle .ailo file URLs
+                    if url.pathExtension.lowercased() == "ailo" {
+                        pendingImportFileURL = url
+                        return
+                    }
+
+                    // Handle ailo:// URL scheme
                     guard url.scheme == "ailo" else { return }
                     let comps = URLComponents(url: url, resolvingAgainstBaseURL: false)
                     let host = url.host?.lowercased() ?? ""
@@ -34,8 +42,12 @@ struct AILO_APPApp: App {
 
 struct MainView: View {
     @StateObject private var mailViewModel = MailViewModel()
+    @Binding var pendingImportFileURL: URL?
+    @State private var showImportSheet = false
 
-    init() {
+    init(pendingImportFileURL: Binding<URL?> = .constant(nil)) {
+        self._pendingImportFileURL = pendingImportFileURL
+
         // Customize tab bar badge appearance to teal
         let tealColor = UIColor.systemTeal
         let appearance = UITabBarAppearance()
@@ -86,6 +98,17 @@ struct MainView: View {
             Task {
                 await mailViewModel.loadAccounts()
             }
+        }
+        .onChange(of: pendingImportFileURL) { _, newURL in
+            if newURL != nil {
+                showImportSheet = true
+            }
+        }
+        .sheet(isPresented: $showImportSheet, onDismiss: {
+            pendingImportFileURL = nil
+        }) {
+            JourneyImportSheet(url: pendingImportFileURL)
+                .environmentObject(JourneyStore.shared)
         }
     }
 }

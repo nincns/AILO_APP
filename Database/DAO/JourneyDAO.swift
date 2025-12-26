@@ -153,6 +153,24 @@ public class JourneyDAO: BaseDAO {
         }
     }
 
+    public func getNodeByOriginId(_ originId: UUID) throws -> JourneyNode? {
+        let sql = "SELECT * FROM \(JourneySchema.tNodes) WHERE origin_id = ? ORDER BY revision DESC LIMIT 1"
+
+        return try dbQueue.sync {
+            try ensureOpen()
+            let stmt = try prepare(sql)
+            defer { finalize(stmt) }
+
+            bindUUID(stmt, 1, originId)
+
+            guard sqlite3_step(stmt) == SQLITE_ROW else {
+                return nil
+            }
+
+            return parseNode(stmt)
+        }
+    }
+
     // MARK: - Tree Queries
 
     public func getRootNodes(section: JourneySection) throws -> [JourneyNode] {

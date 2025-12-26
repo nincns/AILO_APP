@@ -5,10 +5,11 @@ import Foundation
 import UniformTypeIdentifiers
 import SwiftUI
 
-// MARK: - UTType für Journey Node
+// MARK: - UTType für Journey Node und Export
 
 extension UTType {
     static let journeyNode = UTType(exportedAs: "com.ailo.journey.node")
+    static let ailoExport = UTType(exportedAs: "com.ailo.journey.export")
 }
 
 // MARK: - Enums

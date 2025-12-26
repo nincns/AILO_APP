@@ -900,6 +900,56 @@
 "journey.calendar.reminder.1h" = "1 hour before";
 "journey.calendar.reminder.1d" = "1 day before";
 
+/* Journey Export/Import (Phase 6) */
+"journey.action.export" = "Export";
+"journey.action.import" = "Import";
+"journey.export.title" = "Export";
+"journey.export.title.node" = "Entry";
+"journey.export.title.nodes %lld" = "%lld Entries";
+"journey.export.title.all" = "All Data";
+"journey.export.format" = ".ailo Format (ZIP archive)";
+"journey.export.options" = "Options";
+"journey.export.includeSubnodes" = "Include sub-entries";
+"journey.export.includeAttachments" = "Include attachments";
+"journey.export.includeContacts" = "Include contacts";
+"journey.export.action" = "Export";
+"journey.export.currentSection" = "Current Section";
+"journey.export.all" = "All Sections";
+"journey.export.error.daoNotAvailable" = "Database not available";
+
+"journey.import.title" = "Import";
+"journey.import.loading" = "Loading archive...";
+"journey.import.selectFile" = "Choose a .ailo file to import";
+"journey.import.chooseFile" = "Choose File";
+"journey.import.archiveInfo" = "Archive Information";
+"journey.import.conflictResolution" = "Resolve Conflicts";
+"journey.import.defaultAction" = "Default Action";
+"journey.import.conflicts %lld" = "Conflicts (%lld)";
+"journey.import.existingRevision %lld" = "Local: Rev. %lld";
+"journey.import.importRevision %lld" = "Import: Rev. %lld";
+"journey.import.resolution.keepBoth" = "Keep Both";
+"journey.import.resolution.overwrite" = "Overwrite";
+"journey.import.resolution.skip" = "Skip";
+"journey.import.resolution.keepBoth.short" = "Both";
+"journey.import.resolution.overwrite.short" = "Overwr.";
+"journey.import.resolution.skip.short" = "Skip";
+"journey.import.conflict.newer" = "Newer";
+"journey.import.conflict.older" = "Older";
+"journey.import.conflict.same" = "Same";
+"journey.import.action" = "Import";
+"journey.import.success" = "Import successful";
+"journey.import.partial" = "Import completed with warnings";
+"journey.import.result.nodes" = "Entries imported";
+"journey.import.result.skipped" = "Skipped";
+"journey.import.result.attachments" = "Attachments";
+"journey.import.result.contacts" = "Contacts";
+"journey.import.errors" = "Errors:";
+"journey.import.error.missingManifest" = "Archive contains no manifest file";
+"journey.import.error.missingNodes" = "Archive contains no entries";
+"journey.import.error.invalidArchive" = "Invalid archive format";
+"journey.import.error.unsupportedVersion %lld" = "Unsupported version: %lld";
+
 /* Common additions */
 "common.openSettings" = "Open Settings";
 "common.create" = "Create";
+"common.done" = "Done";

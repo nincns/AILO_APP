@@ -859,6 +859,56 @@
 "journey.calendar.reminder.1h" = "1 Stunde vorher";
 "journey.calendar.reminder.1d" = "1 Tag vorher";
 
+/* Journey Export/Import (Phase 6) */
+"journey.action.export" = "Exportieren";
+"journey.action.import" = "Importieren";
+"journey.export.title" = "Exportieren";
+"journey.export.title.node" = "Eintrag";
+"journey.export.title.nodes %lld" = "%lld Einträge";
+"journey.export.title.all" = "Alle Daten";
+"journey.export.format" = ".ailo Format (ZIP-Archiv)";
+"journey.export.options" = "Optionen";
+"journey.export.includeSubnodes" = "Untereinträge einschließen";
+"journey.export.includeAttachments" = "Anhänge einschließen";
+"journey.export.includeContacts" = "Kontakte einschließen";
+"journey.export.action" = "Exportieren";
+"journey.export.currentSection" = "Aktuellen Bereich";
+"journey.export.all" = "Alle Bereiche";
+"journey.export.error.daoNotAvailable" = "Datenbank nicht verfügbar";
+
+"journey.import.title" = "Importieren";
+"journey.import.loading" = "Lade Archiv...";
+"journey.import.selectFile" = "Wähle eine .ailo Datei zum Importieren";
+"journey.import.chooseFile" = "Datei auswählen";
+"journey.import.archiveInfo" = "Archiv-Informationen";
+"journey.import.conflictResolution" = "Konflikte lösen";
+"journey.import.defaultAction" = "Standardaktion";
+"journey.import.conflicts %lld" = "Konflikte (%lld)";
+"journey.import.existingRevision %lld" = "Lokal: Rev. %lld";
+"journey.import.importRevision %lld" = "Import: Rev. %lld";
+"journey.import.resolution.keepBoth" = "Beide behalten";
+"journey.import.resolution.overwrite" = "Überschreiben";
+"journey.import.resolution.skip" = "Überspringen";
+"journey.import.resolution.keepBoth.short" = "Beide";
+"journey.import.resolution.overwrite.short" = "Überschr.";
+"journey.import.resolution.skip.short" = "Übersp.";
+"journey.import.conflict.newer" = "Neuer";
+"journey.import.conflict.older" = "Älter";
+"journey.import.conflict.same" = "Gleich";
+"journey.import.action" = "Importieren";
+"journey.import.success" = "Import erfolgreich";
+"journey.import.partial" = "Import mit Warnungen abgeschlossen";
+"journey.import.result.nodes" = "Einträge importiert";
+"journey.import.result.skipped" = "Übersprungen";
+"journey.import.result.attachments" = "Anhänge";
+"journey.import.result.contacts" = "Kontakte";
+"journey.import.errors" = "Fehler:";
+"journey.import.error.missingManifest" = "Archiv enthält keine Manifest-Datei";
+"journey.import.error.missingNodes" = "Archiv enthält keine Einträge";
+"journey.import.error.invalidArchive" = "Ungültiges Archiv-Format";
+"journey.import.error.unsupportedVersion %lld" = "Nicht unterstützte Version: %lld";
+
 /* Common additions */
 "common.openSettings" = "Einstellungen öffnen";
 "common.create" = "Erstellen";
+"common.done" = "Fertig";
