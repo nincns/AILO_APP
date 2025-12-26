@@ -85,7 +85,7 @@ struct JourneyMoveSheet: View {
                             Spacer()
                             if selectedParentId == nil {
                                 Image(systemName: "checkmark")
-                                    .foregroundStyle(.accent)
+                                    .foregroundStyle(.tint)
                                     .fontWeight(.semibold)
                             }
                         }
@@ -115,7 +115,7 @@ struct JourneyMoveSheet: View {
 
                                 if selectedParentId == item.folder.id {
                                     Image(systemName: "checkmark")
-                                        .foregroundStyle(.accent)
+                                        .foregroundStyle(.tint)
                                         .fontWeight(.semibold)
                                 }
                             }
