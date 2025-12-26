@@ -851,8 +851,8 @@
 "journey.attachments" = "Attachments";
 "journey.attachments.empty" = "No attachments";
 "journey.attachments.add" = "Add attachment";
-"journey.attachments.photo" = "Add photo";
-"journey.attachments.file" = "Add file";
+"journey.attachments.photo" = "Photo";
+"journey.attachments.file" = "File";
 "journey.attachments.importing" = "Importing...";
 "journey.attachments.select.photos" = "Select photos";
 "journey.attachments.select.limit" = "Up to 10 photos or videos";
