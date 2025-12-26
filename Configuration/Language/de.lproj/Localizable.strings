@@ -763,6 +763,7 @@
 "journey.move.root" = "Stammebene";
 "journey.move.confirm" = "Verschieben";
 "journey.move.error" = "Verschieben fehlgeschlagen";
+"journey.move.noFolders" = "Keine Ordner vorhanden";
 "journey.delete.confirm.title" = "Löschen bestätigen";
 "journey.delete.confirm.message %@" = "Möchtest du \"%@\" wirklich löschen? Alle Untereinträge werden ebenfalls gelöscht.";
 "journey.context.edit" = "Bearbeiten";
