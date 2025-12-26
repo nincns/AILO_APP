@@ -805,8 +805,8 @@
 "journey.attachments" = "Anhänge";
 "journey.attachments.empty" = "Keine Anhänge";
 "journey.attachments.add" = "Anhang hinzufügen";
-"journey.attachments.photo" = "Foto hinzufügen";
-"journey.attachments.file" = "Datei hinzufügen";
+"journey.attachments.photo" = "Foto";
+"journey.attachments.file" = "Datei";
 "journey.attachments.importing" = "Importiere...";
 "journey.attachments.select.photos" = "Fotos auswählen";
 "journey.attachments.select.limit" = "Bis zu 10 Fotos oder Videos";
