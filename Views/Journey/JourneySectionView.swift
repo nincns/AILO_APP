@@ -5,6 +5,7 @@ struct JourneySectionView: View {
     let section: JourneySection
     @Binding var searchText: String
     @EnvironmentObject var store: JourneyStore
+    @EnvironmentObject var presentationState: JourneyPresentationState
     @State private var editMode: EditMode = .inactive
 
     private var nodes: [JourneyNode] {
@@ -69,5 +70,6 @@ struct JourneySectionView: View {
     NavigationStack {
         JourneySectionView(section: .wiki, searchText: .constant(""))
             .environmentObject(JourneyStore.shared)
+            .environmentObject(JourneyPresentationState())
     }
 }

@@ -3,11 +3,9 @@ import SwiftUI
 
 struct JourneyView: View {
     @StateObject private var store = JourneyStore.shared
+    @StateObject private var presentationState = JourneyPresentationState()
     @State private var selectedSection: JourneySection = .inbox
     @State private var searchText: String = ""
-    @State private var nodeToEdit: JourneyNode?
-    @State private var isNewlyCreated: Bool = false
-    @State private var showEditor = false
 
     var body: some View {
         VStack(spacing: 0) {
@@ -49,22 +47,22 @@ struct JourneyView: View {
                 searchText: $searchText
             )
             .environmentObject(store)
+            .environmentObject(presentationState)
         }
         .navigationTitle(String(localized: "journey.title"))
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 Menu {
-                    Button(action: { createFolder() }) {
-                        Label(String(localized: "journey.action.newFolder"), systemImage: "folder.badge.plus")
-                    }
                     Button(action: { createEntry() }) {
                         Label(String(localized: "journey.action.newEntry"), systemImage: "doc.badge.plus")
                     }
-                    if selectedSection == .projects {
-                        Button(action: { createTask() }) {
-                            Label(String(localized: "journey.action.newTask"), systemImage: "checkmark.circle.badge.plus")
-                        }
+                    Button(action: { createTask() }) {
+                        Label(String(localized: "journey.action.newTask"), systemImage: "checkmark.circle.badge.plus")
+                    }
+                    Divider()
+                    Button(action: { createFolder() }) {
+                        Label(String(localized: "journey.action.newFolder"), systemImage: "folder.badge.plus")
                     }
                 } label: {
                     Image(systemName: "plus")
@@ -76,12 +74,63 @@ struct JourneyView: View {
                 ProgressView()
             }
         }
-        .sheet(isPresented: $showEditor) {
-            if let node = nodeToEdit {
-                NavigationStack {
-                    JourneyEditorView(node: node, isNewlyCreated: isNewlyCreated)
-                        .environmentObject(store)
+        // EINZIGER Sheet-Modifier für die gesamte Journey-Hierarchie
+        .sheet(item: $presentationState.activeSheet, onDismiss: {
+            presentationState.unlock()
+        }) { sheetType in
+            sheetContent(for: sheetType)
+        }
+        // EINZIGER Alert-Modifier für die gesamte Journey-Hierarchie
+        .alert(
+            String(localized: "journey.delete.confirm.title"),
+            isPresented: Binding(
+                get: { presentationState.activeAlert != nil },
+                set: { newValue in
+                    if !newValue {
+                        Task { @MainActor in
+                            presentationState.unlock()
+                        }
+                    }
                 }
+            ),
+            presenting: presentationState.activeAlert
+        ) { alertType in
+            Button(String(localized: "common.cancel"), role: .cancel) { }
+            Button(String(localized: "common.delete"), role: .destructive) {
+                if case .delete(let nodeToDelete) = alertType {
+                    deleteNode(nodeToDelete)
+                }
+            }
+        } message: { alertType in
+            if case .delete(let nodeToDelete) = alertType {
+                Text("journey.delete.confirm.message \(nodeToDelete.title)")
+            }
+        }
+    }
+
+    // MARK: - Sheet Content
+
+    @ViewBuilder
+    private func sheetContent(for type: JourneySheetType) -> some View {
+        switch type {
+        case .edit(let nodeToEdit):
+            NavigationStack {
+                JourneyEditorView(node: nodeToEdit)
+                    .environmentObject(store)
+            }
+
+        case .move(let nodeToMove):
+            JourneyMoveSheet(node: nodeToMove)
+                .environmentObject(store)
+
+        case .newNode(let parentId, let section, let nodeType):
+            NavigationStack {
+                JourneyEditorView(
+                    parentId: parentId,
+                    preselectedSection: section,
+                    preselectedType: nodeType
+                )
+                .environmentObject(store)
             }
         }
     }
@@ -89,58 +138,35 @@ struct JourneyView: View {
     // MARK: - Actions
 
     private func createFolder() {
-        Task {
-            do {
-                let node = try await store.createNode(
-                    section: selectedSection,
-                    nodeType: .folder,
-                    title: String(localized: "journey.new.folder")
-                )
-                await MainActor.run {
-                    nodeToEdit = node
-                    isNewlyCreated = true
-                    showEditor = true
-                }
-            } catch {
-                print("❌ Failed to create folder: \(error)")
-            }
-        }
+        presentationState.presentSheet(.newNode(
+            parentId: nil,
+            section: selectedSection,
+            nodeType: .folder
+        ))
     }
 
     private func createEntry() {
-        Task {
-            do {
-                let node = try await store.createNode(
-                    section: selectedSection,
-                    nodeType: .entry,
-                    title: String(localized: "journey.new.entry")
-                )
-                await MainActor.run {
-                    nodeToEdit = node
-                    isNewlyCreated = true
-                    showEditor = true
-                }
-            } catch {
-                print("❌ Failed to create entry: \(error)")
-            }
-        }
+        presentationState.presentSheet(.newNode(
+            parentId: nil,
+            section: selectedSection,
+            nodeType: .entry
+        ))
     }
 
     private func createTask() {
+        presentationState.presentSheet(.newNode(
+            parentId: nil,
+            section: selectedSection,
+            nodeType: .task
+        ))
+    }
+
+    private func deleteNode(_ node: JourneyNode) {
         Task {
             do {
-                let node = try await store.createNode(
-                    section: selectedSection,
-                    nodeType: .task,
-                    title: String(localized: "journey.new.task")
-                )
-                await MainActor.run {
-                    nodeToEdit = node
-                    isNewlyCreated = true
-                    showEditor = true
-                }
+                try await store.deleteNode(node)
             } catch {
-                print("❌ Failed to create task: \(error)")
+                print("❌ Delete failed: \(error)")
             }
         }
     }
