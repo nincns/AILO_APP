@@ -106,23 +106,35 @@ public final class JourneyContactService {
     // MARK: - Create JourneyContactRef
 
     /// Erstellt JourneyContactRef aus CNContact
+    /// Der übergebene Kontakt kann ein partieller Kontakt sein (vom CNContactPickerViewController),
+    /// daher wird der vollständige Kontakt bei Bedarf nachgeladen
     public func createContactRef(
         from contact: CNContact,
         nodeId: UUID,
         role: ContactRole? = nil,
         note: String? = nil
     ) -> JourneyContactRef {
-        let displayName = [contact.givenName, contact.familyName]
+        // CNContactPickerViewController liefert nur partielle Kontakte
+        // Lade den vollständigen Kontakt um alle Properties (E-Mail, Telefon) zu erhalten
+        let fullContact: CNContact
+        if contact.emailAddresses.isEmpty || contact.phoneNumbers.isEmpty {
+            // Kontakt ist unvollständig - lade vollen Kontakt
+            fullContact = fetchContact(identifier: contact.identifier) ?? contact
+        } else {
+            fullContact = contact
+        }
+
+        let displayName = [fullContact.givenName, fullContact.familyName]
             .filter { !$0.isEmpty }
             .joined(separator: " ")
-            .ifEmpty(contact.organizationName)
+            .ifEmpty(fullContact.organizationName)
 
-        let primaryEmail = contact.emailAddresses.first?.value as String?
-        let primaryPhone = contact.phoneNumbers.first?.value.stringValue
+        let primaryEmail = fullContact.emailAddresses.first?.value as String?
+        let primaryPhone = fullContact.phoneNumbers.first?.value.stringValue
 
         return JourneyContactRef(
             nodeId: nodeId,
-            contactId: contact.identifier,
+            contactId: fullContact.identifier,
             displayName: displayName,
             email: primaryEmail,
             phone: primaryPhone,
