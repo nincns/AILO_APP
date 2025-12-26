@@ -110,8 +110,10 @@ public final class JourneyCalendarService {
 
         if isAllDay {
             event.isAllDay = true
-            event.startDate = cal.startOfDay(for: startDate)
-            event.endDate = cal.startOfDay(for: startDate)  // Für ganztägig: gleiches Datum
+            // Für ganztägige Events: Start = Tagesbeginn, Ende = nächster Tag (EKEvent Konvention)
+            let dayStart = cal.startOfDay(for: startDate)
+            event.startDate = dayStart
+            event.endDate = cal.date(byAdding: .day, value: 1, to: dayStart) ?? dayStart
         } else {
             event.isAllDay = false
             event.startDate = startDate
@@ -165,8 +167,10 @@ public final class JourneyCalendarService {
 
             if isAllDay {
                 event.isAllDay = true
-                event.startDate = cal.startOfDay(for: startDate)
-                event.endDate = cal.startOfDay(for: startDate)
+                // Für ganztägige Events: Start = Tagesbeginn, Ende = nächster Tag (EKEvent Konvention)
+                let dayStart = cal.startOfDay(for: startDate)
+                event.startDate = dayStart
+                event.endDate = cal.date(byAdding: .day, value: 1, to: dayStart) ?? dayStart
             } else {
                 event.isAllDay = false
                 event.startDate = startDate
