@@ -501,12 +501,12 @@ public final class IMAPClient {
             cmd += " (\(flagList))"
         }
 
-        // Build the literal data: message OHNE terminierendes CRLF
-        // Das CRLF wird separat gesendet um TCP flush zu erzwingen
-        let literalData = message.data(using: .utf8) ?? Data()
-        // Literal size = message bytes + 2 (für das separate CRLF das wir nachher senden)
-        cmd += " {\(literalData.count + 2)}"
-        print("📧 [APPEND] Command built: \(cmd.prefix(100))... literalSize=\(literalData.count + 2) (msg:\(literalData.count) + CRLF:2)")
+        // Build the literal data: message MIT terminierendem CRLF als EIN Block
+        // Alles zusammen senden um TCP-Fragmentierung zu vermeiden
+        let fullLiteral = message + "\r\n"
+        let literalData = fullLiteral.data(using: .utf8) ?? Data()
+        cmd += " {\(literalData.count)}"
+        print("📧 [APPEND] Command built: \(cmd.prefix(100))... literalSize=\(literalData.count)")
 
         print("📧 [APPEND] Sending APPEND command...")
         try await conn.send(line: cmd)
@@ -519,20 +519,14 @@ public final class IMAPClient {
             throw IMAPError.protocolError("Expected continuation response for APPEND, got: \(continuation.first ?? "nothing")")
         }
 
-        // Send raw literal data (message OHNE CRLF)
-        print("📧 [APPEND] Sending literal data (\(literalData.count) bytes)...")
+        // Send ALLES in einem einzigen sendRaw() - Message + CRLF zusammen
+        print("📧 [APPEND] Sending literal data (\(literalData.count) bytes) in single sendRaw...")
         try await conn.sendRaw(literalData)
-        print("📧 [APPEND] Literal data sent")
+        print("📧 [APPEND] Literal sent completely")
 
-        // Sende terminierendes CRLF separat über send(line:) um TCP flush zu erzwingen
-        // send(line: "") sendet nur \r\n
-        print("📧 [APPEND] Sending terminating CRLF via send(line:)...")
-        try await conn.send(line: "")
-        print("📧 [APPEND] Terminating CRLF sent")
-
-        // Extra wait to ensure TCP stack has flushed all data to server
-        print("📧 [APPEND] Waiting 200ms for TCP flush before reading response...")
-        try await Task.sleep(nanoseconds: 200_000_000) // 200ms
+        // Warte kurz um sicherzustellen dass TCP-Stack geflusht hat
+        print("📧 [APPEND] Waiting 100ms for TCP flush...")
+        try await Task.sleep(nanoseconds: 100_000_000) // 100ms
         print("📧 [APPEND] Now waiting for server response (timeout: \(idleTimeout)s)...")
 
         // Wait for OK response
