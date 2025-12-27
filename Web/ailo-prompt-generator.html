@@ -1,0 +1,2293 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AILO Pre-Prompt Generator</title>
+    <style>
+        /* ========================================
+           AILO THEME - CSS Variables
+           ======================================== */
+        :root {
+            /* Colors */
+            --color-bg-dark: #0a0a0f;
+            --color-bg-card: #12121a;
+            --color-bg-elevated: #1a1a25;
+            --color-bg-hover: #22222f;
+
+            --color-primary-purple: #4a148c;
+            --color-primary-purple-light: #7c43bd;
+            --color-primary-teal: #00bcd4;
+            --color-primary-teal-dark: #008ba3;
+
+            --color-text-primary: #ffffff;
+            --color-text-secondary: #a0a0b0;
+            --color-text-muted: #606070;
+
+            --color-border-dark: #2a2a3a;
+            --color-border-light: #3a3a4a;
+
+            --color-success: #4caf50;
+            --color-warning: #ff9800;
+            --color-error: #f44336;
+            --color-info: #2196f3;
+
+            /* Gradients */
+            --gradient-primary: linear-gradient(135deg, #4a148c 0%, #00bcd4 100%);
+            --gradient-card: linear-gradient(180deg, #1a1a25 0%, #12121a 100%);
+            --gradient-glow: radial-gradient(ellipse at center, rgba(0, 188, 212, 0.15) 0%, transparent 70%);
+
+            /* Spacing */
+            --spacing-xs: 0.25rem;
+            --spacing-sm: 0.5rem;
+            --spacing-md: 1rem;
+            --spacing-lg: 1.5rem;
+            --spacing-xl: 2rem;
+            --spacing-2xl: 3rem;
+
+            /* Border Radius */
+            --radius-sm: 4px;
+            --radius-md: 8px;
+            --radius-lg: 12px;
+            --radius-xl: 16px;
+            --radius-full: 9999px;
+
+            /* Shadows */
+            --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+            --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.4);
+            --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.5);
+            --shadow-glow: 0 0 20px rgba(0, 188, 212, 0.3);
+
+            /* Transitions */
+            --transition-fast: 150ms ease;
+            --transition-normal: 250ms ease;
+            --transition-slow: 350ms ease;
+        }
+
+        /* ========================================
+           BASE STYLES
+           ======================================== */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            background: var(--color-bg-dark);
+            color: var(--color-text-primary);
+            min-height: 100vh;
+            line-height: 1.5;
+        }
+
+        /* ========================================
+           LAYOUT
+           ======================================== */
+        .app-container {
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+        }
+
+        /* Header */
+        .header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: var(--spacing-md) var(--spacing-lg);
+            background: var(--color-bg-card);
+            border-bottom: 1px solid var(--color-border-dark);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-md);
+        }
+
+        .logo {
+            font-size: 1.5rem;
+            font-weight: 700;
+            background: var(--gradient-primary);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-md);
+        }
+
+        /* Language Toggle */
+        .lang-toggle {
+            display: flex;
+            background: var(--color-bg-elevated);
+            border-radius: var(--radius-md);
+            overflow: hidden;
+        }
+
+        .lang-btn {
+            padding: var(--spacing-xs) var(--spacing-sm);
+            background: transparent;
+            border: none;
+            color: var(--color-text-secondary);
+            cursor: pointer;
+            font-size: 0.875rem;
+            transition: var(--transition-fast);
+        }
+
+        .lang-btn.active {
+            background: var(--color-primary-purple);
+            color: var(--color-text-primary);
+        }
+
+        /* Buttons */
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: var(--spacing-xs);
+            padding: var(--spacing-sm) var(--spacing-md);
+            border: none;
+            border-radius: var(--radius-md);
+            font-size: 0.875rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: var(--transition-fast);
+        }
+
+        .btn-primary {
+            background: var(--gradient-primary);
+            color: var(--color-text-primary);
+        }
+
+        .btn-primary:hover {
+            opacity: 0.9;
+            box-shadow: var(--shadow-glow);
+        }
+
+        .btn-secondary {
+            background: var(--color-bg-elevated);
+            color: var(--color-text-primary);
+            border: 1px solid var(--color-border-dark);
+        }
+
+        .btn-secondary:hover {
+            background: var(--color-bg-hover);
+        }
+
+        .btn-danger {
+            background: var(--color-error);
+            color: var(--color-text-primary);
+        }
+
+        .btn-danger:hover {
+            opacity: 0.9;
+        }
+
+        .btn-sm {
+            padding: var(--spacing-xs) var(--spacing-sm);
+            font-size: 0.75rem;
+        }
+
+        /* Tab Bar */
+        .tab-bar {
+            display: flex;
+            gap: var(--spacing-sm);
+            padding: 0 var(--spacing-lg);
+            background: var(--color-bg-card);
+            border-bottom: 1px solid var(--color-border-dark);
+        }
+
+        .tab-btn {
+            padding: var(--spacing-md) var(--spacing-lg);
+            background: transparent;
+            border: none;
+            color: var(--color-text-secondary);
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+            font-size: 0.9375rem;
+            font-weight: 500;
+            transition: var(--transition-fast);
+        }
+
+        .tab-btn:hover {
+            color: var(--color-text-primary);
+        }
+
+        .tab-btn.active {
+            color: var(--color-text-primary);
+            border-bottom-color: var(--color-primary-teal);
+        }
+
+        /* Main Content */
+        .main-content {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+        }
+
+        /* Sidebar */
+        .sidebar {
+            width: 320px;
+            min-width: 280px;
+            background: var(--color-bg-card);
+            border-right: 1px solid var(--color-border-dark);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .sidebar-header {
+            padding: var(--spacing-md);
+            border-bottom: 1px solid var(--color-border-dark);
+            display: flex;
+            gap: var(--spacing-sm);
+            flex-wrap: wrap;
+        }
+
+        .sidebar-content {
+            flex: 1;
+            overflow-y: auto;
+            padding: var(--spacing-sm);
+        }
+
+        /* Editor */
+        .editor {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .editor-content {
+            flex: 1;
+            overflow-y: auto;
+            padding: var(--spacing-lg);
+        }
+
+        .editor-empty {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            color: var(--color-text-muted);
+            font-size: 1.125rem;
+        }
+
+        /* Card */
+        .card {
+            background: var(--color-bg-card);
+            border: 1px solid var(--color-border-dark);
+            border-radius: var(--radius-lg);
+            padding: var(--spacing-lg);
+            margin-bottom: var(--spacing-lg);
+        }
+
+        .card-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: var(--spacing-md);
+        }
+
+        .card-title {
+            font-size: 1.125rem;
+            font-weight: 600;
+        }
+
+        /* Form Elements */
+        .form-group {
+            margin-bottom: var(--spacing-md);
+        }
+
+        .form-row {
+            display: flex;
+            gap: var(--spacing-md);
+        }
+
+        .form-row .form-group {
+            flex: 1;
+        }
+
+        .form-label {
+            display: block;
+            margin-bottom: var(--spacing-xs);
+            color: var(--color-text-secondary);
+            font-size: 0.875rem;
+            font-weight: 500;
+        }
+
+        .form-input,
+        .form-textarea,
+        .form-select {
+            width: 100%;
+            background: var(--color-bg-elevated);
+            border: 1px solid var(--color-border-dark);
+            border-radius: var(--radius-md);
+            padding: var(--spacing-sm) var(--spacing-md);
+            color: var(--color-text-primary);
+            font-family: inherit;
+            font-size: 0.9375rem;
+            transition: var(--transition-fast);
+        }
+
+        .form-input:focus,
+        .form-textarea:focus,
+        .form-select:focus {
+            outline: none;
+            border-color: var(--color-primary-teal);
+            box-shadow: 0 0 0 2px rgba(0, 188, 212, 0.2);
+        }
+
+        .form-textarea {
+            min-height: 200px;
+            resize: vertical;
+            font-family: 'SF Mono', Monaco, 'Courier New', monospace;
+        }
+
+        .form-hint {
+            font-size: 0.75rem;
+            color: var(--color-text-muted);
+            margin-top: var(--spacing-xs);
+        }
+
+        .icon-input {
+            width: 80px;
+            text-align: center;
+            font-size: 1.5rem;
+        }
+
+        /* Tree View */
+        .tree {
+            list-style: none;
+        }
+
+        .tree-item {
+            user-select: none;
+        }
+
+        .tree-item-row {
+            display: flex;
+            align-items: center;
+            padding: var(--spacing-sm) var(--spacing-md);
+            border-radius: var(--radius-md);
+            cursor: pointer;
+            transition: var(--transition-fast);
+            gap: var(--spacing-sm);
+        }
+
+        .tree-item-row:hover {
+            background: var(--color-bg-hover);
+        }
+
+        .tree-item-row.selected {
+            background: var(--color-primary-purple);
+        }
+
+        .tree-item-row.drag-over {
+            border: 2px dashed var(--color-primary-teal);
+            background: rgba(0, 188, 212, 0.1);
+        }
+
+        .tree-toggle {
+            width: 20px;
+            height: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--color-text-muted);
+            font-size: 0.75rem;
+            transition: var(--transition-fast);
+        }
+
+        .tree-toggle.expanded {
+            transform: rotate(90deg);
+        }
+
+        .tree-toggle.hidden {
+            visibility: hidden;
+        }
+
+        .tree-icon {
+            font-size: 1.125rem;
+        }
+
+        .tree-name {
+            flex: 1;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .tree-badge {
+            font-size: 0.625rem;
+            padding: 2px 6px;
+            background: var(--color-bg-elevated);
+            border-radius: var(--radius-sm);
+            color: var(--color-text-muted);
+        }
+
+        .tree-children {
+            list-style: none;
+            padding-left: var(--spacing-lg);
+        }
+
+        .tree-children.collapsed {
+            display: none;
+        }
+
+        /* Preview Panel */
+        .preview-panel {
+            background: var(--color-bg-card);
+            border-top: 1px solid var(--color-border-dark);
+            max-height: 300px;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .preview-panel.collapsed {
+            max-height: 48px;
+        }
+
+        .preview-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: var(--spacing-sm) var(--spacing-lg);
+            border-bottom: 1px solid var(--color-border-dark);
+            cursor: pointer;
+        }
+
+        .preview-header:hover {
+            background: var(--color-bg-hover);
+        }
+
+        .preview-title {
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-sm);
+        }
+
+        .preview-content {
+            flex: 1;
+            overflow-y: auto;
+            padding: var(--spacing-md) var(--spacing-lg);
+        }
+
+        .preview-text {
+            font-family: 'SF Mono', Monaco, 'Courier New', monospace;
+            font-size: 0.875rem;
+            white-space: pre-wrap;
+            color: var(--color-text-secondary);
+            background: var(--color-bg-elevated);
+            padding: var(--spacing-md);
+            border-radius: var(--radius-md);
+        }
+
+        /* Element List (for Recipes) */
+        .element-list {
+            min-height: 120px;
+            border: 2px dashed var(--color-border-dark);
+            border-radius: var(--radius-md);
+            padding: var(--spacing-md);
+            display: flex;
+            flex-wrap: wrap;
+            gap: var(--spacing-sm);
+            align-content: flex-start;
+        }
+
+        .element-list.drag-over {
+            border-color: var(--color-primary-teal);
+            background: rgba(0, 188, 212, 0.05);
+        }
+
+        .element-list-empty {
+            width: 100%;
+            text-align: center;
+            color: var(--color-text-muted);
+            padding: var(--spacing-lg);
+        }
+
+        .element-chip {
+            display: inline-flex;
+            align-items: center;
+            gap: var(--spacing-xs);
+            background: var(--color-bg-elevated);
+            border: 1px solid var(--color-border-dark);
+            padding: var(--spacing-xs) var(--spacing-sm);
+            border-radius: var(--radius-md);
+            cursor: grab;
+        }
+
+        .element-chip:active {
+            cursor: grabbing;
+        }
+
+        .element-chip-icon {
+            font-size: 1rem;
+        }
+
+        .element-chip-name {
+            font-size: 0.875rem;
+        }
+
+        .element-chip-remove {
+            background: none;
+            border: none;
+            color: var(--color-text-muted);
+            cursor: pointer;
+            padding: 0;
+            font-size: 1rem;
+            line-height: 1;
+        }
+
+        .element-chip-remove:hover {
+            color: var(--color-error);
+        }
+
+        /* Element Picker */
+        .element-picker {
+            margin-top: var(--spacing-md);
+            padding: var(--spacing-md);
+            background: var(--color-bg-elevated);
+            border-radius: var(--radius-md);
+        }
+
+        .element-picker-title {
+            font-size: 0.875rem;
+            color: var(--color-text-secondary);
+            margin-bottom: var(--spacing-sm);
+        }
+
+        .element-picker-list {
+            max-height: 200px;
+            overflow-y: auto;
+        }
+
+        .element-picker-item {
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-sm);
+            padding: var(--spacing-sm);
+            border-radius: var(--radius-sm);
+            cursor: pointer;
+            transition: var(--transition-fast);
+        }
+
+        .element-picker-item:hover {
+            background: var(--color-bg-hover);
+        }
+
+        /* Context Menu */
+        .context-menu {
+            position: fixed;
+            background: var(--color-bg-elevated);
+            border: 1px solid var(--color-border-dark);
+            border-radius: var(--radius-md);
+            padding: var(--spacing-xs);
+            min-width: 160px;
+            box-shadow: var(--shadow-lg);
+            z-index: 1000;
+        }
+
+        .context-menu-item {
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-sm);
+            padding: var(--spacing-sm) var(--spacing-md);
+            border-radius: var(--radius-sm);
+            cursor: pointer;
+            font-size: 0.875rem;
+            transition: var(--transition-fast);
+        }
+
+        .context-menu-item:hover {
+            background: var(--color-bg-hover);
+        }
+
+        .context-menu-item.danger {
+            color: var(--color-error);
+        }
+
+        .context-menu-divider {
+            height: 1px;
+            background: var(--color-border-dark);
+            margin: var(--spacing-xs) 0;
+        }
+
+        /* Messages */
+        .message {
+            position: fixed;
+            top: var(--spacing-lg);
+            right: var(--spacing-lg);
+            padding: var(--spacing-md) var(--spacing-lg);
+            border-radius: var(--radius-md);
+            color: var(--color-text-primary);
+            font-weight: 500;
+            z-index: 1001;
+            animation: slideIn 0.3s ease;
+        }
+
+        .message.success {
+            background: var(--color-success);
+        }
+
+        .message.error {
+            background: var(--color-error);
+        }
+
+        .message.info {
+            background: var(--color-info);
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        /* Modal */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.7);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+
+        .modal {
+            background: var(--color-bg-card);
+            border: 1px solid var(--color-border-dark);
+            border-radius: var(--radius-lg);
+            padding: var(--spacing-lg);
+            max-width: 400px;
+            width: 90%;
+        }
+
+        .modal-title {
+            font-size: 1.125rem;
+            font-weight: 600;
+            margin-bottom: var(--spacing-md);
+        }
+
+        .modal-text {
+            color: var(--color-text-secondary);
+            margin-bottom: var(--spacing-lg);
+        }
+
+        .modal-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: var(--spacing-sm);
+        }
+
+        /* Info/Warning Box */
+        .info-box {
+            background: rgba(33, 150, 243, 0.1);
+            border: 1px solid var(--color-info);
+            border-radius: var(--radius-md);
+            padding: var(--spacing-md);
+            margin-bottom: var(--spacing-md);
+            color: var(--color-info);
+            font-size: 0.875rem;
+        }
+
+        /* Actions Bar */
+        .actions-bar {
+            display: flex;
+            gap: var(--spacing-sm);
+            padding: var(--spacing-md);
+            border-top: 1px solid var(--color-border-dark);
+            background: var(--color-bg-card);
+        }
+
+        /* Hidden file input */
+        .hidden-input {
+            display: none;
+        }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: var(--color-bg-dark);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: var(--color-border-light);
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--color-text-muted);
+        }
+
+        /* Responsive */
+        @media (max-width: 900px) {
+            .main-content {
+                flex-direction: column;
+            }
+
+            .sidebar {
+                width: 100%;
+                min-width: unset;
+                max-height: 40vh;
+                border-right: none;
+                border-bottom: 1px solid var(--color-border-dark);
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container" id="app">
+        <!-- Rendered by JavaScript -->
+    </div>
+
+    <input type="file" id="importInput" class="hidden-input" accept=".json">
+
+    <script>
+        // ========================================
+        // INTERNATIONALIZATION
+        // ========================================
+        const i18n = {
+            de: {
+                title: "AILO Pre-Prompt Generator",
+                tabs: {
+                    categories: "Kategorien",
+                    recipes: "Recipes",
+                    cookbooks: "Cookbooks"
+                },
+                actions: {
+                    import: "Importieren",
+                    export: "Exportieren",
+                    save: "Speichern",
+                    delete: "Loeschen",
+                    cancel: "Abbrechen",
+                    newCategory: "Neue Kategorie",
+                    newItem: "Neues Item",
+                    newRecipe: "Neues Recipe",
+                    newCookbook: "Neues Cookbook",
+                    newChapter: "Neues Kapitel",
+                    addElement: "Element hinzufuegen",
+                    edit: "Bearbeiten",
+                    addChild: "Kind hinzufuegen",
+                    duplicate: "Duplizieren"
+                },
+                fields: {
+                    name: "Name",
+                    icon: "Icon",
+                    keywords: "Schlagwoerter",
+                    keywordsHint: "Format: Schluessel: Wert; getrennt durch Semikolon",
+                    content: "Inhalt",
+                    separator: "Trennzeichen",
+                    elements: "Elemente",
+                    preset: "Preset",
+                    selectPreset: "Preset auswaehlen...",
+                    createNewPreset: "Neues Preset erstellen",
+                    recipe: "Recipe",
+                    selectRecipe: "Recipe auswaehlen...",
+                    cookbook: "Cookbook"
+                },
+                messages: {
+                    importSuccess: "Katalog erfolgreich importiert",
+                    importError: "Import fehlgeschlagen",
+                    exportSuccess: "Katalog exportiert",
+                    confirmDelete: "Wirklich loeschen?",
+                    deleteWarning: "Dieser Eintrag und alle untergeordneten Elemente werden geloescht.",
+                    noSelection: "Kein Element ausgewaehlt",
+                    emptyState: "Keine Eintraege vorhanden",
+                    dragHint: "Elemente hierher ziehen",
+                    saved: "Gespeichert"
+                },
+                preview: {
+                    title: "Vorschau",
+                    keywords: "Kombinierte Schlagwoerter",
+                    prompt: "Generierter Prompt"
+                },
+                types: {
+                    folder: "Ordner",
+                    item: "Item",
+                    preset: "Preset",
+                    chapter: "Kapitel",
+                    recipe: "Recipe"
+                }
+            },
+            en: {
+                title: "AILO Pre-Prompt Generator",
+                tabs: {
+                    categories: "Categories",
+                    recipes: "Recipes",
+                    cookbooks: "Cookbooks"
+                },
+                actions: {
+                    import: "Import",
+                    export: "Export",
+                    save: "Save",
+                    delete: "Delete",
+                    cancel: "Cancel",
+                    newCategory: "New Category",
+                    newItem: "New Item",
+                    newRecipe: "New Recipe",
+                    newCookbook: "New Cookbook",
+                    newChapter: "New Chapter",
+                    addElement: "Add Element",
+                    edit: "Edit",
+                    addChild: "Add Child",
+                    duplicate: "Duplicate"
+                },
+                fields: {
+                    name: "Name",
+                    icon: "Icon",
+                    keywords: "Keywords",
+                    keywordsHint: "Format: Key: Value; separated by semicolon",
+                    content: "Content",
+                    separator: "Separator",
+                    elements: "Elements",
+                    preset: "Preset",
+                    selectPreset: "Select preset...",
+                    createNewPreset: "Create new preset",
+                    recipe: "Recipe",
+                    selectRecipe: "Select recipe...",
+                    cookbook: "Cookbook"
+                },
+                messages: {
+                    importSuccess: "Catalog imported successfully",
+                    importError: "Import failed",
+                    exportSuccess: "Catalog exported",
+                    confirmDelete: "Really delete?",
+                    deleteWarning: "This entry and all child elements will be deleted.",
+                    noSelection: "No element selected",
+                    emptyState: "No entries",
+                    dragHint: "Drag elements here",
+                    saved: "Saved"
+                },
+                preview: {
+                    title: "Preview",
+                    keywords: "Combined Keywords",
+                    prompt: "Generated Prompt"
+                },
+                types: {
+                    folder: "Folder",
+                    item: "Item",
+                    preset: "Preset",
+                    chapter: "Chapter",
+                    recipe: "Recipe"
+                }
+            }
+        };
+
+        // ========================================
+        // STATE MANAGEMENT
+        // ========================================
+        const state = {
+            lang: 'de',
+            activeTab: 'categories',
+            selectedItem: null,
+            selectedType: null, // 'menuItem', 'preset', 'recipe', 'cookbook', 'recipeMenuItem'
+            expandedNodes: new Set(),
+            previewCollapsed: false,
+
+            // Data
+            menuItems: [],
+            presets: [],
+            recipes: [],
+            cookbooks: [],
+            recipeMenuItems: []
+        };
+
+        // ========================================
+        // UTILITY FUNCTIONS
+        // ========================================
+        function uuid() {
+            return crypto.randomUUID();
+        }
+
+        function isoNow() {
+            return new Date().toISOString();
+        }
+
+        function t(key) {
+            const keys = key.split('.');
+            let value = i18n[state.lang];
+            for (const k of keys) {
+                value = value?.[k];
+            }
+            return value || key;
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // ========================================
+        // DATA OPERATIONS
+        // ========================================
+
+        // MenuItems
+        function addMenuItem(parentID = null, isFolder = true) {
+            const now = isoNow();
+            let presetID = null;
+
+            if (!isFolder) {
+                // Create new preset for item
+                const preset = {
+                    id: uuid(),
+                    name: t('types.preset'),
+                    text: '',
+                    icon: '📝',
+                    keywords: '',
+                    isDefault: false,
+                    createdAt: now,
+                    updatedAt: now
+                };
+                state.presets.push(preset);
+                presetID = preset.id;
+            }
+
+            const menuItem = {
+                id: uuid(),
+                parentID: parentID,
+                name: isFolder ? t('types.folder') : t('types.item'),
+                icon: isFolder ? '📁' : '📝',
+                keywords: '',
+                sortOrder: getMaxSortOrder(state.menuItems, parentID) + 1,
+                presetID: presetID
+            };
+
+            state.menuItems.push(menuItem);
+            selectItem(menuItem.id, 'menuItem');
+            renderApp();
+        }
+
+        function updateMenuItem(id, updates) {
+            const index = state.menuItems.findIndex(m => m.id === id);
+            if (index !== -1) {
+                state.menuItems[index] = { ...state.menuItems[index], ...updates };
+                renderApp();
+            }
+        }
+
+        function deleteMenuItem(id) {
+            // Find all children recursively
+            const idsToDelete = [id];
+            const findChildren = (parentId) => {
+                state.menuItems.forEach(m => {
+                    if (m.parentID === parentId) {
+                        idsToDelete.push(m.id);
+                        findChildren(m.id);
+                    }
+                });
+            };
+            findChildren(id);
+
+            // Delete associated presets
+            const presetIds = state.menuItems
+                .filter(m => idsToDelete.includes(m.id) && m.presetID)
+                .map(m => m.presetID);
+            state.presets = state.presets.filter(p => !presetIds.includes(p.id));
+
+            // Delete menu items
+            state.menuItems = state.menuItems.filter(m => !idsToDelete.includes(m.id));
+
+            if (state.selectedItem === id) {
+                state.selectedItem = null;
+                state.selectedType = null;
+            }
+
+            renderApp();
+        }
+
+        // Presets
+        function updatePreset(id, updates) {
+            const index = state.presets.findIndex(p => p.id === id);
+            if (index !== -1) {
+                state.presets[index] = {
+                    ...state.presets[index],
+                    ...updates,
+                    updatedAt: isoNow()
+                };
+                renderApp();
+            }
+        }
+
+        // Recipes
+        function addRecipe() {
+            const now = isoNow();
+            const recipe = {
+                id: uuid(),
+                name: t('types.recipe'),
+                icon: '🍳',
+                keywords: '',
+                elementIDs: [],
+                separator: '\n\n',
+                createdAt: now,
+                updatedAt: now
+            };
+            state.recipes.push(recipe);
+            selectItem(recipe.id, 'recipe');
+            renderApp();
+        }
+
+        function updateRecipe(id, updates) {
+            const index = state.recipes.findIndex(r => r.id === id);
+            if (index !== -1) {
+                state.recipes[index] = {
+                    ...state.recipes[index],
+                    ...updates,
+                    updatedAt: isoNow()
+                };
+                renderApp();
+            }
+        }
+
+        function deleteRecipe(id) {
+            state.recipes = state.recipes.filter(r => r.id !== id);
+            // Remove from recipe menu items
+            state.recipeMenuItems = state.recipeMenuItems.filter(rm => rm.recipeID !== id);
+
+            if (state.selectedItem === id) {
+                state.selectedItem = null;
+                state.selectedType = null;
+            }
+            renderApp();
+        }
+
+        // Cookbooks
+        function addCookbook() {
+            const now = isoNow();
+            const cookbook = {
+                id: uuid(),
+                name: t('fields.cookbook'),
+                icon: '📚',
+                keywords: '',
+                sortOrder: getMaxSortOrder(state.cookbooks) + 1,
+                createdAt: now,
+                updatedAt: now
+            };
+            state.cookbooks.push(cookbook);
+            selectItem(cookbook.id, 'cookbook');
+            renderApp();
+        }
+
+        function updateCookbook(id, updates) {
+            const index = state.cookbooks.findIndex(c => c.id === id);
+            if (index !== -1) {
+                state.cookbooks[index] = {
+                    ...state.cookbooks[index],
+                    ...updates,
+                    updatedAt: isoNow()
+                };
+                renderApp();
+            }
+        }
+
+        function deleteCookbook(id) {
+            state.cookbooks = state.cookbooks.filter(c => c.id !== id);
+            state.recipeMenuItems = state.recipeMenuItems.filter(rm => rm.cookbookID !== id);
+
+            if (state.selectedItem === id) {
+                state.selectedItem = null;
+                state.selectedType = null;
+            }
+            renderApp();
+        }
+
+        // RecipeMenuItems
+        function addRecipeMenuItem(cookbookID, parentID = null, isChapter = true) {
+            const recipeMenuItem = {
+                id: uuid(),
+                cookbookID: cookbookID,
+                parentID: parentID,
+                name: isChapter ? t('types.chapter') : t('types.recipe'),
+                icon: isChapter ? '📖' : '🍳',
+                keywords: '',
+                sortOrder: getMaxSortOrder(state.recipeMenuItems.filter(r => r.cookbookID === cookbookID), parentID) + 1,
+                recipeID: null
+            };
+            state.recipeMenuItems.push(recipeMenuItem);
+            selectItem(recipeMenuItem.id, 'recipeMenuItem');
+            renderApp();
+        }
+
+        function updateRecipeMenuItem(id, updates) {
+            const index = state.recipeMenuItems.findIndex(r => r.id === id);
+            if (index !== -1) {
+                state.recipeMenuItems[index] = { ...state.recipeMenuItems[index], ...updates };
+                renderApp();
+            }
+        }
+
+        function deleteRecipeMenuItem(id) {
+            const idsToDelete = [id];
+            const findChildren = (parentId) => {
+                state.recipeMenuItems.forEach(r => {
+                    if (r.parentID === parentId) {
+                        idsToDelete.push(r.id);
+                        findChildren(r.id);
+                    }
+                });
+            };
+            findChildren(id);
+
+            state.recipeMenuItems = state.recipeMenuItems.filter(r => !idsToDelete.includes(r.id));
+
+            if (state.selectedItem === id) {
+                state.selectedItem = null;
+                state.selectedType = null;
+            }
+            renderApp();
+        }
+
+        // Helpers
+        function getMaxSortOrder(items, parentID = null) {
+            const filtered = parentID !== undefined
+                ? items.filter(i => i.parentID === parentID)
+                : items;
+            return filtered.reduce((max, item) => Math.max(max, item.sortOrder || 0), 0);
+        }
+
+        function selectItem(id, type) {
+            state.selectedItem = id;
+            state.selectedType = type;
+        }
+
+        // ========================================
+        // IMPORT / EXPORT
+        // ========================================
+        function importCatalog(jsonString) {
+            try {
+                const data = JSON.parse(jsonString);
+
+                // Validate
+                if (data.version !== 1) {
+                    throw new Error('Invalid version');
+                }
+
+                // Import data
+                state.menuItems = data.menuItems || [];
+                state.presets = data.presets || [];
+                state.recipes = data.recipes || [];
+                state.cookbooks = data.cookbooks || [];
+                state.recipeMenuItems = data.recipeMenuItems || [];
+
+                state.selectedItem = null;
+                state.selectedType = null;
+                state.expandedNodes = new Set();
+
+                showMessage(t('messages.importSuccess'), 'success');
+                renderApp();
+            } catch (e) {
+                console.error('Import error:', e);
+                showMessage(t('messages.importError') + ': ' + e.message, 'error');
+            }
+        }
+
+        function exportCatalog() {
+            const data = {
+                version: 1,
+                exportDate: isoNow(),
+                menuItems: state.menuItems,
+                presets: state.presets,
+                recipes: state.recipes,
+                cookbooks: state.cookbooks,
+                recipeMenuItems: state.recipeMenuItems
+            };
+
+            const json = JSON.stringify(data, null, 2);
+            const blob = new Blob([json], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+
+            const date = new Date().toISOString().split('T')[0];
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `AILO-Catalog_${date}.json`;
+            a.click();
+
+            URL.revokeObjectURL(url);
+            showMessage(t('messages.exportSuccess'), 'success');
+        }
+
+        // ========================================
+        // UI HELPERS
+        // ========================================
+        function showMessage(text, type = 'info') {
+            const msg = document.createElement('div');
+            msg.className = `message ${type}`;
+            msg.textContent = text;
+            document.body.appendChild(msg);
+
+            setTimeout(() => {
+                msg.remove();
+            }, 3000);
+        }
+
+        function showConfirmDialog(title, text, onConfirm) {
+            const overlay = document.createElement('div');
+            overlay.className = 'modal-overlay';
+            overlay.innerHTML = `
+                <div class="modal">
+                    <div class="modal-title">${escapeHtml(title)}</div>
+                    <div class="modal-text">${escapeHtml(text)}</div>
+                    <div class="modal-actions">
+                        <button class="btn btn-secondary" id="confirmCancel">${t('actions.cancel')}</button>
+                        <button class="btn btn-danger" id="confirmOk">${t('actions.delete')}</button>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(overlay);
+
+            overlay.querySelector('#confirmCancel').onclick = () => overlay.remove();
+            overlay.querySelector('#confirmOk').onclick = () => {
+                overlay.remove();
+                onConfirm();
+            };
+            overlay.onclick = (e) => {
+                if (e.target === overlay) overlay.remove();
+            };
+        }
+
+        let contextMenu = null;
+        function showContextMenu(x, y, items) {
+            hideContextMenu();
+
+            contextMenu = document.createElement('div');
+            contextMenu.className = 'context-menu';
+            contextMenu.style.left = `${x}px`;
+            contextMenu.style.top = `${y}px`;
+
+            items.forEach(item => {
+                if (item.divider) {
+                    contextMenu.innerHTML += '<div class="context-menu-divider"></div>';
+                } else {
+                    const itemEl = document.createElement('div');
+                    itemEl.className = `context-menu-item${item.danger ? ' danger' : ''}`;
+                    itemEl.innerHTML = `${item.icon || ''} ${item.label}`;
+                    itemEl.onclick = () => {
+                        hideContextMenu();
+                        item.action();
+                    };
+                    contextMenu.appendChild(itemEl);
+                }
+            });
+
+            document.body.appendChild(contextMenu);
+
+            // Adjust position if off-screen
+            const rect = contextMenu.getBoundingClientRect();
+            if (rect.right > window.innerWidth) {
+                contextMenu.style.left = `${window.innerWidth - rect.width - 10}px`;
+            }
+            if (rect.bottom > window.innerHeight) {
+                contextMenu.style.top = `${window.innerHeight - rect.height - 10}px`;
+            }
+        }
+
+        function hideContextMenu() {
+            if (contextMenu) {
+                contextMenu.remove();
+                contextMenu = null;
+            }
+        }
+
+        document.addEventListener('click', hideContextMenu);
+
+        // ========================================
+        // DRAG & DROP
+        // ========================================
+        let draggedItem = null;
+        let draggedType = null;
+
+        function handleDragStart(e, id, type) {
+            draggedItem = id;
+            draggedType = type;
+            e.dataTransfer.effectAllowed = 'move';
+            e.dataTransfer.setData('text/plain', id);
+        }
+
+        function handleDragOver(e) {
+            e.preventDefault();
+            e.dataTransfer.dropEffect = 'move';
+        }
+
+        function handleDragEnter(e, targetEl) {
+            e.preventDefault();
+            targetEl.classList.add('drag-over');
+        }
+
+        function handleDragLeave(e, targetEl) {
+            targetEl.classList.remove('drag-over');
+        }
+
+        function handleDropOnMenuItem(e, targetId) {
+            e.preventDefault();
+            e.currentTarget.classList.remove('drag-over');
+
+            if (!draggedItem || draggedType !== 'menuItem') return;
+            if (draggedItem === targetId) return;
+
+            const draggedMenuItem = state.menuItems.find(m => m.id === draggedItem);
+            const targetMenuItem = state.menuItems.find(m => m.id === targetId);
+
+            if (!draggedMenuItem || !targetMenuItem) return;
+
+            // Check if target is a folder
+            if (targetMenuItem.presetID === null) {
+                // Move into folder
+                draggedMenuItem.parentID = targetId;
+                draggedMenuItem.sortOrder = getMaxSortOrder(state.menuItems, targetId) + 1;
+                state.expandedNodes.add(targetId);
+            } else {
+                // Move to same level, after target
+                draggedMenuItem.parentID = targetMenuItem.parentID;
+                draggedMenuItem.sortOrder = targetMenuItem.sortOrder + 0.5;
+                // Renumber
+                renumberSortOrder(state.menuItems, draggedMenuItem.parentID);
+            }
+
+            draggedItem = null;
+            draggedType = null;
+            renderApp();
+        }
+
+        function handleDropOnRecipeElements(e, recipeId) {
+            e.preventDefault();
+            e.currentTarget.classList.remove('drag-over');
+
+            if (!draggedItem || draggedType !== 'menuItem') return;
+
+            const menuItem = state.menuItems.find(m => m.id === draggedItem);
+            if (!menuItem || !menuItem.presetID) return; // Only items, not folders
+
+            const recipe = state.recipes.find(r => r.id === recipeId);
+            if (!recipe) return;
+
+            if (!recipe.elementIDs.includes(draggedItem)) {
+                recipe.elementIDs.push(draggedItem);
+                recipe.updatedAt = isoNow();
+            }
+
+            draggedItem = null;
+            draggedType = null;
+            renderApp();
+        }
+
+        function renumberSortOrder(items, parentID) {
+            items
+                .filter(i => i.parentID === parentID)
+                .sort((a, b) => a.sortOrder - b.sortOrder)
+                .forEach((item, index) => {
+                    item.sortOrder = index + 1;
+                });
+        }
+
+        // ========================================
+        // RENDER FUNCTIONS
+        // ========================================
+        function renderApp() {
+            const app = document.getElementById('app');
+            app.innerHTML = `
+                ${renderHeader()}
+                ${renderTabBar()}
+                <div class="main-content">
+                    ${renderSidebar()}
+                    ${renderEditor()}
+                </div>
+                ${renderPreviewPanel()}
+            `;
+
+            attachEventListeners();
+        }
+
+        function renderHeader() {
+            return `
+                <header class="header">
+                    <div class="header-left">
+                        <span class="logo">AILO</span>
+                        <span>${t('title')}</span>
+                    </div>
+                    <div class="header-right">
+                        <div class="lang-toggle">
+                            <button class="lang-btn ${state.lang === 'de' ? 'active' : ''}" data-lang="de">DE</button>
+                            <button class="lang-btn ${state.lang === 'en' ? 'active' : ''}" data-lang="en">EN</button>
+                        </div>
+                        <button class="btn btn-secondary" id="importBtn">
+                            📥 ${t('actions.import')}
+                        </button>
+                        <button class="btn btn-primary" id="exportBtn">
+                            📤 ${t('actions.export')}
+                        </button>
+                    </div>
+                </header>
+            `;
+        }
+
+        function renderTabBar() {
+            const tabs = [
+                { id: 'categories', icon: '📁', label: t('tabs.categories') },
+                { id: 'recipes', icon: '🍳', label: t('tabs.recipes') },
+                { id: 'cookbooks', icon: '📚', label: t('tabs.cookbooks') }
+            ];
+
+            return `
+                <div class="tab-bar">
+                    ${tabs.map(tab => `
+                        <button class="tab-btn ${state.activeTab === tab.id ? 'active' : ''}" data-tab="${tab.id}">
+                            ${tab.icon} ${tab.label}
+                        </button>
+                    `).join('')}
+                </div>
+            `;
+        }
+
+        function renderSidebar() {
+            let content = '';
+            let buttons = '';
+
+            switch (state.activeTab) {
+                case 'categories':
+                    content = renderMenuItemTree();
+                    buttons = `
+                        <button class="btn btn-secondary btn-sm" id="addCategoryBtn">+ ${t('actions.newCategory')}</button>
+                        <button class="btn btn-secondary btn-sm" id="addItemBtn">+ ${t('actions.newItem')}</button>
+                    `;
+                    break;
+                case 'recipes':
+                    content = renderRecipeList();
+                    buttons = `
+                        <button class="btn btn-secondary btn-sm" id="addRecipeBtn">+ ${t('actions.newRecipe')}</button>
+                    `;
+                    break;
+                case 'cookbooks':
+                    content = renderCookbookTree();
+                    buttons = `
+                        <button class="btn btn-secondary btn-sm" id="addCookbookBtn">+ ${t('actions.newCookbook')}</button>
+                    `;
+                    break;
+            }
+
+            return `
+                <aside class="sidebar">
+                    <div class="sidebar-header">
+                        ${buttons}
+                    </div>
+                    <div class="sidebar-content">
+                        ${content || `<div class="editor-empty">${t('messages.emptyState')}</div>`}
+                    </div>
+                </aside>
+            `;
+        }
+
+        function renderMenuItemTree() {
+            const rootItems = state.menuItems
+                .filter(m => m.parentID === null)
+                .sort((a, b) => a.sortOrder - b.sortOrder);
+
+            if (rootItems.length === 0) return '';
+
+            return `<ul class="tree">${rootItems.map(item => renderTreeNode(item)).join('')}</ul>`;
+        }
+
+        function renderTreeNode(item) {
+            const children = state.menuItems
+                .filter(m => m.parentID === item.id)
+                .sort((a, b) => a.sortOrder - b.sortOrder);
+            const isFolder = item.presetID === null;
+            const isExpanded = state.expandedNodes.has(item.id);
+            const isSelected = state.selectedItem === item.id && state.selectedType === 'menuItem';
+
+            return `
+                <li class="tree-item" data-id="${item.id}">
+                    <div class="tree-item-row ${isSelected ? 'selected' : ''}"
+                         draggable="true"
+                         data-id="${item.id}"
+                         data-type="menuItem">
+                        <span class="tree-toggle ${isFolder ? (isExpanded ? 'expanded' : '') : 'hidden'}"
+                              data-toggle="${item.id}">▶</span>
+                        <span class="tree-icon">${item.icon}</span>
+                        <span class="tree-name">${escapeHtml(item.name)}</span>
+                        ${isFolder ? `<span class="tree-badge">${children.length}</span>` : ''}
+                    </div>
+                    ${isFolder && children.length > 0 ? `
+                        <ul class="tree-children ${isExpanded ? '' : 'collapsed'}">
+                            ${children.map(child => renderTreeNode(child)).join('')}
+                        </ul>
+                    ` : ''}
+                </li>
+            `;
+        }
+
+        function renderRecipeList() {
+            if (state.recipes.length === 0) return '';
+
+            return `
+                <ul class="tree">
+                    ${state.recipes.map(recipe => {
+                        const isSelected = state.selectedItem === recipe.id && state.selectedType === 'recipe';
+                        return `
+                            <li class="tree-item">
+                                <div class="tree-item-row ${isSelected ? 'selected' : ''}"
+                                     data-id="${recipe.id}"
+                                     data-type="recipe">
+                                    <span class="tree-toggle hidden">▶</span>
+                                    <span class="tree-icon">${recipe.icon}</span>
+                                    <span class="tree-name">${escapeHtml(recipe.name)}</span>
+                                    <span class="tree-badge">${recipe.elementIDs.length}</span>
+                                </div>
+                            </li>
+                        `;
+                    }).join('')}
+                </ul>
+            `;
+        }
+
+        function renderCookbookTree() {
+            if (state.cookbooks.length === 0) return '';
+
+            return `
+                <ul class="tree">
+                    ${state.cookbooks.sort((a, b) => a.sortOrder - b.sortOrder).map(cookbook => {
+                        const isSelected = state.selectedItem === cookbook.id && state.selectedType === 'cookbook';
+                        const isExpanded = state.expandedNodes.has(cookbook.id);
+                        const children = state.recipeMenuItems
+                            .filter(r => r.cookbookID === cookbook.id && r.parentID === null)
+                            .sort((a, b) => a.sortOrder - b.sortOrder);
+
+                        return `
+                            <li class="tree-item">
+                                <div class="tree-item-row ${isSelected ? 'selected' : ''}"
+                                     data-id="${cookbook.id}"
+                                     data-type="cookbook">
+                                    <span class="tree-toggle ${isExpanded ? 'expanded' : ''}"
+                                          data-toggle="${cookbook.id}">▶</span>
+                                    <span class="tree-icon">${cookbook.icon}</span>
+                                    <span class="tree-name">${escapeHtml(cookbook.name)}</span>
+                                    <span class="tree-badge">${children.length}</span>
+                                </div>
+                                ${children.length > 0 ? `
+                                    <ul class="tree-children ${isExpanded ? '' : 'collapsed'}">
+                                        ${children.map(child => renderRecipeMenuNode(child)).join('')}
+                                    </ul>
+                                ` : ''}
+                            </li>
+                        `;
+                    }).join('')}
+                </ul>
+            `;
+        }
+
+        function renderRecipeMenuNode(item) {
+            const children = state.recipeMenuItems
+                .filter(r => r.parentID === item.id)
+                .sort((a, b) => a.sortOrder - b.sortOrder);
+            const isChapter = item.recipeID === null;
+            const isExpanded = state.expandedNodes.has(item.id);
+            const isSelected = state.selectedItem === item.id && state.selectedType === 'recipeMenuItem';
+
+            return `
+                <li class="tree-item">
+                    <div class="tree-item-row ${isSelected ? 'selected' : ''}"
+                         data-id="${item.id}"
+                         data-type="recipeMenuItem">
+                        <span class="tree-toggle ${isChapter ? (isExpanded ? 'expanded' : '') : 'hidden'}"
+                              data-toggle="${item.id}">▶</span>
+                        <span class="tree-icon">${item.icon}</span>
+                        <span class="tree-name">${escapeHtml(item.name)}</span>
+                    </div>
+                    ${isChapter && children.length > 0 ? `
+                        <ul class="tree-children ${isExpanded ? '' : 'collapsed'}">
+                            ${children.map(child => renderRecipeMenuNode(child)).join('')}
+                        </ul>
+                    ` : ''}
+                </li>
+            `;
+        }
+
+        function renderEditor() {
+            if (!state.selectedItem) {
+                return `
+                    <main class="editor">
+                        <div class="editor-content">
+                            <div class="editor-empty">${t('messages.noSelection')}</div>
+                        </div>
+                    </main>
+                `;
+            }
+
+            let content = '';
+
+            switch (state.selectedType) {
+                case 'menuItem':
+                    content = renderMenuItemEditor();
+                    break;
+                case 'recipe':
+                    content = renderRecipeEditor();
+                    break;
+                case 'cookbook':
+                    content = renderCookbookEditor();
+                    break;
+                case 'recipeMenuItem':
+                    content = renderRecipeMenuItemEditor();
+                    break;
+            }
+
+            return `
+                <main class="editor">
+                    <div class="editor-content">
+                        ${content}
+                    </div>
+                </main>
+            `;
+        }
+
+        function renderMenuItemEditor() {
+            const item = state.menuItems.find(m => m.id === state.selectedItem);
+            if (!item) return '';
+
+            const isFolder = item.presetID === null;
+            const preset = isFolder ? null : state.presets.find(p => p.id === item.presetID);
+
+            return `
+                <div class="card">
+                    <div class="card-header">
+                        <h2 class="card-title">${item.icon} ${isFolder ? t('types.folder') : t('types.item')}</h2>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group" style="flex: 0 0 80px;">
+                            <label class="form-label">${t('fields.icon')}</label>
+                            <input type="text" class="form-input icon-input" id="itemIcon"
+                                   value="${item.icon}" maxlength="3">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">${t('fields.name')}</label>
+                            <input type="text" class="form-input" id="itemName" value="${escapeHtml(item.name)}">
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">${t('fields.keywords')}</label>
+                        <input type="text" class="form-input" id="itemKeywords"
+                               value="${escapeHtml(item.keywords)}" placeholder="${t('fields.keywordsHint')}">
+                        <div class="form-hint">${t('fields.keywordsHint')}</div>
+                    </div>
+                </div>
+
+                ${!isFolder && preset ? `
+                    <div class="card">
+                        <div class="card-header">
+                            <h2 class="card-title">📝 ${t('fields.preset')}</h2>
+                        </div>
+
+                        <div class="form-row">
+                            <div class="form-group" style="flex: 0 0 80px;">
+                                <label class="form-label">${t('fields.icon')}</label>
+                                <input type="text" class="form-input icon-input" id="presetIcon"
+                                       value="${preset.icon}" maxlength="3">
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">${t('fields.name')}</label>
+                                <input type="text" class="form-input" id="presetName" value="${escapeHtml(preset.name)}">
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label">${t('fields.keywords')}</label>
+                            <input type="text" class="form-input" id="presetKeywords"
+                                   value="${escapeHtml(preset.keywords)}" placeholder="${t('fields.keywordsHint')}">
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label">${t('fields.content')}</label>
+                            <textarea class="form-textarea" id="presetText">${escapeHtml(preset.text)}</textarea>
+                        </div>
+                    </div>
+                ` : ''}
+
+                <div class="actions-bar" style="border: none; padding: 0; background: transparent;">
+                    <button class="btn btn-primary" id="saveItemBtn">${t('actions.save')}</button>
+                    <button class="btn btn-danger" id="deleteItemBtn">${t('actions.delete')}</button>
+                </div>
+            `;
+        }
+
+        function renderRecipeEditor() {
+            const recipe = state.recipes.find(r => r.id === state.selectedItem);
+            if (!recipe) return '';
+
+            const elements = recipe.elementIDs
+                .map(id => state.menuItems.find(m => m.id === id))
+                .filter(Boolean);
+
+            return `
+                <div class="card">
+                    <div class="card-header">
+                        <h2 class="card-title">${recipe.icon} ${t('types.recipe')}</h2>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group" style="flex: 0 0 80px;">
+                            <label class="form-label">${t('fields.icon')}</label>
+                            <input type="text" class="form-input icon-input" id="recipeIcon"
+                                   value="${recipe.icon}" maxlength="3">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">${t('fields.name')}</label>
+                            <input type="text" class="form-input" id="recipeName" value="${escapeHtml(recipe.name)}">
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">${t('fields.keywords')}</label>
+                        <input type="text" class="form-input" id="recipeKeywords"
+                               value="${escapeHtml(recipe.keywords)}" placeholder="${t('fields.keywordsHint')}">
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">${t('fields.separator')}</label>
+                        <input type="text" class="form-input" id="recipeSeparator"
+                               value="${escapeHtml(recipe.separator)}" style="width: 200px;">
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <h2 class="card-title">${t('fields.elements')}</h2>
+                    </div>
+
+                    <div class="element-list" id="recipeElements" data-recipe="${recipe.id}">
+                        ${elements.length === 0 ? `
+                            <div class="element-list-empty">${t('messages.dragHint')}</div>
+                        ` : elements.map((el, idx) => `
+                            <div class="element-chip" draggable="true" data-index="${idx}">
+                                <span class="element-chip-icon">${el.icon}</span>
+                                <span class="element-chip-name">${escapeHtml(el.name)}</span>
+                                <button class="element-chip-remove" data-remove="${idx}">×</button>
+                            </div>
+                        `).join('')}
+                    </div>
+
+                    <div class="element-picker">
+                        <div class="element-picker-title">${t('actions.addElement')}</div>
+                        <div class="element-picker-list">
+                            ${state.menuItems.filter(m => m.presetID !== null).map(item => `
+                                <div class="element-picker-item" data-add="${item.id}">
+                                    <span>${item.icon}</span>
+                                    <span>${escapeHtml(item.name)}</span>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                </div>
+
+                <div class="actions-bar" style="border: none; padding: 0; background: transparent;">
+                    <button class="btn btn-primary" id="saveRecipeBtn">${t('actions.save')}</button>
+                    <button class="btn btn-danger" id="deleteRecipeBtn">${t('actions.delete')}</button>
+                </div>
+            `;
+        }
+
+        function renderCookbookEditor() {
+            const cookbook = state.cookbooks.find(c => c.id === state.selectedItem);
+            if (!cookbook) return '';
+
+            return `
+                <div class="card">
+                    <div class="card-header">
+                        <h2 class="card-title">${cookbook.icon} ${t('fields.cookbook')}</h2>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group" style="flex: 0 0 80px;">
+                            <label class="form-label">${t('fields.icon')}</label>
+                            <input type="text" class="form-input icon-input" id="cookbookIcon"
+                                   value="${cookbook.icon}" maxlength="3">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">${t('fields.name')}</label>
+                            <input type="text" class="form-input" id="cookbookName" value="${escapeHtml(cookbook.name)}">
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">${t('fields.keywords')}</label>
+                        <input type="text" class="form-input" id="cookbookKeywords"
+                               value="${escapeHtml(cookbook.keywords)}" placeholder="${t('fields.keywordsHint')}">
+                    </div>
+                </div>
+
+                <div class="info-box">
+                    ${t('messages.dragHint')}
+                </div>
+
+                <div class="actions-bar" style="border: none; padding: 0; background: transparent; gap: 8px;">
+                    <button class="btn btn-secondary" id="addChapterBtn">+ ${t('actions.newChapter')}</button>
+                    <button class="btn btn-primary" id="saveCookbookBtn">${t('actions.save')}</button>
+                    <button class="btn btn-danger" id="deleteCookbookBtn">${t('actions.delete')}</button>
+                </div>
+            `;
+        }
+
+        function renderRecipeMenuItemEditor() {
+            const item = state.recipeMenuItems.find(r => r.id === state.selectedItem);
+            if (!item) return '';
+
+            const isChapter = item.recipeID === null;
+
+            return `
+                <div class="card">
+                    <div class="card-header">
+                        <h2 class="card-title">${item.icon} ${isChapter ? t('types.chapter') : t('types.recipe')}</h2>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group" style="flex: 0 0 80px;">
+                            <label class="form-label">${t('fields.icon')}</label>
+                            <input type="text" class="form-input icon-input" id="recipeMenuItemIcon"
+                                   value="${item.icon}" maxlength="3">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">${t('fields.name')}</label>
+                            <input type="text" class="form-input" id="recipeMenuItemName" value="${escapeHtml(item.name)}">
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">${t('fields.keywords')}</label>
+                        <input type="text" class="form-input" id="recipeMenuItemKeywords"
+                               value="${escapeHtml(item.keywords)}" placeholder="${t('fields.keywordsHint')}">
+                    </div>
+
+                    ${!isChapter ? `
+                        <div class="form-group">
+                            <label class="form-label">${t('fields.recipe')}</label>
+                            <select class="form-select" id="recipeMenuItemRecipe">
+                                <option value="">${t('fields.selectRecipe')}</option>
+                                ${state.recipes.map(r => `
+                                    <option value="${r.id}" ${item.recipeID === r.id ? 'selected' : ''}>
+                                        ${r.icon} ${escapeHtml(r.name)}
+                                    </option>
+                                `).join('')}
+                            </select>
+                        </div>
+                    ` : ''}
+                </div>
+
+                <div class="actions-bar" style="border: none; padding: 0; background: transparent; gap: 8px;">
+                    ${isChapter ? `<button class="btn btn-secondary" id="addRecipeRefBtn">+ ${t('actions.newItem')}</button>` : ''}
+                    <button class="btn btn-primary" id="saveRecipeMenuItemBtn">${t('actions.save')}</button>
+                    <button class="btn btn-danger" id="deleteRecipeMenuItemBtn">${t('actions.delete')}</button>
+                </div>
+            `;
+        }
+
+        function renderPreviewPanel() {
+            let previewContent = '';
+
+            if (state.selectedType === 'menuItem') {
+                const item = state.menuItems.find(m => m.id === state.selectedItem);
+                if (item && item.presetID) {
+                    const preset = state.presets.find(p => p.id === item.presetID);
+                    if (preset) {
+                        previewContent = preset.text;
+                    }
+                }
+            } else if (state.selectedType === 'recipe') {
+                const recipe = state.recipes.find(r => r.id === state.selectedItem);
+                if (recipe) {
+                    previewContent = generateRecipePreview(recipe);
+                }
+            }
+
+            return `
+                <div class="preview-panel ${state.previewCollapsed ? 'collapsed' : ''}">
+                    <div class="preview-header" id="previewToggle">
+                        <span class="preview-title">
+                            ${state.previewCollapsed ? '▶' : '▼'} ${t('preview.title')}
+                        </span>
+                    </div>
+                    ${!state.previewCollapsed ? `
+                        <div class="preview-content">
+                            ${previewContent ? `
+                                <div class="preview-text">${escapeHtml(previewContent)}</div>
+                            ` : `<div style="color: var(--color-text-muted);">${t('messages.noSelection')}</div>`}
+                        </div>
+                    ` : ''}
+                </div>
+            `;
+        }
+
+        function generateRecipePreview(recipe) {
+            const texts = recipe.elementIDs
+                .map(id => {
+                    const menuItem = state.menuItems.find(m => m.id === id);
+                    if (!menuItem || !menuItem.presetID) return null;
+                    const preset = state.presets.find(p => p.id === menuItem.presetID);
+                    return preset ? preset.text : null;
+                })
+                .filter(Boolean);
+
+            return texts.join(recipe.separator || '\n\n');
+        }
+
+        // ========================================
+        // EVENT LISTENERS
+        // ========================================
+        function attachEventListeners() {
+            // Language toggle
+            document.querySelectorAll('.lang-btn').forEach(btn => {
+                btn.onclick = () => {
+                    state.lang = btn.dataset.lang;
+                    renderApp();
+                };
+            });
+
+            // Import/Export
+            document.getElementById('importBtn').onclick = () => {
+                document.getElementById('importInput').click();
+            };
+
+            document.getElementById('exportBtn').onclick = exportCatalog;
+
+            // Tab switching
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                btn.onclick = () => {
+                    state.activeTab = btn.dataset.tab;
+                    state.selectedItem = null;
+                    state.selectedType = null;
+                    renderApp();
+                };
+            });
+
+            // Sidebar buttons
+            const addCategoryBtn = document.getElementById('addCategoryBtn');
+            if (addCategoryBtn) addCategoryBtn.onclick = () => addMenuItem(null, true);
+
+            const addItemBtn = document.getElementById('addItemBtn');
+            if (addItemBtn) addItemBtn.onclick = () => addMenuItem(null, false);
+
+            const addRecipeBtn = document.getElementById('addRecipeBtn');
+            if (addRecipeBtn) addRecipeBtn.onclick = addRecipe;
+
+            const addCookbookBtn = document.getElementById('addCookbookBtn');
+            if (addCookbookBtn) addCookbookBtn.onclick = addCookbook;
+
+            // Tree item clicks
+            document.querySelectorAll('.tree-item-row').forEach(row => {
+                row.onclick = (e) => {
+                    if (e.target.classList.contains('tree-toggle')) return;
+                    selectItem(row.dataset.id, row.dataset.type);
+                    renderApp();
+                };
+
+                row.oncontextmenu = (e) => {
+                    e.preventDefault();
+                    const id = row.dataset.id;
+                    const type = row.dataset.type;
+
+                    let menuItems = [];
+
+                    if (type === 'menuItem') {
+                        const item = state.menuItems.find(m => m.id === id);
+                        if (item && item.presetID === null) {
+                            menuItems.push({
+                                icon: '📁',
+                                label: t('actions.newCategory'),
+                                action: () => addMenuItem(id, true)
+                            });
+                            menuItems.push({
+                                icon: '📝',
+                                label: t('actions.newItem'),
+                                action: () => addMenuItem(id, false)
+                            });
+                            menuItems.push({ divider: true });
+                        }
+                    }
+
+                    if (type === 'cookbook') {
+                        menuItems.push({
+                            icon: '📖',
+                            label: t('actions.newChapter'),
+                            action: () => addRecipeMenuItem(id, null, true)
+                        });
+                        menuItems.push({ divider: true });
+                    }
+
+                    if (type === 'recipeMenuItem') {
+                        const item = state.recipeMenuItems.find(r => r.id === id);
+                        if (item && item.recipeID === null) {
+                            menuItems.push({
+                                icon: '🍳',
+                                label: t('actions.newItem'),
+                                action: () => addRecipeMenuItem(item.cookbookID, id, false)
+                            });
+                            menuItems.push({ divider: true });
+                        }
+                    }
+
+                    menuItems.push({
+                        icon: '✏️',
+                        label: t('actions.edit'),
+                        action: () => { selectItem(id, type); renderApp(); }
+                    });
+                    menuItems.push({ divider: true });
+                    menuItems.push({
+                        icon: '🗑️',
+                        label: t('actions.delete'),
+                        danger: true,
+                        action: () => {
+                            showConfirmDialog(t('messages.confirmDelete'), t('messages.deleteWarning'), () => {
+                                if (type === 'menuItem') deleteMenuItem(id);
+                                else if (type === 'recipe') deleteRecipe(id);
+                                else if (type === 'cookbook') deleteCookbook(id);
+                                else if (type === 'recipeMenuItem') deleteRecipeMenuItem(id);
+                            });
+                        }
+                    });
+
+                    showContextMenu(e.clientX, e.clientY, menuItems);
+                };
+
+                // Drag & Drop for menu items
+                if (row.dataset.type === 'menuItem') {
+                    row.ondragstart = (e) => handleDragStart(e, row.dataset.id, 'menuItem');
+                    row.ondragover = handleDragOver;
+                    row.ondragenter = (e) => handleDragEnter(e, row);
+                    row.ondragleave = (e) => handleDragLeave(e, row);
+                    row.ondrop = (e) => handleDropOnMenuItem(e, row.dataset.id);
+                }
+            });
+
+            // Tree toggles
+            document.querySelectorAll('.tree-toggle:not(.hidden)').forEach(toggle => {
+                toggle.onclick = (e) => {
+                    e.stopPropagation();
+                    const id = toggle.dataset.toggle;
+                    if (state.expandedNodes.has(id)) {
+                        state.expandedNodes.delete(id);
+                    } else {
+                        state.expandedNodes.add(id);
+                    }
+                    renderApp();
+                };
+            });
+
+            // Preview toggle
+            const previewToggle = document.getElementById('previewToggle');
+            if (previewToggle) {
+                previewToggle.onclick = () => {
+                    state.previewCollapsed = !state.previewCollapsed;
+                    renderApp();
+                };
+            }
+
+            // Editor buttons
+            attachEditorListeners();
+        }
+
+        function attachEditorListeners() {
+            // MenuItem editor
+            const saveItemBtn = document.getElementById('saveItemBtn');
+            if (saveItemBtn) {
+                saveItemBtn.onclick = () => {
+                    const item = state.menuItems.find(m => m.id === state.selectedItem);
+                    if (!item) return;
+
+                    updateMenuItem(state.selectedItem, {
+                        icon: document.getElementById('itemIcon').value,
+                        name: document.getElementById('itemName').value,
+                        keywords: document.getElementById('itemKeywords').value
+                    });
+
+                    if (item.presetID) {
+                        updatePreset(item.presetID, {
+                            icon: document.getElementById('presetIcon').value,
+                            name: document.getElementById('presetName').value,
+                            keywords: document.getElementById('presetKeywords').value,
+                            text: document.getElementById('presetText').value
+                        });
+                    }
+
+                    showMessage(t('messages.saved'), 'success');
+                };
+            }
+
+            const deleteItemBtn = document.getElementById('deleteItemBtn');
+            if (deleteItemBtn) {
+                deleteItemBtn.onclick = () => {
+                    showConfirmDialog(t('messages.confirmDelete'), t('messages.deleteWarning'), () => {
+                        deleteMenuItem(state.selectedItem);
+                    });
+                };
+            }
+
+            // Recipe editor
+            const saveRecipeBtn = document.getElementById('saveRecipeBtn');
+            if (saveRecipeBtn) {
+                saveRecipeBtn.onclick = () => {
+                    updateRecipe(state.selectedItem, {
+                        icon: document.getElementById('recipeIcon').value,
+                        name: document.getElementById('recipeName').value,
+                        keywords: document.getElementById('recipeKeywords').value,
+                        separator: document.getElementById('recipeSeparator').value
+                    });
+                    showMessage(t('messages.saved'), 'success');
+                };
+            }
+
+            const deleteRecipeBtn = document.getElementById('deleteRecipeBtn');
+            if (deleteRecipeBtn) {
+                deleteRecipeBtn.onclick = () => {
+                    showConfirmDialog(t('messages.confirmDelete'), t('messages.deleteWarning'), () => {
+                        deleteRecipe(state.selectedItem);
+                    });
+                };
+            }
+
+            // Recipe elements
+            const recipeElements = document.getElementById('recipeElements');
+            if (recipeElements) {
+                recipeElements.ondragover = handleDragOver;
+                recipeElements.ondragenter = (e) => handleDragEnter(e, recipeElements);
+                recipeElements.ondragleave = (e) => handleDragLeave(e, recipeElements);
+                recipeElements.ondrop = (e) => handleDropOnRecipeElements(e, recipeElements.dataset.recipe);
+            }
+
+            // Remove element from recipe
+            document.querySelectorAll('.element-chip-remove').forEach(btn => {
+                btn.onclick = (e) => {
+                    e.stopPropagation();
+                    const recipe = state.recipes.find(r => r.id === state.selectedItem);
+                    if (recipe) {
+                        const index = parseInt(btn.dataset.remove);
+                        recipe.elementIDs.splice(index, 1);
+                        recipe.updatedAt = isoNow();
+                        renderApp();
+                    }
+                };
+            });
+
+            // Add element to recipe from picker
+            document.querySelectorAll('.element-picker-item').forEach(item => {
+                item.onclick = () => {
+                    const recipe = state.recipes.find(r => r.id === state.selectedItem);
+                    if (recipe && !recipe.elementIDs.includes(item.dataset.add)) {
+                        recipe.elementIDs.push(item.dataset.add);
+                        recipe.updatedAt = isoNow();
+                        renderApp();
+                    }
+                };
+            });
+
+            // Cookbook editor
+            const saveCookbookBtn = document.getElementById('saveCookbookBtn');
+            if (saveCookbookBtn) {
+                saveCookbookBtn.onclick = () => {
+                    updateCookbook(state.selectedItem, {
+                        icon: document.getElementById('cookbookIcon').value,
+                        name: document.getElementById('cookbookName').value,
+                        keywords: document.getElementById('cookbookKeywords').value
+                    });
+                    showMessage(t('messages.saved'), 'success');
+                };
+            }
+
+            const deleteCookbookBtn = document.getElementById('deleteCookbookBtn');
+            if (deleteCookbookBtn) {
+                deleteCookbookBtn.onclick = () => {
+                    showConfirmDialog(t('messages.confirmDelete'), t('messages.deleteWarning'), () => {
+                        deleteCookbook(state.selectedItem);
+                    });
+                };
+            }
+
+            const addChapterBtn = document.getElementById('addChapterBtn');
+            if (addChapterBtn) {
+                addChapterBtn.onclick = () => {
+                    addRecipeMenuItem(state.selectedItem, null, true);
+                };
+            }
+
+            // RecipeMenuItem editor
+            const saveRecipeMenuItemBtn = document.getElementById('saveRecipeMenuItemBtn');
+            if (saveRecipeMenuItemBtn) {
+                saveRecipeMenuItemBtn.onclick = () => {
+                    const recipeSelect = document.getElementById('recipeMenuItemRecipe');
+                    updateRecipeMenuItem(state.selectedItem, {
+                        icon: document.getElementById('recipeMenuItemIcon').value,
+                        name: document.getElementById('recipeMenuItemName').value,
+                        keywords: document.getElementById('recipeMenuItemKeywords').value,
+                        recipeID: recipeSelect ? (recipeSelect.value || null) : null
+                    });
+                    showMessage(t('messages.saved'), 'success');
+                };
+            }
+
+            const deleteRecipeMenuItemBtn = document.getElementById('deleteRecipeMenuItemBtn');
+            if (deleteRecipeMenuItemBtn) {
+                deleteRecipeMenuItemBtn.onclick = () => {
+                    showConfirmDialog(t('messages.confirmDelete'), t('messages.deleteWarning'), () => {
+                        deleteRecipeMenuItem(state.selectedItem);
+                    });
+                };
+            }
+
+            const addRecipeRefBtn = document.getElementById('addRecipeRefBtn');
+            if (addRecipeRefBtn) {
+                addRecipeRefBtn.onclick = () => {
+                    const item = state.recipeMenuItems.find(r => r.id === state.selectedItem);
+                    if (item) {
+                        addRecipeMenuItem(item.cookbookID, state.selectedItem, false);
+                    }
+                };
+            }
+        }
+
+        // ========================================
+        // FILE IMPORT HANDLER
+        // ========================================
+        document.getElementById('importInput').addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                importCatalog(event.target.result);
+            };
+            reader.readAsText(file);
+
+            // Reset input
+            e.target.value = '';
+        });
+
+        // ========================================
+        // INITIALIZE
+        // ========================================
+        document.addEventListener('DOMContentLoaded', () => {
+            renderApp();
+        });
+    </script>
+</body>
+</html>
