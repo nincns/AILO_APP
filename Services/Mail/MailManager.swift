@@ -93,9 +93,8 @@ struct MailManager: View {
         }
         .onReceive(NotificationCenter.default.publisher(for: .mailAccountsDidChange)) { _ in
             accounts = MailStorageManager.load()
-            let newIds = Set(accounts.map { $0.id })
-            let missing = newIds.subtracting(activeIDs)
-            if !missing.isEmpty { activeIDs.formUnion(missing); MailActiveStore.save(activeIDs) }
+            // Lade den aktuellen activeIDs Status neu - NICHT automatisch neue hinzufügen!
+            activeIDs = MailActiveStore.load()
             startSyncForActiveAccounts()
         }
         .onAppear {
@@ -111,10 +110,16 @@ struct MailManager: View {
             }
         }
         .sheet(isPresented: $showAddEditor, onDismiss: {
+            let oldAccountIds = Set(accounts.map { $0.id })
             accounts = MailStorageManager.load()
-            let newIds = Set(accounts.map { $0.id })
-            let missing = newIds.subtracting(activeIDs)
-            if !missing.isEmpty { activeIDs.formUnion(missing); MailActiveStore.save(activeIDs) }
+            let newAccountIds = Set(accounts.map { $0.id })
+
+            // Nur WIRKLICH neue Konten (die vorher nicht existierten) automatisch aktivieren
+            let trulyNewAccounts = newAccountIds.subtracting(oldAccountIds)
+            if !trulyNewAccounts.isEmpty {
+                activeIDs.formUnion(trulyNewAccounts)
+                MailActiveStore.save(activeIDs)
+            }
             startSyncForActiveAccounts()
         }) {
             NavigationStack { MailEditor() }
@@ -124,11 +129,10 @@ struct MailManager: View {
     private func toggleActive(for id: UUID) {
         if activeIDs.contains(id) { activeIDs.remove(id) } else { activeIDs.insert(id) }
         MailActiveStore.save(activeIDs)
-        
-        // 🔧 FIX: Notify UI about active status changes
-        NotificationCenter.default.post(name: .mailAccountsDidChange, object: nil)
-        
         startSyncForActiveAccounts()
+
+        // Notify MailView to reload with updated active accounts
+        NotificationCenter.default.post(name: .mailActiveStatusDidChange, object: nil)
     }
 
     private func delete(at offsets: IndexSet) {

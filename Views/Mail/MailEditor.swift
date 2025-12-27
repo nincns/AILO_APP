@@ -1,5 +1,6 @@
 extension Notification.Name {
     static let mailAccountsDidChange = Notification.Name("mail.accounts.changed")
+    static let mailActiveStatusDidChange = Notification.Name("mail.accounts.active.changed")
 }
 
 fileprivate enum MailStorageEditorHelper {
