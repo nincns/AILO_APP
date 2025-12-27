@@ -1095,3 +1095,69 @@
 "wizard.complete.done" = "Done";
 "wizard.sync.inProgress" = "Syncing Emails…";
 "wizard.sync.pleaseWait" = "Please wait";
+
+/* MARK: - AI Setup Module */
+"assistant.module.ai.title" = "Set up AI Provider";
+"assistant.module.ai.description" = "Connect an AI service like OpenAI, Claude, or Ollama";
+
+/* MARK: - AI Setup Wizard - General */
+"wizard.ai.title" = "Set up AI";
+"wizard.ai.step.provider" = "Provider";
+"wizard.ai.step.connection" = "Connection";
+"wizard.ai.step.model" = "Model";
+
+/* MARK: - AI Setup Wizard - Step 1: Provider Type */
+"wizard.ai.provider.title" = "Choose Provider";
+"wizard.ai.provider.subtitle" = "Select the AI provider you want to use.";
+"wizard.ai.provider.openai.hint" = "GPT-4o, GPT-4 Turbo";
+"wizard.ai.provider.mistral.hint" = "Mistral Large, Codestral";
+"wizard.ai.provider.anthropic.hint" = "Claude 3.5 Sonnet, Opus";
+"wizard.ai.provider.ollama.hint" = "Llama 3, Codellama locally";
+"wizard.ai.provider.custom.hint" = "Custom OpenAI-compatible endpoint";
+"wizard.ai.provider.requiresKey" = "API key required";
+"wizard.ai.provider.noKeyRequired" = "No API key needed";
+"wizard.ai.provider.openai.title" = "OpenAI";
+"wizard.ai.provider.openai.description" = "The leading LLM provider. Access via API key.";
+"wizard.ai.provider.mistral.title" = "Mistral AI";
+"wizard.ai.provider.mistral.description" = "European provider with open-source models.";
+"wizard.ai.provider.anthropic.title" = "Anthropic";
+"wizard.ai.provider.anthropic.description" = "Creators of Claude, known for safety and long contexts.";
+"wizard.ai.provider.ollama.title" = "Ollama (Local)";
+"wizard.ai.provider.ollama.description" = "Run models on your Mac – completely offline.";
+"wizard.ai.provider.custom.title" = "Custom";
+"wizard.ai.provider.custom.description" = "Use your own OpenAI-compatible server.";
+
+/* MARK: - AI Setup Wizard - Step 2: Connection */
+"wizard.ai.connection.title" = "Configure Connection";
+"wizard.ai.connection.subtitle" = "Enter the credentials for your provider.";
+"wizard.ai.connection.displayName" = "Display Name";
+"wizard.ai.connection.baseURL" = "Server Address";
+"wizard.ai.connection.port" = "Port";
+"wizard.ai.connection.apiKey" = "API Key";
+"wizard.ai.connection.getApiKey" = "Create API Key";
+"wizard.ai.connection.noKeyNeeded" = "No API key required";
+"wizard.ai.connection.anthropicHint" = "Anthropic uses a custom auth header (x-api-key).";
+
+/* MARK: - AI Setup Wizard - Step 3: Model & Test */
+"wizard.ai.model.title" = "Select Model";
+"wizard.ai.model.subtitle" = "Choose a model and test the connection.";
+"wizard.ai.model.select" = "Model";
+"wizard.ai.model.temperature" = "Temperature";
+"wizard.ai.model.precise" = "Precise";
+"wizard.ai.model.creative" = "Creative";
+"wizard.ai.model.maxTokens" = "Max Tokens";
+"wizard.ai.model.maxTokensHint" = "Limits the response length";
+"wizard.ai.model.test" = "Test Connection";
+"wizard.ai.model.retry" = "Try Again";
+"wizard.ai.model.testing" = "Testing...";
+"wizard.ai.model.testingSubtitle" = "Checking the connection";
+"wizard.ai.model.success" = "Connection Successful!";
+"wizard.ai.model.successSubtitle" = "Your provider is ready to use";
+"wizard.ai.model.successMessage" = "All set! Click Finish.";
+"wizard.ai.model.failed" = "Connection Failed";
+"wizard.ai.model.failedSubtitle" = "Please check your settings";
+
+/* MARK: - AI Setup Wizard - Completion */
+"wizard.ai.complete.title" = "AI Provider Set Up!";
+"wizard.ai.complete.message %@" = "%@ was added successfully.";
+"wizard.ai.complete.addAnother" = "Add Another Provider";

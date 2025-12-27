@@ -1054,3 +1054,69 @@
 "wizard.complete.done" = "Fertig";
 "wizard.sync.inProgress" = "Synchronisiere E-Mails…";
 "wizard.sync.pleaseWait" = "Bitte warten";
+
+/* MARK: - AI Setup Module */
+"assistant.module.ai.title" = "KI-Provider einrichten";
+"assistant.module.ai.description" = "Verbinde einen KI-Dienst wie OpenAI, Claude oder Ollama";
+
+/* MARK: - AI Setup Wizard - General */
+"wizard.ai.title" = "KI einrichten";
+"wizard.ai.step.provider" = "Provider";
+"wizard.ai.step.connection" = "Verbindung";
+"wizard.ai.step.model" = "Modell";
+
+/* MARK: - AI Setup Wizard - Step 1: Provider Type */
+"wizard.ai.provider.title" = "Provider wählen";
+"wizard.ai.provider.subtitle" = "Wähle den KI-Anbieter, den du nutzen möchtest.";
+"wizard.ai.provider.openai.hint" = "GPT-4o, GPT-4 Turbo";
+"wizard.ai.provider.mistral.hint" = "Mistral Large, Codestral";
+"wizard.ai.provider.anthropic.hint" = "Claude 3.5 Sonnet, Opus";
+"wizard.ai.provider.ollama.hint" = "Llama 3, Codellama lokal";
+"wizard.ai.provider.custom.hint" = "Eigener OpenAI-kompatibler Endpunkt";
+"wizard.ai.provider.requiresKey" = "API-Schlüssel erforderlich";
+"wizard.ai.provider.noKeyRequired" = "Kein API-Schlüssel nötig";
+"wizard.ai.provider.openai.title" = "OpenAI";
+"wizard.ai.provider.openai.description" = "Der führende Anbieter für LLMs. Zugang über API-Key.";
+"wizard.ai.provider.mistral.title" = "Mistral AI";
+"wizard.ai.provider.mistral.description" = "Europäischer Anbieter mit Open-Source-Modellen.";
+"wizard.ai.provider.anthropic.title" = "Anthropic";
+"wizard.ai.provider.anthropic.description" = "Entwickler von Claude, bekannt für Sicherheit und lange Kontexte.";
+"wizard.ai.provider.ollama.title" = "Ollama (Lokal)";
+"wizard.ai.provider.ollama.description" = "Führe Modelle auf deinem Mac aus – komplett offline.";
+"wizard.ai.provider.custom.title" = "Benutzerdefiniert";
+"wizard.ai.provider.custom.description" = "Verwende einen eigenen OpenAI-kompatiblen Server.";
+
+/* MARK: - AI Setup Wizard - Step 2: Connection */
+"wizard.ai.connection.title" = "Verbindung konfigurieren";
+"wizard.ai.connection.subtitle" = "Gib die Zugangsdaten für deinen Provider ein.";
+"wizard.ai.connection.displayName" = "Anzeigename";
+"wizard.ai.connection.baseURL" = "Serveradresse";
+"wizard.ai.connection.port" = "Port";
+"wizard.ai.connection.apiKey" = "API-Schlüssel";
+"wizard.ai.connection.getApiKey" = "API-Key erstellen";
+"wizard.ai.connection.noKeyNeeded" = "Kein API-Key erforderlich";
+"wizard.ai.connection.anthropicHint" = "Anthropic verwendet einen eigenen Auth-Header (x-api-key).";
+
+/* MARK: - AI Setup Wizard - Step 3: Model & Test */
+"wizard.ai.model.title" = "Modell wählen";
+"wizard.ai.model.subtitle" = "Wähle ein Modell und teste die Verbindung.";
+"wizard.ai.model.select" = "Modell";
+"wizard.ai.model.temperature" = "Temperatur";
+"wizard.ai.model.precise" = "Präzise";
+"wizard.ai.model.creative" = "Kreativ";
+"wizard.ai.model.maxTokens" = "Max. Tokens";
+"wizard.ai.model.maxTokensHint" = "Begrenzt die Länge der Antwort";
+"wizard.ai.model.test" = "Verbindung testen";
+"wizard.ai.model.retry" = "Erneut versuchen";
+"wizard.ai.model.testing" = "Teste...";
+"wizard.ai.model.testingSubtitle" = "Die Verbindung wird geprüft";
+"wizard.ai.model.success" = "Verbindung erfolgreich!";
+"wizard.ai.model.successSubtitle" = "Dein Provider ist einsatzbereit";
+"wizard.ai.model.successMessage" = "Alles bereit! Klicke auf Fertigstellen.";
+"wizard.ai.model.failed" = "Verbindung fehlgeschlagen";
+"wizard.ai.model.failedSubtitle" = "Bitte prüfe deine Eingaben";
+
+/* MARK: - AI Setup Wizard - Completion */
+"wizard.ai.complete.title" = "KI-Provider eingerichtet!";
+"wizard.ai.complete.message %@" = "%@ wurde erfolgreich hinzugefügt.";
+"wizard.ai.complete.addAnother" = "Weiteren Provider hinzufügen";
