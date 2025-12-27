@@ -584,6 +584,7 @@
 				C9C33C382EB2C35A006390C7 /* HeaderCharsetDetector.swift */,
 				C9FB88432EB2ACDD002359BA /* MailContentRenderer.swift */,
 				C9C80C622EB6B990006A863A /* RFC2047Test.swift */,
+				C9B79FEA2EF6E46000D0D81D /* AttachmentExtractor.swift */,
 			);
 			path = Parsers;
 			sourceTree = "<group>";
@@ -625,7 +626,6 @@
 		C9DEDFB52EAECC4D00C40B92 /* Helpers */ = {
 			isa = PBXGroup;
 			children = (
-				C9B79FEA2EF6E46000D0D81D /* AttachmentExtractor.swift */,
 				C9DEDFA92EAECC4D00C40B92 /* Parsers */,
 				C9DEDFAB2EAECC4D00C40B92 /* Security */,
 				C9DEDFAD2EAECC4D00C40B92 /* UI */,
