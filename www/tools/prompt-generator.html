@@ -4,94 +4,33 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AILO Pre-Prompt Generator</title>
+    <link rel="stylesheet" href="../ailo-theme.css">
     <style>
         /* ========================================
-           AILO THEME - CSS Variables
+           PROMPT GENERATOR SPECIFIC STYLES
            ======================================== */
-        :root {
-            /* Colors */
-            --color-bg-dark: #0a0a0f;
-            --color-bg-card: #12121a;
-            --color-bg-elevated: #1a1a25;
-            --color-bg-hover: #22222f;
 
-            --color-primary-purple: #4a148c;
-            --color-primary-purple-light: #7c43bd;
-            --color-primary-teal: #00bcd4;
-            --color-primary-teal-dark: #008ba3;
-
-            --color-text-primary: #ffffff;
-            --color-text-secondary: #a0a0b0;
-            --color-text-muted: #606070;
-
-            --color-border-dark: #2a2a3a;
-            --color-border-light: #3a3a4a;
-
-            --color-success: #4caf50;
-            --color-warning: #ff9800;
-            --color-error: #f44336;
-            --color-info: #2196f3;
-
-            /* Gradients */
-            --gradient-primary: linear-gradient(135deg, #4a148c 0%, #00bcd4 100%);
-            --gradient-card: linear-gradient(180deg, #1a1a25 0%, #12121a 100%);
-            --gradient-glow: radial-gradient(ellipse at center, rgba(0, 188, 212, 0.15) 0%, transparent 70%);
-
-            /* Spacing */
-            --spacing-xs: 0.25rem;
-            --spacing-sm: 0.5rem;
-            --spacing-md: 1rem;
-            --spacing-lg: 1.5rem;
-            --spacing-xl: 2rem;
-            --spacing-2xl: 3rem;
-
-            /* Border Radius */
-            --radius-sm: 4px;
-            --radius-md: 8px;
-            --radius-lg: 12px;
-            --radius-xl: 16px;
-            --radius-full: 9999px;
-
-            /* Shadows */
-            --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
-            --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.4);
-            --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.5);
-            --shadow-glow: 0 0 20px rgba(0, 188, 212, 0.3);
-
-            /* Transitions */
-            --transition-fast: 150ms ease;
-            --transition-normal: 250ms ease;
-            --transition-slow: 350ms ease;
-        }
-
-        /* ========================================
-           BASE STYLES
-           ======================================== */
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
+        /* Override body background for full-page app */
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
-            background: var(--color-bg-dark);
-            color: var(--color-text-primary);
             min-height: 100vh;
-            line-height: 1.5;
+            display: flex;
+            flex-direction: column;
         }
 
-        /* ========================================
-           LAYOUT
-           ======================================== */
+        body::before {
+            opacity: 0.5;
+        }
+
+        /* App Container */
         .app-container {
             display: flex;
             flex-direction: column;
+            flex: 1;
             min-height: 100vh;
         }
 
         /* Header */
-        .header {
+        .app-header {
             display: flex;
             align-items: center;
             justify-content: space-between;
@@ -103,10 +42,33 @@
             z-index: 100;
         }
 
+        .app-header::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: var(--gradient-primary);
+        }
+
         .header-left {
             display: flex;
             align-items: center;
             gap: var(--spacing-md);
+        }
+
+        .header-left a {
+            color: var(--color-text-secondary);
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-xs);
+            transition: color var(--transition-fast);
+        }
+
+        .header-left a:hover {
+            color: var(--color-text-primary);
         }
 
         .logo {
@@ -130,6 +92,7 @@
             background: var(--color-bg-elevated);
             border-radius: var(--radius-md);
             overflow: hidden;
+            border: 1px solid var(--color-border-dark);
         }
 
         .lang-btn {
@@ -143,56 +106,8 @@
         }
 
         .lang-btn.active {
-            background: var(--color-primary-purple);
+            background: var(--gradient-accent);
             color: var(--color-text-primary);
-        }
-
-        /* Buttons */
-        .btn {
-            display: inline-flex;
-            align-items: center;
-            gap: var(--spacing-xs);
-            padding: var(--spacing-sm) var(--spacing-md);
-            border: none;
-            border-radius: var(--radius-md);
-            font-size: 0.875rem;
-            font-weight: 500;
-            cursor: pointer;
-            transition: var(--transition-fast);
-        }
-
-        .btn-primary {
-            background: var(--gradient-primary);
-            color: var(--color-text-primary);
-        }
-
-        .btn-primary:hover {
-            opacity: 0.9;
-            box-shadow: var(--shadow-glow);
-        }
-
-        .btn-secondary {
-            background: var(--color-bg-elevated);
-            color: var(--color-text-primary);
-            border: 1px solid var(--color-border-dark);
-        }
-
-        .btn-secondary:hover {
-            background: var(--color-bg-hover);
-        }
-
-        .btn-danger {
-            background: var(--color-error);
-            color: var(--color-text-primary);
-        }
-
-        .btn-danger:hover {
-            opacity: 0.9;
-        }
-
-        .btn-sm {
-            padding: var(--spacing-xs) var(--spacing-sm);
-            font-size: 0.75rem;
         }
 
         /* Tab Bar */
@@ -222,7 +137,7 @@
 
         .tab-btn.active {
             color: var(--color-text-primary);
-            border-bottom-color: var(--color-primary-teal);
+            border-bottom-color: var(--color-primary-orange);
         }
 
         /* Main Content */
@@ -230,6 +145,8 @@
             display: flex;
             flex: 1;
             overflow: hidden;
+            margin-left: 0;
+            padding: 0;
         }
 
         /* Sidebar */
@@ -241,6 +158,8 @@
             display: flex;
             flex-direction: column;
             overflow: hidden;
+            position: relative;
+            height: auto;
         }
 
         .sidebar-header {
@@ -278,27 +197,6 @@
             height: 100%;
             color: var(--color-text-muted);
             font-size: 1.125rem;
-        }
-
-        /* Card */
-        .card {
-            background: var(--color-bg-card);
-            border: 1px solid var(--color-border-dark);
-            border-radius: var(--radius-lg);
-            padding: var(--spacing-lg);
-            margin-bottom: var(--spacing-lg);
-        }
-
-        .card-header {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            margin-bottom: var(--spacing-md);
-        }
-
-        .card-title {
-            font-size: 1.125rem;
-            font-weight: 600;
         }
 
         /* Form Elements */
@@ -341,14 +239,14 @@
         .form-textarea:focus,
         .form-select:focus {
             outline: none;
-            border-color: var(--color-primary-teal);
-            box-shadow: 0 0 0 2px rgba(0, 188, 212, 0.2);
+            border-color: var(--color-primary-purple);
+            box-shadow: 0 0 0 2px var(--color-circuit-glow);
         }
 
         .form-textarea {
             min-height: 200px;
             resize: vertical;
-            font-family: 'SF Mono', Monaco, 'Courier New', monospace;
+            font-family: var(--font-mono);
         }
 
         .form-hint {
@@ -366,6 +264,8 @@
         /* Tree View */
         .tree {
             list-style: none;
+            padding: 0;
+            margin: 0;
         }
 
         .tree-item {
@@ -383,16 +283,16 @@
         }
 
         .tree-item-row:hover {
-            background: var(--color-bg-hover);
+            background: var(--color-bg-elevated);
         }
 
         .tree-item-row.selected {
-            background: var(--color-primary-purple);
+            background: var(--gradient-accent);
         }
 
         .tree-item-row.drag-over {
-            border: 2px dashed var(--color-primary-teal);
-            background: rgba(0, 188, 212, 0.1);
+            border: 2px dashed var(--color-primary-orange);
+            background: rgba(230, 81, 0, 0.1);
         }
 
         .tree-toggle {
@@ -436,6 +336,7 @@
         .tree-children {
             list-style: none;
             padding-left: var(--spacing-lg);
+            margin: 0;
         }
 
         .tree-children.collapsed {
@@ -466,7 +367,7 @@
         }
 
         .preview-header:hover {
-            background: var(--color-bg-hover);
+            background: var(--color-bg-elevated);
         }
 
         .preview-title {
@@ -483,13 +384,14 @@
         }
 
         .preview-text {
-            font-family: 'SF Mono', Monaco, 'Courier New', monospace;
+            font-family: var(--font-mono);
             font-size: 0.875rem;
             white-space: pre-wrap;
             color: var(--color-text-secondary);
             background: var(--color-bg-elevated);
             padding: var(--spacing-md);
             border-radius: var(--radius-md);
+            border: 1px solid var(--color-border-dark);
         }
 
         /* Element List (for Recipes) */
@@ -505,8 +407,8 @@
         }
 
         .element-list.drag-over {
-            border-color: var(--color-primary-teal);
-            background: rgba(0, 188, 212, 0.05);
+            border-color: var(--color-primary-orange);
+            background: rgba(230, 81, 0, 0.05);
         }
 
         .element-list-empty {
@@ -531,14 +433,6 @@
             cursor: grabbing;
         }
 
-        .element-chip-icon {
-            font-size: 1rem;
-        }
-
-        .element-chip-name {
-            font-size: 0.875rem;
-        }
-
         .element-chip-remove {
             background: none;
             border: none;
@@ -559,6 +453,7 @@
             padding: var(--spacing-md);
             background: var(--color-bg-elevated);
             border-radius: var(--radius-md);
+            border: 1px solid var(--color-border-dark);
         }
 
         .element-picker-title {
@@ -583,7 +478,7 @@
         }
 
         .element-picker-item:hover {
-            background: var(--color-bg-hover);
+            background: var(--color-bg-card);
         }
 
         /* Context Menu */
@@ -610,7 +505,7 @@
         }
 
         .context-menu-item:hover {
-            background: var(--color-bg-hover);
+            background: var(--color-bg-card);
         }
 
         .context-menu-item.danger {
@@ -666,7 +561,7 @@
             left: 0;
             right: 0;
             bottom: 0;
-            background: rgba(0, 0, 0, 0.7);
+            background: rgba(0, 0, 0, 0.8);
             display: flex;
             align-items: center;
             justify-content: center;
@@ -676,7 +571,7 @@
         .modal {
             background: var(--color-bg-card);
             border: 1px solid var(--color-border-dark);
-            border-radius: var(--radius-lg);
+            border-radius: var(--radius-xl);
             padding: var(--spacing-lg);
             max-width: 400px;
             width: 90%;
@@ -699,17 +594,6 @@
             gap: var(--spacing-sm);
         }
 
-        /* Info/Warning Box */
-        .info-box {
-            background: rgba(33, 150, 243, 0.1);
-            border: 1px solid var(--color-info);
-            border-radius: var(--radius-md);
-            padding: var(--spacing-md);
-            margin-bottom: var(--spacing-md);
-            color: var(--color-info);
-            font-size: 0.875rem;
-        }
-
         /* Actions Bar */
         .actions-bar {
             display: flex;
@@ -724,23 +608,19 @@
             display: none;
         }
 
-        /* Scrollbar */
-        ::-webkit-scrollbar {
-            width: 8px;
-            height: 8px;
+        /* Button overrides */
+        .btn-sm {
+            padding: var(--spacing-xs) var(--spacing-sm);
+            font-size: 0.75rem;
         }
 
-        ::-webkit-scrollbar-track {
-            background: var(--color-bg-dark);
+        .btn-danger {
+            background: var(--color-error);
+            color: var(--color-text-primary);
         }
 
-        ::-webkit-scrollbar-thumb {
-            background: var(--color-border-light);
-            border-radius: 4px;
-        }
-
-        ::-webkit-scrollbar-thumb:hover {
-            background: var(--color-text-muted);
+        .btn-danger:hover {
+            opacity: 0.9;
         }
 
         /* Responsive */
@@ -756,6 +636,29 @@
                 border-right: none;
                 border-bottom: 1px solid var(--color-border-dark);
             }
+
+            .header-left span:not(.logo) {
+                display: none;
+            }
+        }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: var(--color-bg-dark);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(255, 255, 255, 0.3);
         }
     </style>
 </head>
@@ -772,7 +675,8 @@
         // ========================================
         const i18n = {
             de: {
-                title: "AILO Pre-Prompt Generator",
+                title: "Pre-Prompt Generator",
+                backToHome: "Zurueck zur Startseite",
                 tabs: {
                     categories: "Kategorien",
                     recipes: "Recipes",
@@ -834,7 +738,8 @@
                 }
             },
             en: {
-                title: "AILO Pre-Prompt Generator",
+                title: "Pre-Prompt Generator",
+                backToHome: "Back to Home",
                 tabs: {
                     categories: "Categories",
                     recipes: "Recipes",
@@ -904,11 +809,9 @@
             lang: 'de',
             activeTab: 'categories',
             selectedItem: null,
-            selectedType: null, // 'menuItem', 'preset', 'recipe', 'cookbook', 'recipeMenuItem'
+            selectedType: null,
             expandedNodes: new Set(),
             previewCollapsed: false,
-
-            // Data
             menuItems: [],
             presets: [],
             recipes: [],
@@ -945,14 +848,11 @@
         // ========================================
         // DATA OPERATIONS
         // ========================================
-
-        // MenuItems
         function addMenuItem(parentID = null, isFolder = true) {
             const now = isoNow();
             let presetID = null;
 
             if (!isFolder) {
-                // Create new preset for item
                 const preset = {
                     id: uuid(),
                     name: t('types.preset'),
@@ -991,7 +891,6 @@
         }
 
         function deleteMenuItem(id) {
-            // Find all children recursively
             const idsToDelete = [id];
             const findChildren = (parentId) => {
                 state.menuItems.forEach(m => {
@@ -1003,37 +902,27 @@
             };
             findChildren(id);
 
-            // Delete associated presets
             const presetIds = state.menuItems
                 .filter(m => idsToDelete.includes(m.id) && m.presetID)
                 .map(m => m.presetID);
             state.presets = state.presets.filter(p => !presetIds.includes(p.id));
-
-            // Delete menu items
             state.menuItems = state.menuItems.filter(m => !idsToDelete.includes(m.id));
 
             if (state.selectedItem === id) {
                 state.selectedItem = null;
                 state.selectedType = null;
             }
-
             renderApp();
         }
 
-        // Presets
         function updatePreset(id, updates) {
             const index = state.presets.findIndex(p => p.id === id);
             if (index !== -1) {
-                state.presets[index] = {
-                    ...state.presets[index],
-                    ...updates,
-                    updatedAt: isoNow()
-                };
+                state.presets[index] = { ...state.presets[index], ...updates, updatedAt: isoNow() };
                 renderApp();
             }
         }
 
-        // Recipes
         function addRecipe() {
             const now = isoNow();
             const recipe = {
@@ -1054,20 +943,14 @@
         function updateRecipe(id, updates) {
             const index = state.recipes.findIndex(r => r.id === id);
             if (index !== -1) {
-                state.recipes[index] = {
-                    ...state.recipes[index],
-                    ...updates,
-                    updatedAt: isoNow()
-                };
+                state.recipes[index] = { ...state.recipes[index], ...updates, updatedAt: isoNow() };
                 renderApp();
             }
         }
 
         function deleteRecipe(id) {
             state.recipes = state.recipes.filter(r => r.id !== id);
-            // Remove from recipe menu items
             state.recipeMenuItems = state.recipeMenuItems.filter(rm => rm.recipeID !== id);
-
             if (state.selectedItem === id) {
                 state.selectedItem = null;
                 state.selectedType = null;
@@ -1075,7 +958,6 @@
             renderApp();
         }
 
-        // Cookbooks
         function addCookbook() {
             const now = isoNow();
             const cookbook = {
@@ -1095,11 +977,7 @@
         function updateCookbook(id, updates) {
             const index = state.cookbooks.findIndex(c => c.id === id);
             if (index !== -1) {
-                state.cookbooks[index] = {
-                    ...state.cookbooks[index],
-                    ...updates,
-                    updatedAt: isoNow()
-                };
+                state.cookbooks[index] = { ...state.cookbooks[index], ...updates, updatedAt: isoNow() };
                 renderApp();
             }
         }
@@ -1107,7 +985,6 @@
         function deleteCookbook(id) {
             state.cookbooks = state.cookbooks.filter(c => c.id !== id);
             state.recipeMenuItems = state.recipeMenuItems.filter(rm => rm.cookbookID !== id);
-
             if (state.selectedItem === id) {
                 state.selectedItem = null;
                 state.selectedType = null;
@@ -1115,7 +992,6 @@
             renderApp();
         }
 
-        // RecipeMenuItems
         function addRecipeMenuItem(cookbookID, parentID = null, isChapter = true) {
             const recipeMenuItem = {
                 id: uuid(),
@@ -1151,9 +1027,7 @@
                 });
             };
             findChildren(id);
-
             state.recipeMenuItems = state.recipeMenuItems.filter(r => !idsToDelete.includes(r.id));
-
             if (state.selectedItem === id) {
                 state.selectedItem = null;
                 state.selectedType = null;
@@ -1161,11 +1035,8 @@
             renderApp();
         }
 
-        // Helpers
         function getMaxSortOrder(items, parentID = null) {
-            const filtered = parentID !== undefined
-                ? items.filter(i => i.parentID === parentID)
-                : items;
+            const filtered = parentID !== undefined ? items.filter(i => i.parentID === parentID) : items;
             return filtered.reduce((max, item) => Math.max(max, item.sortOrder || 0), 0);
         }
 
@@ -1180,19 +1051,13 @@
         function importCatalog(jsonString) {
             try {
                 const data = JSON.parse(jsonString);
+                if (data.version !== 1) throw new Error('Invalid version');
 
-                // Validate
-                if (data.version !== 1) {
-                    throw new Error('Invalid version');
-                }
-
-                // Import data
                 state.menuItems = data.menuItems || [];
                 state.presets = data.presets || [];
                 state.recipes = data.recipes || [];
                 state.cookbooks = data.cookbooks || [];
                 state.recipeMenuItems = data.recipeMenuItems || [];
-
                 state.selectedItem = null;
                 state.selectedType = null;
                 state.expandedNodes = new Set();
@@ -1219,13 +1084,11 @@
             const json = JSON.stringify(data, null, 2);
             const blob = new Blob([json], { type: 'application/json' });
             const url = URL.createObjectURL(blob);
-
             const date = new Date().toISOString().split('T')[0];
             const a = document.createElement('a');
             a.href = url;
             a.download = `AILO-Catalog_${date}.json`;
             a.click();
-
             URL.revokeObjectURL(url);
             showMessage(t('messages.exportSuccess'), 'success');
         }
@@ -1238,10 +1101,7 @@
             msg.className = `message ${type}`;
             msg.textContent = text;
             document.body.appendChild(msg);
-
-            setTimeout(() => {
-                msg.remove();
-            }, 3000);
+            setTimeout(() => msg.remove(), 3000);
         }
 
         function showConfirmDialog(title, text, onConfirm) {
@@ -1258,21 +1118,14 @@
                 </div>
             `;
             document.body.appendChild(overlay);
-
             overlay.querySelector('#confirmCancel').onclick = () => overlay.remove();
-            overlay.querySelector('#confirmOk').onclick = () => {
-                overlay.remove();
-                onConfirm();
-            };
-            overlay.onclick = (e) => {
-                if (e.target === overlay) overlay.remove();
-            };
+            overlay.querySelector('#confirmOk').onclick = () => { overlay.remove(); onConfirm(); };
+            overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
         }
 
         let contextMenu = null;
         function showContextMenu(x, y, items) {
             hideContextMenu();
-
             contextMenu = document.createElement('div');
             contextMenu.className = 'context-menu';
             contextMenu.style.left = `${x}px`;
@@ -1285,31 +1138,19 @@
                     const itemEl = document.createElement('div');
                     itemEl.className = `context-menu-item${item.danger ? ' danger' : ''}`;
                     itemEl.innerHTML = `${item.icon || ''} ${item.label}`;
-                    itemEl.onclick = () => {
-                        hideContextMenu();
-                        item.action();
-                    };
+                    itemEl.onclick = () => { hideContextMenu(); item.action(); };
                     contextMenu.appendChild(itemEl);
                 }
             });
 
             document.body.appendChild(contextMenu);
-
-            // Adjust position if off-screen
             const rect = contextMenu.getBoundingClientRect();
-            if (rect.right > window.innerWidth) {
-                contextMenu.style.left = `${window.innerWidth - rect.width - 10}px`;
-            }
-            if (rect.bottom > window.innerHeight) {
-                contextMenu.style.top = `${window.innerHeight - rect.height - 10}px`;
-            }
+            if (rect.right > window.innerWidth) contextMenu.style.left = `${window.innerWidth - rect.width - 10}px`;
+            if (rect.bottom > window.innerHeight) contextMenu.style.top = `${window.innerHeight - rect.height - 10}px`;
         }
 
         function hideContextMenu() {
-            if (contextMenu) {
-                contextMenu.remove();
-                contextMenu = null;
-            }
+            if (contextMenu) { contextMenu.remove(); contextMenu = null; }
         }
 
         document.addEventListener('click', hideContextMenu);
@@ -1344,26 +1185,20 @@
         function handleDropOnMenuItem(e, targetId) {
             e.preventDefault();
             e.currentTarget.classList.remove('drag-over');
-
             if (!draggedItem || draggedType !== 'menuItem') return;
             if (draggedItem === targetId) return;
 
             const draggedMenuItem = state.menuItems.find(m => m.id === draggedItem);
             const targetMenuItem = state.menuItems.find(m => m.id === targetId);
-
             if (!draggedMenuItem || !targetMenuItem) return;
 
-            // Check if target is a folder
             if (targetMenuItem.presetID === null) {
-                // Move into folder
                 draggedMenuItem.parentID = targetId;
                 draggedMenuItem.sortOrder = getMaxSortOrder(state.menuItems, targetId) + 1;
                 state.expandedNodes.add(targetId);
             } else {
-                // Move to same level, after target
                 draggedMenuItem.parentID = targetMenuItem.parentID;
                 draggedMenuItem.sortOrder = targetMenuItem.sortOrder + 0.5;
-                // Renumber
                 renumberSortOrder(state.menuItems, draggedMenuItem.parentID);
             }
 
@@ -1375,11 +1210,10 @@
         function handleDropOnRecipeElements(e, recipeId) {
             e.preventDefault();
             e.currentTarget.classList.remove('drag-over');
-
             if (!draggedItem || draggedType !== 'menuItem') return;
 
             const menuItem = state.menuItems.find(m => m.id === draggedItem);
-            if (!menuItem || !menuItem.presetID) return; // Only items, not folders
+            if (!menuItem || !menuItem.presetID) return;
 
             const recipe = state.recipes.find(r => r.id === recipeId);
             if (!recipe) return;
@@ -1395,12 +1229,9 @@
         }
 
         function renumberSortOrder(items, parentID) {
-            items
-                .filter(i => i.parentID === parentID)
+            items.filter(i => i.parentID === parentID)
                 .sort((a, b) => a.sortOrder - b.sortOrder)
-                .forEach((item, index) => {
-                    item.sortOrder = index + 1;
-                });
+                .forEach((item, index) => { item.sortOrder = index + 1; });
         }
 
         // ========================================
@@ -1417,14 +1248,14 @@
                 </div>
                 ${renderPreviewPanel()}
             `;
-
             attachEventListeners();
         }
 
         function renderHeader() {
             return `
-                <header class="header">
+                <header class="app-header">
                     <div class="header-left">
+                        <a href="../index.html" title="${t('backToHome')}">← </a>
                         <span class="logo">AILO</span>
                         <span>${t('title')}</span>
                     </div>
@@ -1433,12 +1264,8 @@
                             <button class="lang-btn ${state.lang === 'de' ? 'active' : ''}" data-lang="de">DE</button>
                             <button class="lang-btn ${state.lang === 'en' ? 'active' : ''}" data-lang="en">EN</button>
                         </div>
-                        <button class="btn btn-secondary" id="importBtn">
-                            📥 ${t('actions.import')}
-                        </button>
-                        <button class="btn btn-primary" id="exportBtn">
-                            📤 ${t('actions.export')}
-                        </button>
+                        <button class="btn btn-secondary" id="importBtn">📥 ${t('actions.import')}</button>
+                        <button class="btn btn-primary" id="exportBtn">📤 ${t('actions.export')}</button>
                     </div>
                 </header>
             `;
@@ -1450,7 +1277,6 @@
                 { id: 'recipes', icon: '🍳', label: t('tabs.recipes') },
                 { id: 'cookbooks', icon: '📚', label: t('tabs.cookbooks') }
             ];
-
             return `
                 <div class="tab-bar">
                     ${tabs.map(tab => `
@@ -1476,23 +1302,17 @@
                     break;
                 case 'recipes':
                     content = renderRecipeList();
-                    buttons = `
-                        <button class="btn btn-secondary btn-sm" id="addRecipeBtn">+ ${t('actions.newRecipe')}</button>
-                    `;
+                    buttons = `<button class="btn btn-secondary btn-sm" id="addRecipeBtn">+ ${t('actions.newRecipe')}</button>`;
                     break;
                 case 'cookbooks':
                     content = renderCookbookTree();
-                    buttons = `
-                        <button class="btn btn-secondary btn-sm" id="addCookbookBtn">+ ${t('actions.newCookbook')}</button>
-                    `;
+                    buttons = `<button class="btn btn-secondary btn-sm" id="addCookbookBtn">+ ${t('actions.newCookbook')}</button>`;
                     break;
             }
 
             return `
                 <aside class="sidebar">
-                    <div class="sidebar-header">
-                        ${buttons}
-                    </div>
+                    <div class="sidebar-header">${buttons}</div>
                     <div class="sidebar-content">
                         ${content || `<div class="editor-empty">${t('messages.emptyState')}</div>`}
                     </div>
@@ -1501,31 +1321,21 @@
         }
 
         function renderMenuItemTree() {
-            const rootItems = state.menuItems
-                .filter(m => m.parentID === null)
-                .sort((a, b) => a.sortOrder - b.sortOrder);
-
+            const rootItems = state.menuItems.filter(m => m.parentID === null).sort((a, b) => a.sortOrder - b.sortOrder);
             if (rootItems.length === 0) return '';
-
             return `<ul class="tree">${rootItems.map(item => renderTreeNode(item)).join('')}</ul>`;
         }
 
         function renderTreeNode(item) {
-            const children = state.menuItems
-                .filter(m => m.parentID === item.id)
-                .sort((a, b) => a.sortOrder - b.sortOrder);
+            const children = state.menuItems.filter(m => m.parentID === item.id).sort((a, b) => a.sortOrder - b.sortOrder);
             const isFolder = item.presetID === null;
             const isExpanded = state.expandedNodes.has(item.id);
             const isSelected = state.selectedItem === item.id && state.selectedType === 'menuItem';
 
             return `
                 <li class="tree-item" data-id="${item.id}">
-                    <div class="tree-item-row ${isSelected ? 'selected' : ''}"
-                         draggable="true"
-                         data-id="${item.id}"
-                         data-type="menuItem">
-                        <span class="tree-toggle ${isFolder ? (isExpanded ? 'expanded' : '') : 'hidden'}"
-                              data-toggle="${item.id}">▶</span>
+                    <div class="tree-item-row ${isSelected ? 'selected' : ''}" draggable="true" data-id="${item.id}" data-type="menuItem">
+                        <span class="tree-toggle ${isFolder ? (isExpanded ? 'expanded' : '') : 'hidden'}" data-toggle="${item.id}">▶</span>
                         <span class="tree-icon">${item.icon}</span>
                         <span class="tree-name">${escapeHtml(item.name)}</span>
                         ${isFolder ? `<span class="tree-badge">${children.length}</span>` : ''}
@@ -1541,16 +1351,13 @@
 
         function renderRecipeList() {
             if (state.recipes.length === 0) return '';
-
             return `
                 <ul class="tree">
                     ${state.recipes.map(recipe => {
                         const isSelected = state.selectedItem === recipe.id && state.selectedType === 'recipe';
                         return `
                             <li class="tree-item">
-                                <div class="tree-item-row ${isSelected ? 'selected' : ''}"
-                                     data-id="${recipe.id}"
-                                     data-type="recipe">
+                                <div class="tree-item-row ${isSelected ? 'selected' : ''}" data-id="${recipe.id}" data-type="recipe">
                                     <span class="tree-toggle hidden">▶</span>
                                     <span class="tree-icon">${recipe.icon}</span>
                                     <span class="tree-name">${escapeHtml(recipe.name)}</span>
@@ -1565,23 +1372,17 @@
 
         function renderCookbookTree() {
             if (state.cookbooks.length === 0) return '';
-
             return `
                 <ul class="tree">
                     ${state.cookbooks.sort((a, b) => a.sortOrder - b.sortOrder).map(cookbook => {
                         const isSelected = state.selectedItem === cookbook.id && state.selectedType === 'cookbook';
                         const isExpanded = state.expandedNodes.has(cookbook.id);
-                        const children = state.recipeMenuItems
-                            .filter(r => r.cookbookID === cookbook.id && r.parentID === null)
-                            .sort((a, b) => a.sortOrder - b.sortOrder);
+                        const children = state.recipeMenuItems.filter(r => r.cookbookID === cookbook.id && r.parentID === null).sort((a, b) => a.sortOrder - b.sortOrder);
 
                         return `
                             <li class="tree-item">
-                                <div class="tree-item-row ${isSelected ? 'selected' : ''}"
-                                     data-id="${cookbook.id}"
-                                     data-type="cookbook">
-                                    <span class="tree-toggle ${isExpanded ? 'expanded' : ''}"
-                                          data-toggle="${cookbook.id}">▶</span>
+                                <div class="tree-item-row ${isSelected ? 'selected' : ''}" data-id="${cookbook.id}" data-type="cookbook">
+                                    <span class="tree-toggle ${isExpanded ? 'expanded' : ''}" data-toggle="${cookbook.id}">▶</span>
                                     <span class="tree-icon">${cookbook.icon}</span>
                                     <span class="tree-name">${escapeHtml(cookbook.name)}</span>
                                     <span class="tree-badge">${children.length}</span>
@@ -1599,20 +1400,15 @@
         }
 
         function renderRecipeMenuNode(item) {
-            const children = state.recipeMenuItems
-                .filter(r => r.parentID === item.id)
-                .sort((a, b) => a.sortOrder - b.sortOrder);
+            const children = state.recipeMenuItems.filter(r => r.parentID === item.id).sort((a, b) => a.sortOrder - b.sortOrder);
             const isChapter = item.recipeID === null;
             const isExpanded = state.expandedNodes.has(item.id);
             const isSelected = state.selectedItem === item.id && state.selectedType === 'recipeMenuItem';
 
             return `
                 <li class="tree-item">
-                    <div class="tree-item-row ${isSelected ? 'selected' : ''}"
-                         data-id="${item.id}"
-                         data-type="recipeMenuItem">
-                        <span class="tree-toggle ${isChapter ? (isExpanded ? 'expanded' : '') : 'hidden'}"
-                              data-toggle="${item.id}">▶</span>
+                    <div class="tree-item-row ${isSelected ? 'selected' : ''}" data-id="${item.id}" data-type="recipeMenuItem">
+                        <span class="tree-toggle ${isChapter ? (isExpanded ? 'expanded' : '') : 'hidden'}" data-toggle="${item.id}">▶</span>
                         <span class="tree-icon">${item.icon}</span>
                         <span class="tree-name">${escapeHtml(item.name)}</span>
                     </div>
@@ -1627,39 +1423,18 @@
 
         function renderEditor() {
             if (!state.selectedItem) {
-                return `
-                    <main class="editor">
-                        <div class="editor-content">
-                            <div class="editor-empty">${t('messages.noSelection')}</div>
-                        </div>
-                    </main>
-                `;
+                return `<main class="editor"><div class="editor-content"><div class="editor-empty">${t('messages.noSelection')}</div></div></main>`;
             }
 
             let content = '';
-
             switch (state.selectedType) {
-                case 'menuItem':
-                    content = renderMenuItemEditor();
-                    break;
-                case 'recipe':
-                    content = renderRecipeEditor();
-                    break;
-                case 'cookbook':
-                    content = renderCookbookEditor();
-                    break;
-                case 'recipeMenuItem':
-                    content = renderRecipeMenuItemEditor();
-                    break;
+                case 'menuItem': content = renderMenuItemEditor(); break;
+                case 'recipe': content = renderRecipeEditor(); break;
+                case 'cookbook': content = renderCookbookEditor(); break;
+                case 'recipeMenuItem': content = renderRecipeMenuItemEditor(); break;
             }
 
-            return `
-                <main class="editor">
-                    <div class="editor-content">
-                        ${content}
-                    </div>
-                </main>
-            `;
+            return `<main class="editor"><div class="editor-content">${content}</div></main>`;
         }
 
         function renderMenuItemEditor() {
@@ -1671,62 +1446,47 @@
 
             return `
                 <div class="card">
-                    <div class="card-header">
-                        <h2 class="card-title">${item.icon} ${isFolder ? t('types.folder') : t('types.item')}</h2>
-                    </div>
-
+                    <h3>${item.icon} ${isFolder ? t('types.folder') : t('types.item')}</h3>
                     <div class="form-row">
                         <div class="form-group" style="flex: 0 0 80px;">
                             <label class="form-label">${t('fields.icon')}</label>
-                            <input type="text" class="form-input icon-input" id="itemIcon"
-                                   value="${item.icon}" maxlength="3">
+                            <input type="text" class="form-input icon-input" id="itemIcon" value="${item.icon}" maxlength="3">
                         </div>
                         <div class="form-group">
                             <label class="form-label">${t('fields.name')}</label>
                             <input type="text" class="form-input" id="itemName" value="${escapeHtml(item.name)}">
                         </div>
                     </div>
-
                     <div class="form-group">
                         <label class="form-label">${t('fields.keywords')}</label>
-                        <input type="text" class="form-input" id="itemKeywords"
-                               value="${escapeHtml(item.keywords)}" placeholder="${t('fields.keywordsHint')}">
+                        <input type="text" class="form-input" id="itemKeywords" value="${escapeHtml(item.keywords)}" placeholder="${t('fields.keywordsHint')}">
                         <div class="form-hint">${t('fields.keywordsHint')}</div>
                     </div>
                 </div>
-
                 ${!isFolder && preset ? `
                     <div class="card">
-                        <div class="card-header">
-                            <h2 class="card-title">📝 ${t('fields.preset')}</h2>
-                        </div>
-
+                        <h3>📝 ${t('fields.preset')}</h3>
                         <div class="form-row">
                             <div class="form-group" style="flex: 0 0 80px;">
                                 <label class="form-label">${t('fields.icon')}</label>
-                                <input type="text" class="form-input icon-input" id="presetIcon"
-                                       value="${preset.icon}" maxlength="3">
+                                <input type="text" class="form-input icon-input" id="presetIcon" value="${preset.icon}" maxlength="3">
                             </div>
                             <div class="form-group">
                                 <label class="form-label">${t('fields.name')}</label>
                                 <input type="text" class="form-input" id="presetName" value="${escapeHtml(preset.name)}">
                             </div>
                         </div>
-
                         <div class="form-group">
                             <label class="form-label">${t('fields.keywords')}</label>
-                            <input type="text" class="form-input" id="presetKeywords"
-                                   value="${escapeHtml(preset.keywords)}" placeholder="${t('fields.keywordsHint')}">
+                            <input type="text" class="form-input" id="presetKeywords" value="${escapeHtml(preset.keywords)}" placeholder="${t('fields.keywordsHint')}">
                         </div>
-
                         <div class="form-group">
                             <label class="form-label">${t('fields.content')}</label>
                             <textarea class="form-textarea" id="presetText">${escapeHtml(preset.text)}</textarea>
                         </div>
                     </div>
                 ` : ''}
-
-                <div class="actions-bar" style="border: none; padding: 0; background: transparent;">
+                <div style="display: flex; gap: var(--spacing-sm);">
                     <button class="btn btn-primary" id="saveItemBtn">${t('actions.save')}</button>
                     <button class="btn btn-danger" id="deleteItemBtn">${t('actions.delete')}</button>
                 </div>
@@ -1737,58 +1497,42 @@
             const recipe = state.recipes.find(r => r.id === state.selectedItem);
             if (!recipe) return '';
 
-            const elements = recipe.elementIDs
-                .map(id => state.menuItems.find(m => m.id === id))
-                .filter(Boolean);
+            const elements = recipe.elementIDs.map(id => state.menuItems.find(m => m.id === id)).filter(Boolean);
 
             return `
                 <div class="card">
-                    <div class="card-header">
-                        <h2 class="card-title">${recipe.icon} ${t('types.recipe')}</h2>
-                    </div>
-
+                    <h3>${recipe.icon} ${t('types.recipe')}</h3>
                     <div class="form-row">
                         <div class="form-group" style="flex: 0 0 80px;">
                             <label class="form-label">${t('fields.icon')}</label>
-                            <input type="text" class="form-input icon-input" id="recipeIcon"
-                                   value="${recipe.icon}" maxlength="3">
+                            <input type="text" class="form-input icon-input" id="recipeIcon" value="${recipe.icon}" maxlength="3">
                         </div>
                         <div class="form-group">
                             <label class="form-label">${t('fields.name')}</label>
                             <input type="text" class="form-input" id="recipeName" value="${escapeHtml(recipe.name)}">
                         </div>
                     </div>
-
                     <div class="form-group">
                         <label class="form-label">${t('fields.keywords')}</label>
-                        <input type="text" class="form-input" id="recipeKeywords"
-                               value="${escapeHtml(recipe.keywords)}" placeholder="${t('fields.keywordsHint')}">
+                        <input type="text" class="form-input" id="recipeKeywords" value="${escapeHtml(recipe.keywords)}" placeholder="${t('fields.keywordsHint')}">
                     </div>
-
                     <div class="form-group">
                         <label class="form-label">${t('fields.separator')}</label>
-                        <input type="text" class="form-input" id="recipeSeparator"
-                               value="${escapeHtml(recipe.separator)}" style="width: 200px;">
+                        <input type="text" class="form-input" id="recipeSeparator" value="${escapeHtml(recipe.separator)}" style="width: 200px;">
                     </div>
                 </div>
-
                 <div class="card">
-                    <div class="card-header">
-                        <h2 class="card-title">${t('fields.elements')}</h2>
-                    </div>
-
+                    <h3>${t('fields.elements')}</h3>
                     <div class="element-list" id="recipeElements" data-recipe="${recipe.id}">
-                        ${elements.length === 0 ? `
-                            <div class="element-list-empty">${t('messages.dragHint')}</div>
-                        ` : elements.map((el, idx) => `
-                            <div class="element-chip" draggable="true" data-index="${idx}">
-                                <span class="element-chip-icon">${el.icon}</span>
-                                <span class="element-chip-name">${escapeHtml(el.name)}</span>
-                                <button class="element-chip-remove" data-remove="${idx}">×</button>
-                            </div>
-                        `).join('')}
+                        ${elements.length === 0 ? `<div class="element-list-empty">${t('messages.dragHint')}</div>` :
+                            elements.map((el, idx) => `
+                                <div class="element-chip" draggable="true" data-index="${idx}">
+                                    <span class="element-chip-icon">${el.icon}</span>
+                                    <span class="element-chip-name">${escapeHtml(el.name)}</span>
+                                    <button class="element-chip-remove" data-remove="${idx}">×</button>
+                                </div>
+                            `).join('')}
                     </div>
-
                     <div class="element-picker">
                         <div class="element-picker-title">${t('actions.addElement')}</div>
                         <div class="element-picker-list">
@@ -1801,8 +1545,7 @@
                         </div>
                     </div>
                 </div>
-
-                <div class="actions-bar" style="border: none; padding: 0; background: transparent;">
+                <div style="display: flex; gap: var(--spacing-sm);">
                     <button class="btn btn-primary" id="saveRecipeBtn">${t('actions.save')}</button>
                     <button class="btn btn-danger" id="deleteRecipeBtn">${t('actions.delete')}</button>
                 </div>
@@ -1815,34 +1558,24 @@
 
             return `
                 <div class="card">
-                    <div class="card-header">
-                        <h2 class="card-title">${cookbook.icon} ${t('fields.cookbook')}</h2>
-                    </div>
-
+                    <h3>${cookbook.icon} ${t('fields.cookbook')}</h3>
                     <div class="form-row">
                         <div class="form-group" style="flex: 0 0 80px;">
                             <label class="form-label">${t('fields.icon')}</label>
-                            <input type="text" class="form-input icon-input" id="cookbookIcon"
-                                   value="${cookbook.icon}" maxlength="3">
+                            <input type="text" class="form-input icon-input" id="cookbookIcon" value="${cookbook.icon}" maxlength="3">
                         </div>
                         <div class="form-group">
                             <label class="form-label">${t('fields.name')}</label>
                             <input type="text" class="form-input" id="cookbookName" value="${escapeHtml(cookbook.name)}">
                         </div>
                     </div>
-
                     <div class="form-group">
                         <label class="form-label">${t('fields.keywords')}</label>
-                        <input type="text" class="form-input" id="cookbookKeywords"
-                               value="${escapeHtml(cookbook.keywords)}" placeholder="${t('fields.keywordsHint')}">
+                        <input type="text" class="form-input" id="cookbookKeywords" value="${escapeHtml(cookbook.keywords)}" placeholder="${t('fields.keywordsHint')}">
                     </div>
                 </div>
-
-                <div class="info-box">
-                    ${t('messages.dragHint')}
-                </div>
-
-                <div class="actions-bar" style="border: none; padding: 0; background: transparent; gap: 8px;">
+                <div class="info-box">${t('messages.dragHint')}</div>
+                <div style="display: flex; gap: var(--spacing-sm);">
                     <button class="btn btn-secondary" id="addChapterBtn">+ ${t('actions.newChapter')}</button>
                     <button class="btn btn-primary" id="saveCookbookBtn">${t('actions.save')}</button>
                     <button class="btn btn-danger" id="deleteCookbookBtn">${t('actions.delete')}</button>
@@ -1858,44 +1591,32 @@
 
             return `
                 <div class="card">
-                    <div class="card-header">
-                        <h2 class="card-title">${item.icon} ${isChapter ? t('types.chapter') : t('types.recipe')}</h2>
-                    </div>
-
+                    <h3>${item.icon} ${isChapter ? t('types.chapter') : t('types.recipe')}</h3>
                     <div class="form-row">
                         <div class="form-group" style="flex: 0 0 80px;">
                             <label class="form-label">${t('fields.icon')}</label>
-                            <input type="text" class="form-input icon-input" id="recipeMenuItemIcon"
-                                   value="${item.icon}" maxlength="3">
+                            <input type="text" class="form-input icon-input" id="recipeMenuItemIcon" value="${item.icon}" maxlength="3">
                         </div>
                         <div class="form-group">
                             <label class="form-label">${t('fields.name')}</label>
                             <input type="text" class="form-input" id="recipeMenuItemName" value="${escapeHtml(item.name)}">
                         </div>
                     </div>
-
                     <div class="form-group">
                         <label class="form-label">${t('fields.keywords')}</label>
-                        <input type="text" class="form-input" id="recipeMenuItemKeywords"
-                               value="${escapeHtml(item.keywords)}" placeholder="${t('fields.keywordsHint')}">
+                        <input type="text" class="form-input" id="recipeMenuItemKeywords" value="${escapeHtml(item.keywords)}" placeholder="${t('fields.keywordsHint')}">
                     </div>
-
                     ${!isChapter ? `
                         <div class="form-group">
                             <label class="form-label">${t('fields.recipe')}</label>
                             <select class="form-select" id="recipeMenuItemRecipe">
                                 <option value="">${t('fields.selectRecipe')}</option>
-                                ${state.recipes.map(r => `
-                                    <option value="${r.id}" ${item.recipeID === r.id ? 'selected' : ''}>
-                                        ${r.icon} ${escapeHtml(r.name)}
-                                    </option>
-                                `).join('')}
+                                ${state.recipes.map(r => `<option value="${r.id}" ${item.recipeID === r.id ? 'selected' : ''}>${r.icon} ${escapeHtml(r.name)}</option>`).join('')}
                             </select>
                         </div>
                     ` : ''}
                 </div>
-
-                <div class="actions-bar" style="border: none; padding: 0; background: transparent; gap: 8px;">
+                <div style="display: flex; gap: var(--spacing-sm);">
                     ${isChapter ? `<button class="btn btn-secondary" id="addRecipeRefBtn">+ ${t('actions.newItem')}</button>` : ''}
                     <button class="btn btn-primary" id="saveRecipeMenuItemBtn">${t('actions.save')}</button>
                     <button class="btn btn-danger" id="deleteRecipeMenuItemBtn">${t('actions.delete')}</button>
@@ -1910,29 +1631,22 @@
                 const item = state.menuItems.find(m => m.id === state.selectedItem);
                 if (item && item.presetID) {
                     const preset = state.presets.find(p => p.id === item.presetID);
-                    if (preset) {
-                        previewContent = preset.text;
-                    }
+                    if (preset) previewContent = preset.text;
                 }
             } else if (state.selectedType === 'recipe') {
                 const recipe = state.recipes.find(r => r.id === state.selectedItem);
-                if (recipe) {
-                    previewContent = generateRecipePreview(recipe);
-                }
+                if (recipe) previewContent = generateRecipePreview(recipe);
             }
 
             return `
                 <div class="preview-panel ${state.previewCollapsed ? 'collapsed' : ''}">
                     <div class="preview-header" id="previewToggle">
-                        <span class="preview-title">
-                            ${state.previewCollapsed ? '▶' : '▼'} ${t('preview.title')}
-                        </span>
+                        <span class="preview-title">${state.previewCollapsed ? '▶' : '▼'} ${t('preview.title')}</span>
                     </div>
                     ${!state.previewCollapsed ? `
                         <div class="preview-content">
-                            ${previewContent ? `
-                                <div class="preview-text">${escapeHtml(previewContent)}</div>
-                            ` : `<div style="color: var(--color-text-muted);">${t('messages.noSelection')}</div>`}
+                            ${previewContent ? `<div class="preview-text">${escapeHtml(previewContent)}</div>` :
+                                `<div style="color: var(--color-text-muted);">${t('messages.noSelection')}</div>`}
                         </div>
                     ` : ''}
                 </div>
@@ -1948,7 +1662,6 @@
                     return preset ? preset.text : null;
                 })
                 .filter(Boolean);
-
             return texts.join(recipe.separator || '\n\n');
         }
 
@@ -1956,32 +1669,17 @@
         // EVENT LISTENERS
         // ========================================
         function attachEventListeners() {
-            // Language toggle
             document.querySelectorAll('.lang-btn').forEach(btn => {
-                btn.onclick = () => {
-                    state.lang = btn.dataset.lang;
-                    renderApp();
-                };
+                btn.onclick = () => { state.lang = btn.dataset.lang; renderApp(); };
             });
 
-            // Import/Export
-            document.getElementById('importBtn').onclick = () => {
-                document.getElementById('importInput').click();
-            };
-
+            document.getElementById('importBtn').onclick = () => document.getElementById('importInput').click();
             document.getElementById('exportBtn').onclick = exportCatalog;
 
-            // Tab switching
             document.querySelectorAll('.tab-btn').forEach(btn => {
-                btn.onclick = () => {
-                    state.activeTab = btn.dataset.tab;
-                    state.selectedItem = null;
-                    state.selectedType = null;
-                    renderApp();
-                };
+                btn.onclick = () => { state.activeTab = btn.dataset.tab; state.selectedItem = null; state.selectedType = null; renderApp(); };
             });
 
-            // Sidebar buttons
             const addCategoryBtn = document.getElementById('addCategoryBtn');
             if (addCategoryBtn) addCategoryBtn.onclick = () => addMenuItem(null, true);
 
@@ -1994,69 +1692,41 @@
             const addCookbookBtn = document.getElementById('addCookbookBtn');
             if (addCookbookBtn) addCookbookBtn.onclick = addCookbook;
 
-            // Tree item clicks
             document.querySelectorAll('.tree-item-row').forEach(row => {
-                row.onclick = (e) => {
-                    if (e.target.classList.contains('tree-toggle')) return;
-                    selectItem(row.dataset.id, row.dataset.type);
-                    renderApp();
-                };
+                row.onclick = (e) => { if (e.target.classList.contains('tree-toggle')) return; selectItem(row.dataset.id, row.dataset.type); renderApp(); };
 
                 row.oncontextmenu = (e) => {
                     e.preventDefault();
                     const id = row.dataset.id;
                     const type = row.dataset.type;
-
                     let menuItems = [];
 
                     if (type === 'menuItem') {
                         const item = state.menuItems.find(m => m.id === id);
                         if (item && item.presetID === null) {
-                            menuItems.push({
-                                icon: '📁',
-                                label: t('actions.newCategory'),
-                                action: () => addMenuItem(id, true)
-                            });
-                            menuItems.push({
-                                icon: '📝',
-                                label: t('actions.newItem'),
-                                action: () => addMenuItem(id, false)
-                            });
+                            menuItems.push({ icon: '📁', label: t('actions.newCategory'), action: () => addMenuItem(id, true) });
+                            menuItems.push({ icon: '📝', label: t('actions.newItem'), action: () => addMenuItem(id, false) });
                             menuItems.push({ divider: true });
                         }
                     }
 
                     if (type === 'cookbook') {
-                        menuItems.push({
-                            icon: '📖',
-                            label: t('actions.newChapter'),
-                            action: () => addRecipeMenuItem(id, null, true)
-                        });
+                        menuItems.push({ icon: '📖', label: t('actions.newChapter'), action: () => addRecipeMenuItem(id, null, true) });
                         menuItems.push({ divider: true });
                     }
 
                     if (type === 'recipeMenuItem') {
                         const item = state.recipeMenuItems.find(r => r.id === id);
                         if (item && item.recipeID === null) {
-                            menuItems.push({
-                                icon: '🍳',
-                                label: t('actions.newItem'),
-                                action: () => addRecipeMenuItem(item.cookbookID, id, false)
-                            });
+                            menuItems.push({ icon: '🍳', label: t('actions.newItem'), action: () => addRecipeMenuItem(item.cookbookID, id, false) });
                             menuItems.push({ divider: true });
                         }
                     }
 
-                    menuItems.push({
-                        icon: '✏️',
-                        label: t('actions.edit'),
-                        action: () => { selectItem(id, type); renderApp(); }
-                    });
+                    menuItems.push({ icon: '✏️', label: t('actions.edit'), action: () => { selectItem(id, type); renderApp(); } });
                     menuItems.push({ divider: true });
                     menuItems.push({
-                        icon: '🗑️',
-                        label: t('actions.delete'),
-                        danger: true,
+                        icon: '🗑️', label: t('actions.delete'), danger: true,
                         action: () => {
                             showConfirmDialog(t('messages.confirmDelete'), t('messages.deleteWarning'), () => {
                                 if (type === 'menuItem') deleteMenuItem(id);
@@ -2070,7 +1740,6 @@
                     showContextMenu(e.clientX, e.clientY, menuItems);
                 };
 
-                // Drag & Drop for menu items
                 if (row.dataset.type === 'menuItem') {
                     row.ondragstart = (e) => handleDragStart(e, row.dataset.id, 'menuItem');
                     row.ondragover = handleDragOver;
@@ -2080,47 +1749,33 @@
                 }
             });
 
-            // Tree toggles
             document.querySelectorAll('.tree-toggle:not(.hidden)').forEach(toggle => {
                 toggle.onclick = (e) => {
                     e.stopPropagation();
                     const id = toggle.dataset.toggle;
-                    if (state.expandedNodes.has(id)) {
-                        state.expandedNodes.delete(id);
-                    } else {
-                        state.expandedNodes.add(id);
-                    }
+                    if (state.expandedNodes.has(id)) state.expandedNodes.delete(id);
+                    else state.expandedNodes.add(id);
                     renderApp();
                 };
             });
 
-            // Preview toggle
             const previewToggle = document.getElementById('previewToggle');
-            if (previewToggle) {
-                previewToggle.onclick = () => {
-                    state.previewCollapsed = !state.previewCollapsed;
-                    renderApp();
-                };
-            }
+            if (previewToggle) previewToggle.onclick = () => { state.previewCollapsed = !state.previewCollapsed; renderApp(); };
 
-            // Editor buttons
             attachEditorListeners();
         }
 
         function attachEditorListeners() {
-            // MenuItem editor
             const saveItemBtn = document.getElementById('saveItemBtn');
             if (saveItemBtn) {
                 saveItemBtn.onclick = () => {
                     const item = state.menuItems.find(m => m.id === state.selectedItem);
                     if (!item) return;
-
                     updateMenuItem(state.selectedItem, {
                         icon: document.getElementById('itemIcon').value,
                         name: document.getElementById('itemName').value,
                         keywords: document.getElementById('itemKeywords').value
                     });
-
                     if (item.presetID) {
                         updatePreset(item.presetID, {
                             icon: document.getElementById('presetIcon').value,
@@ -2129,21 +1784,13 @@
                             text: document.getElementById('presetText').value
                         });
                     }
-
                     showMessage(t('messages.saved'), 'success');
                 };
             }
 
             const deleteItemBtn = document.getElementById('deleteItemBtn');
-            if (deleteItemBtn) {
-                deleteItemBtn.onclick = () => {
-                    showConfirmDialog(t('messages.confirmDelete'), t('messages.deleteWarning'), () => {
-                        deleteMenuItem(state.selectedItem);
-                    });
-                };
-            }
+            if (deleteItemBtn) deleteItemBtn.onclick = () => showConfirmDialog(t('messages.confirmDelete'), t('messages.deleteWarning'), () => deleteMenuItem(state.selectedItem));
 
-            // Recipe editor
             const saveRecipeBtn = document.getElementById('saveRecipeBtn');
             if (saveRecipeBtn) {
                 saveRecipeBtn.onclick = () => {
@@ -2158,15 +1805,8 @@
             }
 
             const deleteRecipeBtn = document.getElementById('deleteRecipeBtn');
-            if (deleteRecipeBtn) {
-                deleteRecipeBtn.onclick = () => {
-                    showConfirmDialog(t('messages.confirmDelete'), t('messages.deleteWarning'), () => {
-                        deleteRecipe(state.selectedItem);
-                    });
-                };
-            }
+            if (deleteRecipeBtn) deleteRecipeBtn.onclick = () => showConfirmDialog(t('messages.confirmDelete'), t('messages.deleteWarning'), () => deleteRecipe(state.selectedItem));
 
-            // Recipe elements
             const recipeElements = document.getElementById('recipeElements');
             if (recipeElements) {
                 recipeElements.ondragover = handleDragOver;
@@ -2175,21 +1815,18 @@
                 recipeElements.ondrop = (e) => handleDropOnRecipeElements(e, recipeElements.dataset.recipe);
             }
 
-            // Remove element from recipe
             document.querySelectorAll('.element-chip-remove').forEach(btn => {
                 btn.onclick = (e) => {
                     e.stopPropagation();
                     const recipe = state.recipes.find(r => r.id === state.selectedItem);
                     if (recipe) {
-                        const index = parseInt(btn.dataset.remove);
-                        recipe.elementIDs.splice(index, 1);
+                        recipe.elementIDs.splice(parseInt(btn.dataset.remove), 1);
                         recipe.updatedAt = isoNow();
                         renderApp();
                     }
                 };
             });
 
-            // Add element to recipe from picker
             document.querySelectorAll('.element-picker-item').forEach(item => {
                 item.onclick = () => {
                     const recipe = state.recipes.find(r => r.id === state.selectedItem);
@@ -2201,7 +1838,6 @@
                 };
             });
 
-            // Cookbook editor
             const saveCookbookBtn = document.getElementById('saveCookbookBtn');
             if (saveCookbookBtn) {
                 saveCookbookBtn.onclick = () => {
@@ -2215,22 +1851,11 @@
             }
 
             const deleteCookbookBtn = document.getElementById('deleteCookbookBtn');
-            if (deleteCookbookBtn) {
-                deleteCookbookBtn.onclick = () => {
-                    showConfirmDialog(t('messages.confirmDelete'), t('messages.deleteWarning'), () => {
-                        deleteCookbook(state.selectedItem);
-                    });
-                };
-            }
+            if (deleteCookbookBtn) deleteCookbookBtn.onclick = () => showConfirmDialog(t('messages.confirmDelete'), t('messages.deleteWarning'), () => deleteCookbook(state.selectedItem));
 
             const addChapterBtn = document.getElementById('addChapterBtn');
-            if (addChapterBtn) {
-                addChapterBtn.onclick = () => {
-                    addRecipeMenuItem(state.selectedItem, null, true);
-                };
-            }
+            if (addChapterBtn) addChapterBtn.onclick = () => addRecipeMenuItem(state.selectedItem, null, true);
 
-            // RecipeMenuItem editor
             const saveRecipeMenuItemBtn = document.getElementById('saveRecipeMenuItemBtn');
             if (saveRecipeMenuItemBtn) {
                 saveRecipeMenuItemBtn.onclick = () => {
@@ -2246,21 +1871,13 @@
             }
 
             const deleteRecipeMenuItemBtn = document.getElementById('deleteRecipeMenuItemBtn');
-            if (deleteRecipeMenuItemBtn) {
-                deleteRecipeMenuItemBtn.onclick = () => {
-                    showConfirmDialog(t('messages.confirmDelete'), t('messages.deleteWarning'), () => {
-                        deleteRecipeMenuItem(state.selectedItem);
-                    });
-                };
-            }
+            if (deleteRecipeMenuItemBtn) deleteRecipeMenuItemBtn.onclick = () => showConfirmDialog(t('messages.confirmDelete'), t('messages.deleteWarning'), () => deleteRecipeMenuItem(state.selectedItem));
 
             const addRecipeRefBtn = document.getElementById('addRecipeRefBtn');
             if (addRecipeRefBtn) {
                 addRecipeRefBtn.onclick = () => {
                     const item = state.recipeMenuItems.find(r => r.id === state.selectedItem);
-                    if (item) {
-                        addRecipeMenuItem(item.cookbookID, state.selectedItem, false);
-                    }
+                    if (item) addRecipeMenuItem(item.cookbookID, state.selectedItem, false);
                 };
             }
         }
@@ -2271,23 +1888,16 @@
         document.getElementById('importInput').addEventListener('change', (e) => {
             const file = e.target.files[0];
             if (!file) return;
-
             const reader = new FileReader();
-            reader.onload = (event) => {
-                importCatalog(event.target.result);
-            };
+            reader.onload = (event) => importCatalog(event.target.result);
             reader.readAsText(file);
-
-            // Reset input
             e.target.value = '';
         });
 
         // ========================================
         // INITIALIZE
         // ========================================
-        document.addEventListener('DOMContentLoaded', () => {
-            renderApp();
-        });
+        document.addEventListener('DOMContentLoaded', () => renderApp());
     </script>
 </body>
 </html>
