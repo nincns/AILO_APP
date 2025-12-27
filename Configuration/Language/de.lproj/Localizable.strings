@@ -1034,6 +1034,9 @@
 
 /* Wizard Completion */
 "wizard.complete.title" = "Konto eingerichtet!";
-"wizard.complete.message %@" = "%@ wurde erfolgreich eingerichtet und ist jetzt aktiv. Möchtest du ein weiteres Konto hinzufügen?";
+"wizard.complete.message %@" = "%@ wurde erfolgreich eingerichtet und ist jetzt aktiv.";
+"wizard.complete.syncNow" = "Jetzt synchronisieren";
 "wizard.complete.another" = "Weiteres Konto";
 "wizard.complete.done" = "Fertig";
+"wizard.sync.inProgress" = "Synchronisiere E-Mails…";
+"wizard.sync.pleaseWait" = "Bitte warten";

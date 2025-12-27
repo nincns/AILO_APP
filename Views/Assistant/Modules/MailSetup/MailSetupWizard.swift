@@ -209,6 +209,8 @@ struct MailSetupWizard: View {
     // Completion Dialog
     @State private var showCompletionAlert: Bool = false
     @State private var savedAccountEmail: String = ""
+    @State private var savedAccountId: UUID?
+    @State private var isSyncing: Bool = false
 
     private let steps = [
         WizardStepInfo(title: "wizard.step.email", icon: "envelope"),
@@ -275,9 +277,17 @@ struct MailSetupWizard: View {
         } message: {
             Text(state.errorMessage ?? "")
         }
-        .alert("wizard.complete.title", isPresented: $showCompletionAlert) {
+        .confirmationDialog(
+            Text("wizard.complete.title"),
+            isPresented: $showCompletionAlert,
+            titleVisibility: .visible
+        ) {
+            Button("wizard.complete.syncNow") {
+                Task {
+                    await performFullSync()
+                }
+            }
             Button("wizard.complete.another") {
-                // Reset wizard for another account
                 state.reset()
             }
             Button("wizard.complete.done") {
@@ -286,11 +296,67 @@ struct MailSetupWizard: View {
         } message: {
             Text("wizard.complete.message \(savedAccountEmail)")
         }
+        .overlay {
+            if isSyncing {
+                SyncProgressOverlay()
+            }
+        }
     }
 
-    // MARK: - Navigation Logic
+    // MARK: - Full Sync
 
-    private var canProceedFromCurrentStep: Bool {
+    private func performFullSync() async {
+        guard let accountId = savedAccountId else {
+            dismiss()
+            return
+        }
+
+        isSyncing = true
+        print("🔄 Starting full sync for account: \(savedAccountEmail)")
+
+        // Vollständige Synchronisation durchführen
+        await MailRepository.shared.incrementalSync(accountId: accountId, folders: nil)
+
+        // Kurze Wartezeit für UI-Feedback
+        try? await Task.sleep(nanoseconds: 1_500_000_000)
+
+        isSyncing = false
+        print("✅ Full sync completed for: \(savedAccountEmail)")
+        dismiss()
+    }
+}
+
+// MARK: - Sync Progress Overlay
+
+private struct SyncProgressOverlay: View {
+    var body: some View {
+        ZStack {
+            Color.black.opacity(0.4)
+                .ignoresSafeArea()
+
+            VStack(spacing: 16) {
+                ProgressView()
+                    .scaleEffect(1.5)
+                    .tint(.white)
+
+                Text("wizard.sync.inProgress")
+                    .font(.headline)
+                    .foregroundStyle(.white)
+
+                Text("wizard.sync.pleaseWait")
+                    .font(.subheadline)
+                    .foregroundStyle(.white.opacity(0.8))
+            }
+            .padding(32)
+            .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 20))
+        }
+    }
+}
+
+// MARK: - Navigation Logic (MailSetupWizard extension)
+
+extension MailSetupWizard {
+    var canProceedFromCurrentStep: Bool {
         switch state.currentStep {
         case 0: return state.canProceedFromStep1
         case 1: return state.canProceedFromStep2
@@ -358,6 +424,7 @@ struct MailSetupWizard: View {
 
         // Show completion dialog
         savedAccountEmail = config.emailAddress
+        savedAccountId = config.id
         showCompletionAlert = true
     }
 }

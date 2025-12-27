@@ -1075,6 +1075,9 @@
 
 /* Wizard Completion */
 "wizard.complete.title" = "Account Set Up!";
-"wizard.complete.message %@" = "%@ has been set up successfully and is now active. Would you like to add another account?";
+"wizard.complete.message %@" = "%@ has been set up successfully and is now active.";
+"wizard.complete.syncNow" = "Sync Now";
 "wizard.complete.another" = "Add Another";
 "wizard.complete.done" = "Done";
+"wizard.sync.inProgress" = "Syncing Emails…";
+"wizard.sync.pleaseWait" = "Please wait";
