@@ -883,7 +883,76 @@ public final class MailRepository: ObservableObject {
         sendService.publisherOutbox(accountId: accountId)
     }
 
-    // MARK: - Helper Methods for IMAP Integration
+    // MARK: - Background Fetch
+
+    /// Fetch new mails in background. Optimized for iOS Background App Refresh.
+    /// Returns the number of new mails fetched.
+    public func backgroundFetchNewMails(accountId: UUID, folders: [String], limit: Int) async throws -> Int {
+        print("📬 [BGFetch] Starting background fetch for account: \(accountId.uuidString.prefix(8))")
+        print("📬 [BGFetch] Folders: \(folders), Limit: \(limit)")
+
+        let account: MailAccountConfig
+        do {
+            account = try loadAccountConfig(accountId: accountId)
+        } catch {
+            print("📬 [BGFetch] ❌ Failed to load account config: \(error)")
+            throw error
+        }
+
+        var totalNewMails = 0
+        let transport = MailSendReceive()
+
+        for folder in folders {
+            print("📬 [BGFetch] Fetching from folder: \(folder)")
+
+            let result = await transport.fetchHeaders(
+                limit: limit,
+                folder: folder,
+                using: account,
+                preferCache: false,
+                force: false
+            )
+
+            switch result {
+            case .success(let headers):
+                print("📬 [BGFetch] ✅ Fetched \(headers.count) headers from: \(folder)")
+
+                // Convert to domain model
+                let domainHeaders = headers.map { transportHeader in
+                    MailHeader(
+                        id: transportHeader.id,
+                        from: transportHeader.from,
+                        subject: transportHeader.subject,
+                        date: transportHeader.date,
+                        flags: transportHeader.unread ? [] : ["\\Seen"]
+                    )
+                }
+
+                // Save to database
+                if !domainHeaders.isEmpty {
+                    do {
+                        try writeDAO?.upsertHeaders(accountId: accountId, folder: folder, headers: domainHeaders)
+                        print("📬 [BGFetch] ✅ Saved \(domainHeaders.count) headers to database")
+                        totalNewMails += domainHeaders.count
+                    } catch {
+                        print("📬 [BGFetch] ⚠️ Failed to save headers: \(error)")
+                    }
+                }
+
+            case .failure(let error):
+                print("📬 [BGFetch] ❌ Failed to fetch from \(folder): \(error)")
+                // Continue with next folder instead of throwing
+            }
+        }
+
+        // Notify UI about changes
+        await MainActor.run {
+            self.publishChange(accountId)
+        }
+
+        print("📬 [BGFetch] ✅ Background fetch completed. Total: \(totalNewMails) mails")
+        return totalNewMails
+    }
 
     // MARK: - Helper Methods for IMAP Integration
 

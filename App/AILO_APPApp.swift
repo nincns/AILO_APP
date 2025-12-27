@@ -6,8 +6,14 @@ import UIKit
 @main
 struct AILO_APPApp: App {
     @StateObject private var store = DataStore()
+    @Environment(\.scenePhase) private var scenePhase
     @State private var didRunWarmups: Bool = false
     @State private var pendingImportFileURL: URL?
+
+    init() {
+        // Register background tasks BEFORE app finishes launching
+        BackgroundTaskManager.shared.registerTasks()
+    }
 
     var body: some Scene {
         WindowGroup {
@@ -17,6 +23,20 @@ struct AILO_APPApp: App {
                     guard !didRunWarmups else { return }
                     didRunWarmups = true
                     StartupWarmups.run()
+                }
+                .onChange(of: scenePhase) { _, newPhase in
+                    switch newPhase {
+                    case .background:
+                        print("📬 [App] Entering background - scheduling tasks")
+                        BackgroundTaskManager.shared.scheduleAppRefresh()
+                        BackgroundTaskManager.shared.scheduleProcessingTask()
+                    case .active:
+                        print("📬 [App] App became active")
+                    case .inactive:
+                        break
+                    @unknown default:
+                        break
+                    }
                 }
                 .onOpenURL { url in
                     // Handle .ailo file URLs

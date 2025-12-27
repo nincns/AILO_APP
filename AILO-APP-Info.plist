@@ -2,6 +2,18 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<!-- Background Modes for Mail Sync -->
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>fetch</string>
+		<string>processing</string>
+	</array>
+	<key>BGTaskSchedulerPermittedIdentifiers</key>
+	<array>
+		<string>com.ailo.mail.refresh</string>
+		<string>com.ailo.mail.processing</string>
+	</array>
+
 	<!-- Privacy Keys -->
 	<key>NSContactsUsageDescription</key>
 	<string>AILO benötigt Zugriff auf deine Kontakte, um Personen mit Projekten und Aufgaben zu verknüpfen.</string>
