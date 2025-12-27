@@ -76,7 +76,15 @@ public final class AILONotificationService: NSObject {
             options: []
         )
 
-        center.setNotificationCategories([mailCategory, systemCategory])
+        // Log reminder category (no actions, just tap to open)
+        let logReminderCategory = UNNotificationCategory(
+            identifier: AILONotification.Category.logReminder.identifier,
+            actions: [],
+            intentIdentifiers: [],
+            options: []
+        )
+
+        center.setNotificationCategories([mailCategory, systemCategory, logReminderCategory])
         center.delegate = self
 
         print("🔔 [Notification] ✅ Categories configured")
@@ -147,6 +155,66 @@ public final class AILONotificationService: NSObject {
         }
 
         print("🔔 [Notification] ✅ Scheduled \(toSchedule.count) notifications")
+    }
+
+    /// Schedule a notification for a specific date/time (for reminders)
+    public func scheduleAt(_ notification: AILONotification) {
+        guard let scheduledDate = notification.scheduledDate else {
+            print("🔔 [Notification] ❌ No scheduledDate for timed notification")
+            return
+        }
+
+        // Don't schedule notifications in the past
+        guard scheduledDate > Date() else {
+            print("🔔 [Notification] ⚠️ Skipping past reminder: \(scheduledDate)")
+            return
+        }
+
+        let content = UNMutableNotificationContent()
+        content.title = notification.title
+        if let subtitle = notification.subtitle {
+            content.subtitle = subtitle
+        }
+        content.body = notification.body
+        content.categoryIdentifier = notification.category.identifier
+
+        if notification.sound {
+            content.sound = .default
+        }
+
+        if let groupId = notification.groupId {
+            content.threadIdentifier = groupId
+        }
+
+        // Add deep link data
+        content.userInfo = notification.deepLink.userInfo
+
+        // Calendar-based trigger for exact time
+        let components = Calendar.current.dateComponents(
+            [.year, .month, .day, .hour, .minute],
+            from: scheduledDate
+        )
+        let trigger = UNCalendarNotificationTrigger(dateMatching: components, repeats: false)
+
+        let request = UNNotificationRequest(
+            identifier: notification.id,
+            content: content,
+            trigger: trigger
+        )
+
+        center.add(request) { error in
+            if let error = error {
+                print("🔔 [Notification] ❌ Failed to schedule timed: \(error)")
+            } else {
+                print("🔔 [Notification] ✅ Scheduled for \(scheduledDate): \(notification.title)")
+            }
+        }
+    }
+
+    /// Cancel a scheduled notification by ID
+    public func cancelScheduled(id: String) {
+        center.removePendingNotificationRequests(withIdentifiers: [id])
+        print("🔔 [Notification] 🗑️ Cancelled: \(id)")
     }
 
     // MARK: - Badge Management

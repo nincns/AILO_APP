@@ -14,6 +14,7 @@ public struct AILONotification {
     public let sound: Bool
     public let deepLink: DeepLink
     public let groupId: String?
+    public let scheduledDate: Date?  // For timed notifications (reminders)
 
     public init(
         id: String,
@@ -24,7 +25,8 @@ public struct AILONotification {
         badge: Int? = nil,
         sound: Bool = true,
         deepLink: DeepLink = .none,
-        groupId: String? = nil
+        groupId: String? = nil,
+        scheduledDate: Date? = nil
     ) {
         self.id = id
         self.category = category
@@ -35,6 +37,7 @@ public struct AILONotification {
         self.sound = sound
         self.deepLink = deepLink
         self.groupId = groupId
+        self.scheduledDate = scheduledDate
     }
 
     // MARK: - Category
@@ -44,6 +47,7 @@ public struct AILONotification {
         case mail = "AILO_MAIL"
         case assistant = "AILO_ASSISTANT"      // Future: AI Assistant responses
         case scheduledTask = "AILO_TASK"       // Future: Scheduled task reminders
+        case logReminder = "AILO_LOG_REMINDER" // Log entry reminders
         case system = "AILO_SYSTEM"
 
         /// Human-readable identifier for UNNotificationCategory
@@ -56,6 +60,7 @@ public struct AILONotification {
     public enum DeepLink {
         case mail(accountId: UUID, folder: String, uid: String)
         case journey(nodeId: UUID)
+        case log(entryId: UUID)
         case none
 
         /// Convert to userInfo dictionary for UNNotificationContent
@@ -72,6 +77,11 @@ public struct AILONotification {
                 return [
                     "type": "journey",
                     "nodeId": nodeId.uuidString
+                ]
+            case .log(let entryId):
+                return [
+                    "type": "log",
+                    "entryId": entryId.uuidString
                 ]
             case .none:
                 return [:]
@@ -99,6 +109,13 @@ public struct AILONotification {
                 }
                 return .journey(nodeId: nodeId)
 
+            case "log":
+                guard let entryIdStr = userInfo["entryId"] as? String,
+                      let entryId = UUID(uuidString: entryIdStr) else {
+                    return .none
+                }
+                return .log(entryId: entryId)
+
             default:
                 return .none
             }
@@ -110,4 +127,5 @@ public struct AILONotification {
 
 public extension Notification.Name {
     static let ailoDeepLinkNavigation = Notification.Name("ailo.deeplink.navigation")
+    static let navigateToLogEntry = Notification.Name("ailo.navigate.logEntry")
 }

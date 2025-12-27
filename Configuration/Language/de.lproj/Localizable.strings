@@ -941,3 +941,7 @@
 "common.openSettings" = "Einstellungen öffnen";
 "common.create" = "Erstellen";
 "common.done" = "Fertig";
+
+/* MARK: - Notifications */
+"notification.reminder.title" = "Erinnerung";
+"notification.reminder.defaultTitle" = "Log-Eintrag";

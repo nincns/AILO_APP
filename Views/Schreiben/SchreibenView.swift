@@ -303,7 +303,16 @@ struct SchreibenView: View {
                                   reminderDate: reminderOn ? reminderDate : nil)
         entry.date = Date() // Datum + Uhrzeit beim Speichern
         store.add(entry)
-        // (Optional: Reminder später via UserNotifications planen)
+
+        // Schedule reminder notification if enabled
+        if reminderOn {
+            let notification = LogNotificationProvider.createReminderNotification(
+                entryId: entry.id,
+                title: title.isEmpty ? nil : title,
+                reminderDate: reminderDate
+            )
+            AILONotificationService.shared.scheduleAt(notification)
+        }
 
         showSaved = true
 

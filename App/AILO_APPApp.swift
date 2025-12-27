@@ -165,6 +165,18 @@ struct MainView: View {
             pendingDeepLink = deepLink
             print("🔗 [DeepLink] Navigating to journey node: \(nodeId)")
 
+        case .log(let entryId):
+            // Navigate to logs tab
+            selectedTab = 3
+            pendingDeepLink = deepLink
+            // Post notification for LogsView to pick up
+            NotificationCenter.default.post(
+                name: .navigateToLogEntry,
+                object: nil,
+                userInfo: ["entryId": entryId]
+            )
+            print("🔗 [DeepLink] Navigating to log entry: \(entryId)")
+
         case .none:
             break
         }

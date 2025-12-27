@@ -982,3 +982,7 @@
 "common.openSettings" = "Open Settings";
 "common.create" = "Create";
 "common.done" = "Done";
+
+/* MARK: - Notifications */
+"notification.reminder.title" = "Reminder";
+"notification.reminder.defaultTitle" = "Log entry";

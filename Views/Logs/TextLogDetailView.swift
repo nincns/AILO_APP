@@ -251,11 +251,19 @@ struct TextLogDetailView: View {
                     }
                 )
             }
-            .onChange(of: reminderOn) { _, _ in
+            .onChange(of: reminderOn) { _, isOn in
                 persistReminderState()
+                if isOn {
+                    scheduleReminderNotification()
+                } else {
+                    cancelReminderNotification()
+                }
             }
             .onChange(of: reminderDate) { _, _ in
-                if reminderOn { persistReminderState() }
+                if reminderOn {
+                    persistReminderState()
+                    scheduleReminderNotification()
+                }
             }
         }
     }
@@ -513,6 +521,22 @@ struct TextLogDetailView: View {
         var updated = entry
         updated.reminderDate = reminderOn ? reminderDate : nil
         store.update(updated)
+    }
+
+    // MARK: - Reminder Notifications
+
+    private func scheduleReminderNotification() {
+        let notification = LogNotificationProvider.createReminderNotification(
+            entryId: entryID,
+            title: editTitle,
+            reminderDate: reminderDate
+        )
+        AILONotificationService.shared.scheduleAt(notification)
+    }
+
+    private func cancelReminderNotification() {
+        let notificationId = LogNotificationProvider.notificationId(for: entryID)
+        AILONotificationService.shared.cancelScheduled(id: notificationId)
     }
 }
 
