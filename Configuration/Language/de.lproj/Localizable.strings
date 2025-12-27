@@ -1030,3 +1030,9 @@
 "wizard.folders.ready" = "Alles bereit!";
 "wizard.folders.readySubtitle" = "Klicke auf Fertigstellen, um dein Konto zu speichern.";
 "wizard.folders.refresh" = "Ordner neu laden";
+
+/* Wizard Completion */
+"wizard.complete.title" = "Konto eingerichtet!";
+"wizard.complete.message %@" = "%@ wurde erfolgreich eingerichtet und ist jetzt aktiv. Möchtest du ein weiteres Konto hinzufügen?";
+"wizard.complete.another" = "Weiteres Konto";
+"wizard.complete.done" = "Fertig";

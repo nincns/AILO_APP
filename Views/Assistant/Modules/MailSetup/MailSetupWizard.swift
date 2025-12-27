@@ -206,6 +206,10 @@ struct MailSetupWizard: View {
     @StateObject private var state = MailSetupState()
     @Environment(\.dismiss) private var dismiss
 
+    // Completion Dialog
+    @State private var showCompletionAlert: Bool = false
+    @State private var savedAccountEmail: String = ""
+
     private let steps = [
         WizardStepInfo(title: "wizard.step.email", icon: "envelope"),
         WizardStepInfo(title: "wizard.step.credentials", icon: "key"),
@@ -271,6 +275,17 @@ struct MailSetupWizard: View {
         } message: {
             Text(state.errorMessage ?? "")
         }
+        .alert("wizard.complete.title", isPresented: $showCompletionAlert) {
+            Button("wizard.complete.another") {
+                // Reset wizard for another account
+                state.reset()
+            }
+            Button("wizard.complete.done") {
+                dismiss()
+            }
+        } message: {
+            Text("wizard.complete.message \(savedAccountEmail)")
+        }
     }
 
     // MARK: - Navigation Logic
@@ -331,12 +346,19 @@ struct MailSetupWizard: View {
 
         MailStorageHelper.save(accounts)
 
+        // Account automatisch aktivieren
+        MailStorageHelper.activateAccount(config.id)
+        print("✅ Account activated: \(config.emailAddress)")
+
         // Benachrichtigung senden
         NotificationCenter.default.post(name: .mailAccountsDidChange, object: nil)
 
         state.isSaving = false
         state.isComplete = true
-        dismiss()
+
+        // Show completion dialog
+        savedAccountEmail = config.emailAddress
+        showCompletionAlert = true
     }
 }
 
@@ -352,6 +374,7 @@ struct WizardStepInfo: Identifiable {
 
 fileprivate enum MailStorageHelper {
     static let key = "mail.accounts"
+    static let activeKey = "mail.accounts.active"
 
     static func load() -> [MailAccountConfig] {
         if let data = UserDefaults.standard.data(forKey: key) {
@@ -363,6 +386,21 @@ fileprivate enum MailStorageHelper {
     static func save(_ accounts: [MailAccountConfig]) {
         if let data = try? JSONEncoder().encode(accounts) {
             UserDefaults.standard.set(data, forKey: key)
+        }
+    }
+
+    static func activateAccount(_ accountId: UUID) {
+        var activeIDs: [UUID] = []
+        if let data = UserDefaults.standard.data(forKey: activeKey),
+           let arr = try? JSONDecoder().decode([UUID].self, from: data) {
+            activeIDs = arr
+        }
+
+        if !activeIDs.contains(accountId) {
+            activeIDs.append(accountId)
+            if let data = try? JSONEncoder().encode(activeIDs) {
+                UserDefaults.standard.set(data, forKey: activeKey)
+            }
         }
     }
 }

@@ -1071,3 +1071,9 @@
 "wizard.folders.ready" = "All Set!";
 "wizard.folders.readySubtitle" = "Click Finish to save your account.";
 "wizard.folders.refresh" = "Refresh folders";
+
+/* Wizard Completion */
+"wizard.complete.title" = "Account Set Up!";
+"wizard.complete.message %@" = "%@ has been set up successfully and is now active. Would you like to add another account?";
+"wizard.complete.another" = "Add Another";
+"wizard.complete.done" = "Done";
