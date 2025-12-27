@@ -108,6 +108,10 @@
 		C9B7A4AF2F00607700D0D81D /* AssistantView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9B7A4A62F00607700D0D81D /* AssistantView.swift */; };
 		C9B7A4B02F00607700D0D81D /* WizardProgressBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9B7A49A2F00607700D0D81D /* WizardProgressBar.swift */; };
 		C9B7A4B12F00607700D0D81D /* StepFolders.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9B7A49F2F00607700D0D81D /* StepFolders.swift */; };
+		C9B7A5002F008CB000D0D81D /* AIStepProviderType.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9B7A4FC2F008CB000D0D81D /* AIStepProviderType.swift */; };
+		C9B7A5012F008CB000D0D81D /* AIStepConnection.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9B7A4FA2F008CB000D0D81D /* AIStepConnection.swift */; };
+		C9B7A5022F008CB000D0D81D /* AIStepModelTest.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9B7A4FB2F008CB000D0D81D /* AIStepModelTest.swift */; };
+		C9B7A5032F008CB000D0D81D /* AISetupWizard.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9B7A4FE2F008CB000D0D81D /* AISetupWizard.swift */; };
 		C9C33C352EB2C0E4006390C7 /* ContentAnalyzer.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9C33C342EB2C0E4006390C7 /* ContentAnalyzer.swift */; };
 		C9C33C372EB2C341006390C7 /* TransferEncodingDecoder.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9C33C362EB2C341006390C7 /* TransferEncodingDecoder.swift */; };
 		C9C33C392EB2C35A006390C7 /* HeaderCharsetDetector.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9C33C382EB2C35A006390C7 /* HeaderCharsetDetector.swift */; };
@@ -295,6 +299,10 @@
 		C9B7A4A22F00607700D0D81D /* MailSetupWizard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MailSetupWizard.swift; sourceTree = "<group>"; };
 		C9B7A4A52F00607700D0D81D /* AssistantModuleProtocol.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AssistantModuleProtocol.swift; sourceTree = "<group>"; };
 		C9B7A4A62F00607700D0D81D /* AssistantView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AssistantView.swift; sourceTree = "<group>"; };
+		C9B7A4FA2F008CB000D0D81D /* AIStepConnection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIStepConnection.swift; sourceTree = "<group>"; };
+		C9B7A4FB2F008CB000D0D81D /* AIStepModelTest.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIStepModelTest.swift; sourceTree = "<group>"; };
+		C9B7A4FC2F008CB000D0D81D /* AIStepProviderType.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIStepProviderType.swift; sourceTree = "<group>"; };
+		C9B7A4FE2F008CB000D0D81D /* AISetupWizard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AISetupWizard.swift; sourceTree = "<group>"; };
 		C9C33C342EB2C0E4006390C7 /* ContentAnalyzer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentAnalyzer.swift; sourceTree = "<group>"; };
 		C9C33C362EB2C341006390C7 /* TransferEncodingDecoder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TransferEncodingDecoder.swift; sourceTree = "<group>"; };
 		C9C33C382EB2C35A006390C7 /* HeaderCharsetDetector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HeaderCharsetDetector.swift; sourceTree = "<group>"; };
@@ -494,6 +502,7 @@
 		C9B7A4A42F00607700D0D81D /* Modules */ = {
 			isa = PBXGroup;
 			children = (
+				C9B7A4FF2F008CB000D0D81D /* AISetup */,
 				C9B7A4A32F00607700D0D81D /* MailSetup */,
 			);
 			path = Modules;
@@ -508,6 +517,25 @@
 				C9B7A4A62F00607700D0D81D /* AssistantView.swift */,
 			);
 			path = Assistant;
+			sourceTree = "<group>";
+		};
+		C9B7A4FD2F008CB000D0D81D /* AISetupSteps */ = {
+			isa = PBXGroup;
+			children = (
+				C9B7A4FA2F008CB000D0D81D /* AIStepConnection.swift */,
+				C9B7A4FB2F008CB000D0D81D /* AIStepModelTest.swift */,
+				C9B7A4FC2F008CB000D0D81D /* AIStepProviderType.swift */,
+			);
+			path = AISetupSteps;
+			sourceTree = "<group>";
+		};
+		C9B7A4FF2F008CB000D0D81D /* AISetup */ = {
+			isa = PBXGroup;
+			children = (
+				C9B7A4FD2F008CB000D0D81D /* AISetupSteps */,
+				C9B7A4FE2F008CB000D0D81D /* AISetupWizard.swift */,
+			);
+			path = AISetup;
 			sourceTree = "<group>";
 		};
 		C9DEDF772EAECC4D00C40B92 /* AILO_APP */ = {
@@ -1144,6 +1172,10 @@
 				C9DEE02A2EAECC4D00C40B92 /* IMAPConnection.swift in Sources */,
 				C9B7A08B2EF7EBF100D0D81D /* PrePromptCatalogView.swift in Sources */,
 				C947E90C2EB41367007634FC /* AccountDAO.swift in Sources */,
+				C9B7A5002F008CB000D0D81D /* AIStepProviderType.swift in Sources */,
+				C9B7A5012F008CB000D0D81D /* AIStepConnection.swift in Sources */,
+				C9B7A5022F008CB000D0D81D /* AIStepModelTest.swift in Sources */,
+				C9B7A5032F008CB000D0D81D /* AISetupWizard.swift in Sources */,
 				C93D2CB72EB16E2400AA4072 /* MailboxNavigationPanel.swift in Sources */,
 				C9B7A2552EFD7CAC00D0D81D /* JourneySectionView.swift in Sources */,
 				C9B7A2562EFD7CAC00D0D81D /* JourneyMockData.swift in Sources */,
