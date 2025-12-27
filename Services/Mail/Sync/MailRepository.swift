@@ -885,9 +885,16 @@ public final class MailRepository: ObservableObject {
 
     // MARK: - Background Fetch
 
+    /// Result of a background mail fetch
+    public struct BackgroundFetchResult {
+        public let accountName: String
+        public let newMails: [MailHeaderView]
+        public let folder: String
+    }
+
     /// Fetch new mails in background. Optimized for iOS Background App Refresh.
-    /// Returns the number of new mails fetched.
-    public func backgroundFetchNewMails(accountId: UUID, folders: [String], limit: Int) async throws -> Int {
+    /// Returns only truly new mails (not already in local database).
+    public func backgroundFetchNewMails(accountId: UUID, folders: [String], limit: Int) async throws -> [BackgroundFetchResult] {
         print("📬 [BGFetch] Starting background fetch for account: \(accountId.uuidString.prefix(8))")
         print("📬 [BGFetch] Folders: \(folders), Limit: \(limit)")
 
@@ -899,11 +906,19 @@ public final class MailRepository: ObservableObject {
             throw error
         }
 
-        var totalNewMails = 0
+        var results: [BackgroundFetchResult] = []
         let transport = MailSendReceive()
 
         for folder in folders {
             print("📬 [BGFetch] Fetching from folder: \(folder)")
+
+            // Get existing UIDs from local database
+            let existingUIDs: Set<String>
+            if let headers = try? listHeaders(accountId: accountId, folder: folder, limit: 1000) {
+                existingUIDs = Set(headers.map { $0.id })
+            } else {
+                existingUIDs = []
+            }
 
             let result = await transport.fetchHeaders(
                 limit: limit,
@@ -917,7 +932,11 @@ public final class MailRepository: ObservableObject {
             case .success(let headers):
                 print("📬 [BGFetch] ✅ Fetched \(headers.count) headers from: \(folder)")
 
-                // Convert to domain model
+                // Filter to only truly new mails
+                let newHeaders = headers.filter { !existingUIDs.contains($0.id) }
+                print("📬 [BGFetch] 📨 \(newHeaders.count) are NEW (not in local DB)")
+
+                // Convert to domain model for storage
                 let domainHeaders = headers.map { transportHeader in
                     MailHeader(
                         id: transportHeader.id,
@@ -928,15 +947,32 @@ public final class MailRepository: ObservableObject {
                     )
                 }
 
-                // Save to database
+                // Save ALL to database (including existing for updates)
                 if !domainHeaders.isEmpty {
                     do {
                         try writeDAO?.upsertHeaders(accountId: accountId, folder: folder, headers: domainHeaders)
                         print("📬 [BGFetch] ✅ Saved \(domainHeaders.count) headers to database")
-                        totalNewMails += domainHeaders.count
                     } catch {
                         print("📬 [BGFetch] ⚠️ Failed to save headers: \(error)")
                     }
+                }
+
+                // Convert NEW mails to MailHeaderView for notifications
+                if !newHeaders.isEmpty {
+                    let newMailViews = newHeaders.map { header in
+                        MailHeaderView(
+                            id: header.id,
+                            from: header.from,
+                            subject: header.subject,
+                            date: header.date,
+                            flags: header.unread ? [] : ["\\Seen"]
+                        )
+                    }
+                    results.append(BackgroundFetchResult(
+                        accountName: account.accountName,
+                        newMails: newMailViews,
+                        folder: folder
+                    ))
                 }
 
             case .failure(let error):
@@ -950,8 +986,9 @@ public final class MailRepository: ObservableObject {
             self.publishChange(accountId)
         }
 
-        print("📬 [BGFetch] ✅ Background fetch completed. Total: \(totalNewMails) mails")
-        return totalNewMails
+        let totalNew = results.reduce(0) { $0 + $1.newMails.count }
+        print("📬 [BGFetch] ✅ Background fetch completed. Total new: \(totalNew) mails")
+        return results
     }
 
     // MARK: - Helper Methods for IMAP Integration

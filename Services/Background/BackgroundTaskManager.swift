@@ -131,18 +131,37 @@ public final class BackgroundTaskManager {
         print("📬 [BGTask] Syncing \(activeIds.count) active account(s)")
 
         var allSuccess = true
+        var allNewMails: [AILONotification] = []
+
         for accountId in activeIds {
             do {
-                let newCount = try await MailRepository.shared.backgroundFetchNewMails(
+                let results = try await MailRepository.shared.backgroundFetchNewMails(
                     accountId: accountId,
                     folders: ["INBOX"],
                     limit: 20
                 )
-                print("📬 [BGTask] Account \(accountId.uuidString.prefix(8)): \(newCount) new mails")
+
+                // Create notifications for new mails
+                for result in results {
+                    let notifications = MailNotificationProvider.createNotifications(
+                        from: result.newMails,
+                        accountId: accountId,
+                        accountName: result.accountName,
+                        folder: result.folder
+                    )
+                    allNewMails.append(contentsOf: notifications)
+                    print("📬 [BGTask] Account \(accountId.uuidString.prefix(8)): \(result.newMails.count) new mails")
+                }
             } catch {
                 print("📬 [BGTask] ❌ Failed to sync account \(accountId.uuidString.prefix(8)): \(error)")
                 allSuccess = false
             }
+        }
+
+        // Schedule notifications for all new mails
+        if !allNewMails.isEmpty {
+            print("📬 [BGTask] 🔔 Scheduling \(allNewMails.count) notification(s)")
+            await AILONotificationService.shared.scheduleMultiple(allNewMails)
         }
 
         return allSuccess
@@ -161,20 +180,39 @@ public final class BackgroundTaskManager {
         print("📬 [BGTask] Full sync for \(activeIds.count) active account(s)")
 
         var allSuccess = true
+        var allNewMails: [AILONotification] = []
+
         for accountId in activeIds {
             do {
                 // Get folder map for this account
                 let folders = ["INBOX", "Sent", "Drafts"] // Standard folders
-                let newCount = try await MailRepository.shared.backgroundFetchNewMails(
+                let results = try await MailRepository.shared.backgroundFetchNewMails(
                     accountId: accountId,
                     folders: folders,
                     limit: 50
                 )
-                print("📬 [BGTask] Account \(accountId.uuidString.prefix(8)): \(newCount) new mails")
+
+                // Create notifications for new mails (only INBOX for notifications)
+                for result in results where result.folder == "INBOX" {
+                    let notifications = MailNotificationProvider.createNotifications(
+                        from: result.newMails,
+                        accountId: accountId,
+                        accountName: result.accountName,
+                        folder: result.folder
+                    )
+                    allNewMails.append(contentsOf: notifications)
+                    print("📬 [BGTask] Account \(accountId.uuidString.prefix(8)): \(result.newMails.count) new mails")
+                }
             } catch {
                 print("📬 [BGTask] ❌ Failed to sync account \(accountId.uuidString.prefix(8)): \(error)")
                 allSuccess = false
             }
+        }
+
+        // Schedule notifications for all new mails
+        if !allNewMails.isEmpty {
+            print("📬 [BGTask] 🔔 Scheduling \(allNewMails.count) notification(s)")
+            await AILONotificationService.shared.scheduleMultiple(allNewMails)
         }
 
         return allSuccess

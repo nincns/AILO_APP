@@ -13,6 +13,9 @@ struct AILO_APPApp: App {
     init() {
         // Register background tasks BEFORE app finishes launching
         BackgroundTaskManager.shared.registerTasks()
+
+        // Setup notification categories for mail alerts
+        AILONotificationService.shared.setupCategories()
     }
 
     var body: some Scene {
@@ -64,6 +67,8 @@ struct MainView: View {
     @StateObject private var mailViewModel = MailViewModel()
     @Binding var pendingImportFileURL: URL?
     @State private var showImportSheet = false
+    @State private var selectedTab: Int = 0
+    @State private var pendingDeepLink: AILONotification.DeepLink?
 
     init(pendingImportFileURL: Binding<URL?> = .constant(nil)) {
         self._pendingImportFileURL = pendingImportFileURL
@@ -81,18 +86,20 @@ struct MainView: View {
     }
 
     var body: some View {
-        TabView {
+        TabView(selection: $selectedTab) {
             NavigationStack { DashboardView() }
                 .tabItem {
                     Image(systemName: "rectangle.grid.2x2")
                     Text("app.tab.dashboard")
                 }
+                .tag(0)
 
             NavigationStack { JourneyView() }
                 .tabItem {
                     Image(systemName: "book.closed")
                     Text("app.tab.journey")
                 }
+                .tag(1)
 
             NavigationStack { MailView() }
                 .tabItem {
@@ -100,18 +107,21 @@ struct MainView: View {
                     Text("app.tab.mail")
                 }
                 .badge(mailViewModel.unreadCount > 0 ? mailViewModel.unreadCount : 0)
+                .tag(2)
 
             NavigationStack { LogsView() }
                 .tabItem {
                     Image(systemName: "plus.rectangle.on.folder")
                     Text("app.tab.logs")
                 }
+                .tag(3)
 
             NavigationStack { ConfigView() }
                 .tabItem {
                     Image(systemName: "gearshape")
                     Text("app.tab.settings")
                 }
+                .tag(4)
         }
         .tint(.teal)
         .onAppear {
@@ -130,6 +140,34 @@ struct MainView: View {
             JourneyImportSheet(url: pendingImportFileURL)
                 .environmentObject(JourneyStore.shared)
         }
+        .onReceive(NotificationCenter.default.publisher(for: .ailoDeepLinkNavigation)) { notification in
+            guard let deepLink = notification.userInfo?["deepLink"] as? AILONotification.DeepLink else { return }
+            handleDeepLink(deepLink)
+        }
+    }
+
+    // MARK: - Deep Link Navigation
+
+    private func handleDeepLink(_ deepLink: AILONotification.DeepLink) {
+        print("🔗 [DeepLink] Handling: \(deepLink)")
+
+        switch deepLink {
+        case .mail(let accountId, let folder, let uid):
+            // Navigate to mail tab
+            selectedTab = 2
+            // Store pending deep link for MailView to pick up
+            pendingDeepLink = deepLink
+            print("🔗 [DeepLink] Navigating to mail: account=\(accountId.uuidString.prefix(8)), folder=\(folder), uid=\(uid)")
+
+        case .journey(let nodeId):
+            // Navigate to journey tab
+            selectedTab = 1
+            pendingDeepLink = deepLink
+            print("🔗 [DeepLink] Navigating to journey node: \(nodeId)")
+
+        case .none:
+            break
+        }
     }
 }
 
@@ -139,12 +177,13 @@ private enum StartupWarmups {
         warmAudioSession()
         warmTextKit()
         initializeDAOs()
-        requestBadgePermission()
+        requestNotificationPermission()
     }
 
-    private static func requestBadgePermission() {
+    private static func requestNotificationPermission() {
         Task {
-            await AppBadgeManager.shared.requestPermission()
+            // Request permission for notifications (includes badge)
+            _ = await AILONotificationService.shared.requestPermission()
         }
     }
 
