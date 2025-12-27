@@ -42,24 +42,26 @@ struct AssistantView: View {
                     }
                 }
 
-                // Header
-                Section {
-                    VStack(spacing: 12) {
-                        Image(systemName: "wand.and.stars")
-                            .font(.system(size: 48))
-                            .foregroundStyle(.teal.gradient)
+                // Header (only shown when not first-run)
+                if !isFirstRun {
+                    Section {
+                        VStack(spacing: 12) {
+                            Image(systemName: "wand.and.stars")
+                                .font(.system(size: 48))
+                                .foregroundStyle(.teal.gradient)
 
-                        Text("assistant.welcome.title")
-                            .font(.title2.bold())
+                            Text("assistant.welcome.title")
+                                .font(.title2.bold())
 
-                        Text("assistant.welcome.subtitle")
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
-                            .multilineTextAlignment(.center)
+                            Text("assistant.welcome.subtitle")
+                                .font(.subheadline)
+                                .foregroundStyle(.secondary)
+                                .multilineTextAlignment(.center)
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 20)
+                        .listRowBackground(Color.clear)
                     }
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 20)
-                    .listRowBackground(Color.clear)
                 }
 
                 // Module-Liste
