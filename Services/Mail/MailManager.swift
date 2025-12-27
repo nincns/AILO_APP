@@ -89,6 +89,7 @@ struct MailManager: View {
                     }
                 }
                 .onDelete(perform: delete)
+                .onMove(perform: move)
             }
         }
         .onReceive(NotificationCenter.default.publisher(for: .mailAccountsDidChange)) { _ in
@@ -102,6 +103,9 @@ struct MailManager: View {
         }
         .navigationTitle(Text("config.nav.mailManager"))
         .toolbar {
+            ToolbarItem(placement: .topBarLeading) {
+                EditButton()
+            }
             ToolbarItem(placement: .topBarTrailing) {
                 Button(action: { showAddEditor = true }) {
                     Image(systemName: "plus")
@@ -142,6 +146,11 @@ struct MailManager: View {
         activeIDs.subtract(removedIDs)
         MailActiveStore.save(activeIDs)
         startSyncForActiveAccounts()
+    }
+
+    private func move(from source: IndexSet, to destination: Int) {
+        accounts.move(fromOffsets: source, toOffset: destination)
+        MailStorageManager.save(accounts)
     }
 
     private func startSyncForActiveAccounts() {
