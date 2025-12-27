@@ -397,7 +397,7 @@
 "aiEditor.field.maxTokens" = "Max Tokens";
 
 /* MARK: - AI Editor (placeholders & helpers) */
-"aiEditor.placeholder.displayName" = "Display name (e.g. "OpenAI Prod")";
+"aiEditor.placeholder.displayName" = "Display name (e.g. 'OpenAI Prod')";
 "aiEditor.a11y.reloadModels" = "Reload models";
 
 /* MARK: - AI Editor (value readouts) */

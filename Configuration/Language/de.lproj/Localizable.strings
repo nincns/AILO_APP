@@ -307,7 +307,7 @@
 "aiEditor.field.model" = "Modell";
 "aiEditor.field.temperature" = "Temperatur";
 "aiEditor.field.maxTokens" = "Max. Tokens";
-"aiEditor.placeholder.displayName" = "Anzeigename (z. B. „OpenAI Prod")";
+"aiEditor.placeholder.displayName" = "Anzeigename (z. B. 'OpenAI Prod')";
 "aiEditor.a11y.reloadModels" = "Modelle neu laden";
 "aiEditor.temperature.value" = "Temperatur: %.1f";
 "aiEditor.action.save" = "Speichern";
