@@ -298,6 +298,10 @@
 "config.nav.title" = "Configuration";
 "config.toolbar.done" = "Done";
 
+/* MARK: - Assistant */
+"config.assistant.title" = "Setup Assistant";
+"config.assistant.subtitle" = "Help with configuring email, AI, and more";
+
 /* MARK: - Sections */
 "config.section.categories" = "Categories";
 "config.section.mic" = "Microphone / Recording";

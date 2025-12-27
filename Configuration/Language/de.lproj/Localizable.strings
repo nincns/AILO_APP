@@ -220,6 +220,10 @@
 "config.nav.title" = "Konfiguration";
 "config.toolbar.done" = "Fertig";
 
+/* MARK: - Assistant */
+"config.assistant.title" = "Einrichtungsassistent";
+"config.assistant.subtitle" = "Hilfe bei der Konfiguration von E-Mail, KI und mehr";
+
 /* MARK: - Sections */
 "config.section.categories" = "Kategorien";
 "config.section.mic" = "Mikrofon / Aufnahme";

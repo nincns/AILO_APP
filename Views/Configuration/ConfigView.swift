@@ -13,6 +13,9 @@ private enum K {
 }
 
 struct ConfigView: View {
+    // MARK: – Assistant
+    @State private var showAssistant: Bool = false
+
     // MARK: – Kategorien
     @State private var categories: [String] = []
     @State private var newCategory: String = ""
@@ -38,6 +41,48 @@ struct ConfigView: View {
     var body: some View {
         NavigationView {
             Form {
+                // MARK: Assistant
+                Section {
+                    Button {
+                        showAssistant = true
+                    } label: {
+                        HStack(spacing: 16) {
+                            ZStack {
+                                RoundedRectangle(cornerRadius: 12)
+                                    .fill(
+                                        LinearGradient(
+                                            colors: [.teal, .blue],
+                                            startPoint: .topLeading,
+                                            endPoint: .bottomTrailing
+                                        )
+                                    )
+                                    .frame(width: 44, height: 44)
+
+                                Image(systemName: "wand.and.stars")
+                                    .font(.title2)
+                                    .foregroundStyle(.white)
+                            }
+
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("config.assistant.title")
+                                    .font(.headline)
+                                    .foregroundStyle(.primary)
+
+                                Text("config.assistant.subtitle")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+
+                            Spacer()
+
+                            Image(systemName: "chevron.right")
+                                .font(.caption)
+                                .foregroundStyle(.tertiary)
+                        }
+                        .padding(.vertical, 8)
+                    }
+                }
+
                 // MARK: Kategorien
                 Section(header: Text("config.section.categories").textCase(.uppercase)) {
                     NavigationLink("config.categories.manage") {
@@ -112,6 +157,9 @@ struct ConfigView: View {
             }
             .navigationTitle(Text("config.nav.title"))
             .onAppear(perform: loadFromDefaults)
+            .sheet(isPresented: $showAssistant) {
+                AssistantView()
+            }
         }
     }
 
