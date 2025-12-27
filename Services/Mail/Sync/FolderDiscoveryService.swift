@@ -364,9 +364,8 @@ public final class FolderDiscoveryService {
                                 }
                                 return arr
                             }
-                            if let decoded = String(utf16CodeUnits: utf16, count: utf16.count) {
-                                result.append(decoded)
-                            }
+                            let decoded = String(utf16CodeUnits: utf16, count: utf16.count)
+                            result.append(decoded)
                         }
                     }
                     i = input.index(after: dashIndex)
