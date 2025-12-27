@@ -228,7 +228,6 @@ public final class IMAPConnection {
         while Date() < idleDeadline && (hardDeadline == nil || Date() < hardDeadline!) {
             // Use a timeout for receive to prevent blocking forever
             let receiveTimeout = min(timeout, 10.0) // Max 10 seconds per receive
-            print("📡 [receiveLines] Waiting for data (max \(receiveTimeout)s)...")
 
             // Use DispatchWorkItem timer for proper NWConnection timeout
             // (NWConnection.receive is callback-based, not Swift Concurrency cancellation-aware)
@@ -242,7 +241,6 @@ public final class IMAPConnection {
                     defer { lock.unlock() }
                     guard !hasResumed else { return }
                     hasResumed = true
-                    print("📡 [receiveLines] Timeout fired after \(receiveTimeout)s")
                     cont.resume(returning: nil)
                 }
                 self.queue.asyncAfter(deadline: .now() + receiveTimeout, execute: timeoutTimer)
@@ -253,7 +251,6 @@ public final class IMAPConnection {
                     lock.lock()
                     defer { lock.unlock() }
                     guard !hasResumed else {
-                        print("📡 [receiveLines] Receive callback after timeout (ignored)")
                         return
                     }
                     hasResumed = true
@@ -266,15 +263,9 @@ public final class IMAPConnection {
                 }
             }
 
-            if data == nil {
-                print("📡 [receiveLines] Receive returned nil (timeout or no data)")
-            } else {
-                print("📡 [receiveLines] Received \(data!.count) bytes")
-            }
             guard let data, !data.isEmpty else {
                 // Bei leerem Receive: Prüfe ob noch Zeit übrig ist
                 if Date() < idleDeadline {
-                    print("📡 [receiveLines] No data received, retrying (time remaining until deadline)...")
                     continue  // Weiter warten statt abbrechen
                 }
                 print("📡 [receiveLines] Timeout reached with no data - breaking loop")
@@ -387,21 +378,14 @@ public final class IMAPConnection {
             }
 
             idleDeadline = Date().addingTimeInterval(timeout)
-            let appended = drainBufferToLines()
-            if appended > 0 {
-                print("📡 [receiveLines] Drained \(appended) lines, total: \(lines.count)")
-                for (i, line) in lines.suffix(appended).enumerated() {
-                    print("📡 [receiveLines] Line[\(lines.count - appended + i)]: \(line.prefix(100))")
-                }
-            }
+            let _ = drainBufferToLines()
+
             if maxLines > 0 && totalLines >= maxLines {
-                print("📡 [receiveLines] Breaking: maxLines reached")
                 break
             }
 
             if let tag = untilTag {
                 if lines.contains(where: { $0.hasPrefix(tag + " OK") || $0.hasPrefix(tag + " NO") || $0.hasPrefix(tag + " BAD") }) {
-                    print("📡 [receiveLines] Breaking: found tagged response for \(tag)")
                     break
                 }
             }
@@ -409,12 +393,11 @@ public final class IMAPConnection {
             // If no tag and we received a continuation response (+), return immediately
             // This prevents deadlock when server waits for literal data
             if untilTag == nil && lines.contains(where: { $0.hasPrefix("+") }) {
-                print("📡 [receiveLines] Breaking: found continuation (+)")
                 break
             }
         }
 
-        print("📡 [receiveLines] Loop ended, returning \(lines.count) lines")
+        print("📡 [receiveLines] Completed, returning \(lines.count) lines for tag=\(untilTag ?? "nil")")
         // Drain any remaining complete lines
         let _ = drainBufferToLines()
         if maxLines > 0 && lines.count > maxLines {
