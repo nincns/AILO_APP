@@ -2,6 +2,7 @@
 // AILO - AI Provider Setup Wizard
 
 import SwiftUI
+import Combine
 
 // MARK: - AI Setup State
 
