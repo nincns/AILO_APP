@@ -309,6 +309,8 @@ struct SchreibenView: View {
             let notification = LogNotificationProvider.createReminderNotification(
                 entryId: entry.id,
                 title: title.isEmpty ? nil : title,
+                category: category,
+                bodyPreview: text,
                 reminderDate: reminderDate
             )
             AILONotificationService.shared.scheduleAt(notification)
