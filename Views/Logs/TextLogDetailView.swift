@@ -526,24 +526,12 @@ struct TextLogDetailView: View {
     // MARK: - Reminder Notifications
 
     private func scheduleReminderNotification() {
-        print("🔔 [LogReminder] Scheduling notification for entry: \(entryID)")
-        print("🔔 [LogReminder] Title: \(editTitle)")
-        print("🔔 [LogReminder] Date: \(reminderDate)")
-
         let notification = LogNotificationProvider.createReminderNotification(
             entryId: entryID,
             title: editTitle,
             reminderDate: reminderDate
         )
-
-        print("🔔 [LogReminder] Created notification: id=\(notification.id), scheduledDate=\(String(describing: notification.scheduledDate))")
-
         AILONotificationService.shared.scheduleAt(notification)
-
-        // Debug: Liste alle pending notifications nach kurzer Verzögerung
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-            AILONotificationService.shared.debugListPendingNotifications()
-        }
     }
 
     private func cancelReminderNotification() {
