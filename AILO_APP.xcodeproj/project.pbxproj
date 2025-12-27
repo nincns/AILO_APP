@@ -93,6 +93,7 @@
 		C9B7A37A2EFEE78400D0D81D /* JourneyExportSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9B7A3782EFEE78400D0D81D /* JourneyExportSheet.swift */; };
 		C9B7A37B2EFEE78400D0D81D /* JourneyImportSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9B7A3792EFEE78400D0D81D /* JourneyImportSheet.swift */; };
 		C9B7A38F2EFEFB8900D0D81D /* PrePromptCatalogPickerSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9B7A38E2EFEFB8900D0D81D /* PrePromptCatalogPickerSheet.swift */; };
+		C9B7A46A2F000D2300D0D81D /* BackgroundTaskManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9B7A4682F000D2300D0D81D /* BackgroundTaskManager.swift */; };
 		C9C33C352EB2C0E4006390C7 /* ContentAnalyzer.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9C33C342EB2C0E4006390C7 /* ContentAnalyzer.swift */; };
 		C9C33C372EB2C341006390C7 /* TransferEncodingDecoder.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9C33C362EB2C341006390C7 /* TransferEncodingDecoder.swift */; };
 		C9C33C392EB2C35A006390C7 /* HeaderCharsetDetector.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9C33C382EB2C35A006390C7 /* HeaderCharsetDetector.swift */; };
@@ -265,6 +266,7 @@
 		C9B7A3782EFEE78400D0D81D /* JourneyExportSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JourneyExportSheet.swift; sourceTree = "<group>"; };
 		C9B7A3792EFEE78400D0D81D /* JourneyImportSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JourneyImportSheet.swift; sourceTree = "<group>"; };
 		C9B7A38E2EFEFB8900D0D81D /* PrePromptCatalogPickerSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PrePromptCatalogPickerSheet.swift; sourceTree = "<group>"; };
+		C9B7A4682F000D2300D0D81D /* BackgroundTaskManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackgroundTaskManager.swift; sourceTree = "<group>"; };
 		C9C33C342EB2C0E4006390C7 /* ContentAnalyzer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentAnalyzer.swift; sourceTree = "<group>"; };
 		C9C33C362EB2C341006390C7 /* TransferEncodingDecoder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TransferEncodingDecoder.swift; sourceTree = "<group>"; };
 		C9C33C382EB2C35A006390C7 /* HeaderCharsetDetector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HeaderCharsetDetector.swift; sourceTree = "<group>"; };
@@ -402,6 +404,14 @@
 				C9B7A2532EFD7CAC00D0D81D /* JourneyView.swift */,
 			);
 			path = Journey;
+			sourceTree = "<group>";
+		};
+		C9B7A4692F000D2300D0D81D /* Background */ = {
+			isa = PBXGroup;
+			children = (
+				C9B7A4682F000D2300D0D81D /* BackgroundTaskManager.swift */,
+			);
+			path = Background;
 			sourceTree = "<group>";
 		};
 		C9DEDF772EAECC4D00C40B92 /* AILO_APP */ = {
@@ -685,6 +695,7 @@
 		C9DEDFD62EAECC4D00C40B92 /* Services */ = {
 			isa = PBXGroup;
 			children = (
+				C9B7A4692F000D2300D0D81D /* Background */,
 				C9B7A3772EFEE76300D0D81D /* System */,
 				C9B7A3762EFEE74C00D0D81D /* Journey */,
 				C9B7A0992EF939A100D0D81D /* Security */,
@@ -996,6 +1007,7 @@
 				C9B7A2482EFD3FFB00D0D81D /* SMIMEVerificationService.swift in Sources */,
 				C9B7A2492EFD3FFB00D0D81D /* TechnicalHeaderParser.swift in Sources */,
 				C9FB883A2EB2AB0D002359BA /* AttachmentManager.swift in Sources */,
+				C9B7A46A2F000D2300D0D81D /* BackgroundTaskManager.swift in Sources */,
 				C9DEE01B2EAECC4D00C40B92 /* MailHealthMonitor.swift in Sources */,
 				C93D2CB12EB16CFD00AA4072 /* MailViewModel.swift in Sources */,
 				C9FB883C2EB2ABB3002359BA /* AttachmentView.swift in Sources */,
