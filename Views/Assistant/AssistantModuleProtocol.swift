@@ -3,6 +3,7 @@
 // Erweiterbare Architektur für Wizard-Module
 
 import SwiftUI
+import Combine
 
 // MARK: - Assistant Module Protocol
 
