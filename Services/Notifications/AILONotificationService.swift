@@ -154,27 +154,21 @@ public final class AILONotificationService: NSObject {
     /// Set badge to specific count
     public func updateBadge(count: Int) {
         currentBadgeCount = count
-        Task { @MainActor in
-            await UIApplication.shared.setBadgeCount(count)
-        }
+        UIApplication.shared.applicationIconBadgeNumber = count
         print("🔔 [Notification] Badge updated to: \(count)")
     }
 
     /// Increment badge by amount
     public func incrementBadge(by amount: Int) {
         currentBadgeCount += amount
-        Task { @MainActor in
-            await UIApplication.shared.setBadgeCount(currentBadgeCount)
-        }
+        UIApplication.shared.applicationIconBadgeNumber = currentBadgeCount
         print("🔔 [Notification] Badge incremented to: \(currentBadgeCount)")
     }
 
     /// Clear badge
     public func clearBadge() {
         currentBadgeCount = 0
-        Task { @MainActor in
-            await UIApplication.shared.setBadgeCount(0)
-        }
+        UIApplication.shared.applicationIconBadgeNumber = 0
         print("🔔 [Notification] Badge cleared")
     }
 
