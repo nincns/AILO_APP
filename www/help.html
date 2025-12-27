@@ -1,0 +1,465 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AILO App – Hilfe & Anleitung</title>
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
+      background: linear-gradient(135deg, #0b1e46, #1a2d5a);
+      color: white;
+      min-height: 100vh;
+      line-height: 1.6;
+    }
+
+    /* Header */
+    header {
+      background: rgba(0,0,0,0.2);
+      padding: 1.5rem 2rem;
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      border-bottom: 2px solid;
+      border-image: linear-gradient(90deg, #4a148c, #c62828) 1;
+    }
+    header img {
+      width: 50px;
+      height: 50px;
+      border-radius: 12px;
+    }
+    header h1 {
+      margin: 0;
+      font-size: 1.5rem;
+    }
+    header .back-link {
+      margin-left: auto;
+      color: rgba(255,255,255,0.7);
+      text-decoration: none;
+      font-size: 0.9rem;
+      transition: color 0.2s;
+    }
+    header .back-link:hover {
+      color: #fff;
+    }
+
+    /* Main Content */
+    main {
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 2rem;
+    }
+
+    /* Section Styles */
+    section {
+      background: rgba(255,255,255,0.05);
+      border-radius: 16px;
+      padding: 1.5rem 2rem;
+      margin-bottom: 2rem;
+      border: 1px solid rgba(255,255,255,0.1);
+    }
+
+    h2 {
+      color: #fff;
+      font-size: 1.4rem;
+      margin-top: 0;
+      margin-bottom: 1rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    h3 {
+      color: rgba(255,255,255,0.95);
+      font-size: 1.1rem;
+      margin-top: 1.5rem;
+      margin-bottom: 0.5rem;
+    }
+
+    p {
+      color: rgba(255,255,255,0.85);
+      margin: 0.5rem 0;
+    }
+
+    ul, ol {
+      color: rgba(255,255,255,0.85);
+      margin: 0.5rem 0;
+      padding-left: 1.5rem;
+    }
+
+    li {
+      margin: 0.4rem 0;
+    }
+
+    /* Highlight Box */
+    .highlight {
+      background: linear-gradient(135deg, rgba(0,199,190,0.15), rgba(74,20,140,0.15));
+      border-left: 4px solid #00c7be;
+      padding: 1rem 1.5rem;
+      border-radius: 0 12px 12px 0;
+      margin: 1rem 0;
+    }
+
+    .warning {
+      background: rgba(255,171,0,0.15);
+      border-left: 4px solid #ffab00;
+      padding: 1rem 1.5rem;
+      border-radius: 0 12px 12px 0;
+      margin: 1rem 0;
+    }
+
+    /* Step Counter */
+    .steps {
+      counter-reset: step;
+      list-style: none;
+      padding: 0;
+    }
+    .steps li {
+      position: relative;
+      padding-left: 3rem;
+      margin: 1rem 0;
+    }
+    .steps li::before {
+      counter-increment: step;
+      content: counter(step);
+      position: absolute;
+      left: 0;
+      top: 0;
+      width: 2rem;
+      height: 2rem;
+      background: linear-gradient(135deg, #4a148c, #c62828);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: bold;
+      font-size: 0.9rem;
+    }
+
+    /* Feature Cards */
+    .feature-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 1rem;
+      margin: 1rem 0;
+    }
+    .feature-card {
+      background: rgba(255,255,255,0.05);
+      border-radius: 12px;
+      padding: 1rem;
+      text-align: center;
+      border: 1px solid rgba(255,255,255,0.1);
+    }
+    .feature-card .icon {
+      font-size: 2rem;
+      margin-bottom: 0.5rem;
+    }
+    .feature-card h4 {
+      margin: 0.5rem 0 0.25rem;
+      font-size: 1rem;
+    }
+    .feature-card p {
+      font-size: 0.85rem;
+      margin: 0;
+    }
+
+    /* Table of Contents */
+    .toc {
+      background: rgba(0,0,0,0.2);
+      border-radius: 12px;
+      padding: 1.5rem;
+      margin-bottom: 2rem;
+    }
+    .toc h3 {
+      margin-top: 0;
+    }
+    .toc ul {
+      list-style: none;
+      padding: 0;
+    }
+    .toc li {
+      margin: 0.5rem 0;
+    }
+    .toc a {
+      color: #00c7be;
+      text-decoration: none;
+    }
+    .toc a:hover {
+      text-decoration: underline;
+    }
+
+    /* Footer */
+    footer {
+      text-align: center;
+      padding: 2rem;
+      color: rgba(255,255,255,0.5);
+      font-size: 0.85rem;
+    }
+
+    /* Download Buttons */
+    .download-btns {
+      display: flex;
+      gap: 1rem;
+      flex-wrap: wrap;
+      margin: 1rem 0;
+    }
+    .download-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.75rem 1.25rem;
+      background: rgba(255,255,255,0.1);
+      border: 1px solid rgba(255,255,255,0.2);
+      border-radius: 10px;
+      color: #fff;
+      text-decoration: none;
+      font-size: 0.9rem;
+      transition: all 0.2s;
+    }
+    .download-btn:hover {
+      background: rgba(255,255,255,0.15);
+      border-color: rgba(255,255,255,0.3);
+    }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+      main {
+        padding: 1rem;
+      }
+      section {
+        padding: 1rem 1.25rem;
+      }
+      header {
+        padding: 1rem;
+        flex-wrap: wrap;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <img src="logo.png" alt="AILO Logo">
+    <h1>AILO Hilfe</h1>
+    <a href="index.html" class="back-link">← Zurück zur Startseite</a>
+  </header>
+
+  <main>
+    <!-- Inhaltsverzeichnis -->
+    <nav class="toc">
+      <h3>Inhalt</h3>
+      <ul>
+        <li><a href="#schnellstart">Schnellstart</a></li>
+        <li><a href="#einrichtungsassistent">Einrichtungsassistent</a></li>
+        <li><a href="#email-einrichten">E-Mail einrichten</a></li>
+        <li><a href="#funktionen">App-Funktionen</a></li>
+        <li><a href="#ki-nutzung">KI-Funktionen nutzen</a></li>
+        <li><a href="#tipps">Tipps & Tricks</a></li>
+        <li><a href="#support">Support</a></li>
+      </ul>
+    </nav>
+
+    <!-- Schnellstart -->
+    <section id="schnellstart">
+      <h2>🚀 Schnellstart</h2>
+      <p>AILO ist deine KI-gestützte App für Kommunikation, Notizen und Produktivität.</p>
+
+      <div class="feature-grid">
+        <div class="feature-card">
+          <div class="icon">📊</div>
+          <h4>Dashboard</h4>
+          <p>Übersicht & Erinnerungen</p>
+        </div>
+        <div class="feature-card">
+          <div class="icon">✉️</div>
+          <h4>Mail</h4>
+          <p>E-Mails verwalten</p>
+        </div>
+        <div class="feature-card">
+          <div class="icon">📝</div>
+          <h4>Logs</h4>
+          <p>Text & Audio-Notizen</p>
+        </div>
+        <div class="feature-card">
+          <div class="icon">⚙️</div>
+          <h4>Einstellungen</h4>
+          <p>App konfigurieren</p>
+        </div>
+      </div>
+
+      <div class="highlight">
+        <strong>Tipp:</strong> Beim ersten Start öffnet sich automatisch der Einrichtungsassistent. Du findest ihn später jederzeit in den Einstellungen.
+      </div>
+    </section>
+
+    <!-- Einrichtungsassistent -->
+    <section id="einrichtungsassistent">
+      <h2>🪄 Einrichtungsassistent</h2>
+      <p>Der Einrichtungsassistent hilft dir bei der Ersteinrichtung der App. Er führt dich Schritt für Schritt durch die wichtigsten Einstellungen.</p>
+
+      <h3>So findest du den Assistenten</h3>
+      <ul>
+        <li><strong>Erster Start:</strong> Der Assistent öffnet sich automatisch</li>
+        <li><strong>Später:</strong> Einstellungen → Einrichtungsassistent (oben in der Liste)</li>
+      </ul>
+
+      <h3>Verfügbare Module</h3>
+      <ul>
+        <li><strong>E-Mail einrichten:</strong> IMAP/SMTP-Konto hinzufügen</li>
+        <li><em>Weitere Module folgen in zukünftigen Updates</em></li>
+      </ul>
+    </section>
+
+    <!-- E-Mail einrichten -->
+    <section id="email-einrichten">
+      <h2>✉️ E-Mail einrichten</h2>
+      <p>Der Mail-Wizard führt dich in 4 Schritten durch die E-Mail-Einrichtung:</p>
+
+      <ol class="steps">
+        <li>
+          <strong>E-Mail-Adresse eingeben</strong><br>
+          Gib deine E-Mail-Adresse ein. Der Assistent erkennt automatisch deinen Anbieter (GMX, Gmail, Outlook, etc.) und lädt die passenden Server-Einstellungen.
+        </li>
+        <li>
+          <strong>Passwort eingeben</strong><br>
+          Gib dein E-Mail-Passwort ein. Bei manchen Anbietern benötigst du ein App-Passwort (siehe Hinweise unten).
+        </li>
+        <li>
+          <strong>Verbindungstest</strong><br>
+          Die App testet die Verbindung zu IMAP- und SMTP-Server. Bei Erfolg werden automatisch die verfügbaren Ordner geladen.
+        </li>
+        <li>
+          <strong>Ordner zuweisen</strong><br>
+          Weise die erkannten Ordner zu (Posteingang, Gesendet, Entwürfe, Papierkorb, Spam). Bei den meisten Anbietern ist dies bereits vorausgefüllt.
+        </li>
+      </ol>
+
+      <div class="warning">
+        <strong>App-Passwort erforderlich bei:</strong>
+        <ul style="margin-bottom: 0;">
+          <li><strong>Gmail:</strong> 2FA aktivieren → Google-Konto → Sicherheit → App-Passwörter</li>
+          <li><strong>Yahoo:</strong> Sicherheitseinstellungen → App-Passwort generieren</li>
+          <li><strong>iCloud:</strong> appleid.apple.com → App-spezifische Passwörter</li>
+        </ul>
+      </div>
+
+      <h3>Unterstützte Anbieter</h3>
+      <p>Automatische Erkennung für: GMX, WEB.DE, Gmail, Outlook/Hotmail, T-Online, Yahoo, iCloud, Posteo, mailbox.org</p>
+
+      <div class="highlight">
+        <strong>GMX/WEB.DE:</strong> IMAP muss im Webportal aktiviert werden (Einstellungen → POP3/IMAP → IMAP aktivieren)
+      </div>
+    </section>
+
+    <!-- Funktionen -->
+    <section id="funktionen">
+      <h2>📱 App-Funktionen</h2>
+
+      <h3>📊 Dashboard</h3>
+      <ul>
+        <li>Anstehende Erinnerungen auf einen Blick</li>
+        <li>Letzte Einträge aus Logs und Mails</li>
+        <li>Schnellzugriff auf häufig genutzte Funktionen</li>
+      </ul>
+
+      <h3>✉️ Mail</h3>
+      <ul>
+        <li>Mehrere E-Mail-Konten verwalten</li>
+        <li>Ordner-Ansicht mit Posteingang, Gesendet, etc.</li>
+        <li>Rich-Text-Editor mit Formatierung</li>
+        <li>Anhänge senden und empfangen</li>
+        <li>KI-Unterstützung beim Verfassen (Pre-Prompts)</li>
+        <li>Push-Benachrichtigungen für neue E-Mails</li>
+      </ul>
+
+      <h3>📝 Logs</h3>
+      <ul>
+        <li><strong>Schreiben:</strong> Textnotizen mit KI-Überarbeitung</li>
+        <li><strong>Sprechen:</strong> Audio-Aufnahmen mit Live-Transkription</li>
+        <li>Kategorien und Tags zur Organisation</li>
+        <li>Erinnerungen für wichtige Einträge</li>
+        <li>Per Swipe direkt als E-Mail versenden</li>
+      </ul>
+
+      <h3>⚙️ Einstellungen</h3>
+      <ul>
+        <li><strong>Einrichtungsassistent:</strong> Geführte Einrichtung</li>
+        <li><strong>E-Mail-Konten:</strong> Konten verwalten und bearbeiten</li>
+        <li><strong>KI-Provider:</strong> OpenAI, Ollama oder eigene Server</li>
+        <li><strong>Pre-Prompts:</strong> KI-Anweisungen als Kochbuch organisiert</li>
+        <li><strong>Kategorien:</strong> Eigene Kategorien für Logs</li>
+      </ul>
+    </section>
+
+    <!-- KI-Nutzung -->
+    <section id="ki-nutzung">
+      <h2>🤖 KI-Funktionen nutzen</h2>
+
+      <h3>KI-Provider einrichten</h3>
+      <ol class="steps">
+        <li>Gehe zu Einstellungen → KI-Provider</li>
+        <li>Wähle einen Anbieter (OpenAI, Ollama, etc.)</li>
+        <li>Gib deinen API-Key ein (bei OpenAI)</li>
+        <li>Teste die Verbindung</li>
+      </ol>
+
+      <h3>Pre-Prompts verwenden</h3>
+      <p>Pre-Prompts sind vordefinierte KI-Anweisungen, die du beim Schreiben auswählen kannst.</p>
+      <ul>
+        <li>Einstellungen → Pre-Prompts öffnen</li>
+        <li>Vorlagen durchsuchen oder eigene erstellen</li>
+        <li>Beim Schreiben: Pre-Prompt auswählen und Text generieren lassen</li>
+      </ul>
+
+      <div class="highlight">
+        <strong>Beispiel-Prompts:</strong> Formelle E-Mail, Zusammenfassung, Korrektur, Übersetzung, Meeting-Protokoll, etc.
+      </div>
+    </section>
+
+    <!-- Tipps -->
+    <section id="tipps">
+      <h2>💡 Tipps & Tricks</h2>
+
+      <ul>
+        <li><strong>Wischen nach links</strong> auf einem Log-Eintrag öffnet die Mail-Optionen</li>
+        <li><strong>Lange drücken</strong> auf E-Mails zeigt Schnellaktionen</li>
+        <li><strong>Badge-Zähler:</strong> Zeigt ungelesene E-Mails im App-Icon</li>
+        <li><strong>Hintergrund-Sync:</strong> E-Mails werden automatisch abgerufen</li>
+        <li><strong>Datenschutz:</strong> Alle Daten bleiben lokal auf deinem Gerät</li>
+      </ul>
+    </section>
+
+    <!-- Support -->
+    <section id="support">
+      <h2>📞 Support</h2>
+
+      <p>Brauchst du Hilfe oder hast Feedback?</p>
+
+      <ul>
+        <li><strong>TestFlight:</strong> Nutze die Feedback-Funktion in TestFlight</li>
+        <li><strong>E-Mail:</strong> <a href="mailto:support@ailo.network" style="color: #00c7be;">support@ailo.network</a></li>
+      </ul>
+
+      <div class="download-btns">
+        <a href="docs/ailo-handbuch.pdf" class="download-btn" target="_blank">
+          📕 Handbuch (PDF)
+        </a>
+        <a href="docs/ailo-kurzanleitung.pdf" class="download-btn" target="_blank">
+          📄 Kurzanleitung
+        </a>
+        <a href="tools/prompt-generator.html" class="download-btn">
+          🧪 Pre-Prompt Generator
+        </a>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    &copy; 2025 AILO.network – Alle Rechte vorbehalten<br>
+    <a href="index.html" style="color: rgba(255,255,255,0.5);">Zurück zur Startseite</a>
+  </footer>
+</body>
+</html>
