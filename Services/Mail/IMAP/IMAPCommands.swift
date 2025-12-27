@@ -490,7 +490,7 @@ public final class IMAPClient {
     
     /// APPEND command for adding messages to folders (Phase 5)
     /// Used for adding sent messages to Sent folder
-    /// Uses LITERAL+ (RFC 7888) for non-synchronizing literal upload
+    /// Uses Synchronizing Literal (RFC 3501) with proper command terminator
     public func append(folder: String, message: String, flags: [String] = [], idleTimeout: TimeInterval = 15.0) async throws {
         print("📧 [APPEND] Starting append to folder: \(folder)")
         let tag = tagger.next()
@@ -502,53 +502,45 @@ public final class IMAPClient {
             cmd += " (\(flagList))"
         }
 
-        // WICHTIG: Zuerst Literal als Data bauen, dann Byte-Größe verwenden
-        // String.count ≠ Data.count bei UTF-8 Zeichen!
+        // Build literal data - message content ends with CRLF
         let fullLiteral = message + "\r\n"
         guard let literalData = fullLiteral.data(using: .utf8) else {
             throw IMAPError.protocolError("Failed to encode message as UTF-8")
         }
 
-        // Die EXAKTE Byte-Größe aus dem Data-Objekt
         let exactByteCount = literalData.count
+        print("📧 [APPEND] Literal size: \(exactByteCount) bytes")
 
-        // Debug: Validiere dass chars und bytes übereinstimmen könnten oder nicht
-        print("📧 [APPEND] String length: \(fullLiteral.count) chars")
-        print("📧 [APPEND] Data size: \(exactByteCount) bytes")
-        if fullLiteral.count != exactByteCount {
-            print("📧 [APPEND] ⚠️ MISMATCH! String chars ≠ Data bytes (UTF-8 multi-byte chars present)")
+        // Synchronizing Literal (OHNE +) - Server muss mit "+" bestätigen
+        cmd += " {\(exactByteCount)}"
+        print("📧 [APPEND] Command: \(cmd)")
+
+        // 1. Command senden
+        print("📧 [APPEND] Step 1: Sending command...")
+        try await conn.send(line: cmd)
+
+        // 2. Auf Continuation "+" warten
+        print("📧 [APPEND] Step 2: Waiting for continuation (+)...")
+        let continuation = try await conn.receiveLines(untilTag: nil, idleTimeout: 5.0)
+        print("📧 [APPEND] Received: \(continuation)")
+        guard let contLine = continuation.first, contLine.hasPrefix("+") else {
+            throw IMAPError.protocolError("Expected continuation (+), got: \(continuation.first ?? "nil")")
         }
+        print("📧 [APPEND] ✅ Got continuation, server ready for literal")
 
-        // Verwende LITERAL+ (RFC 7888): {n+} statt {n}
-        // WICHTIG: Exakte Byte-Größe ankündigen!
-        cmd += " {\(exactByteCount)+}"
+        // 3. Literal senden (die angekündigten Bytes)
+        print("📧 [APPEND] Step 3: Sending literal (\(exactByteCount) bytes)...")
+        try await conn.sendRaw(literalData)
+        print("📧 [APPEND] ✅ Literal sent")
 
-        // FINALE LÖSUNG: Command + Literal in EINEM sendRaw() kombinieren
-        // Das verhindert TCP-Fragmentierung bei TLS/NWConnection
-        let cmdLine = cmd + "\r\n"  // Command MIT CRLF am Ende
-        guard let cmdData = cmdLine.data(using: .utf8) else {
-            throw IMAPError.protocolError("Failed to encode command as UTF-8")
-        }
+        // 4. Command-Terminator CRLF senden (AUSSERHALB des Literals!)
+        // DAS IST DER SCHLÜSSEL - dieses CRLF beendet den IMAP-Befehl!
+        print("📧 [APPEND] Step 4: Sending command terminator CRLF...")
+        try await conn.send(line: "")
+        print("📧 [APPEND] ✅ Command terminator sent")
 
-        // Kombiniere Command + Literal zu einem Payload
-        var fullPayload = Data()
-        fullPayload.append(cmdData)
-        fullPayload.append(literalData)
-
-        print("📧 [APPEND] Combined payload: cmd=\(cmdData.count) + literal=\(literalData.count) = \(fullPayload.count) bytes")
-        print("📧 [APPEND] Command: \(cmd.prefix(100))...")
-
-        // EIN einziger sendRaw() für alles!
-        print("📧 [APPEND] Sending combined payload in single sendRaw()...")
-        try await conn.sendRaw(fullPayload)
-        print("📧 [APPEND] ✅ Combined payload sent (\(fullPayload.count) bytes)")
-
-        // Warte kurz um sicherzustellen dass TCP-Stack geflusht hat
-        print("📧 [APPEND] Waiting 100ms for TCP flush...")
-        try await Task.sleep(nanoseconds: 100_000_000) // 100ms
-        print("📧 [APPEND] Now waiting for server response (timeout: \(idleTimeout)s)...")
-
-        // Wait for OK response
+        // 5. Auf OK warten
+        print("📧 [APPEND] Step 5: Waiting for OK response (timeout: \(idleTimeout)s)...")
         let response = try await conn.receiveLines(untilTag: tag, idleTimeout: idleTimeout)
         print("📧 [APPEND] Response received: \(response)")
 
@@ -562,7 +554,7 @@ public final class IMAPClient {
         if !lastLine.contains("\(tag) OK") {
             throw IMAPError.protocolError("APPEND failed: unexpected response: \(lastLine)")
         }
-        print("📧 [APPEND] APPEND completed successfully!")
+        print("📧 [APPEND] ✅ APPEND completed successfully!")
     }
 
     // MARK: - Helpers
