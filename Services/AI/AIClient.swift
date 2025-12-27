@@ -1,21 +1,13 @@
+// Services/AI/AIClient.swift
+// AILO - Zentraler HTTP-Client für AI-Operationen
+// Unterstützt: OpenAI, Mistral (OpenAI-kompatibel), Ollama, Anthropic
+
 import Foundation
 
-/// Zentraler HTTP‑Client für AI‑Operationen (OpenAI / Ollama).
-/// Aktuell nur: Rewrite eines Textes mit optionalem Pre‑Prompt.
-///
-/// Verwendung:
-/// AIClient.rewrite(
-///     baseURL: "https://api.openai.com",
-///     port: "443",
-///     apiKey: "...",
-///     model: "gpt-5-chat-latest",
-///     prePrompt: "Überarbeite den Text…",
-///     userText: "Mein Originaltext",
-///     completion: { result in ... }
-/// )
 enum AIClient {
 
-    // Fehlerbild für die UI
+    // MARK: - Errors
+
     enum ClientError: LocalizedError {
         case invalidBaseURL
         case invalidHTTPResponse
@@ -24,41 +16,48 @@ enum AIClient {
         case decoding
         case other(Error)
         case endpointNotFound
+        case missingAPIKey
 
         var errorDescription: String? {
             switch self {
-            case .invalidBaseURL:        return "Ungültige Serveradresse."
-            case .invalidHTTPResponse:   return "Ungültige Serverantwort."
-            case .httpStatus(let code):  return "HTTP-Fehler \(code)."
-            case .emptyResponse:         return "Leere Antwort."
-            case .decoding:              return "Antwort konnte nicht gelesen werden."
-            case .other(let err):        return err.localizedDescription
-            case .endpointNotFound:      return "Endpoint nicht gefunden."
+            case .invalidBaseURL: return String(localized: "ai.error.invalidBaseURL")
+            case .invalidHTTPResponse: return String(localized: "ai.error.invalidHTTPResponse")
+            case .httpStatus(let code): return String(format: String(localized: "ai.error.httpStatus"), code)
+            case .emptyResponse: return String(localized: "ai.error.emptyResponse")
+            case .decoding: return String(localized: "ai.error.decoding")
+            case .other(let err): return err.localizedDescription
+            case .endpointNotFound: return String(localized: "ai.error.endpointNotFound")
+            case .missingAPIKey: return String(localized: "ai.error.missingAPIKey")
             }
         }
     }
 
-    /// Führt eine Überarbeitung durch. Erkennt automatisch OpenAI (Chat Completions)
-    /// vs. Ollama ( /api/chat oder /api/generate ).
-    ///
-    /// An empty base is treated as `https://api.openai.com` and port defaults to 443,
-    /// to mirror the behaviour in the configuration hint.
+    // MARK: - Main Entry Point
+
+    /// Führt eine Überarbeitung durch. Erkennt automatisch den API-Typ.
     static func rewrite(
         baseURL: String,
         port: String?,
         apiKey: String?,
         model: String,
+        temperature: Double = 0.7,
+        maxTokens: Int = 2048,
+        topP: Double? = nil,
         prePrompt: String,
         userText: String,
         completion: @escaping (Result<String, Error>) -> Void
     ) {
         #if DEBUG
-        _debugPrintBase(baseURL, port: port)
+        print("AIClient: base='\(baseURL)' port='\(port ?? "")' model='\(model)'")
         #endif
-        // 0) Fallback: Ausgewählten Provider aus UserDefaults laden
+
+        // Fallback: Ausgewählten Provider aus UserDefaults laden
         let fb = _selectedProviderFallback()
-        // 1) Effektive Parameter bestimmen: übergebene Werte haben Priorität, sonst Fallback
-        let effBase: String = baseURL.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? (fb.baseURL ?? baseURL) : baseURL
+
+        // Effektive Parameter bestimmen
+        let effBase = baseURL.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            ? (fb.baseURL ?? "https://api.openai.com")
+            : baseURL
         let effPort: String? = {
             let p = (port ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
             return p.isEmpty ? fb.port : port
@@ -67,145 +66,416 @@ enum AIClient {
             if let k = apiKey, !k.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { return k }
             return fb.apiKey
         }()
-        let effModel: String = {
-            let m = model.trimmingCharacters(in: .whitespacesAndNewlines)
-            return m.isEmpty ? (fb.model ?? model) : model
-        }()
-        // 2) Basis‑URL normalisieren
+        let effModel = model.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            ? (fb.model ?? "gpt-4o")
+            : model
+        let effTemp = fb.temperature ?? temperature
+        let effMaxTokens = fb.maxTokens ?? maxTokens
+        let effTopP = fb.topP ?? topP
+
+        // Basis-URL normalisieren
         guard let root = normalizedRootURL(effBase, port: effPort) else {
-            // Letzter Versuch: direkt mit dem Fallback‑Provider normalisieren
-            if let fbBase = fb.baseURL, let r2 = normalizedRootURL(fbBase, port: fb.port) {
-                if isOpenAI(r2) {
-                    callOpenAI(root: r2, apiKey: effKey ?? "", model: effModel, prePrompt: prePrompt, userText: userText, completion: completion)
-                } else {
-                    callOllama(root: r2, apiKey: effKey, model: effModel, prePrompt: prePrompt, userText: userText, completion: completion)
-                }
-                return
-            }
             completion(.failure(ClientError.invalidBaseURL))
             return
         }
-        // 3) Zweigwahl: OpenAI vs. Ollama
-        if isOpenAI(root) {
-            callOpenAI(root: root, apiKey: effKey ?? "", model: effModel, prePrompt: prePrompt, userText: userText, completion: completion)
-        } else {
-            callOllama(root: root, apiKey: effKey, model: effModel, prePrompt: prePrompt, userText: userText, completion: completion)
+
+        // API-Typ erkennen und routen
+        let apiType = detectAPIType(root)
+
+        switch apiType {
+        case .anthropic:
+            callAnthropic(
+                root: root,
+                apiKey: effKey ?? "",
+                model: effModel,
+                temperature: effTemp,
+                maxTokens: effMaxTokens,
+                topP: effTopP,
+                prePrompt: prePrompt,
+                userText: userText,
+                completion: completion
+            )
+
+        case .openAI:
+            callOpenAI(
+                root: root,
+                apiKey: effKey ?? "",
+                model: effModel,
+                temperature: effTemp,
+                maxTokens: effMaxTokens,
+                topP: effTopP,
+                prePrompt: prePrompt,
+                userText: userText,
+                completion: completion
+            )
+
+        case .ollama:
+            callOllama(
+                root: root,
+                apiKey: effKey,
+                model: effModel,
+                temperature: effTemp,
+                prePrompt: prePrompt,
+                userText: userText,
+                completion: completion
+            )
         }
+    }
+
+    // MARK: - API Type Detection
+
+    private enum APIType {
+        case openAI     // OpenAI, Mistral, etc.
+        case anthropic  // Anthropic Claude
+        case ollama     // Local Ollama
+    }
+
+    private static func detectAPIType(_ root: URL) -> APIType {
+        let host = (root.host ?? "").lowercased()
+
+        if host.contains("anthropic.com") {
+            return .anthropic
+        } else if host.contains("openai.com") || host.contains("mistral.ai") {
+            return .openAI
+        } else if host.contains("localhost") || host.contains("127.0.0.1") {
+            // Lokale Instanz: Ollama oder OpenAI-kompatibel je nach Port
+            let port = root.port ?? 443
+            if port == 11434 {
+                return .ollama
+            }
+            return .openAI // Default für andere lokale Ports
+        }
+
+        // Default: OpenAI-kompatibel
+        return .openAI
+    }
+}
+
+// MARK: - OpenAI Compatible API
+
+private extension AIClient {
+
+    static func callOpenAI(
+        root: URL,
+        apiKey: String,
+        model: String,
+        temperature: Double,
+        maxTokens: Int,
+        topP: Double?,
+        prePrompt: String,
+        userText: String,
+        completion: @escaping (Result<String, Error>) -> Void
+    ) {
+        guard let url = url(root, path: "/v1/chat/completions") else {
+            return DispatchQueue.main.async { completion(.failure(ClientError.invalidBaseURL)) }
+        }
+
+        let sys = prePrompt.trimmingCharacters(in: .whitespacesAndNewlines)
+        let usr = userText.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        // Request Body aufbauen
+        var body: [String: Any] = [
+            "model": model,
+            "messages": [
+                ["role": "system", "content": sys.isEmpty ? "You are a helpful assistant." : sys],
+                ["role": "user", "content": usr]
+            ],
+            "temperature": temperature,
+            "max_tokens": maxTokens
+        ]
+
+        // Optional: top_p nur wenn != 1.0
+        if let topP = topP, topP < 1.0 {
+            body["top_p"] = topP
+        }
+
+        var req = URLRequest(url: url)
+        req.httpMethod = "POST"
+        req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        req.setValue("application/json", forHTTPHeaderField: "Accept")
+        if !apiKey.isEmpty {
+            req.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
+        }
+        req.timeoutInterval = 60
+        req.httpBody = try? JSONSerialization.data(withJSONObject: body)
+
+        _session.dataTask(with: req) { data, resp, err in
+            if let err = err {
+                return DispatchQueue.main.async { completion(.failure(ClientError.other(err))) }
+            }
+            guard let http = resp as? HTTPURLResponse else {
+                return DispatchQueue.main.async { completion(.failure(ClientError.invalidHTTPResponse)) }
+            }
+            guard (200...299).contains(http.statusCode) else {
+                return DispatchQueue.main.async { completion(.failure(ClientError.httpStatus(http.statusCode))) }
+            }
+            guard let data = data else {
+                return DispatchQueue.main.async { completion(.failure(ClientError.emptyResponse)) }
+            }
+
+            // Parse Response
+            if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+               let choices = json["choices"] as? [[String: Any]],
+               let first = choices.first,
+               let msg = first["message"] as? [String: Any],
+               let content = msg["content"] as? String {
+                return DispatchQueue.main.async { completion(.success(content)) }
+            }
+
+            DispatchQueue.main.async { completion(.failure(ClientError.decoding)) }
+        }.resume()
+    }
+}
+
+// MARK: - Anthropic API
+
+private extension AIClient {
+
+    static func callAnthropic(
+        root: URL,
+        apiKey: String,
+        model: String,
+        temperature: Double,
+        maxTokens: Int,
+        topP: Double?,
+        prePrompt: String,
+        userText: String,
+        completion: @escaping (Result<String, Error>) -> Void
+    ) {
+        guard !apiKey.isEmpty else {
+            return DispatchQueue.main.async { completion(.failure(ClientError.missingAPIKey)) }
+        }
+
+        guard let url = url(root, path: "/v1/messages") else {
+            return DispatchQueue.main.async { completion(.failure(ClientError.invalidBaseURL)) }
+        }
+
+        let sys = prePrompt.trimmingCharacters(in: .whitespacesAndNewlines)
+        let usr = userText.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        // Anthropic Request Body (unterscheidet sich von OpenAI!)
+        var body: [String: Any] = [
+            "model": model,
+            "max_tokens": maxTokens,
+            "messages": [
+                ["role": "user", "content": usr]
+            ]
+        ]
+
+        // System-Prompt ist bei Anthropic ein separates Feld
+        if !sys.isEmpty {
+            body["system"] = sys
+        }
+
+        // Optional parameters
+        body["temperature"] = min(temperature, 1.0) // Anthropic: max 1.0
+
+        if let topP = topP, topP < 1.0 {
+            body["top_p"] = topP
+        }
+
+        var req = URLRequest(url: url)
+        req.httpMethod = "POST"
+        req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        req.setValue("application/json", forHTTPHeaderField: "Accept")
+
+        // Anthropic-spezifische Header!
+        req.setValue(apiKey, forHTTPHeaderField: "x-api-key")
+        req.setValue("2023-06-01", forHTTPHeaderField: "anthropic-version")
+
+        req.timeoutInterval = 60
+        req.httpBody = try? JSONSerialization.data(withJSONObject: body)
+
+        _session.dataTask(with: req) { data, resp, err in
+            if let err = err {
+                return DispatchQueue.main.async { completion(.failure(ClientError.other(err))) }
+            }
+            guard let http = resp as? HTTPURLResponse else {
+                return DispatchQueue.main.async { completion(.failure(ClientError.invalidHTTPResponse)) }
+            }
+            guard (200...299).contains(http.statusCode) else {
+                // Anthropic gibt detaillierte Fehlermeldungen
+                if let data = data,
+                   let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                   let error = json["error"] as? [String: Any],
+                   let message = error["message"] as? String {
+                    return DispatchQueue.main.async { completion(.failure(ClientError.other(NSError(domain: "Anthropic", code: http.statusCode, userInfo: [NSLocalizedDescriptionKey: message])))) }
+                }
+                return DispatchQueue.main.async { completion(.failure(ClientError.httpStatus(http.statusCode))) }
+            }
+            guard let data = data else {
+                return DispatchQueue.main.async { completion(.failure(ClientError.emptyResponse)) }
+            }
+
+            // Parse Anthropic Response
+            // Format: { "content": [{ "type": "text", "text": "..." }] }
+            if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+               let content = json["content"] as? [[String: Any]],
+               let first = content.first,
+               let text = first["text"] as? String {
+                return DispatchQueue.main.async { completion(.success(text)) }
+            }
+
+            DispatchQueue.main.async { completion(.failure(ClientError.decoding)) }
+        }.resume()
+    }
+}
+
+// MARK: - Ollama API
+
+private extension AIClient {
+
+    static func callOllama(
+        root: URL,
+        apiKey: String?,
+        model: String,
+        temperature: Double,
+        prePrompt: String,
+        userText: String,
+        completion: @escaping (Result<String, Error>) -> Void
+    ) {
+        let paths = ["/api/chat", "/api/generate"]
+
+        func tryNext(_ i: Int) {
+            if i >= paths.count {
+                return DispatchQueue.main.async { completion(.failure(ClientError.endpointNotFound)) }
+            }
+
+            guard let url = url(root, path: paths[i]) else {
+                return tryNext(i + 1)
+            }
+
+            let sys = prePrompt.trimmingCharacters(in: .whitespacesAndNewlines)
+            let usr = userText.trimmingCharacters(in: .whitespacesAndNewlines)
+
+            var body: [String: Any]
+
+            if paths[i] == "/api/chat" {
+                body = [
+                    "model": model,
+                    "messages": [
+                        ["role": "system", "content": sys.isEmpty ? "You are a helpful assistant." : sys],
+                        ["role": "user", "content": usr]
+                    ],
+                    "stream": false,
+                    "options": ["temperature": temperature]
+                ]
+            } else {
+                body = [
+                    "model": model,
+                    "prompt": (sys.isEmpty ? "" : sys + "\n\n") + usr,
+                    "stream": false,
+                    "options": ["temperature": temperature]
+                ]
+            }
+
+            var req = URLRequest(url: url)
+            req.httpMethod = "POST"
+            req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+            if let key = apiKey, !key.isEmpty {
+                req.setValue("Bearer \(key)", forHTTPHeaderField: "Authorization")
+            }
+            req.timeoutInterval = 60
+            req.httpBody = try? JSONSerialization.data(withJSONObject: body)
+
+            _session.dataTask(with: req) { data, resp, err in
+                if let err = err {
+                    return DispatchQueue.main.async { completion(.failure(ClientError.other(err))) }
+                }
+                guard let http = resp as? HTTPURLResponse else {
+                    return DispatchQueue.main.async { completion(.failure(ClientError.invalidHTTPResponse)) }
+                }
+
+                if http.statusCode == 404 {
+                    return tryNext(i + 1)
+                }
+
+                guard (200...299).contains(http.statusCode) else {
+                    return DispatchQueue.main.async { completion(.failure(ClientError.httpStatus(http.statusCode))) }
+                }
+                guard let data = data else {
+                    return DispatchQueue.main.async { completion(.failure(ClientError.emptyResponse)) }
+                }
+
+                // Parse Response
+                if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
+                    // /api/chat: { "message": { "content": "..." } }
+                    if let message = json["message"] as? [String: Any],
+                       let content = message["content"] as? String {
+                        return DispatchQueue.main.async { completion(.success(content)) }
+                    }
+                    // /api/generate: { "response": "..." }
+                    if let content = json["response"] as? String {
+                        return DispatchQueue.main.async { completion(.success(content)) }
+                    }
+                }
+
+                if i == 0 { return tryNext(1) }
+                DispatchQueue.main.async { completion(.failure(ClientError.decoding)) }
+            }.resume()
+        }
+
+        tryNext(0)
     }
 }
 
 // MARK: - Helpers
+
 private extension AIClient {
 
     static let _session: URLSession = {
         let cfg = URLSessionConfiguration.default
         cfg.waitsForConnectivity = true
-        cfg.timeoutIntervalForRequest = 30
-        cfg.timeoutIntervalForResource = 60
-        // keine Proxies/Cache erzwingen
+        cfg.timeoutIntervalForRequest = 60
+        cfg.timeoutIntervalForResource = 120
         cfg.requestCachePolicy = .reloadIgnoringLocalCacheData
         return URLSession(configuration: cfg)
     }()
 
     static func normalizedRootURL(_ base: String, port: String?) -> URL? {
-        // 0) Ausgangsstring trimmen & unsichtbare Zeichen entfernen
         var trimmed = base.trimmingCharacters(in: .whitespacesAndNewlines)
-        // Leerer String → Standard OpenAI‑Root
         if trimmed.isEmpty { trimmed = "https://api.openai.com" }
+
+        // Zero-width characters entfernen
         let zeroWidth = CharacterSet(charactersIn: "\u{200B}\u{200C}\u{200D}\u{FEFF}")
         trimmed = String(trimmed.unicodeScalars.filter { !zeroWidth.contains($0) })
 
-        // 1) Häufige Kopier-/Tippfehler automatisch korrigieren
-        //    "https//example.com"  -> "https://example.com"
-        //    "http//example.com"   -> "http://example.com"
+        // Schema korrigieren
         let lower = trimmed.lowercased()
         if lower.hasPrefix("https//") && !trimmed.contains("://") {
             trimmed = "https://" + trimmed.dropFirst("https//".count)
         } else if lower.hasPrefix("http//") && !trimmed.contains("://") {
             trimmed = "http://" + trimmed.dropFirst("http//".count)
         }
-
-        // 2) Wenn kein Schema angegeben ist → https voranstellen
         if !trimmed.contains("://") {
             trimmed = "https://" + trimmed
         }
 
-        // 3) Backslashes (z. B. aus kopierten Pfaden) in normale Slashes wandeln
         trimmed = trimmed.replacingOccurrences(of: "\\", with: "/")
 
-        // 4) URL zerlegen (wir akzeptieren auch Strings mit Pfad, der später entfernt wird)
-        guard let comps = URLComponents(string: trimmed) else { return nil }
-
-        // 5) Host muss vorhanden sein
-        guard let scheme = comps.scheme, let host = comps.host, !host.isEmpty else {
+        guard let comps = URLComponents(string: trimmed),
+              let scheme = comps.scheme,
+              let host = comps.host, !host.isEmpty else {
             return nil
         }
 
-        // 6) Port bestimmen:
-        //    - wenn in der URL schon vorhanden → verwenden
-        //    - sonst Port-String (falls numerisch & nicht 443) verwenden
-        //    - ansonsten nil (Standard-HTTPS)
+        // Port bestimmen
         let currentPort = comps.port
-        let pStringRaw = (port ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
-        let pString = pStringRaw.isEmpty ? nil : pStringRaw
-        let providedPort: Int? = {
-            if let p = pString, let v = Int(p), v > 0, v < 65536 { return v }
-            return nil
-        }()
-        let effectivePort: Int? = {
-            if let currentPort { return currentPort }
-            if let providedPort, providedPort != 443 { return providedPort }
-            return nil
-        }()
+        let pString = (port ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+        let providedPort: Int? = Int(pString).flatMap { $0 > 0 && $0 < 65536 ? $0 : nil }
+        let effectivePort: Int? = currentPort ?? (providedPort != 443 ? providedPort : nil)
 
-        // 7) Root-URL ohne Pfad/Query/Fragment aufbauen
         var rootComps = URLComponents()
         rootComps.scheme = scheme
-        rootComps.host   = host
-        rootComps.port   = effectivePort
-        rootComps.path   = "" // explizit Root
-        rootComps.query  = nil
-        rootComps.fragment = nil
+        rootComps.host = host
+        rootComps.port = effectivePort
+        rootComps.path = ""
 
         return rootComps.url
     }
 
-    /// Liefert den ausgewählten Provider aus UserDefaults als leichtgewichtigen Fallback.
-    static func _selectedProviderFallback() -> (baseURL: String?, port: String?, apiKey: String?, model: String?) {
-        let ud = UserDefaults.standard
-        let listKey = "config.ai.providers.list"
-        let selKey  = "config.ai.providers.selected"
-        struct ProviderLite: Codable {
-            let id: String?
-            let baseURL: String?
-            let port: String?
-            let apiKey: String?
-            let model: String?
-        }
-        guard let data = ud.data(forKey: listKey),
-              let arr  = try? JSONDecoder().decode([ProviderLite].self, from: data) else {
-            return (nil, nil, nil, nil)
-        }
-        let selID = ud.string(forKey: selKey)
-        let chosen = arr.first { $0.id == selID } ?? arr.first
-        return (chosen?.baseURL, chosen?.port, chosen?.apiKey, chosen?.model)
-    }
-
-    #if DEBUG
-    static func _debugPrintBase(_ base: String, port: String?) {
-        print("AIClient DEBUG base='\(base)' port='\(port ?? "")'")
-    }
-    #endif
-
-    /// Prüft ob der Host eine OpenAI-kompatible API hat (OpenAI, Mistral, etc.)
-    static func isOpenAI(_ root: URL) -> Bool {
-        let host = (root.host ?? "").lowercased()
-        return host.contains("openai.com") || host.contains("mistral.ai")
-    }
-
     static func url(_ root: URL, path: String) -> URL? {
         var base = root
-        // Ensure base URL has no trailing slash so that appending works predictably
         let abs = base.absoluteString
         if abs.hasSuffix("/") {
             guard let u = URL(string: String(abs.dropLast())) else { return nil }
@@ -215,159 +485,47 @@ private extension AIClient {
         return base.appendingPathComponent(clean)
     }
 
-    // MARK: OpenAI
-    static func callOpenAI(
-        root: URL,
-        apiKey: String,
-        model: String,
-        prePrompt: String,
-        userText: String,
-        completion: @escaping (Result<String, Error>) -> Void
-    ) {
-        guard let url = url(root, path: "/v1/chat/completions") else {
-            DispatchQueue.main.async { completion(.failure(ClientError.invalidBaseURL)) }
-            return
-        }
-
-        struct Req: Encodable {
-            let model: String
-            let messages: [[String: String]]
-            // bewusst konservativ: keine Temperature, um Fehler zu vermeiden
-        }
-
-        let sys = prePrompt.trimmingCharacters(in: .whitespacesAndNewlines)
-        let usr = userText.trimmingCharacters(in: .whitespacesAndNewlines)
-
-        let body = Req(
-            model: model,
-            messages: [
-                ["role": "system", "content": sys.isEmpty ? "You are a helpful assistant." : sys],
-                ["role": "user", "content": usr]
-            ]
-        )
-
-        var req = URLRequest(url: url)
-        req.httpMethod = "POST"
-        req.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        req.setValue("application/json", forHTTPHeaderField: "Accept")
-        req.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
-        req.setValue("close", forHTTPHeaderField: "Connection")
-        req.timeoutInterval = 45
-        req.httpBody = try? JSONEncoder().encode(body)
-
-        _session.dataTask(with: req) { data, resp, err in
-            if let err = err {
-                return DispatchQueue.main.async { completion(.failure(ClientError.other(err))) }
-            }
-            guard let http = resp as? HTTPURLResponse else {
-                return DispatchQueue.main.async { completion(.failure(ClientError.invalidHTTPResponse)) }
-            }
-            if http.statusCode == 404 {
-                return DispatchQueue.main.async { completion(.failure(ClientError.endpointNotFound)) }
-            }
-            guard (200...299).contains(http.statusCode) else {
-                return DispatchQueue.main.async { completion(.failure(ClientError.httpStatus(http.statusCode))) }
-            }
-            guard let data = data else {
-                return DispatchQueue.main.async { completion(.failure(ClientError.emptyResponse)) }
-            }
-            // Minimal Parsing auf die erste Choice
-            if
-                let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-                let choices = json["choices"] as? [[String: Any]],
-                let first = choices.first,
-                let msg = first["message"] as? [String: Any],
-                let content = msg["content"] as? String
-            {
-                return DispatchQueue.main.async { completion(.success(content)) }
-            }
-            DispatchQueue.main.async { completion(.failure(ClientError.decoding)) }
-        }.resume()
-    }
-
-    // MARK: Ollama
-    static func callOllama(
-        root: URL,
+    /// Liefert den ausgewählten Provider aus UserDefaults
+    static func _selectedProviderFallback() -> (
+        baseURL: String?,
+        port: String?,
         apiKey: String?,
-        model: String,
-        prePrompt: String,
-        userText: String,
-        completion: @escaping (Result<String, Error>) -> Void
+        model: String?,
+        temperature: Double?,
+        maxTokens: Int?,
+        topP: Double?
     ) {
-        // /api/generate (ältere) oder /api/chat (neuere), jetzt generate zuerst
-        let paths = ["/api/generate", "/api/chat"]
-        func tryNext(_ i: Int) {
-            if i >= paths.count {
-                return DispatchQueue.main.async { completion(.failure(ClientError.invalidBaseURL)) }
-            }
-            guard let url = url(root, path: paths[i]) else { return tryNext(i+1) }
+        let ud = UserDefaults.standard
+        let listKey = "config.ai.providers.list"
+        let selKey = "config.ai.providers.selected"
 
-            var req = URLRequest(url: url)
-            req.httpMethod = "POST"
-            req.setValue("application/json", forHTTPHeaderField: "Content-Type")
-            req.setValue("application/json", forHTTPHeaderField: "Accept")
-            if let key = apiKey, !key.isEmpty {
-                req.setValue("Bearer \(key)", forHTTPHeaderField: "Authorization")
-            }
-            req.setValue("close", forHTTPHeaderField: "Connection")
-            req.timeoutInterval = 45
-
-            // zwei Formate unterstützen
-            let sys = prePrompt.trimmingCharacters(in: .whitespacesAndNewlines)
-            let usr = userText.trimmingCharacters(in: .whitespacesAndNewlines)
-
-            let payloadChat: [String: Any] = [
-                "model": model,
-                "messages": [
-                    ["role": "system", "content": sys.isEmpty ? "You are a helpful assistant." : sys],
-                    ["role": "user", "content": usr]
-                ],
-                "stream": false
-            ]
-
-            let payloadGenerate: [String: Any] = [
-                "model": model,
-                "prompt": (sys.isEmpty ? "" : sys + "\n\n") + usr,
-                "stream": false
-            ]
-
-            let bodyObj = (paths[i] == "/api/chat") ? payloadChat : payloadGenerate
-            req.httpBody = try? JSONSerialization.data(withJSONObject: bodyObj)
-
-            _session.dataTask(with: req) { data, resp, err in
-                if let err = err {
-                    return DispatchQueue.main.async { completion(.failure(ClientError.other(err))) }
-                }
-                guard let http = resp as? HTTPURLResponse else {
-                    return DispatchQueue.main.async { completion(.failure(ClientError.invalidHTTPResponse)) }
-                }
-                if http.statusCode == 404 {
-                    return DispatchQueue.main.async { completion(.failure(ClientError.endpointNotFound)) }
-                }
-                guard (200...299).contains(http.statusCode) else {
-                    return DispatchQueue.main.async { completion(.failure(ClientError.httpStatus(http.statusCode))) }
-                }
-                guard let data = data else {
-                    return DispatchQueue.main.async { completion(.failure(ClientError.emptyResponse)) }
-                }
-                if
-                    let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
-                {
-                    // /api/chat → { message: { content: "..." } }
-                    if let message = json["message"] as? [String: Any],
-                       let content = message["content"] as? String {
-                        return DispatchQueue.main.async { completion(.success(content)) }
-                    }
-                    // /api/generate → { response: "..." }
-                    if let content = json["response"] as? String {
-                        return DispatchQueue.main.async { completion(.success(content)) }
-                    }
-                }
-                // Falls der erste Pfad nicht passte, den nächsten testen
-                if i == 0 { return tryNext(1) }
-                DispatchQueue.main.async { completion(.failure(ClientError.decoding)) }
-            }.resume()
+        struct ProviderLite: Codable {
+            let id: UUID?
+            let baseURL: String?
+            let port: String?
+            let apiKey: String?
+            let model: String?
+            let temperature: Double?
+            let maxTokens: Int?
+            let topP: Double?
         }
-        tryNext(0)
+
+        guard let data = ud.data(forKey: listKey),
+              let arr = try? JSONDecoder().decode([ProviderLite].self, from: data) else {
+            return (nil, nil, nil, nil, nil, nil, nil)
+        }
+
+        let selID = ud.string(forKey: selKey).flatMap { UUID(uuidString: $0) }
+        let chosen = arr.first { $0.id == selID } ?? arr.first
+
+        return (
+            chosen?.baseURL,
+            chosen?.port,
+            chosen?.apiKey,
+            chosen?.model,
+            chosen?.temperature,
+            chosen?.maxTokens,
+            chosen?.topP
+        )
     }
 }

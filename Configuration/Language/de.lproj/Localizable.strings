@@ -306,13 +306,26 @@
 "aiEditor.field.apiKey" = "API-Schlüssel";
 "aiEditor.field.model" = "Modell";
 "aiEditor.field.temperature" = "Temperatur";
-"aiEditor.placeholder.displayName" = "Anzeigename (z. B. „OpenAI Prod“)";
+"aiEditor.field.maxTokens" = "Max. Tokens";
+"aiEditor.placeholder.displayName" = "Anzeigename (z. B. „OpenAI Prod")";
 "aiEditor.a11y.reloadModels" = "Modelle neu laden";
 "aiEditor.temperature.value" = "Temperatur: %.1f";
 "aiEditor.action.save" = "Speichern";
 
+/* MARK: - AI Editor (hints) */
+"aiEditor.hint.maxTokens" = "Begrenzt die Länge der Antwort. Höhere Werte = längere Antworten.";
+"aiEditor.hint.topP" = "Nucleus-Sampling. Niedrigere Werte = fokussiertere Antworten.";
+"aiEditor.hint.anthropic" = "Anthropic verwendet x-api-key Header statt Bearer Token.";
+
+/* MARK: - AI Editor (advanced & test) */
+"aiEditor.section.advanced" = "Erweiterte Einstellungen";
+"aiEditor.test.button" = "Verbindung testen";
+"aiEditor.test.testing" = "Teste...";
+
 /* MARK: - AI Editor (provider type names) */
 "aiEditor.type.openAI" = "OpenAI";
+"aiEditor.type.mistral" = "Mistral";
+"aiEditor.type.anthropic" = "Anthropic";
 "aiEditor.type.ollama" = "Ollama";
 "aiEditor.type.custom" = "Benutzerdefiniert";
 
@@ -323,6 +336,7 @@
 "ai.error.emptyResponse" = "Leere Antwort.";
 "ai.error.decoding" = "Antwort konnte nicht gelesen werden.";
 "ai.error.endpointNotFound" = "Endpunkt nicht gefunden.";
+"ai.error.missingAPIKey" = "API-Key erforderlich.";
 "ai.error.other" = "Unerwarteter Fehler.";
 
 /* Configuration - Pre-Prompt Manager */

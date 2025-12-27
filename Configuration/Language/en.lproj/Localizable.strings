@@ -394,19 +394,32 @@
 "aiEditor.field.apiKey" = "API Key";
 "aiEditor.field.model" = "Model";
 "aiEditor.field.temperature" = "Temperature";
+"aiEditor.field.maxTokens" = "Max Tokens";
 
 /* MARK: - AI Editor (placeholders & helpers) */
-"aiEditor.placeholder.displayName" = "Display name (e.g. “OpenAI Prod”)";
+"aiEditor.placeholder.displayName" = "Display name (e.g. "OpenAI Prod")";
 "aiEditor.a11y.reloadModels" = "Reload models";
 
 /* MARK: - AI Editor (value readouts) */
 "aiEditor.temperature.value" = "Temperature: %.1f";
+
+/* MARK: - AI Editor (hints) */
+"aiEditor.hint.maxTokens" = "Limits response length. Higher values = longer responses.";
+"aiEditor.hint.topP" = "Nucleus sampling. Lower values = more focused responses.";
+"aiEditor.hint.anthropic" = "Anthropic uses x-api-key header instead of Bearer token.";
+
+/* MARK: - AI Editor (advanced & test) */
+"aiEditor.section.advanced" = "Advanced Settings";
+"aiEditor.test.button" = "Test Connection";
+"aiEditor.test.testing" = "Testing...";
 
 /* MARK: - AI Editor (actions) */
 "aiEditor.action.save" = "Save";
 
 /* MARK: - AI Editor (provider type names, optional) */
 "aiEditor.type.openAI" = "OpenAI";
+"aiEditor.type.mistral" = "Mistral";
+"aiEditor.type.anthropic" = "Anthropic";
 "aiEditor.type.ollama" = "Ollama";
 "aiEditor.type.custom" = "Custom";
 
@@ -417,6 +430,7 @@
 "ai.error.emptyResponse" = "Empty response.";
 "ai.error.decoding" = "Response could not be read.";
 "ai.error.endpointNotFound" = "Endpoint not found.";
+"ai.error.missingAPIKey" = "API key required.";
 "ai.error.other" = "An unexpected error occurred.";
 
 /* ============================================================================
