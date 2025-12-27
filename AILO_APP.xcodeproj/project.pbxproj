@@ -98,6 +98,16 @@
 		C9B7A4712F0021E600D0D81D /* AILONotificationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9B7A46E2F0021E600D0D81D /* AILONotificationService.swift */; };
 		C9B7A4722F0021E600D0D81D /* AILONotification.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9B7A46D2F0021E600D0D81D /* AILONotification.swift */; };
 		C9B7A4742F003A8800D0D81D /* LogNotificationProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9B7A4732F003A8800D0D81D /* LogNotificationProvider.swift */; };
+		C9B7A4A82F00607700D0D81D /* AssistantModuleProtocol.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9B7A4A52F00607700D0D81D /* AssistantModuleProtocol.swift */; };
+		C9B7A4A92F00607700D0D81D /* StepEmailInput.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9B7A49E2F00607700D0D81D /* StepEmailInput.swift */; };
+		C9B7A4AA2F00607700D0D81D /* MailProviderPresets.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9B7A4A12F00607700D0D81D /* MailProviderPresets.swift */; };
+		C9B7A4AB2F00607700D0D81D /* MailSetupWizard.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9B7A4A22F00607700D0D81D /* MailSetupWizard.swift */; };
+		C9B7A4AC2F00607700D0D81D /* WizardNavigationButtons.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9B7A4992F00607700D0D81D /* WizardNavigationButtons.swift */; };
+		C9B7A4AD2F00607700D0D81D /* StepCredentials.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9B7A49D2F00607700D0D81D /* StepCredentials.swift */; };
+		C9B7A4AE2F00607700D0D81D /* StepConnectionTest.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9B7A49C2F00607700D0D81D /* StepConnectionTest.swift */; };
+		C9B7A4AF2F00607700D0D81D /* AssistantView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9B7A4A62F00607700D0D81D /* AssistantView.swift */; };
+		C9B7A4B02F00607700D0D81D /* WizardProgressBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9B7A49A2F00607700D0D81D /* WizardProgressBar.swift */; };
+		C9B7A4B12F00607700D0D81D /* StepFolders.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9B7A49F2F00607700D0D81D /* StepFolders.swift */; };
 		C9C33C352EB2C0E4006390C7 /* ContentAnalyzer.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9C33C342EB2C0E4006390C7 /* ContentAnalyzer.swift */; };
 		C9C33C372EB2C341006390C7 /* TransferEncodingDecoder.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9C33C362EB2C341006390C7 /* TransferEncodingDecoder.swift */; };
 		C9C33C392EB2C35A006390C7 /* HeaderCharsetDetector.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9C33C382EB2C35A006390C7 /* HeaderCharsetDetector.swift */; };
@@ -275,6 +285,16 @@
 		C9B7A46D2F0021E600D0D81D /* AILONotification.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AILONotification.swift; sourceTree = "<group>"; };
 		C9B7A46E2F0021E600D0D81D /* AILONotificationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AILONotificationService.swift; sourceTree = "<group>"; };
 		C9B7A4732F003A8800D0D81D /* LogNotificationProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LogNotificationProvider.swift; sourceTree = "<group>"; };
+		C9B7A4992F00607700D0D81D /* WizardNavigationButtons.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WizardNavigationButtons.swift; sourceTree = "<group>"; };
+		C9B7A49A2F00607700D0D81D /* WizardProgressBar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WizardProgressBar.swift; sourceTree = "<group>"; };
+		C9B7A49C2F00607700D0D81D /* StepConnectionTest.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StepConnectionTest.swift; sourceTree = "<group>"; };
+		C9B7A49D2F00607700D0D81D /* StepCredentials.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StepCredentials.swift; sourceTree = "<group>"; };
+		C9B7A49E2F00607700D0D81D /* StepEmailInput.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StepEmailInput.swift; sourceTree = "<group>"; };
+		C9B7A49F2F00607700D0D81D /* StepFolders.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StepFolders.swift; sourceTree = "<group>"; };
+		C9B7A4A12F00607700D0D81D /* MailProviderPresets.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MailProviderPresets.swift; sourceTree = "<group>"; };
+		C9B7A4A22F00607700D0D81D /* MailSetupWizard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MailSetupWizard.swift; sourceTree = "<group>"; };
+		C9B7A4A52F00607700D0D81D /* AssistantModuleProtocol.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AssistantModuleProtocol.swift; sourceTree = "<group>"; };
+		C9B7A4A62F00607700D0D81D /* AssistantView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AssistantView.swift; sourceTree = "<group>"; };
 		C9C33C342EB2C0E4006390C7 /* ContentAnalyzer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentAnalyzer.swift; sourceTree = "<group>"; };
 		C9C33C362EB2C341006390C7 /* TransferEncodingDecoder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TransferEncodingDecoder.swift; sourceTree = "<group>"; };
 		C9C33C382EB2C35A006390C7 /* HeaderCharsetDetector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HeaderCharsetDetector.swift; sourceTree = "<group>"; };
@@ -439,6 +459,55 @@
 				C9B7A46E2F0021E600D0D81D /* AILONotificationService.swift */,
 			);
 			path = Notifications;
+			sourceTree = "<group>";
+		};
+		C9B7A49B2F00607700D0D81D /* Components */ = {
+			isa = PBXGroup;
+			children = (
+				C9B7A4992F00607700D0D81D /* WizardNavigationButtons.swift */,
+				C9B7A49A2F00607700D0D81D /* WizardProgressBar.swift */,
+			);
+			path = Components;
+			sourceTree = "<group>";
+		};
+		C9B7A4A02F00607700D0D81D /* MailSetupSteps */ = {
+			isa = PBXGroup;
+			children = (
+				C9B7A49C2F00607700D0D81D /* StepConnectionTest.swift */,
+				C9B7A49D2F00607700D0D81D /* StepCredentials.swift */,
+				C9B7A49E2F00607700D0D81D /* StepEmailInput.swift */,
+				C9B7A49F2F00607700D0D81D /* StepFolders.swift */,
+			);
+			path = MailSetupSteps;
+			sourceTree = "<group>";
+		};
+		C9B7A4A32F00607700D0D81D /* MailSetup */ = {
+			isa = PBXGroup;
+			children = (
+				C9B7A4A02F00607700D0D81D /* MailSetupSteps */,
+				C9B7A4A12F00607700D0D81D /* MailProviderPresets.swift */,
+				C9B7A4A22F00607700D0D81D /* MailSetupWizard.swift */,
+			);
+			path = MailSetup;
+			sourceTree = "<group>";
+		};
+		C9B7A4A42F00607700D0D81D /* Modules */ = {
+			isa = PBXGroup;
+			children = (
+				C9B7A4A32F00607700D0D81D /* MailSetup */,
+			);
+			path = Modules;
+			sourceTree = "<group>";
+		};
+		C9B7A4A72F00607700D0D81D /* Assistant */ = {
+			isa = PBXGroup;
+			children = (
+				C9B7A49B2F00607700D0D81D /* Components */,
+				C9B7A4A42F00607700D0D81D /* Modules */,
+				C9B7A4A52F00607700D0D81D /* AssistantModuleProtocol.swift */,
+				C9B7A4A62F00607700D0D81D /* AssistantView.swift */,
+			);
+			path = Assistant;
 			sourceTree = "<group>";
 		};
 		C9DEDF772EAECC4D00C40B92 /* AILO_APP */ = {
@@ -816,6 +885,7 @@
 		C9DEDFEF2EAECC4D00C40B92 /* Views */ = {
 			isa = PBXGroup;
 			children = (
+				C9B7A4A72F00607700D0D81D /* Assistant */,
 				C9B7A2542EFD7CAC00D0D81D /* Journey */,
 				C981572A2EB52CB30016F2DC /* LogsList */,
 				C9DEDFDA2EAECC4D00C40B92 /* Configuration */,
@@ -1009,6 +1079,16 @@
 				C9DEE0192EAECC4D00C40B92 /* AILO_APPApp.swift in Sources */,
 				C9B7A1752EFB52F800D0D81D /* ViewportSyncManager.swift in Sources */,
 				C9DEE01A2EAECC4D00C40B92 /* AIPrePromptPreset.swift in Sources */,
+				C9B7A4A82F00607700D0D81D /* AssistantModuleProtocol.swift in Sources */,
+				C9B7A4A92F00607700D0D81D /* StepEmailInput.swift in Sources */,
+				C9B7A4AA2F00607700D0D81D /* MailProviderPresets.swift in Sources */,
+				C9B7A4AB2F00607700D0D81D /* MailSetupWizard.swift in Sources */,
+				C9B7A4AC2F00607700D0D81D /* WizardNavigationButtons.swift in Sources */,
+				C9B7A4AD2F00607700D0D81D /* StepCredentials.swift in Sources */,
+				C9B7A4AE2F00607700D0D81D /* StepConnectionTest.swift in Sources */,
+				C9B7A4AF2F00607700D0D81D /* AssistantView.swift in Sources */,
+				C9B7A4B02F00607700D0D81D /* WizardProgressBar.swift in Sources */,
+				C9B7A4B12F00607700D0D81D /* StepFolders.swift in Sources */,
 				C9B7A2392EFD3FFB00D0D81D /* AttachmentDownloadController.swift in Sources */,
 				C9B7A23A2EFD3FFB00D0D81D /* AttachmentSecurityService.swift in Sources */,
 				C9B7A2CD2EFDD92F00D0D81D /* JourneyDocumentPicker.swift in Sources */,
