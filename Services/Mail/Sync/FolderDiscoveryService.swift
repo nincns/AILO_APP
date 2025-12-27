@@ -319,30 +319,127 @@ public final class FolderDiscoveryService {
         }
     }
 
+    // MARK: - IMAP Modified UTF-7 Decoder (RFC 3501 Section 5.1.3)
+
+    /// Dekodiert IMAP Modified UTF-7 Strings (z.B. "Entw&APw-rfe" → "Entwürfe")
+    private func decodeModifiedUTF7(_ input: String) -> String {
+        var result = ""
+        var i = input.startIndex
+
+        while i < input.endIndex {
+            let char = input[i]
+
+            if char == "&" {
+                // Suche nach dem Ende der Base64-Sequenz
+                if let dashIndex = input[i...].firstIndex(of: "-") {
+                    let base64Start = input.index(after: i)
+
+                    if base64Start == dashIndex {
+                        // "&-" ist ein escaped "&"
+                        result.append("&")
+                    } else {
+                        // Dekodiere Base64-Sequenz
+                        let base64Str = String(input[base64Start..<dashIndex])
+                        // IMAP Modified Base64: "," statt "/" in Standard Base64
+                        let standardBase64 = base64Str.replacingOccurrences(of: ",", with: "/")
+
+                        // Padding hinzufügen falls nötig
+                        let paddedBase64: String
+                        let remainder = standardBase64.count % 4
+                        if remainder > 0 {
+                            paddedBase64 = standardBase64 + String(repeating: "=", count: 4 - remainder)
+                        } else {
+                            paddedBase64 = standardBase64
+                        }
+
+                        if let data = Data(base64Encoded: paddedBase64) {
+                            // UTF-16BE dekodieren
+                            let utf16 = data.withUnsafeBytes { ptr -> [UInt16] in
+                                let count = data.count / 2
+                                var arr = [UInt16]()
+                                for j in 0..<count {
+                                    let high = UInt16(ptr[j * 2])
+                                    let low = UInt16(ptr[j * 2 + 1])
+                                    arr.append((high << 8) | low)
+                                }
+                                return arr
+                            }
+                            if let decoded = String(utf16CodeUnits: utf16, count: utf16.count) {
+                                result.append(decoded)
+                            }
+                        }
+                    }
+                    i = input.index(after: dashIndex)
+                } else {
+                    // Kein "-" gefunden, nimm "&" literal
+                    result.append(char)
+                    i = input.index(after: i)
+                }
+            } else {
+                result.append(char)
+                i = input.index(after: i)
+            }
+        }
+
+        return result
+    }
+
     private func extractFolderNames(from lines: [String]) -> [String] {
         // Example: * LIST (\HasNoChildren \Sent) "/" "Sent Items"
         var result: [String] = []
+
         // Safety cap: avoid processing unbounded LIST dumps
-        if lines.count > 2000 { return Array(lines.prefix(2000)) }
-        for l in lines where l.hasPrefix("* ") && (l.contains(" LIST ") || l.contains(" XLIST ")) {
-            if let lastQuote = l.split(separator: "\"", omittingEmptySubsequences: false).last {
-                let name = String(lastQuote).trimmingCharacters(in: .whitespacesAndNewlines)
-                if !name.isEmpty { 
-                    result.append(name)
-                    print("📁 Extracted folder name: '\(name)'")
-                }
+        let linesToProcess = lines.count > 2000 ? Array(lines.prefix(2000)) : lines
+
+        for line in linesToProcess {
+            guard line.hasPrefix("* ") && (line.contains(" LIST ") || line.contains(" XLIST ")) else {
                 continue
             }
-            // Fallback: last whitespace token
-            if let last = l.split(whereSeparator: \.isWhitespace).last {
-                let name = String(last).trimmingCharacters(in: .whitespacesAndNewlines)
-                if !name.isEmpty {
-                    result.append(name)
-                    print("📁 Extracted folder name (fallback): '\(name)'")
+
+            var name: String? = nil
+
+            // Methode 1: Quoted folder name (z.B. "Gesendete Elemente")
+            // Finde den LETZTEN quoted String in der Zeile
+            if let lastQuoteEnd = line.lastIndex(of: "\"") {
+                let beforeLastQuote = line[..<lastQuoteEnd]
+                if let lastQuoteStart = beforeLastQuote.lastIndex(of: "\"") {
+                    let quotedName = String(line[line.index(after: lastQuoteStart)..<lastQuoteEnd])
+                    if !quotedName.isEmpty && quotedName != "/" && quotedName != "." && quotedName != "NIL" {
+                        name = quotedName
+                    }
+                }
+            }
+
+            // Methode 2: Unquoted folder name (z.B. INBOX, Drafts)
+            if name == nil {
+                // Nimm das letzte Whitespace-Token
+                let tokens = line.split(whereSeparator: \.isWhitespace)
+                if let lastToken = tokens.last {
+                    let candidate = String(lastToken).trimmingCharacters(in: CharacterSet(charactersIn: "\""))
+                    if !candidate.isEmpty && candidate != "/" && candidate != "." && candidate != "NIL" {
+                        name = candidate
+                    }
+                }
+            }
+
+            // Dekodiere Modified UTF-7 und füge hinzu
+            if var extractedName = name {
+                let rawName = extractedName
+                extractedName = decodeModifiedUTF7(extractedName)
+                extractedName = extractedName.trimmingCharacters(in: .whitespacesAndNewlines)
+
+                if !extractedName.isEmpty {
+                    result.append(extractedName)
+                    if rawName != extractedName {
+                        print("📁 Extracted folder name: '\(extractedName)' (raw: '\(rawName)')")
+                    } else {
+                        print("📁 Extracted folder name: '\(extractedName)'")
+                    }
                 }
             }
         }
-        return Array(Set(result)) // unique
+
+        return Array(Set(result)) // Unique
     }
 
     private func mapSpecialUse(from folderNames: [String], rawListLines: [String]) -> FolderMap {
