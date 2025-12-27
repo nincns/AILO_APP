@@ -945,3 +945,22 @@
 /* MARK: - Notifications */
 "notification.reminder.title" = "Erinnerung";
 "notification.reminder.defaultTitle" = "Log-Eintrag";
+
+/* MARK: - Assistant */
+"assistant.title" = "Assistent";
+"assistant.welcome.title" = "Willkommen bei AILO";
+"assistant.welcome.subtitle" = "Lass dir bei der Einrichtung helfen oder starte direkt durch.";
+"assistant.section.modules" = "Einrichtung";
+"assistant.section.help" = "Hilfe";
+"assistant.help.online" = "Online-Hilfe";
+"assistant.help.feedback" = "Feedback senden";
+
+"assistant.module.mail.title" = "E-Mail einrichten";
+"assistant.module.mail.description" = "Verbinde dein E-Mail-Konto mit AILO";
+
+/* Provider Notes */
+"provider.gmx.note" = "IMAP muss im GMX-Webportal aktiviert werden.";
+"provider.webde.note" = "IMAP muss im WEB.DE-Webportal aktiviert werden.";
+"provider.gmail.note" = "2FA aktivieren und App-Passwort erstellen.";
+"provider.yahoo.note" = "App-Passwort in den Yahoo-Sicherheitseinstellungen erstellen.";
+"provider.icloud.note" = "App-spezifisches Passwort unter appleid.apple.com erstellen.";

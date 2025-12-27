@@ -986,3 +986,22 @@
 /* MARK: - Notifications */
 "notification.reminder.title" = "Reminder";
 "notification.reminder.defaultTitle" = "Log entry";
+
+/* MARK: - Assistant */
+"assistant.title" = "Assistant";
+"assistant.welcome.title" = "Welcome to AILO";
+"assistant.welcome.subtitle" = "Get help setting up or jump right in.";
+"assistant.section.modules" = "Setup";
+"assistant.section.help" = "Help";
+"assistant.help.online" = "Online Help";
+"assistant.help.feedback" = "Send Feedback";
+
+"assistant.module.mail.title" = "Set up Email";
+"assistant.module.mail.description" = "Connect your email account to AILO";
+
+/* Provider Notes */
+"provider.gmx.note" = "IMAP must be enabled in the GMX web portal.";
+"provider.webde.note" = "IMAP must be enabled in the WEB.DE web portal.";
+"provider.gmail.note" = "Enable 2FA and create an App Password.";
+"provider.yahoo.note" = "Create an App Password in Yahoo security settings.";
+"provider.icloud.note" = "Create an app-specific password at appleid.apple.com.";
