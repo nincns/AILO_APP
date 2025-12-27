@@ -959,6 +959,11 @@
 "assistant.help.online" = "Online-Hilfe";
 "assistant.help.feedback" = "Feedback senden";
 
+/* First-Run Experience */
+"assistant.firstrun.welcome" = "Willkommen bei AILO!";
+"assistant.firstrun.subtitle" = "Dieser Assistent hilft dir bei der ersten Einrichtung deiner App.";
+"assistant.firstrun.settingsHint" = "Du findest diesen Assistenten später jederzeit in den Einstellungen.";
+
 "assistant.module.mail.title" = "E-Mail einrichten";
 "assistant.module.mail.description" = "Verbinde dein E-Mail-Konto mit AILO";
 

@@ -1000,6 +1000,11 @@
 "assistant.help.online" = "Online Help";
 "assistant.help.feedback" = "Send Feedback";
 
+/* First-Run Experience */
+"assistant.firstrun.welcome" = "Welcome to AILO!";
+"assistant.firstrun.subtitle" = "This assistant helps you set up your app for the first time.";
+"assistant.firstrun.settingsHint" = "You can find this assistant anytime in the Settings.";
+
 "assistant.module.mail.title" = "Set up Email";
 "assistant.module.mail.description" = "Connect your email account to AILO";
 

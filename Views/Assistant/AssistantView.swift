@@ -8,9 +8,40 @@ struct AssistantView: View {
     @State private var selectedModule: IdentifiableModule?
     @Environment(\.dismiss) private var dismiss
 
+    /// Indicates if this is the first-run experience
+    var isFirstRun: Bool = false
+
     var body: some View {
         NavigationStack {
             List {
+                // First-Run Welcome Banner
+                if isFirstRun {
+                    Section {
+                        VStack(spacing: 12) {
+                            Image(systemName: "hand.wave.fill")
+                                .font(.system(size: 36))
+                                .foregroundStyle(.orange.gradient)
+
+                            Text("assistant.firstrun.welcome")
+                                .font(.headline)
+
+                            Text("assistant.firstrun.subtitle")
+                                .font(.subheadline)
+                                .foregroundStyle(.secondary)
+                                .multilineTextAlignment(.center)
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 16)
+                        .listRowBackground(
+                            LinearGradient(
+                                colors: [.orange.opacity(0.15), .teal.opacity(0.1)],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            )
+                        )
+                    }
+                }
+
                 // Header
                 Section {
                     VStack(spacing: 12) {
@@ -50,6 +81,23 @@ struct AssistantView: View {
                         // TODO: Feedback Sheet
                     } label: {
                         Label("assistant.help.feedback", systemImage: "envelope")
+                    }
+                }
+
+                // Settings Hint (First-Run only)
+                if isFirstRun {
+                    Section {
+                        HStack(spacing: 12) {
+                            Image(systemName: "gearshape.fill")
+                                .font(.title3)
+                                .foregroundStyle(.secondary)
+
+                            Text("assistant.firstrun.settingsHint")
+                                .font(.footnote)
+                                .foregroundStyle(.secondary)
+                        }
+                        .padding(.vertical, 8)
+                        .listRowBackground(Color(.systemGray6))
                     }
                 }
             }

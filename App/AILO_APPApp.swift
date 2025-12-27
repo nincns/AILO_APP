@@ -70,6 +70,10 @@ struct MainView: View {
     @State private var selectedTab: Int = 0
     @State private var pendingDeepLink: AILONotification.DeepLink?
 
+    // First-Run Assistant
+    @AppStorage("hasCompletedFirstRun") private var hasCompletedFirstRun: Bool = false
+    @State private var showFirstRunAssistant: Bool = false
+
     init(pendingImportFileURL: Binding<URL?> = .constant(nil)) {
         self._pendingImportFileURL = pendingImportFileURL
 
@@ -128,6 +132,17 @@ struct MainView: View {
             Task {
                 await mailViewModel.loadAccounts()
             }
+            // Show first-run assistant if not completed
+            if !hasCompletedFirstRun {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                    showFirstRunAssistant = true
+                }
+            }
+        }
+        .sheet(isPresented: $showFirstRunAssistant, onDismiss: {
+            hasCompletedFirstRun = true
+        }) {
+            AssistantView(isFirstRun: true)
         }
         .onChange(of: pendingImportFileURL) { _, newURL in
             if newURL != nil {
