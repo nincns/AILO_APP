@@ -675,12 +675,12 @@
         // ========================================
         const i18n = {
             de: {
-                title: "Pre-Prompt Generator",
+                title: "Pre-Prompt Katalog",
                 backToHome: "Zurueck zur Startseite",
                 tabs: {
                     categories: "Kategorien",
-                    recipes: "Recipes",
-                    cookbooks: "Cookbooks"
+                    prompts: "Prompts",
+                    promptManager: "Prompt Manager"
                 },
                 actions: {
                     import: "Importieren",
@@ -688,11 +688,12 @@
                     save: "Speichern",
                     delete: "Loeschen",
                     cancel: "Abbrechen",
-                    newCategory: "Neue Kategorie",
-                    newItem: "Neues Item",
-                    newRecipe: "Neues Recipe",
-                    newCookbook: "Neues Cookbook",
+                    newFolder: "Neuer Ordner",
+                    newElement: "Neues Element",
+                    newPrompt: "Neuer Prompt",
+                    newPromptManager: "Neuer Prompt Manager",
                     newChapter: "Neues Kapitel",
+                    newPromptRef: "Prompt hinzufuegen",
                     addElement: "Element hinzufuegen",
                     edit: "Bearbeiten",
                     addChild: "Kind hinzufuegen",
@@ -706,12 +707,10 @@
                     content: "Inhalt",
                     separator: "Trennzeichen",
                     elements: "Elemente",
-                    preset: "Preset",
-                    selectPreset: "Preset auswaehlen...",
-                    createNewPreset: "Neues Preset erstellen",
-                    recipe: "Recipe",
-                    selectRecipe: "Recipe auswaehlen...",
-                    cookbook: "Cookbook"
+                    elementContent: "Element-Inhalt",
+                    prompt: "Prompt",
+                    selectPrompt: "Prompt auswaehlen...",
+                    promptManager: "Prompt Manager"
                 },
                 messages: {
                     importSuccess: "Katalog erfolgreich importiert",
@@ -731,19 +730,18 @@
                 },
                 types: {
                     folder: "Ordner",
-                    item: "Item",
-                    preset: "Preset",
+                    element: "Element",
                     chapter: "Kapitel",
-                    recipe: "Recipe"
+                    prompt: "Prompt"
                 }
             },
             en: {
-                title: "Pre-Prompt Generator",
+                title: "Pre-Prompt Catalog",
                 backToHome: "Back to Home",
                 tabs: {
                     categories: "Categories",
-                    recipes: "Recipes",
-                    cookbooks: "Cookbooks"
+                    prompts: "Prompts",
+                    promptManager: "Prompt Manager"
                 },
                 actions: {
                     import: "Import",
@@ -751,11 +749,12 @@
                     save: "Save",
                     delete: "Delete",
                     cancel: "Cancel",
-                    newCategory: "New Category",
-                    newItem: "New Item",
-                    newRecipe: "New Recipe",
-                    newCookbook: "New Cookbook",
+                    newFolder: "New Folder",
+                    newElement: "New Element",
+                    newPrompt: "New Prompt",
+                    newPromptManager: "New Prompt Manager",
                     newChapter: "New Chapter",
+                    newPromptRef: "Add Prompt",
                     addElement: "Add Element",
                     edit: "Edit",
                     addChild: "Add Child",
@@ -769,12 +768,10 @@
                     content: "Content",
                     separator: "Separator",
                     elements: "Elements",
-                    preset: "Preset",
-                    selectPreset: "Select preset...",
-                    createNewPreset: "Create new preset",
-                    recipe: "Recipe",
-                    selectRecipe: "Select recipe...",
-                    cookbook: "Cookbook"
+                    elementContent: "Element Content",
+                    prompt: "Prompt",
+                    selectPrompt: "Select prompt...",
+                    promptManager: "Prompt Manager"
                 },
                 messages: {
                     importSuccess: "Catalog imported successfully",
@@ -794,10 +791,9 @@
                 },
                 types: {
                     folder: "Folder",
-                    item: "Item",
-                    preset: "Preset",
+                    element: "Element",
                     chapter: "Chapter",
-                    recipe: "Recipe"
+                    prompt: "Prompt"
                 }
             }
         };
@@ -855,7 +851,7 @@
             if (!isFolder) {
                 const preset = {
                     id: uuid(),
-                    name: t('types.preset'),
+                    name: t('types.element'),
                     text: '',
                     icon: '📝',
                     keywords: '',
@@ -870,7 +866,7 @@
             const menuItem = {
                 id: uuid(),
                 parentID: parentID,
-                name: isFolder ? t('types.folder') : t('types.item'),
+                name: isFolder ? t('types.folder') : t('types.element'),
                 icon: isFolder ? '📁' : '📝',
                 keywords: '',
                 sortOrder: getMaxSortOrder(state.menuItems, parentID) + 1,
@@ -927,7 +923,7 @@
             const now = isoNow();
             const recipe = {
                 id: uuid(),
-                name: t('types.recipe'),
+                name: t('types.prompt'),
                 icon: '🍳',
                 keywords: '',
                 elementIDs: [],
@@ -962,7 +958,7 @@
             const now = isoNow();
             const cookbook = {
                 id: uuid(),
-                name: t('fields.cookbook'),
+                name: t('fields.promptManager'),
                 icon: '📚',
                 keywords: '',
                 sortOrder: getMaxSortOrder(state.cookbooks) + 1,
@@ -1274,8 +1270,8 @@
         function renderTabBar() {
             const tabs = [
                 { id: 'categories', icon: '📁', label: t('tabs.categories') },
-                { id: 'recipes', icon: '🍳', label: t('tabs.recipes') },
-                { id: 'cookbooks', icon: '📚', label: t('tabs.cookbooks') }
+                { id: 'prompts', icon: '🍳', label: t('tabs.prompts') },
+                { id: 'promptManager', icon: '📚', label: t('tabs.promptManager') }
             ];
             return `
                 <div class="tab-bar">
@@ -1296,17 +1292,17 @@
                 case 'categories':
                     content = renderMenuItemTree();
                     buttons = `
-                        <button class="btn btn-secondary btn-sm" id="addCategoryBtn">+ ${t('actions.newCategory')}</button>
-                        <button class="btn btn-secondary btn-sm" id="addItemBtn">+ ${t('actions.newItem')}</button>
+                        <button class="btn btn-secondary btn-sm" id="addFolderBtn">+ ${t('actions.newFolder')}</button>
+                        <button class="btn btn-secondary btn-sm" id="addElementBtn">+ ${t('actions.newElement')}</button>
                     `;
                     break;
-                case 'recipes':
-                    content = renderRecipeList();
-                    buttons = `<button class="btn btn-secondary btn-sm" id="addRecipeBtn">+ ${t('actions.newRecipe')}</button>`;
+                case 'prompts':
+                    content = renderPromptList();
+                    buttons = `<button class="btn btn-secondary btn-sm" id="addPromptBtn">+ ${t('actions.newPrompt')}</button>`;
                     break;
-                case 'cookbooks':
-                    content = renderCookbookTree();
-                    buttons = `<button class="btn btn-secondary btn-sm" id="addCookbookBtn">+ ${t('actions.newCookbook')}</button>`;
+                case 'promptManager':
+                    content = renderPromptManagerTree();
+                    buttons = `<button class="btn btn-secondary btn-sm" id="addPromptManagerBtn">+ ${t('actions.newPromptManager')}</button>`;
                     break;
             }
 
@@ -1349,19 +1345,20 @@
             `;
         }
 
-        function renderRecipeList() {
+        // Prompts = Recipes (internal data model stays compatible with iOS app)
+        function renderPromptList() {
             if (state.recipes.length === 0) return '';
             return `
                 <ul class="tree">
-                    ${state.recipes.map(recipe => {
-                        const isSelected = state.selectedItem === recipe.id && state.selectedType === 'recipe';
+                    ${state.recipes.map(prompt => {
+                        const isSelected = state.selectedItem === prompt.id && state.selectedType === 'recipe';
                         return `
                             <li class="tree-item">
-                                <div class="tree-item-row ${isSelected ? 'selected' : ''}" data-id="${recipe.id}" data-type="recipe">
+                                <div class="tree-item-row ${isSelected ? 'selected' : ''}" data-id="${prompt.id}" data-type="recipe">
                                     <span class="tree-toggle hidden">▶</span>
-                                    <span class="tree-icon">${recipe.icon}</span>
-                                    <span class="tree-name">${escapeHtml(recipe.name)}</span>
-                                    <span class="tree-badge">${recipe.elementIDs.length}</span>
+                                    <span class="tree-icon">${prompt.icon}</span>
+                                    <span class="tree-name">${escapeHtml(prompt.name)}</span>
+                                    <span class="tree-badge">${prompt.elementIDs.length}</span>
                                 </div>
                             </li>
                         `;
@@ -1370,26 +1367,27 @@
             `;
         }
 
-        function renderCookbookTree() {
+        // Prompt Manager = Cookbooks (internal data model stays compatible with iOS app)
+        function renderPromptManagerTree() {
             if (state.cookbooks.length === 0) return '';
             return `
                 <ul class="tree">
-                    ${state.cookbooks.sort((a, b) => a.sortOrder - b.sortOrder).map(cookbook => {
-                        const isSelected = state.selectedItem === cookbook.id && state.selectedType === 'cookbook';
-                        const isExpanded = state.expandedNodes.has(cookbook.id);
-                        const children = state.recipeMenuItems.filter(r => r.cookbookID === cookbook.id && r.parentID === null).sort((a, b) => a.sortOrder - b.sortOrder);
+                    ${state.cookbooks.sort((a, b) => a.sortOrder - b.sortOrder).map(manager => {
+                        const isSelected = state.selectedItem === manager.id && state.selectedType === 'cookbook';
+                        const isExpanded = state.expandedNodes.has(manager.id);
+                        const children = state.recipeMenuItems.filter(r => r.cookbookID === manager.id && r.parentID === null).sort((a, b) => a.sortOrder - b.sortOrder);
 
                         return `
                             <li class="tree-item">
-                                <div class="tree-item-row ${isSelected ? 'selected' : ''}" data-id="${cookbook.id}" data-type="cookbook">
-                                    <span class="tree-toggle ${isExpanded ? 'expanded' : ''}" data-toggle="${cookbook.id}">▶</span>
-                                    <span class="tree-icon">${cookbook.icon}</span>
-                                    <span class="tree-name">${escapeHtml(cookbook.name)}</span>
+                                <div class="tree-item-row ${isSelected ? 'selected' : ''}" data-id="${manager.id}" data-type="cookbook">
+                                    <span class="tree-toggle ${isExpanded ? 'expanded' : ''}" data-toggle="${manager.id}">▶</span>
+                                    <span class="tree-icon">${manager.icon}</span>
+                                    <span class="tree-name">${escapeHtml(manager.name)}</span>
                                     <span class="tree-badge">${children.length}</span>
                                 </div>
                                 ${children.length > 0 ? `
                                     <ul class="tree-children ${isExpanded ? '' : 'collapsed'}">
-                                        ${children.map(child => renderRecipeMenuNode(child)).join('')}
+                                        ${children.map(child => renderPromptManagerNode(child)).join('')}
                                     </ul>
                                 ` : ''}
                             </li>
@@ -1399,7 +1397,7 @@
             `;
         }
 
-        function renderRecipeMenuNode(item) {
+        function renderPromptManagerNode(item) {
             const children = state.recipeMenuItems.filter(r => r.parentID === item.id).sort((a, b) => a.sortOrder - b.sortOrder);
             const isChapter = item.recipeID === null;
             const isExpanded = state.expandedNodes.has(item.id);
@@ -1414,7 +1412,7 @@
                     </div>
                     ${isChapter && children.length > 0 ? `
                         <ul class="tree-children ${isExpanded ? '' : 'collapsed'}">
-                            ${children.map(child => renderRecipeMenuNode(child)).join('')}
+                            ${children.map(child => renderPromptManagerNode(child)).join('')}
                         </ul>
                     ` : ''}
                 </li>
@@ -1446,7 +1444,7 @@
 
             return `
                 <div class="card">
-                    <h3>${item.icon} ${isFolder ? t('types.folder') : t('types.item')}</h3>
+                    <h3>${item.icon} ${isFolder ? t('types.folder') : t('types.element')}</h3>
                     <div class="form-row">
                         <div class="form-group" style="flex: 0 0 80px;">
                             <label class="form-label">${t('fields.icon')}</label>
@@ -1465,7 +1463,7 @@
                 </div>
                 ${!isFolder && preset ? `
                     <div class="card">
-                        <h3>📝 ${t('fields.preset')}</h3>
+                        <h3>📝 ${t('fields.elementContent')}</h3>
                         <div class="form-row">
                             <div class="form-group" style="flex: 0 0 80px;">
                                 <label class="form-label">${t('fields.icon')}</label>
@@ -1493,37 +1491,38 @@
             `;
         }
 
+        // Prompt Editor (internal data model: recipe)
         function renderRecipeEditor() {
-            const recipe = state.recipes.find(r => r.id === state.selectedItem);
-            if (!recipe) return '';
+            const prompt = state.recipes.find(r => r.id === state.selectedItem);
+            if (!prompt) return '';
 
-            const elements = recipe.elementIDs.map(id => state.menuItems.find(m => m.id === id)).filter(Boolean);
+            const elements = prompt.elementIDs.map(id => state.menuItems.find(m => m.id === id)).filter(Boolean);
 
             return `
                 <div class="card">
-                    <h3>${recipe.icon} ${t('types.recipe')}</h3>
+                    <h3>${prompt.icon} ${t('types.prompt')}</h3>
                     <div class="form-row">
                         <div class="form-group" style="flex: 0 0 80px;">
                             <label class="form-label">${t('fields.icon')}</label>
-                            <input type="text" class="form-input icon-input" id="recipeIcon" value="${recipe.icon}" maxlength="3">
+                            <input type="text" class="form-input icon-input" id="recipeIcon" value="${prompt.icon}" maxlength="3">
                         </div>
                         <div class="form-group">
                             <label class="form-label">${t('fields.name')}</label>
-                            <input type="text" class="form-input" id="recipeName" value="${escapeHtml(recipe.name)}">
+                            <input type="text" class="form-input" id="recipeName" value="${escapeHtml(prompt.name)}">
                         </div>
                     </div>
                     <div class="form-group">
                         <label class="form-label">${t('fields.keywords')}</label>
-                        <input type="text" class="form-input" id="recipeKeywords" value="${escapeHtml(recipe.keywords)}" placeholder="${t('fields.keywordsHint')}">
+                        <input type="text" class="form-input" id="recipeKeywords" value="${escapeHtml(prompt.keywords)}" placeholder="${t('fields.keywordsHint')}">
                     </div>
                     <div class="form-group">
                         <label class="form-label">${t('fields.separator')}</label>
-                        <input type="text" class="form-input" id="recipeSeparator" value="${escapeHtml(recipe.separator)}" style="width: 200px;">
+                        <input type="text" class="form-input" id="recipeSeparator" value="${escapeHtml(prompt.separator)}" style="width: 200px;">
                     </div>
                 </div>
                 <div class="card">
                     <h3>${t('fields.elements')}</h3>
-                    <div class="element-list" id="recipeElements" data-recipe="${recipe.id}">
+                    <div class="element-list" id="recipeElements" data-recipe="${prompt.id}">
                         ${elements.length === 0 ? `<div class="element-list-empty">${t('messages.dragHint')}</div>` :
                             elements.map((el, idx) => `
                                 <div class="element-chip" draggable="true" data-index="${idx}">
@@ -1552,26 +1551,27 @@
             `;
         }
 
+        // Prompt Manager Editor (internal data model: cookbook)
         function renderCookbookEditor() {
-            const cookbook = state.cookbooks.find(c => c.id === state.selectedItem);
-            if (!cookbook) return '';
+            const manager = state.cookbooks.find(c => c.id === state.selectedItem);
+            if (!manager) return '';
 
             return `
                 <div class="card">
-                    <h3>${cookbook.icon} ${t('fields.cookbook')}</h3>
+                    <h3>${manager.icon} ${t('fields.promptManager')}</h3>
                     <div class="form-row">
                         <div class="form-group" style="flex: 0 0 80px;">
                             <label class="form-label">${t('fields.icon')}</label>
-                            <input type="text" class="form-input icon-input" id="cookbookIcon" value="${cookbook.icon}" maxlength="3">
+                            <input type="text" class="form-input icon-input" id="cookbookIcon" value="${manager.icon}" maxlength="3">
                         </div>
                         <div class="form-group">
                             <label class="form-label">${t('fields.name')}</label>
-                            <input type="text" class="form-input" id="cookbookName" value="${escapeHtml(cookbook.name)}">
+                            <input type="text" class="form-input" id="cookbookName" value="${escapeHtml(manager.name)}">
                         </div>
                     </div>
                     <div class="form-group">
                         <label class="form-label">${t('fields.keywords')}</label>
-                        <input type="text" class="form-input" id="cookbookKeywords" value="${escapeHtml(cookbook.keywords)}" placeholder="${t('fields.keywordsHint')}">
+                        <input type="text" class="form-input" id="cookbookKeywords" value="${escapeHtml(manager.keywords)}" placeholder="${t('fields.keywordsHint')}">
                     </div>
                 </div>
                 <div class="info-box">${t('messages.dragHint')}</div>
@@ -1591,7 +1591,7 @@
 
             return `
                 <div class="card">
-                    <h3>${item.icon} ${isChapter ? t('types.chapter') : t('types.recipe')}</h3>
+                    <h3>${item.icon} ${isChapter ? t('types.chapter') : t('types.prompt')}</h3>
                     <div class="form-row">
                         <div class="form-group" style="flex: 0 0 80px;">
                             <label class="form-label">${t('fields.icon')}</label>
@@ -1608,16 +1608,16 @@
                     </div>
                     ${!isChapter ? `
                         <div class="form-group">
-                            <label class="form-label">${t('fields.recipe')}</label>
+                            <label class="form-label">${t('fields.prompt')}</label>
                             <select class="form-select" id="recipeMenuItemRecipe">
-                                <option value="">${t('fields.selectRecipe')}</option>
+                                <option value="">${t('fields.selectPrompt')}</option>
                                 ${state.recipes.map(r => `<option value="${r.id}" ${item.recipeID === r.id ? 'selected' : ''}>${r.icon} ${escapeHtml(r.name)}</option>`).join('')}
                             </select>
                         </div>
                     ` : ''}
                 </div>
                 <div style="display: flex; gap: var(--spacing-sm);">
-                    ${isChapter ? `<button class="btn btn-secondary" id="addRecipeRefBtn">+ ${t('actions.newItem')}</button>` : ''}
+                    ${isChapter ? `<button class="btn btn-secondary" id="addRecipeRefBtn">+ ${t('actions.newPromptRef')}</button>` : ''}
                     <button class="btn btn-primary" id="saveRecipeMenuItemBtn">${t('actions.save')}</button>
                     <button class="btn btn-danger" id="deleteRecipeMenuItemBtn">${t('actions.delete')}</button>
                 </div>
@@ -1680,17 +1680,17 @@
                 btn.onclick = () => { state.activeTab = btn.dataset.tab; state.selectedItem = null; state.selectedType = null; renderApp(); };
             });
 
-            const addCategoryBtn = document.getElementById('addCategoryBtn');
-            if (addCategoryBtn) addCategoryBtn.onclick = () => addMenuItem(null, true);
+            const addFolderBtn = document.getElementById('addFolderBtn');
+            if (addFolderBtn) addFolderBtn.onclick = () => addMenuItem(null, true);
 
-            const addItemBtn = document.getElementById('addItemBtn');
-            if (addItemBtn) addItemBtn.onclick = () => addMenuItem(null, false);
+            const addElementBtn = document.getElementById('addElementBtn');
+            if (addElementBtn) addElementBtn.onclick = () => addMenuItem(null, false);
 
-            const addRecipeBtn = document.getElementById('addRecipeBtn');
-            if (addRecipeBtn) addRecipeBtn.onclick = addRecipe;
+            const addPromptBtn = document.getElementById('addPromptBtn');
+            if (addPromptBtn) addPromptBtn.onclick = addRecipe;
 
-            const addCookbookBtn = document.getElementById('addCookbookBtn');
-            if (addCookbookBtn) addCookbookBtn.onclick = addCookbook;
+            const addPromptManagerBtn = document.getElementById('addPromptManagerBtn');
+            if (addPromptManagerBtn) addPromptManagerBtn.onclick = addCookbook;
 
             document.querySelectorAll('.tree-item-row').forEach(row => {
                 row.onclick = (e) => { if (e.target.classList.contains('tree-toggle')) return; selectItem(row.dataset.id, row.dataset.type); renderApp(); };
@@ -1704,8 +1704,8 @@
                     if (type === 'menuItem') {
                         const item = state.menuItems.find(m => m.id === id);
                         if (item && item.presetID === null) {
-                            menuItems.push({ icon: '📁', label: t('actions.newCategory'), action: () => addMenuItem(id, true) });
-                            menuItems.push({ icon: '📝', label: t('actions.newItem'), action: () => addMenuItem(id, false) });
+                            menuItems.push({ icon: '📁', label: t('actions.newFolder'), action: () => addMenuItem(id, true) });
+                            menuItems.push({ icon: '📝', label: t('actions.newElement'), action: () => addMenuItem(id, false) });
                             menuItems.push({ divider: true });
                         }
                     }
@@ -1718,7 +1718,7 @@
                     if (type === 'recipeMenuItem') {
                         const item = state.recipeMenuItems.find(r => r.id === id);
                         if (item && item.recipeID === null) {
-                            menuItems.push({ icon: '🍳', label: t('actions.newItem'), action: () => addRecipeMenuItem(item.cookbookID, id, false) });
+                            menuItems.push({ icon: '🍳', label: t('actions.newPromptRef'), action: () => addRecipeMenuItem(item.cookbookID, id, false) });
                             menuItems.push({ divider: true });
                         }
                     }
