@@ -529,6 +529,8 @@ struct TextLogDetailView: View {
         let notification = LogNotificationProvider.createReminderNotification(
             entryId: entryID,
             title: editTitle,
+            category: entry.category,
+            bodyPreview: entry.text,
             reminderDate: reminderDate
         )
         AILONotificationService.shared.scheduleAt(notification)
