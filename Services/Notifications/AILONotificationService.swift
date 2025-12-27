@@ -159,16 +159,31 @@ public final class AILONotificationService: NSObject {
 
     /// Schedule a notification for a specific date/time (for reminders)
     public func scheduleAt(_ notification: AILONotification) {
+        print("🔔 [ScheduleAt] ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+        print("🔔 [ScheduleAt] Called with:")
+        print("🔔 [ScheduleAt]   ID: \(notification.id)")
+        print("🔔 [ScheduleAt]   Category: \(notification.category.rawValue)")
+        print("🔔 [ScheduleAt]   Title: \(notification.title)")
+        print("🔔 [ScheduleAt]   Body: \(notification.body)")
+        print("🔔 [ScheduleAt]   ScheduledDate: \(String(describing: notification.scheduledDate))")
+        print("🔔 [ScheduleAt]   DeepLink userInfo: \(notification.deepLink.userInfo)")
+        print("🔔 [ScheduleAt] ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+
         guard let scheduledDate = notification.scheduledDate else {
-            print("🔔 [Notification] ❌ No scheduledDate for timed notification")
+            print("🔔 [ScheduleAt] ❌ ABORT: No scheduledDate provided")
             return
         }
 
         // Don't schedule notifications in the past
-        guard scheduledDate > Date() else {
-            print("🔔 [Notification] ⚠️ Skipping past reminder: \(scheduledDate)")
+        let now = Date()
+        guard scheduledDate > now else {
+            print("🔔 [ScheduleAt] ⚠️ ABORT: Date is in the past")
+            print("🔔 [ScheduleAt]   Now: \(now)")
+            print("🔔 [ScheduleAt]   ScheduledDate: \(scheduledDate)")
             return
         }
+
+        print("🔔 [ScheduleAt] ✓ Date is valid (in the future)")
 
         let content = UNMutableNotificationContent()
         content.title = notification.title
@@ -196,17 +211,25 @@ public final class AILONotificationService: NSObject {
         )
         let trigger = UNCalendarNotificationTrigger(dateMatching: components, repeats: false)
 
+        print("🔔 [ScheduleAt] Trigger components: \(components)")
+        print("🔔 [ScheduleAt] Trigger nextTriggerDate: \(String(describing: trigger.nextTriggerDate()))")
+
         let request = UNNotificationRequest(
             identifier: notification.id,
             content: content,
             trigger: trigger
         )
 
+        print("🔔 [ScheduleAt] Adding request to UNUserNotificationCenter...")
+
         center.add(request) { error in
             if let error = error {
-                print("🔔 [Notification] ❌ Failed to schedule timed: \(error)")
+                print("🔔 [ScheduleAt] ❌ FAILED to add request: \(error)")
+                print("🔔 [ScheduleAt] Error details: \(error.localizedDescription)")
             } else {
-                print("🔔 [Notification] ✅ Scheduled for \(scheduledDate): \(notification.title)")
+                print("🔔 [ScheduleAt] ✅ SUCCESS - Request added!")
+                print("🔔 [ScheduleAt]   ID: \(notification.id)")
+                print("🔔 [ScheduleAt]   Scheduled for: \(scheduledDate)")
             }
         }
     }
@@ -262,6 +285,37 @@ public final class AILONotificationService: NSObject {
         center.removeAllDeliveredNotifications()
         clearBadge()
         print("🔔 [Notification] All notifications removed")
+    }
+
+    // MARK: - Debug
+
+    /// Debug method to list all pending notifications
+    public func debugListPendingNotifications() {
+        print("🔔 [Debug] ━━━━━━ PENDING NOTIFICATIONS ━━━━━━")
+        center.getPendingNotificationRequests { requests in
+            print("🔔 [Debug] Total pending: \(requests.count)")
+
+            if requests.isEmpty {
+                print("🔔 [Debug] (keine pending notifications)")
+            } else {
+                for (index, request) in requests.enumerated() {
+                    print("🔔 [Debug] [\(index + 1)] ID: \(request.identifier)")
+                    print("🔔 [Debug]     Title: \(request.content.title)")
+                    print("🔔 [Debug]     Body: \(request.content.body)")
+                    print("🔔 [Debug]     Category: \(request.content.categoryIdentifier)")
+
+                    if let trigger = request.trigger as? UNCalendarNotificationTrigger {
+                        print("🔔 [Debug]     Trigger: Calendar")
+                        print("🔔 [Debug]     NextFire: \(String(describing: trigger.nextTriggerDate()))")
+                    } else if let trigger = request.trigger as? UNTimeIntervalNotificationTrigger {
+                        print("🔔 [Debug]     Trigger: TimeInterval(\(trigger.timeInterval)s)")
+                    } else {
+                        print("🔔 [Debug]     Trigger: \(String(describing: request.trigger))")
+                    }
+                }
+            }
+            print("🔔 [Debug] ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+        }
     }
 }
 
