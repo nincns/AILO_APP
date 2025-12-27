@@ -964,3 +964,59 @@
 "provider.gmail.note" = "2FA aktivieren und App-Passwort erstellen.";
 "provider.yahoo.note" = "App-Passwort in den Yahoo-Sicherheitseinstellungen erstellen.";
 "provider.icloud.note" = "App-spezifisches Passwort unter appleid.apple.com erstellen.";
+
+/* MARK: - Wizard - General */
+"wizard.mail.title" = "E-Mail einrichten";
+"wizard.step.email" = "E-Mail";
+"wizard.step.credentials" = "Zugangsdaten";
+"wizard.step.test" = "Test";
+"wizard.step.folders" = "Ordner";
+"wizard.finish" = "Fertigstellen";
+"common.next" = "Weiter";
+
+/* Wizard - Step 1: Email */
+"wizard.email.title" = "Deine E-Mail-Adresse";
+"wizard.email.subtitle" = "Gib deine E-Mail-Adresse ein, um zu starten.";
+"wizard.email.label" = "E-Mail-Adresse";
+"wizard.email.providerDetected" = "Einstellungen werden automatisch konfiguriert";
+"wizard.email.quickSelect" = "Beliebte Anbieter";
+
+/* Wizard - Step 2: Credentials */
+"wizard.credentials.title" = "Zugangsdaten";
+"wizard.credentials.subtitle" = "Gib dein Passwort ein, um die Verbindung herzustellen.";
+"wizard.credentials.displayName" = "Anzeigename";
+"wizard.credentials.password" = "Passwort";
+"wizard.credentials.appPassword" = "App-Passwort";
+"wizard.credentials.appPasswordRequired" = "App-Passwort erforderlich";
+"wizard.credentials.createAppPassword" = "App-Passwort erstellen";
+"wizard.credentials.advancedSettings" = "Erweiterte Einstellungen";
+"wizard.credentials.encryption" = "Verschlüsselung";
+
+/* Wizard - Step 3: Test */
+"wizard.test.ready" = "Bereit zum Testen";
+"wizard.test.readySubtitle" = "Prüfe die Verbindung zu deinem E-Mail-Server.";
+"wizard.test.testing" = "Verbindung wird geprüft...";
+"wizard.test.testingSubtitle" = "Bitte warte einen Moment.";
+"wizard.test.success" = "Verbindung erfolgreich!";
+"wizard.test.successSubtitle" = "Dein E-Mail-Konto wurde erfolgreich verbunden.";
+"wizard.test.failed" = "Verbindung fehlgeschlagen";
+"wizard.test.failedSubtitle" = "Bitte überprüfe deine Zugangsdaten.";
+"wizard.test.start" = "Verbindung testen";
+"wizard.test.retry" = "Erneut versuchen";
+"wizard.test.email" = "E-Mail";
+"wizard.test.imap" = "Posteingang (IMAP)";
+"wizard.test.smtp" = "Postausgang (SMTP)";
+"wizard.test.errorTitle" = "Fehlerdetails";
+
+/* Wizard - Step 4: Folders */
+"wizard.folders.title" = "Ordner zuweisen";
+"wizard.folders.subtitle" = "Weise die erkannten Ordner den Systemfunktionen zu.";
+"wizard.folders.inbox" = "Posteingang";
+"wizard.folders.sent" = "Gesendet";
+"wizard.folders.drafts" = "Entwürfe";
+"wizard.folders.trash" = "Papierkorb";
+"wizard.folders.spam" = "Spam";
+"wizard.folders.none" = "— Nicht zugewiesen —";
+"wizard.folders.discovered" = "Gefundene Ordner";
+"wizard.folders.ready" = "Alles bereit!";
+"wizard.folders.readySubtitle" = "Klicke auf Fertigstellen, um dein Konto zu speichern.";

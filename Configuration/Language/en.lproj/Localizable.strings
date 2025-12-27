@@ -1005,3 +1005,59 @@
 "provider.gmail.note" = "Enable 2FA and create an App Password.";
 "provider.yahoo.note" = "Create an App Password in Yahoo security settings.";
 "provider.icloud.note" = "Create an app-specific password at appleid.apple.com.";
+
+/* MARK: - Wizard - General */
+"wizard.mail.title" = "Set up Email";
+"wizard.step.email" = "Email";
+"wizard.step.credentials" = "Credentials";
+"wizard.step.test" = "Test";
+"wizard.step.folders" = "Folders";
+"wizard.finish" = "Finish";
+"common.next" = "Next";
+
+/* Wizard - Step 1: Email */
+"wizard.email.title" = "Your Email Address";
+"wizard.email.subtitle" = "Enter your email address to get started.";
+"wizard.email.label" = "Email Address";
+"wizard.email.providerDetected" = "Settings will be configured automatically";
+"wizard.email.quickSelect" = "Popular Providers";
+
+/* Wizard - Step 2: Credentials */
+"wizard.credentials.title" = "Credentials";
+"wizard.credentials.subtitle" = "Enter your password to establish the connection.";
+"wizard.credentials.displayName" = "Display Name";
+"wizard.credentials.password" = "Password";
+"wizard.credentials.appPassword" = "App Password";
+"wizard.credentials.appPasswordRequired" = "App Password Required";
+"wizard.credentials.createAppPassword" = "Create App Password";
+"wizard.credentials.advancedSettings" = "Advanced Settings";
+"wizard.credentials.encryption" = "Encryption";
+
+/* Wizard - Step 3: Test */
+"wizard.test.ready" = "Ready to Test";
+"wizard.test.readySubtitle" = "Check the connection to your email server.";
+"wizard.test.testing" = "Testing Connection...";
+"wizard.test.testingSubtitle" = "Please wait a moment.";
+"wizard.test.success" = "Connection Successful!";
+"wizard.test.successSubtitle" = "Your email account has been connected.";
+"wizard.test.failed" = "Connection Failed";
+"wizard.test.failedSubtitle" = "Please check your credentials.";
+"wizard.test.start" = "Test Connection";
+"wizard.test.retry" = "Try Again";
+"wizard.test.email" = "Email";
+"wizard.test.imap" = "Incoming (IMAP)";
+"wizard.test.smtp" = "Outgoing (SMTP)";
+"wizard.test.errorTitle" = "Error Details";
+
+/* Wizard - Step 4: Folders */
+"wizard.folders.title" = "Assign Folders";
+"wizard.folders.subtitle" = "Assign discovered folders to system functions.";
+"wizard.folders.inbox" = "Inbox";
+"wizard.folders.sent" = "Sent";
+"wizard.folders.drafts" = "Drafts";
+"wizard.folders.trash" = "Trash";
+"wizard.folders.spam" = "Spam";
+"wizard.folders.none" = "— Not Assigned —";
+"wizard.folders.discovered" = "Discovered Folders";
+"wizard.folders.ready" = "All Set!";
+"wizard.folders.readySubtitle" = "Click Finish to save your account.";
