@@ -223,6 +223,7 @@
 /* MARK: - Assistant */
 "config.assistant.title" = "Einrichtungsassistent";
 "config.assistant.subtitle" = "Hilfe bei der Konfiguration von E-Mail, KI und mehr";
+"config.assistant.showOnStartup" = "Assistent beim Start aufrufen";
 
 /* MARK: - Sections */
 "config.section.categories" = "Kategorien";

@@ -301,6 +301,7 @@
 /* MARK: - Assistant */
 "config.assistant.title" = "Setup Assistant";
 "config.assistant.subtitle" = "Help with configuring email, AI, and more";
+"config.assistant.showOnStartup" = "Show assistant on startup";
 
 /* MARK: - Sections */
 "config.section.categories" = "Categories";

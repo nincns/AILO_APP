@@ -15,6 +15,7 @@ private enum K {
 struct ConfigView: View {
     // MARK: – Assistant
     @State private var showAssistant: Bool = false
+    @AppStorage("showAssistantOnStartup") private var showAssistantOnStartup: Bool = true
 
     // MARK: – Kategorien
     @State private var categories: [String] = []
@@ -81,6 +82,8 @@ struct ConfigView: View {
                         }
                         .padding(.vertical, 8)
                     }
+
+                    Toggle("config.assistant.showOnStartup", isOn: $showAssistantOnStartup)
                 }
 
                 // MARK: Kategorien

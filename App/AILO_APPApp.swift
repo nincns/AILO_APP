@@ -72,7 +72,9 @@ struct MainView: View {
 
     // First-Run Assistant
     @AppStorage("hasCompletedFirstRun") private var hasCompletedFirstRun: Bool = false
+    @AppStorage("showAssistantOnStartup") private var showAssistantOnStartup: Bool = true
     @State private var showFirstRunAssistant: Bool = false
+    @State private var showNoAccountsAssistant: Bool = false
 
     init(pendingImportFileURL: Binding<URL?> = .constant(nil)) {
         self._pendingImportFileURL = pendingImportFileURL
@@ -137,12 +139,20 @@ struct MainView: View {
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
                     showFirstRunAssistant = true
                 }
+            } else if showAssistantOnStartup && !hasMailAccounts() {
+                // Show assistant if enabled and no mail accounts exist
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                    showNoAccountsAssistant = true
+                }
             }
         }
         .sheet(isPresented: $showFirstRunAssistant, onDismiss: {
             hasCompletedFirstRun = true
         }) {
             AssistantView(isFirstRun: true)
+        }
+        .sheet(isPresented: $showNoAccountsAssistant) {
+            AssistantView()
         }
         .onChange(of: pendingImportFileURL) { _, newURL in
             if newURL != nil {
@@ -159,6 +169,17 @@ struct MainView: View {
             guard let deepLink = notification.userInfo?["deepLink"] as? AILONotification.DeepLink else { return }
             handleDeepLink(deepLink)
         }
+    }
+
+    // MARK: - Helpers
+
+    /// Checks if any mail accounts are configured
+    private func hasMailAccounts() -> Bool {
+        guard let data = UserDefaults.standard.data(forKey: "mail.accounts"),
+              let accounts = try? JSONDecoder().decode([MailAccountConfig].self, from: data) else {
+            return false
+        }
+        return !accounts.isEmpty
     }
 
     // MARK: - Deep Link Navigation
