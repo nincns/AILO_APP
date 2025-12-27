@@ -1024,3 +1024,4 @@
 "wizard.folders.discovered" = "Gefundene Ordner";
 "wizard.folders.ready" = "Alles bereit!";
 "wizard.folders.readySubtitle" = "Klicke auf Fertigstellen, um dein Konto zu speichern.";
+"wizard.folders.refresh" = "Ordner neu laden";

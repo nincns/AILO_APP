@@ -1,5 +1,5 @@
 // Views/Assistant/Modules/MailSetup/MailSetupSteps/StepConnectionTest.swift
-// AILO - Wizard Step 3: Connection Test
+// AILO - Wizard Step 3: Connection Test (Produktive Implementierung)
 
 import SwiftUI
 
@@ -49,14 +49,14 @@ struct StepConnectionTest: View {
                         icon: "arrow.down.circle",
                         label: "wizard.test.imap",
                         value: "\(state.effectiveImapHost):\(state.effectiveImapPort)",
-                        status: state.isTestingConnection ? .testing : testResultStatus
+                        status: state.isTestingConnection ? .testing : (state.imapTestPassed ? .success : (state.connectionTestResult != nil ? .failure : nil))
                     )
 
                     ConnectionDetailRow(
                         icon: "arrow.up.circle",
                         label: "wizard.test.smtp",
                         value: "\(state.effectiveSmtpHost):\(state.effectiveSmtpPort)",
-                        status: state.isTestingConnection ? .testing : testResultStatus
+                        status: state.isTestingConnection ? .testing : (state.smtpTestPassed ? .success : (state.connectionTestResult != nil ? .failure : nil))
                     )
                 }
                 .padding()
@@ -77,7 +77,13 @@ struct StepConnectionTest: View {
                     }
                 } label: {
                     HStack {
-                        Image(systemName: state.connectionTestResult == nil ? "play.fill" : "arrow.clockwise")
+                        if state.isTestingConnection {
+                            ProgressView()
+                                .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                                .scaleEffect(0.8)
+                        } else {
+                            Image(systemName: state.connectionTestResult == nil ? "play.fill" : "arrow.clockwise")
+                        }
                         Text(state.connectionTestResult == nil ? "wizard.test.start" : "wizard.test.retry")
                     }
                     .font(.headline)
@@ -141,53 +147,162 @@ struct StepConnectionTest: View {
         }
     }
 
-    private var testResultStatus: ConnectionStatus? {
-        switch state.connectionTestResult {
-        case .success: return .success
-        case .failure: return .failure
-        case nil: return nil
-        }
-    }
-
-    // MARK: - Connection Test
+    // MARK: - Connection Test (PRODUKTIV)
 
     private func runConnectionTest() async {
         state.isTestingConnection = true
         state.connectionTestResult = nil
+        state.imapTestPassed = false
+        state.smtpTestPassed = false
 
-        // Simuliere Test (TODO: echten MailSendReceive.testConnection nutzen)
-        do {
-            try await Task.sleep(nanoseconds: 2_000_000_000)
+        // MailAccountConfig aus State bauen
+        let config = state.buildMailAccountConfig()
 
-            // TODO: Echten Test durchführen
-            // let service = MailSendReceive()
-            // let config = buildMailAccountConfig()
-            // let result = await service.testConnection(cfg: config)
+        print("🔌 [Wizard] Starting connection test...")
+        print("🔌 [Wizard] IMAP: \(config.recvHost):\(config.recvPort)")
+        print("🔌 [Wizard] SMTP: \(config.smtpHost):\(config.smtpPort)")
 
-            // Simulated success for now
+        // MailSendReceive für echten Test nutzen
+        let service = MailSendReceive()
+        let result = await service.testConnection(cfg: config)
+
+        switch result {
+        case .success:
+            print("✅ [Wizard] Connection test successful!")
+            state.imapTestPassed = true
+            state.smtpTestPassed = true
             state.connectionTestResult = .success
 
-            // Ordner laden nach erfolgreichem Test
-            await discoverFolders()
+            // Nach erfolgreichem Test: Ordner discovern
+            await discoverFolders(config: config)
 
-        } catch {
+        case .failure(let error):
+            print("❌ [Wizard] Connection test failed: \(error.localizedDescription)")
             state.connectionTestResult = .failure(error.localizedDescription)
         }
 
         state.isTestingConnection = false
     }
 
-    private func discoverFolders() async {
-        // TODO: FolderDiscoveryService nutzen
-        // Simulierte Ordnerliste
-        state.discoveredFolders = ["INBOX", "Sent", "Drafts", "Trash", "Spam", "Archive"]
+    // MARK: - Folder Discovery (PRODUKTIV)
 
-        // Auto-assign bekannte Ordner
+    private func discoverFolders(config: MailAccountConfig) async {
+        print("📁 [Wizard] Starting folder discovery...")
+
+        // FolderDiscoveryService nutzen
+        let login = FolderDiscoveryService.IMAPLogin(
+            host: config.recvHost,
+            port: config.recvPort,
+            useTLS: config.recvEncryption == .sslTLS,
+            sniHost: config.recvHost,
+            username: config.recvUsername,
+            password: config.recvPassword ?? "",
+            connectionTimeoutSec: config.connectionTimeoutSec,
+            commandTimeoutSec: max(5, config.connectionTimeoutSec / 2),
+            idleTimeoutSec: 10
+        )
+
+        // Detaillierte Ordnerliste abrufen
+        let listResult = await FolderDiscoveryService.shared.listFoldersDetailed(
+            accountId: state.accountId,
+            login: login
+        )
+
+        switch listResult {
+        case .success(let folders):
+            print("✅ [Wizard] Discovered \(folders.count) folders")
+            state.discoveredFolders = folders.map { $0.name }
+
+            // Special-Use Discovery für automatische Zuordnung
+            let discoveryResult = await FolderDiscoveryService.shared.discover(
+                accountId: state.accountId,
+                login: login
+            )
+
+            switch discoveryResult {
+            case .success(let folderMap):
+                print("✅ [Wizard] Auto-mapped folders: inbox=\(folderMap.inbox), sent=\(folderMap.sent)")
+                state.folderInbox = folderMap.inbox
+                state.folderSent = folderMap.sent
+                state.folderDrafts = folderMap.drafts
+                state.folderTrash = folderMap.trash
+                state.folderSpam = folderMap.spam
+
+            case .failure(let error):
+                print("⚠️ [Wizard] Auto-mapping failed, using defaults: \(error)")
+                applyDefaultFolderMapping()
+            }
+
+        case .failure(let error):
+            print("⚠️ [Wizard] Folder list failed: \(error)")
+            // Fallback: Bekannte Provider-Ordner
+            applyProviderFolderDefaults()
+        }
+    }
+
+    private func applyDefaultFolderMapping() {
         state.folderInbox = "INBOX"
-        if state.discoveredFolders.contains("Sent") { state.folderSent = "Sent" }
-        if state.discoveredFolders.contains("Drafts") { state.folderDrafts = "Drafts" }
-        if state.discoveredFolders.contains("Trash") { state.folderTrash = "Trash" }
-        if state.discoveredFolders.contains("Spam") { state.folderSpam = "Spam" }
+
+        // Versuche bekannte Ordnernamen zu matchen
+        // Sent
+        if let sent = state.discoveredFolders.first(where: {
+            ["sent", "sent items", "sent mail", "gesendet", "[gmail]/sent mail"].contains($0.lowercased())
+        }) {
+            state.folderSent = sent
+        }
+
+        // Drafts
+        if let drafts = state.discoveredFolders.first(where: {
+            ["drafts", "draft", "entwürfe", "[gmail]/drafts"].contains($0.lowercased())
+        }) {
+            state.folderDrafts = drafts
+        }
+
+        // Trash
+        if let trash = state.discoveredFolders.first(where: {
+            ["trash", "deleted", "deleted items", "papierkorb", "[gmail]/trash"].contains($0.lowercased())
+        }) {
+            state.folderTrash = trash
+        }
+
+        // Spam
+        if let spam = state.discoveredFolders.first(where: {
+            ["spam", "junk", "junk email", "[gmail]/spam"].contains($0.lowercased())
+        }) {
+            state.folderSpam = spam
+        }
+    }
+
+    private func applyProviderFolderDefaults() {
+        // Fallback basierend auf Provider
+        if let provider = state.detectedProvider {
+            switch provider.id {
+            case "gmail":
+                state.discoveredFolders = ["INBOX", "[Gmail]/Sent Mail", "[Gmail]/Drafts", "[Gmail]/Trash", "[Gmail]/Spam"]
+                state.folderInbox = "INBOX"
+                state.folderSent = "[Gmail]/Sent Mail"
+                state.folderDrafts = "[Gmail]/Drafts"
+                state.folderTrash = "[Gmail]/Trash"
+                state.folderSpam = "[Gmail]/Spam"
+            case "outlook":
+                state.discoveredFolders = ["INBOX", "Sent Items", "Drafts", "Deleted Items", "Junk Email"]
+                state.folderInbox = "INBOX"
+                state.folderSent = "Sent Items"
+                state.folderDrafts = "Drafts"
+                state.folderTrash = "Deleted Items"
+                state.folderSpam = "Junk Email"
+            default:
+                state.discoveredFolders = ["INBOX", "Sent", "Drafts", "Trash", "Spam"]
+                state.folderInbox = "INBOX"
+                state.folderSent = "Sent"
+                state.folderDrafts = "Drafts"
+                state.folderTrash = "Trash"
+                state.folderSpam = "Spam"
+            }
+        } else {
+            state.discoveredFolders = ["INBOX", "Sent", "Drafts", "Trash", "Spam"]
+            applyDefaultFolderMapping()
+        }
     }
 }
 
@@ -276,6 +391,7 @@ private struct ErrorMessageView: View {
             .environmentObject({
                 let state = MailSetupState()
                 state.email = "test@gmail.com"
+                state.password = "test123"
                 state.detectedProvider = EmailProviderDatabase.gmail
                 return state
             }())

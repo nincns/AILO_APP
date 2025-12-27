@@ -1,10 +1,11 @@
 // Views/Assistant/Modules/MailSetup/MailSetupSteps/StepFolders.swift
-// AILO - Wizard Step 4: Folder Assignment
+// AILO - Wizard Step 4: Folder Assignment (Produktive Implementierung)
 
 import SwiftUI
 
 struct StepFolders: View {
     @EnvironmentObject var state: MailSetupState
+    @State private var isRefreshing: Bool = false
 
     var body: some View {
         ScrollView {
@@ -31,7 +32,8 @@ struct StepFolders: View {
                         icon: "tray.fill",
                         label: "wizard.folders.inbox",
                         selection: $state.folderInbox,
-                        options: state.discoveredFolders
+                        options: state.discoveredFolders,
+                        isRequired: true
                     )
 
                     Divider().padding(.leading, 52)
@@ -74,6 +76,28 @@ struct StepFolders: View {
                 .clipShape(RoundedRectangle(cornerRadius: 16))
                 .padding(.horizontal)
 
+                // Refresh Button
+                Button {
+                    Task {
+                        await refreshFolders()
+                    }
+                } label: {
+                    HStack {
+                        if isRefreshing {
+                            ProgressView()
+                                .progressViewStyle(CircularProgressViewStyle())
+                                .scaleEffect(0.8)
+                        } else {
+                            Image(systemName: "arrow.clockwise")
+                        }
+                        Text("wizard.folders.refresh")
+                    }
+                    .font(.subheadline)
+                    .foregroundStyle(.teal)
+                }
+                .disabled(isRefreshing)
+                .padding(.horizontal)
+
                 // Discovered Folders Info
                 if !state.discoveredFolders.isEmpty {
                     DiscoveredFoldersInfo(folders: state.discoveredFolders)
@@ -104,6 +128,40 @@ struct StepFolders: View {
             }
         }
     }
+
+    // MARK: - Refresh Folders
+
+    private func refreshFolders() async {
+        isRefreshing = true
+
+        let config = state.buildMailAccountConfig()
+
+        let login = FolderDiscoveryService.IMAPLogin(
+            host: config.recvHost,
+            port: config.recvPort,
+            useTLS: config.recvEncryption == .sslTLS,
+            sniHost: config.recvHost,
+            username: config.recvUsername,
+            password: config.recvPassword ?? "",
+            connectionTimeoutSec: config.connectionTimeoutSec,
+            commandTimeoutSec: max(5, config.connectionTimeoutSec / 2),
+            idleTimeoutSec: 10
+        )
+
+        let result = await FolderDiscoveryService.shared.listFoldersDetailed(
+            accountId: state.accountId,
+            login: login
+        )
+
+        switch result {
+        case .success(let folders):
+            state.discoveredFolders = folders.map { $0.name }
+        case .failure(let error):
+            print("⚠️ Folder refresh failed: \(error)")
+        }
+
+        isRefreshing = false
+    }
 }
 
 // MARK: - Folder Picker Row
@@ -113,6 +171,7 @@ private struct FolderPickerRow: View {
     let label: LocalizedStringKey
     @Binding var selection: String
     let options: [String]
+    var isRequired: Bool = false
 
     var body: some View {
         HStack {
@@ -120,13 +179,23 @@ private struct FolderPickerRow: View {
                 .foregroundStyle(.teal)
                 .frame(width: 28)
 
-            Text(label)
-                .font(.subheadline)
+            HStack(spacing: 4) {
+                Text(label)
+                    .font(.subheadline)
+
+                if isRequired {
+                    Text("*")
+                        .foregroundStyle(.red)
+                        .font(.caption)
+                }
+            }
 
             Spacer()
 
             Picker("", selection: $selection) {
-                Text("wizard.folders.none").tag("")
+                if !isRequired {
+                    Text("wizard.folders.none").tag("")
+                }
                 ForEach(options, id: \.self) { folder in
                     Text(folder).tag(folder)
                 }
@@ -149,7 +218,7 @@ private struct DiscoveredFoldersInfo: View {
             VStack(alignment: .leading, spacing: 8) {
                 ForEach(folders, id: \.self) { folder in
                     HStack {
-                        Image(systemName: "folder")
+                        Image(systemName: folderIcon(for: folder))
                             .foregroundStyle(.secondary)
                             .font(.caption)
 
@@ -178,6 +247,17 @@ private struct DiscoveredFoldersInfo: View {
         .padding()
         .background(Color(.systemGray6))
         .clipShape(RoundedRectangle(cornerRadius: 12))
+    }
+
+    private func folderIcon(for folder: String) -> String {
+        let lower = folder.lowercased()
+        if lower == "inbox" { return "tray.fill" }
+        if lower.contains("sent") { return "paperplane.fill" }
+        if lower.contains("draft") { return "doc.fill" }
+        if lower.contains("trash") || lower.contains("deleted") { return "trash.fill" }
+        if lower.contains("spam") || lower.contains("junk") { return "xmark.bin.fill" }
+        if lower.contains("archive") { return "archivebox.fill" }
+        return "folder"
     }
 }
 

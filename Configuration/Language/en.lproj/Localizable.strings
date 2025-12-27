@@ -1065,3 +1065,4 @@
 "wizard.folders.discovered" = "Discovered Folders";
 "wizard.folders.ready" = "All Set!";
 "wizard.folders.readySubtitle" = "Click Finish to save your account.";
+"wizard.folders.refresh" = "Refresh folders";
