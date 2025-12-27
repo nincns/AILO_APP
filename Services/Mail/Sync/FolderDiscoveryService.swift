@@ -346,8 +346,24 @@ public final class FolderDiscoveryService {
     }
 
     private func mapSpecialUse(from folderNames: [String], rawListLines: [String]) -> FolderMap {
+        print("📁 [Discovery] ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+        print("📁 [Discovery] Mapping \(folderNames.count) folders")
+        print("📁 [Discovery] Folders: \(folderNames)")
+
+        // Log alle SPECIAL-USE Flags aus den Raw-Lines
+        for line in rawListLines {
+            if line.contains("\\Sent") || line.contains("\\Drafts") ||
+               line.contains("\\Trash") || line.contains("\\Junk") ||
+               line.contains("\\sent") || line.contains("\\drafts") ||
+               line.contains("\\trash") || line.contains("\\junk") {
+                print("📁 [Discovery] SPECIAL-USE: \(line)")
+            }
+        }
+
         func containsAttr(_ line: String, attr: String) -> Bool {
-            line.lowercased().contains("\\\(attr)".lowercased())
+            // RFC 6154: Flags sind case-insensitive und beginnen mit Backslash
+            let lineLower = line.lowercased()
+            return lineLower.contains("\\\(attr.lowercased())")
         }
 
         func pick(byAttributes attrs: [String]) -> String? {
@@ -361,12 +377,21 @@ public final class FolderDiscoveryService {
             return nil
         }
 
-        // Prefer explicit SPECIAL-USE attributes
+        // Prefer explicit SPECIAL-USE attributes (RFC 6154 compliant flags only)
         let inbox = folderNames.first(where: { $0.uppercased() == "INBOX" }) ?? "INBOX"
-        let sent  = pick(byAttributes: ["Sent", "SentMail", "SentItems"]) ?? firstMatching(folderNames, patterns: sentNames)
+        let sent   = pick(byAttributes: ["Sent"]) ?? firstMatching(folderNames, patterns: sentNames)
         let drafts = pick(byAttributes: ["Drafts"]) ?? firstMatching(folderNames, patterns: draftNames)
-        let trash = pick(byAttributes: ["Trash", "Deleted"]) ?? firstMatching(folderNames, patterns: trashNames)
-        let spam  = pick(byAttributes: ["Junk", "Spam"]) ?? firstMatching(folderNames, patterns: spamNames)
+        let trash  = pick(byAttributes: ["Trash"]) ?? firstMatching(folderNames, patterns: trashNames)
+        let spam   = pick(byAttributes: ["Junk"]) ?? firstMatching(folderNames, patterns: spamNames)
+
+        // Debug: Ergebnis loggen
+        print("📁 [Discovery] Result:")
+        print("📁 [Discovery]   inbox  = '\(inbox)'")
+        print("📁 [Discovery]   sent   = '\(sent ?? "NOT FOUND")'")
+        print("📁 [Discovery]   drafts = '\(drafts ?? "NOT FOUND")'")
+        print("📁 [Discovery]   trash  = '\(trash ?? "NOT FOUND")'")
+        print("📁 [Discovery]   spam   = '\(spam ?? "NOT FOUND")'")
+        print("📁 [Discovery] ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
 
         return FolderMap(
             inbox: inbox,
@@ -380,28 +405,104 @@ public final class FolderDiscoveryService {
     // MARK: Heuristic dictionaries (multi-language)
 
     private let sentNames: [String] = [
-        "sent", "sent items", "gesendet", "gesendete elemente", "inviati", "enviados", "envoyés", "inviati", "送信済み", "발송됨"
+        // Englisch
+        "sent", "sent items", "sent messages", "sent mail", "outbox",
+        // Deutsch (inkl. Exchange-Varianten)
+        "gesendet", "gesendete elemente", "gesendete objekte", "gesendete nachrichten",
+        // Französisch
+        "envoyés", "éléments envoyés", "messages envoyés",
+        // Spanisch
+        "enviados", "elementos enviados", "mensajes enviados",
+        // Italienisch
+        "inviati", "posta inviata", "elementi inviati",
+        // Asiatisch
+        "送信済み", "발송됨", "已发送"
     ]
 
     private let draftNames: [String] = [
-        "draft", "drafts", "entwürfe", "bozze", "borradores", "brouillons", "下書き", "임시보관함"
+        // Englisch
+        "draft", "drafts",
+        // Deutsch
+        "entwurf", "entwürfe",
+        // Französisch
+        "brouillon", "brouillons",
+        // Spanisch
+        "borrador", "borradores",
+        // Italienisch
+        "bozza", "bozze",
+        // Asiatisch
+        "下書き", "임시보관함", "草稿"
     ]
 
     private let trashNames: [String] = [
-        "trash", "deleted items", "papierkorb", "cestino", "eliminados", "corbeille", "ごみ箱", "휴지통"
+        // Englisch
+        "trash", "deleted", "deleted items", "deleted messages", "bin", "rubbish",
+        // Deutsch (inkl. Exchange-Varianten)
+        "papierkorb", "gelöscht", "gelöschte elemente", "gelöschte objekte", "gelöschte nachrichten",
+        // Französisch
+        "corbeille", "éléments supprimés", "messages supprimés",
+        // Spanisch
+        "papelera", "eliminados", "elementos eliminados",
+        // Italienisch
+        "cestino", "eliminati", "elementi eliminati",
+        // Asiatisch
+        "ごみ箱", "휴지통", "已删除"
     ]
 
     private let spamNames: [String] = [
-        "spam", "junk", "junk e-mail", "unerwünscht", "posta indesiderata", "correo no deseado", "indésirables", "迷惑メール", "스팸"
+        // Englisch
+        "spam", "junk", "junk e-mail", "junk email", "junk mail", "junk-email", "bulk", "bulk mail",
+        // Deutsch (WICHTIG: Mit und ohne Bindestrich!)
+        "junk-e-mail", "unerwünscht", "unerwünschte werbung", "werbung",
+        // Französisch
+        "indésirables", "courrier indésirable", "pourriel",
+        // Spanisch
+        "correo no deseado", "no deseado",
+        // Italienisch
+        "posta indesiderata", "indesiderata",
+        // Asiatisch
+        "迷惑メール", "스팸", "垃圾邮件"
     ]
 
+    /// Findet den ersten Ordner der einem Pattern entspricht (case-insensitive)
+    /// Gibt den ORIGINALEN Ordnernamen zurück (nicht lowercase!)
     private func firstMatching(_ folders: [String], patterns: [String]) -> String? {
-        let lower = folders.map { $0.lowercased() }
-        for p in patterns {
-            if let idx = lower.firstIndex(where: { $0.contains(p) }) {
-                return folders[idx]
+        let patternsLower = patterns.map { $0.lowercased() }
+
+        // 1. Priorität: Exakter Match (case-insensitive)
+        for folder in folders {
+            let folderLower = folder.lowercased()
+            if patternsLower.contains(folderLower) {
+                print("📁 [Discovery] Exact match: '\(folder)' matches pattern")
+                return folder
             }
         }
+
+        // 2. Priorität: Ordnername enthält Pattern
+        for folder in folders {
+            let folderLower = folder.lowercased()
+            for pattern in patternsLower {
+                if folderLower.contains(pattern) && pattern.count >= 4 {
+                    // Nur Patterns mit min. 4 Zeichen für Substring-Match
+                    print("📁 [Discovery] Substring match: '\(folder)' contains '\(pattern)'")
+                    return folder
+                }
+            }
+        }
+
+        // 3. Priorität: Pattern enthält Ordnername (für kurze Ordnernamen)
+        for folder in folders {
+            let folderLower = folder.lowercased()
+            if folderLower.count >= 4 {
+                for pattern in patternsLower {
+                    if pattern.contains(folderLower) {
+                        print("📁 [Discovery] Reverse match: pattern '\(pattern)' contains '\(folder)'")
+                        return folder
+                    }
+                }
+            }
+        }
+
         return nil
     }
 
