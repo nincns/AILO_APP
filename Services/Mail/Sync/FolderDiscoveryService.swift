@@ -463,10 +463,37 @@ public final class FolderDiscoveryService {
         }
 
         func pick(byAttributes attrs: [String]) -> String? {
-            for l in rawListLines {
-                if attrs.contains(where: { containsAttr(l, attr: $0) }) {
-                    if let quoted = l.split(separator: "\"", omittingEmptySubsequences: false).last {
-                        return String(quoted)
+            for line in rawListLines {
+                if attrs.contains(where: { containsAttr(line, attr: $0) }) {
+                    var name: String? = nil
+
+                    // Methode 1: Quoted name - finde den LETZTEN quoted String
+                    if let lastQuoteEnd = line.lastIndex(of: "\"") {
+                        let beforeLastQuote = line[..<lastQuoteEnd]
+                        if let lastQuoteStart = beforeLastQuote.lastIndex(of: "\"") {
+                            let quotedName = String(line[line.index(after: lastQuoteStart)..<lastQuoteEnd])
+                            if !quotedName.isEmpty && quotedName != "/" && quotedName != "." {
+                                name = quotedName
+                            }
+                        }
+                    }
+
+                    // Methode 2: Unquoted name (letztes Token)
+                    if name == nil {
+                        let tokens = line.split(whereSeparator: \.isWhitespace)
+                        if let lastToken = tokens.last {
+                            let candidate = String(lastToken).trimmingCharacters(in: CharacterSet(charactersIn: "\""))
+                            if !candidate.isEmpty && candidate != "/" && candidate != "." {
+                                name = candidate
+                            }
+                        }
+                    }
+
+                    // UTF-7 dekodieren und zurückgeben
+                    if let rawName = name, !rawName.isEmpty {
+                        let decoded = decodeModifiedUTF7(rawName)
+                        print("📁 [Discovery] pick(\(attrs)): '\(decoded)' (raw: '\(rawName)')")
+                        return decoded
                     }
                 }
             }

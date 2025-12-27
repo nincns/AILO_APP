@@ -286,6 +286,64 @@ public struct IMAPParsers {
         }
     }
 
+    // MARK: - IMAP Modified UTF-7 Decoder (RFC 3501 Section 5.1.3)
+
+    /// Dekodiert IMAP Modified UTF-7 Strings (z.B. "Entw&APw-rfe" → "Entwürfe")
+    public func decodeModifiedUTF7(_ input: String) -> String {
+        var result = ""
+        var i = input.startIndex
+
+        while i < input.endIndex {
+            let char = input[i]
+
+            if char == "&" {
+                if let dashIndex = input[i...].firstIndex(of: "-") {
+                    let base64Start = input.index(after: i)
+
+                    if base64Start == dashIndex {
+                        // "&-" ist ein escaped "&"
+                        result.append("&")
+                    } else {
+                        let base64Str = String(input[base64Start..<dashIndex])
+                        let standardBase64 = base64Str.replacingOccurrences(of: ",", with: "/")
+
+                        let paddedBase64: String
+                        let remainder = standardBase64.count % 4
+                        if remainder > 0 {
+                            paddedBase64 = standardBase64 + String(repeating: "=", count: 4 - remainder)
+                        } else {
+                            paddedBase64 = standardBase64
+                        }
+
+                        if let data = Data(base64Encoded: paddedBase64) {
+                            let utf16 = data.withUnsafeBytes { ptr -> [UInt16] in
+                                let count = data.count / 2
+                                var arr = [UInt16]()
+                                for j in 0..<count {
+                                    let high = UInt16(ptr[j * 2])
+                                    let low = UInt16(ptr[j * 2 + 1])
+                                    arr.append((high << 8) | low)
+                                }
+                                return arr
+                            }
+                            let decoded = String(utf16CodeUnits: utf16, count: utf16.count)
+                            result.append(decoded)
+                        }
+                    }
+                    i = input.index(after: dashIndex)
+                } else {
+                    result.append(char)
+                    i = input.index(after: i)
+                }
+            } else {
+                result.append(char)
+                i = input.index(after: i)
+            }
+        }
+
+        return result
+    }
+
     /// Parse a single LIST/LSUB line into FolderInfo
     public func parseListResponse(_ line: String) throws -> FolderInfo {
         // Example: * LIST (\HasNoChildren \Sent) "/" "Sent Items"
@@ -309,18 +367,36 @@ public struct IMAPParsers {
                 delimiter = nil
             }
         }
-        // Name: prefer last quoted segment
-        let name: String = {
-            if let lastQuoted = trimmed.split(separator: "\"", omittingEmptySubsequences: false).last {
-                let s = String(lastQuoted).trimmingCharacters(in: .whitespacesAndNewlines)
-                if !s.isEmpty { return s }
-            }
-            // Fallback: last whitespace token
-            let fallback = trimmed.split(whereSeparator: \.isWhitespace).last.map(String.init) ?? ""
-            return fallback.trimmingCharacters(in: .whitespacesAndNewlines)
-        }()
 
-        return FolderInfo(attributes: attrs, delimiter: delimiter, name: name)
+        // Name: finde den LETZTEN quoted String korrekt
+        var name: String = ""
+
+        // Methode 1: Quoted name - finde den LETZTEN quoted String
+        if let lastQuoteEnd = trimmed.lastIndex(of: "\"") {
+            let beforeLastQuote = trimmed[..<lastQuoteEnd]
+            if let lastQuoteStart = beforeLastQuote.lastIndex(of: "\"") {
+                let quotedName = String(trimmed[trimmed.index(after: lastQuoteStart)..<lastQuoteEnd])
+                if !quotedName.isEmpty && quotedName != "/" && quotedName != "." && quotedName != "NIL" {
+                    name = quotedName
+                }
+            }
+        }
+
+        // Methode 2: Unquoted name (letztes Token) als Fallback
+        if name.isEmpty {
+            let tokens = trimmed.split(whereSeparator: \.isWhitespace)
+            if let lastToken = tokens.last {
+                let candidate = String(lastToken).trimmingCharacters(in: CharacterSet(charactersIn: "\""))
+                if !candidate.isEmpty && candidate != "/" && candidate != "." && candidate != "NIL" {
+                    name = candidate
+                }
+            }
+        }
+
+        // UTF-7 dekodieren
+        let decodedName = decodeModifiedUTF7(name)
+
+        return FolderInfo(attributes: attrs, delimiter: delimiter, name: decodedName)
     }
 
     // ✅ NEU: PHASE 2 - BODYSTRUCTURE Parser für Attachment-Erkennung
