@@ -334,22 +334,48 @@ struct MailView: View {
     private var accountNameView: some View {
         GeometryReader { geo in
             if let account = mailManager.accounts.first(where: { $0.id == selectedAccountId }) {
-                HStack(spacing: 6) {
-                    Image(systemName: "person.crop.circle.fill")
-                        .foregroundColor(.accentColor)
-                        .font(.title2)
-                    VStack(alignment: .leading, spacing: 1) {
-                        Text(account.displayName)
-                            .font(.subheadline)
-                            .fontWeight(.medium)
-                            .lineLimit(1)
-                        Text(account.emailAddress)
-                            .font(.caption2)
-                            .foregroundStyle(.secondary)
-                            .lineLimit(1)
+                Menu {
+                    // Liste aller Accounts zum schnellen Wechsel
+                    ForEach(mailManager.accounts, id: \.id) { acc in
+                        Button {
+                            self.selectedAccountId = acc.id
+                            withAnimation(.easeInOut(duration: 0.25)) {
+                                self.isMailboxPanelOpen = false
+                            }
+                        } label: {
+                            HStack {
+                                Text(acc.displayName)
+                                if acc.id == selectedAccountId {
+                                    Image(systemName: "checkmark")
+                                }
+                            }
+                        }
                     }
+                } label: {
+                    HStack(spacing: 6) {
+                        Image(systemName: "person.crop.circle.fill")
+                            .foregroundColor(.accentColor)
+                            .font(.title2)
+                        VStack(alignment: .leading, spacing: 1) {
+                            Text(account.displayName)
+                                .font(.subheadline)
+                                .fontWeight(.medium)
+                                .lineLimit(1)
+                            Text(account.emailAddress)
+                                .font(.caption2)
+                                .foregroundStyle(.secondary)
+                                .lineLimit(1)
+                        }
+                        // Dropdown-Indikator
+                        if mailManager.accounts.count > 1 {
+                            Image(systemName: "chevron.down")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                    .frame(width: geo.size.width, alignment: .leading)
                 }
-                .frame(width: geo.size.width, alignment: .leading)
+                .foregroundStyle(.primary)
             }
         }
         .frame(width: UIScreen.main.bounds.width * 0.55, height: 40)
